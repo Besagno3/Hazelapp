@@ -11,6 +11,7 @@ function Probe({ text, active = true }: { text: string; active?: boolean }) {
       <button>Carry on</button>
       <output data-testid="index">{run.progress.index}</output>
       <output data-testid="held">{[...run.held].join(',')}</output>
+      <output data-testid="caps">{String(run.last?.capsLock ?? '')}</output>
     </div>
   );
 }
@@ -48,6 +49,15 @@ describe('useTypingRun (#159 review rounds 2–3)', () => {
     expect(screen.getByTestId('index')).toHaveTextContent('2');
     // The next keyup is ordinary again.
     expect(fireEvent.keyUp(button, { code: 'Space', key: ' ' })).toBe(true);
+  });
+
+  it('Caps Lock is blamed for a letter only (review round 5)', () => {
+    render(<Probe text="!f" />);
+    fireEvent.keyDown(window, { code: 'Digit1', key: '1', modifierCapsLock: true });
+    expect(screen.getByTestId('caps')).toHaveTextContent('false');
+    fireEvent.keyDown(window, { code: 'Digit1', key: '!' });
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'F', modifierCapsLock: true });
+    expect(screen.getByTestId('caps')).toHaveTextContent('true');
   });
 
   it('a key still down when the run ends is let go of', () => {

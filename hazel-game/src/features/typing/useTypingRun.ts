@@ -104,7 +104,8 @@ export function useTypingRun({
       if (event === 'none') return;
       progressRef.current = next;
       setProgress(next);
-      setLast({ event, code: e.code, seq: ++seq.current, capsLock: e.getModifierState?.('CapsLock') === true });
+      // Caps Lock only matters to a letter (round 5: a digit pressed for "!" flashed the Caps key).
+      setLast({ event, code: e.code, seq: ++seq.current, capsLock: /[a-z]/i.test(e.key) && e.getModifierState?.('CapsLock') === true });
       // The last key's sound is the caller's (a lesson chimes, the arena strikes — review round 4: three sounds on one key).
       if (event === 'typed') sfx('select');
       cb.current.onEvent?.(event, next);

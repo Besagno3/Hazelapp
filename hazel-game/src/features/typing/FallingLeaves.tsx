@@ -225,7 +225,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           <span className="font-bold">
             {state.missed}/{LEAVES_TUNING.maxMissed}
           </span>{' '}
-          · {secondsLeft}s
+          · ⏳ {secondsLeft}s
         </span>
       </div>
       <div className="relative h-56 [@media(max-height:700px)]:h-40 rounded-xl bg-gradient-to-b from-sky-300/30 to-amber-200/20 overflow-hidden mb-2" data-testid="leaf-field">

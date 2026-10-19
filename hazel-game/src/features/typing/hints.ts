@@ -52,6 +52,11 @@ export function spellLine(text: string): string {
   return out;
 }
 
+/** A short window (800×600, a small laptop): the keyboard goes without its hands so a line and its buttons stay in view. */
+export function shortWindow(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(max-height: 700px)').matches === true;
+}
+
 /** "the F key", "the space bar", "the right Shift", "the comma key". */
 export function describe(code: string): string {
   const key = KEY_BY_CODE[code];
@@ -69,9 +74,13 @@ export function keyHint(target: string | null, anchors: readonly string[] = [], 
   const key = target ? KEY_BY_CODE[target] : undefined;
   if (!key) return '';
   const hold = anchors.map((a) => KEY_BY_CODE[a]).filter(Boolean);
-  // Punctuation up on a key wants Shift too (review round 4: "!" said only "the 1 key").
-  const shifted = char && !/[a-z]/i.test(char) && charKey(char)?.shift === true;
-  return `Press ${shifted ? `Shift and ${describe(key.code)} (${char})` : describe(key.code)} with your ${key.hand} ${FINGER_WORDS[key.finger]}${
+  // Shift is said when it's wanted and no held Shift already says so (review rounds 4–5): a mark up on its key
+  // ("Shift and the 1 key (!)"), or a capital with the hold off ("Shift and the E key").
+  const shiftHeld = anchors.some((a) => a === 'ShiftLeft' || a === 'ShiftRight');
+  const shifted = !!char && !shiftHeld && charKey(char)?.shift === true;
+  const letter = !!char && /[a-z]/i.test(char);
+  const otherShift = key.hand === 'left' ? 'the right Shift' : 'the left Shift';
+  return `Press ${shifted ? `${otherShift} and ${describe(key.code)}${letter ? '' : ` (${char})`}` : describe(key.code)} with your ${key.hand} ${FINGER_WORDS[key.finger]}${
     hold.length ? `, holding ${hold.map((a) => describe(a.code)).join(' or ')} with your other hand` : ''
   }.`;
 }

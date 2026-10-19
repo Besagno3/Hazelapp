@@ -52,6 +52,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {}) && !solved;
   // The riddle answered wrong (review round 4): the lock stays the way in, and says so.
   const [answeredWrong, setAnsweredWrong] = useState(false);
+  // The sentence is typed and the chest is on its way (round 5: the riddle stayed answerable in the beat).
+  const [typed, setTyped] = useState(false);
   const opening = useRef<number | null>(null);
   useEffect(() => () => window.clearTimeout(opening.current ?? undefined), []);
   function openByLock() {
@@ -61,6 +63,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       return opened === s ? s : { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
     });
     // The chest springs after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    setTyped(true);
     opening.current = window.setTimeout(() => {
       sfx('chest');
       confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true });
@@ -106,6 +109,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       // no glow, no XP, no "ask me another" (15e rounds 2 and 4).
       const now = useSaveStore.getState().save;
       if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
+      // The sentence already opened the chest (round 5): an answer in its beat changes nothing.
+      if (opening.current !== null) return;
       if (!correct) {
         if (target.kind === 'riddle') setMissed(true);
         if (target.kind === 'chest') setAnsweredWrong(true);
@@ -192,7 +197,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             </div>
             {lockShown && (
               <div className="mt-2">
-                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} announce compact />
+                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} announce compact label="The lock's sentence" />
               </div>
             )}
           </div>
@@ -236,6 +241,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         )}
 
         {!lockOpened && question && (
+          <div className={typed ? 'pointer-events-none opacity-60 transition-opacity' : undefined} aria-hidden={typed || undefined}>
           <QuestionCard
             key={question.id}
             question={question}
@@ -268,6 +274,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                   : undefined
             }
           />
+          </div>
         )}
         {!lockOpened && question && missed && (
           <button

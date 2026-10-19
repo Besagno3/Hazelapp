@@ -16,7 +16,8 @@ describe('typing hints (#159 review round 3)', () => {
     expect(keyHint('KeyF', [])).toMatch(/the F key/);
     expect(keyHint('KeyF', ['KeyJ'])).toMatch(/J/);
     // A mark up on its key says Shift (review round 4).
-    expect(keyHint('Digit1', [], '!')).toBe('Press Shift and the 1 key (!) with your left little finger.');
+    expect(keyHint('Digit1', [], '!')).toBe('Press the right Shift and the 1 key (!) with your left little finger.');
+    expect(keyHint('KeyJ', [], 'J')).toBe('Press the left Shift and the J key with your right pointer.');
     expect(keyHint('Digit1', [], '1')).toBe('Press the 1 key with your left little finger.');
     expect(keyHint('KeyE', ['ShiftRight'], 'E')).toBe('Press the E key with your left middle finger, holding the right Shift with your other hand.');
   });

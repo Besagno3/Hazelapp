@@ -60,7 +60,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   // never announced the new line, nor the result that replaced it.
   const stars = result ? typingStars(result.accuracy) : 0;
   const announce = result
-    ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ''}`
+    ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ' You cleared this lesson before — no XP this time.'}`
     : started
       ? `Line ${line + 1} of ${lesson.lines.length}: ${spellLine(lesson.lines[line])}`
       : `${lesson.title}. ${lesson.teaches}`;
@@ -87,7 +87,12 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
           {Math.round(result.accuracy * 100)}% of your keys were right.
           {stars === 3 ? ' A true scribe!' : stars === 2 ? ' Nearly perfect!' : ' Every key you practise gets easier.'}
         </p>
-        {result.paid && <p className="text-sm text-yellow-200 font-semibold">⭐ +{TYPING_LESSON_XP} XP</p>}
+        {result.paid ? (
+          <p className="text-sm text-yellow-200 font-semibold">⭐ +{TYPING_LESSON_XP} XP</p>
+        ) : (
+          // As the desk says it (review round 5).
+          <p className="text-sm text-white/60">You cleared this lesson before — no XP this time.</p>
+        )}
         {result.badge && <p className="text-sm text-amber-300 font-semibold">✍️ You earned the Scribe's Quill badge! Find it on your 📜 Menu.</p>}
         <div className="flex flex-wrap justify-center gap-3 mt-4">
           {onNext && (
@@ -118,9 +123,9 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
           {lesson.lines.length} lines to type.{' '}
           {holdRule
             ? lesson.lines.some((l) => /[A-Z]/.test(l))
-              ? "Keep your other hand on its bump key (F or J) — and for a capital, hold that hand's Shift instead."
-              : 'Keep your other hand on its bump key (F or J) while you type.'
-            : 'The home-row hold is off: type with either hand.'}
+              ? "Press the gold key. Keep your other hand on the blue key (F or J) — and for a capital, hold that hand's Shift instead (it turns blue too)."
+              : 'Press the gold key. Keep your other hand on the blue key (F or J) while you type.'
+            : 'The home-row hold is off: press the gold key with either hand.'}
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <button
@@ -151,7 +156,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
           Line {line + 1} of {lesson.lines.length}
         </span>
       </div>
-      <LineRun key={line} text={lesson.lines[line]} holdRule={holdRule} onDone={lineDone} />
+      <LineRun key={line} text={lesson.lines[line]} holdRule={holdRule} onDone={lineDone} spell label={`Line ${line + 1} of ${lesson.lines.length}`} />
       <button onClick={onBack} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
         ← Back to the lessons
       </button>
@@ -167,10 +172,16 @@ export function LineRun({
   onDone,
   announce = false,
   compact = false,
+  spell = false,
+  label,
 }: {
   text: string;
   holdRule: boolean;
   onDone: (p: TypingProgress) => void;
+  /** A drill line is spelled to a screen reader ("F F F, J J J" — review round 5). */
+  spell?: boolean;
+  /** The name of the focused box ("Line 2 of 5"); "Typing line" when none. */
+  label?: string;
   /** Read the whole line to a screen reader as it appears (a chest's lock, a letter — review round 3); the lessons' own live line does it for them. */
   announce?: boolean;
   /** The keyboard without the hands (a chest's lock, where the riddle below must stay in view). */
@@ -199,15 +210,15 @@ export function LineRun({
     box.current?.focus({ preventScroll: true });
   }, []);
   return (
-    <div ref={box} tabIndex={-1} className="outline-none">
+    <div ref={box} tabIndex={-1} role="group" aria-label={label ?? 'Typing line'} className="outline-none">
       <div className="bg-white/10 rounded-xl px-3 py-4 mb-2">
-        <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} />
+        <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} spoken={spell ? spellLine(text) : undefined} />
       </div>
       {/* Always mounted and always this tall, so a nudge never shoves the keyboard (review round 1); a
           screen reader hears each nudge, and between nudges just the next key's name (round 2: a whole
           sentence a key was forty sentences a line) — the full words are the keyboard's own label. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem] [@media(max-width:639px)]:min-h-[3rem]">
-        {nudge ?? <span className="sr-only">{announce && !run.last ? (primed ? `Type: ${text}.` : '') : run.target ? keyName(run.target) : ''}</span>}
+        {nudge ?? <span className="sr-only">{announce && !run.last ? (primed ? `Type this: ${text}` : '') : run.target ? keyName(run.target) : ''}</span>}
       </p>
       <KeyboardDiagram compact={compact} target={run.target} targetChar={text[run.progress.index] ?? null} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
     </div>

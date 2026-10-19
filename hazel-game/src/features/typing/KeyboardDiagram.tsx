@@ -37,7 +37,11 @@ export function KeyboardDiagram({
   compact?: boolean;
 }) {
   const targetKey = target ? KEY_BY_CODE[target] : undefined;
-  const shifted = targetChar !== null && !/[a-z]/i.test(targetChar) && charKey(targetChar)?.shift === true;
+  // Shift is wanted: for a mark up on its key, or a capital. With the hold on, the blue anchor Shift already says
+  // which hand (round 5: the other Shift lit amber was the one the hold rule rejects); with it off, both light.
+  const shiftAnchored = anchors.some((a) => a === 'ShiftLeft' || a === 'ShiftRight');
+  const shifted = targetChar !== null && charKey(targetChar)?.shift === true;
+  const markUp = shifted && !/[a-z]/i.test(targetChar!);
   const anchorKeys = anchors.map((a) => KEY_BY_CODE[a]).filter(Boolean);
   const anchorHeld = anchors.length === 0 || anchors.some((a) => held.has(a));
   const handsH = compact ? 0 : 58;
@@ -60,9 +64,10 @@ export function KeyboardDiagram({
           const isHeld = held.has(key.code);
           const isWrong = key.code === wrong;
           // A Shift to press with the mark (not the one the other hand already holds as an anchor).
-          const isShiftFor = shifted && !isAnchor && (key.code === 'ShiftLeft' || key.code === 'ShiftRight');
+          // The other hand's Shift, as a touch typist holds it (the typing hand's stays dark).
+          const isShiftFor = shifted && !shiftAnchored && key.hand !== targetKey?.hand && (key.code === 'ShiftLeft' || key.code === 'ShiftRight');
           return (
-            <g key={key.code} transform={`translate(${at} ${r * ROW_H})`}>
+            <g key={key.code} data-code={key.code} transform={`translate(${at} ${r * ROW_H})`}>
               <rect
                 width={w}
                 height={UNIT}
@@ -99,7 +104,7 @@ export function KeyboardDiagram({
                   key.label.length > 1 ? 'text-[6px]' : 'text-[9px]',
                 )}
               >
-                {isTarget && shifted ? key.chars[1] : key.label}
+                {isTarget && markUp ? key.chars[1] : key.label}
               </text>
             </g>
           );

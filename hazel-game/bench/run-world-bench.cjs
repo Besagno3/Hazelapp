@@ -1248,7 +1248,7 @@ async function typing(browser, outDir) {
       await press(page, 'Type the sentence'); // the lock unfolds on asking (review round 1)
       await shot(page, `pangram-${size}`);
       await layoutCheck(page, `${size} pangram lock`, '[data-testid=scribe-lock]');
-      const sentence = (await page.locator('[data-testid=scribe-lock] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+      const sentence = (await page.locator('[data-testid=scribe-lock] [data-line]').getAttribute('data-line'));
       // The hold is on: the other hand's bump key or Shift for each character.
       await page.evaluate(() => {});
       await page.close();
@@ -1299,7 +1299,7 @@ async function typing(browser, outDir) {
     await shot(page, `burst-${size}`);
     if (burst) {
       await layoutCheck(page, `${size} burst`, '▶ Go!');
-      const word = (await page.locator('[data-testid=type-burst] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+      const word = (await page.locator('[data-testid=type-burst] [data-line]').getAttribute('data-line'));
       await typeText(page, word);
       await page.waitForTimeout(300);
       await shot(page, `burst-done-${size}`);
@@ -1348,7 +1348,7 @@ async function typing(browser, outDir) {
       await shot(page, 'song-1024×768');
       if (song) {
         await layoutCheck(page, 'song box', '[data-testid=hush-song]');
-        const line = (await page.locator('[data-testid=hush-song] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+        const line = (await page.locator('[data-testid=hush-song] [data-line]').getAttribute('data-line'));
         await typeText(page, line.slice(0, 8));
         await shot(page, 'song-typing-1024×768');
         await typeText(page, line.slice(8));
@@ -1388,7 +1388,7 @@ async function typing(browser, outDir) {
       await shot(page, 'race-1024×768');
       if (race) {
         await layoutCheck(page, 'race box', '[data-testid=name-race]');
-        const word = (await page.locator('[data-testid=name-race] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+        const word = (await page.locator('[data-testid=name-race] [data-line]').getAttribute('data-line'));
         await typeText(page, word);
         await page.waitForTimeout(1200);
         await shot(page, 'race-won-1024×768');

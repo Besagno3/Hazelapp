@@ -103,8 +103,11 @@ export function stepTyping(p: TypingProgress, press: TypingPress): { next: Typin
   if ([...press.key].length !== 1) return { next: p, event: 'none' };
   // The right letter, the wrong case: Caps Lock, or a capital without Shift.
   if (press.key.toLowerCase() === target.toLowerCase() && press.key !== target) return { next: p, event: 'caps' };
-  // The right key, the wrong Shift ("1" for "!", "/" for "?") — the key the picture lit, so a nudge, never a miss (review round 4).
-  if (charKey(target)?.key.code === press.code) return { next: p, event: 'caps' };
+  // The right key, the wrong Shift ("1" for "!", "/" for "?") — the key the picture lit, so a nudge, never a miss
+  // (review round 4). Only when the key really typed one of that key's two characters (round 5: on another layout
+  // the lit key types something else, and the nudge would have blamed Shift).
+  const lit = charKey(target)?.key;
+  if (lit && lit.code === press.code && lit.chars.includes(press.key)) return { next: p, event: 'caps' };
   return { next: { ...p, misses: p.misses + 1 }, event: 'wrong' };
 }
 

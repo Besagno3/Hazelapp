@@ -760,7 +760,7 @@ const ALL_LETTERS = TYPING_LESSONS.findIndex((l) => l.id === 'bottom-cxz') + 1;
 
 /** Type the burst's word (read off the card: the arena picks it at random). */
 function typeBurstWord() {
-  const word = screen.getByLabelText(/^Type: /).getAttribute('aria-label')!.slice('Type: '.length);
+  const word = screen.getByTestId('type-burst').querySelector('[data-line]')!.getAttribute('data-line')!;
   for (const ch of word) {
     const code = charKey(ch)!.key.code;
     fireEvent.keyDown(window, { code, key: ch });
@@ -962,7 +962,7 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     unlockTyping(true);
     render(<BattleArena />);
     attackAndAnswer();
-    const word = screen.getByLabelText(/^Type: /).getAttribute('aria-label')!.slice('Type: '.length);
+    const word = screen.getByTestId('type-burst').querySelector('[data-line]')!.getAttribute('data-line')!;
     const first = charKey(word[0])!.key.code;
     fireEvent.keyDown(window, { code: first, key: word[0] });
     expect(screen.getByTestId('type-burst')).toHaveTextContent(/Other hand home/);
@@ -1003,7 +1003,7 @@ describe('the bonus scroll after a win (#159 item 3)', () => {
     const coinsAfterWin = useSaveStore.getState().save!.coins;
     const scroll = screen.getByTestId('typing-bonus');
     expect(scroll).toHaveTextContent(`Type your name to claim 🪙 ${TYPING_BONUS_COINS} coins`);
-    expect(screen.getByLabelText('Type: Valor')).toBeInTheDocument();
+    expect(screen.getByText('Type: Valor')).toBeInTheDocument();
     for (const ch of 'Valor') {
       const code = charKey(ch)!.key.code;
       fireEvent.keyDown(window, { code, key: ch });
@@ -1088,7 +1088,7 @@ describe('the name race as a battle opens (#159 item 4)', () => {
     expect(screen.queryByText('Attack')).toBeNull();
     const race = screen.getByTestId('name-race');
     expect(race).toHaveTextContent(/Name it first to strike first/);
-    expect(screen.getByLabelText('Type: count bat')).toBeInTheDocument();
+    expect(screen.getByText('Type: count bat')).toBeInTheDocument();
     vi.useFakeTimers();
     for (const ch of 'count bat') {
       const code = charKey(ch)!.key.code;
@@ -1251,7 +1251,7 @@ describe('the song that breaks the hush (#159 item 6)', () => {
     toTheWindUp();
     const box = screen.getByTestId('hush-song');
     expect(box).toHaveTextContent(/Great Shush — sing to break it!/);
-    expect(screen.getByLabelText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
+    expect(screen.getByText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
     expect(screen.queryByText(/gathering power…/)).toBeNull();
     // A kid who can't type the line can let it come (review round 1) — the button is there with the clock on.
     expect(screen.getByText(/Let it come/)).toBeInTheDocument();

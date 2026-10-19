@@ -95,7 +95,7 @@ describe('the Scriptorium (#159 item 5)', () => {
     expect(screen.getByText('Line 1 of 2')).toBeInTheDocument();
     typeLine('Ice is lighter than the same amount of');
     // The finished line stays a beat, all green, before the next (review round 3); the passage shows the way.
-    expect(screen.getByLabelText('Type: Ice is lighter than the same amount of')).toBeInTheDocument();
+    expect(screen.getByText('Type: Ice is lighter than the same amount of')).toBeInTheDocument();
     expect(screen.getByTestId('passage')).toHaveTextContent('Ice is lighter than the same amount of water, so it floats on top.');
     act(() => {
       vi.advanceTimersByTime(LINE_HOLD_MS + 10);

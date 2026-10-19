@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BURST_MS } from '../../content/typing';
+import { sfx } from '../../lib/audio';
 import { nudgeText, type TypingEvent, type TypingProgress } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
 import { keyName, wrongKey } from '../typing/hints';
@@ -69,10 +70,20 @@ export function TypeBurst({
     setState(done ? 'done' : 'late');
     onResult(done);
   };
-  const run = useTypingRun({ text: word, holdRule, active: state === 'typing', onEvent, onDone: () => settle(true) });
+  const run = useTypingRun({
+    text: word,
+    holdRule,
+    active: state === 'typing',
+    onEvent,
+    // The last key ticks at once (round 5: the race's and the song's strike comes 700 ms later).
+    onDone: () => {
+      sfx('select');
+      settle(true);
+    },
+  });
   const nudge = state === 'typing' && run.last ? nudgeText(run.last.event, run.anchors, word[run.progress.index] ?? '', run.last.capsLock) : null;
   return (
-    <div ref={box} tabIndex={-1} className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3 outline-none" data-testid="type-burst">
+    <div ref={box} tabIndex={-1} role="group" aria-label={label} className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3 outline-none" data-testid="type-burst">
       {timed ? (
         <DefendTimer
           durationMs={durationMs}
@@ -94,7 +105,7 @@ export function TypeBurst({
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
         {/* Before the first key a screen reader hears the whole task (review round 3), then just the next key's name. */}
-        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type: ${word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type this: ${word}` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>
       {/* The keyboard stays once the word is done, dimmed, so the card keeps its height and ▶ Go! doesn't jump (review round 2). */}
       <div className={state === 'typing' ? '' : 'opacity-40'}>

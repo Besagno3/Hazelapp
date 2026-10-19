@@ -17,7 +17,7 @@ describe('TypeBurst (#159 item 2)', () => {
   it('the word typed in time settles once with true, and says so', () => {
     const onResult = vi.fn();
     render(<TypeBurst word="ember" holdRule={false} onResult={onResult} />);
-    expect(screen.getByLabelText('Type: ember')).toBeInTheDocument();
+    expect(screen.getByText('Type: ember')).toBeInTheDocument();
     expect(screen.getByRole('timer')).toHaveAccessibleName(/seconds left to type/);
     type('embe');
     expect(onResult).not.toHaveBeenCalled();
@@ -39,7 +39,8 @@ describe('TypeBurst (#159 item 2)', () => {
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Type: bat.');
+    expect(screen.getByRole('status')).toHaveTextContent('Type this: bat');
+    expect(screen.getByTestId('type-burst')).toHaveAccessibleName(/Scribe's power/);
     act(() => {
       vi.advanceTimersByTime(BURST_MS + 200);
     });

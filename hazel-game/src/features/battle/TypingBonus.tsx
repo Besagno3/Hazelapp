@@ -53,7 +53,17 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
         {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type ${whose}: ${bonus.word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>
-      {!claimed && <KeyboardDiagram compact target={run.target} targetChar={bonus.word[run.progress.index] ?? null} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
+      {/* The keyboard stays once the name is typed, dimmed, so Onward! below doesn't jump (review round 5). */}
+      <div className={claimed ? 'opacity-40' : undefined}>
+        <KeyboardDiagram
+          compact
+          target={claimed ? null : run.target}
+          targetChar={claimed ? null : (bonus.word[run.progress.index] ?? null)}
+          anchors={claimed ? [] : run.anchors}
+          held={run.held}
+          wrong={claimed ? null : wrongKey(run.last)}
+        />
+      </div>
     </div>
   );
 }

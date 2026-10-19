@@ -5,6 +5,7 @@ vi.mock('canvas-confetti', () => ({ default: () => {} }));
 
 const { default: TypingLessons } = await import('./TypingLessons');
 const { useSaveStore } = await import('../../store/saveStore');
+const { spellLine } = await import('./hints');
 const { useProfileStore } = await import('../../store/profileStore');
 const { useKeyboardStore } = await import('../../store/keyboardStore');
 const { defaultSave } = await import('../../lib/save');
@@ -220,7 +221,9 @@ describe('round 1 review fixes (#159)', () => {
     const last = TYPING_LESSONS[TYPING_LESSONS.length - 1];
     fireEvent.click(openLessons()[TYPING_LESSONS.length - 1]);
     fireEvent.click(screen.getByText('⌨️ Start typing'));
-    const p = screen.getByLabelText(`Type: ${last.lines[0]}`);
+    // The line is spoken as spelled (round 5), and its tiles sit in word groups.
+    const p = screen.getByText(`Type: ${spellLine(last.lines[0])}`).closest('p')!;
+    expect(p).toHaveAttribute('data-line', last.lines[0]);
     const groups = Array.from(p.querySelectorAll(':scope > span.whitespace-nowrap'));
     expect(groups.map((g) => g.textContent)).toEqual(last.lines[0].split(/( )/).filter((w) => w !== ''));
   });

@@ -277,17 +277,20 @@ describe("a line in the kid's own hand: pen-pal replies (#159 item 9)", async ()
     fireEvent.click(screen.getByText('✍️ Add a line of my own'));
     expect(screen.getByTestId('pen-pal')).toHaveTextContent(pal.offer);
     fireEvent.click(screen.getByText(`✍️ ${pal.replies[1]}`));
-    expect(screen.getByLabelText(`Type: ${pal.replies[1]}`)).toBeInTheDocument();
+    expect(screen.getByText(`Type: ${pal.replies[1]}`)).toBeInTheDocument();
     // The task is read to a screen reader (review round 4), and "Maybe not" is a step away.
-    await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(`Type: ${pal.replies[1]}.`));
+    await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(`Type this: ${pal.replies[1]}`));
     expect(screen.getByText('Maybe not')).toBeInTheDocument();
     for (const ch of pal.replies[1]) {
       const found = charKey(ch)!;
       fireEvent.keyDown(window, { code: found.key.code, key: ch });
       fireEvent.keyUp(window, { code: found.key.code, key: ch });
     }
-    // The envelope after the line's beat (review round 4): the last key never lands on "Got it!".
+    // The envelope after the line's beat (review round 4): the last key never lands on "Got it!", and the
+    // buttons beside the line are out of reach meanwhile (round 5).
     expect(screen.queryByText('✨ Got it!')).toBeNull();
+    expect(screen.getByText('Maybe not')).toBeDisabled();
+    expect(screen.getByText('Pick another line')).toBeDisabled();
     await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(pal.written));
     const save = useSaveStore.getState().save!;
     expect(save.questItems).toEqual(['sage-letter']);

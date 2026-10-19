@@ -65,9 +65,12 @@ export function DefendTimer({
   }, [left, held]);
 
   const secs = Math.ceil(left / 1000);
+  // The tick is the same blip as a typed key (review round 5): under a typing run the keys are the rhythm,
+  // and the clock keeps to its red pulse.
+  const ticks = what !== 'to type';
   useEffect(() => {
-    if (!held && secs > 0 && secs <= tickAt(durationMs)) sfx('select');
-  }, [secs, held, durationMs]);
+    if (ticks && !held && secs > 0 && secs <= tickAt(durationMs)) sfx('select');
+  }, [secs, held, durationMs, ticks]);
 
   const timedOut = !held && left <= 0;
   const urgent = !held && !timedOut && secs <= urgentAt(durationMs);

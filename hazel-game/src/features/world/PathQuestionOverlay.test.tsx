@@ -182,9 +182,9 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     const lock = screen.getByTestId('scribe-lock');
     const sentence = pangramFor(lockedChest.id);
     // An offer first (review round 1: unfolded, the lock buried the riddle); the sentence on asking.
-    expect(screen.queryByLabelText(`Type: ${sentence}`)).toBeNull();
+    expect(screen.queryByText(`Type: ${sentence}`)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
-    expect(screen.getByLabelText(`Type: ${sentence}`)).toBeInTheDocument();
+    expect(screen.getByText(`Type: ${sentence}`)).toBeInTheDocument();
     // The riddle is still there to answer instead.
     expect(await screen.findByText('Right')).toBeInTheDocument();
     for (const ch of sentence) {
@@ -192,8 +192,11 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
       fireEvent.keyDown(window, { code: found.key.code, key: ch });
       fireEvent.keyUp(window, { code: found.key.code, key: ch });
     }
-    // The chest springs after the line's beat (review round 4): the last key never lands on "Onward!".
+    // The chest springs after the line's beat (review round 4): the last key never lands on "Onward!", and the
+    // riddle answers nothing meanwhile (round 5).
     expect(screen.queryByTestId('scribe-lock-open')).toBeNull();
+    fireEvent.click(screen.getByText('Right'));
+    expect(addXp).not.toHaveBeenCalled();
     await screen.findByTestId('scribe-lock-open');
     expect(lock).not.toBeInTheDocument();
     expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
@@ -246,7 +249,7 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     render(<PathQuestionOverlay target={lockedChest} />);
     fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
     // The lock reads its whole sentence to a screen reader before the first key.
-    await waitFor(() => expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type: ${pangramFor(lockedChest.id)}.`));
+    await waitFor(() => expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type this: ${pangramFor(lockedChest.id)}`));
     fireEvent.click(await screen.findByText('Right'));
     expect(screen.queryByTestId('scribe-lock')).toBeNull();
     const onward = screen.getByRole('button', { name: /pops open/ });

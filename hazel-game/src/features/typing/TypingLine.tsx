@@ -7,7 +7,18 @@ import { cn } from '../../lib/utils';
  * stay whole when the line wraps (review round 1: "jum / p" split a reader's
  * word), and a screen reader hears the whole line.
  */
-export function TypingLine({ progress, shake = false, big = false }: { progress: TypingProgress; shake?: boolean; big?: boolean }) {
+export function TypingLine({
+  progress,
+  shake = false,
+  big = false,
+  spoken,
+}: {
+  progress: TypingProgress;
+  shake?: boolean;
+  big?: boolean;
+  /** How a screen reader should say the line, when not as written (a drill, spelled — review round 5). */
+  spoken?: string;
+}) {
   const chars = [...progress.text];
   // Groups of characters that wrap as one: a word, or a single space.
   const groups: { start: number; chars: string[] }[] = [];
@@ -19,11 +30,13 @@ export function TypingLine({ progress, shake = false, big = false }: { progress:
   return (
     <p
       role="group"
-      // The group's label is the one reading of the line (review round 4: a hidden copy read it twice more); the
-      // big size steps up from `sm` so a twelve-letter foe word fits a 320 px card.
+      // One reading of the line, as hidden text a screen reader can arrow back to (review rounds 4–5: a label on
+      // an otherwise empty group reads once on some readers and not at all on others); the big size steps up
+      // from `sm` so a twelve-letter foe word fits a 320 px card.
       className={cn('flex flex-wrap justify-center gap-y-1 font-mono font-bold leading-none', big ? 'text-xl sm:text-2xl' : 'text-xl', shake && 'hq-shake')}
-      aria-label={`Type: ${progress.text}`}
+      data-line={progress.text}
     >
+      <span className="sr-only">Type: {spoken ?? progress.text}</span>
       {groups.map((g) => (
         <span key={g.start} aria-hidden="true" className="inline-flex whitespace-nowrap">
           {g.chars.map((ch, j) => {

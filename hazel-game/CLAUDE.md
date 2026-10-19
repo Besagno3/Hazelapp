@@ -572,9 +572,15 @@ zod, react-query. Add the package in the same change that first uses it.
   screen reader where no lesson live line does (the chest's lock, the letter)
   and `compact` drops the hands; `spellLine` spells drill lines ("F F F, J J
   J"); `TypeBurst` and `LineRun` take focus as they appear. The right key with
-  the wrong Shift ("1" for "!") is a `caps` nudge, never a miss; the diagram's
-  `targetChar` draws a shifted mark on its lit key (`keyName` lives in
-  `content/typing.ts`).
+  the wrong Shift ("1" for "!") is a `caps` nudge, never a miss (only when the
+  key really typed one of the lit key's characters); the diagram's
+  `targetChar` draws a shifted mark on its lit key and lights the other
+  hand's Shift when no Shift anchor is blue (`keyName` lives in
+  `content/typing.ts`). `TypingLine` reads as hidden text ("Type: …",
+  spelled for a drill via `spoken`) with `data-line` for the bench; the
+  focused boxes are named groups; the live task reads "Type this: …"; a
+  typing clock (`what: 'to type'`) doesn't tick aloud; `shortWindow()`
+  (under 700 px tall) drops the hands on the desk and the letter.
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1048,6 +1054,26 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing review round 5: one Shift, named boxes, a line a reader can find (#159)
+The last of the five rounds. Fresh code (1 medium, 4 low, 2 nits) and UX
+(1 medium, 6 low, 2 nits) reviewers over round 4's screenshots; all fixed.
+- **Code:** round 4 lit the typing hand's Shift for a shifted mark under the
+  hold — the Shift the rule rejects (now the other hand's only, and none when
+  a Shift anchor is blue; a `KeyboardDiagram` test); the wrong-Shift nudge
+  misfired on a non-QWERTY layout; Caps Lock was blamed for a digit; the
+  letter's buttons and the chest's riddle stayed live in their beats; the
+  race's and song's last key was silent; a capital with the hold off had no
+  Shift cue. Both reviewers on the line: it is hidden text again (one
+  reading, navigable), the bench reads `data-line`.
+- **UX:** a replayed lesson says why there's no XP; the bonus scroll's
+  keyboard stays dimmed; a typing clock no longer ticks aloud (the keys are
+  the rhythm); the letter goes compact in a short window (`shortWindow`); the
+  lesson intro names the gold and blue keys; the focused boxes have names;
+  "⏳ 55s"; a drill line is spoken spelled on the line too; the live task
+  reads "Type this: …".
+- Tests: +4 (TC-1508, TC-1509); 1703 green, lint + tsc clean; `bench …
+  typing` rerun.
 
 ### 2026-10-19 — Touch typing review round 4: the mark on its key, every last line lingers (#159)
 The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)

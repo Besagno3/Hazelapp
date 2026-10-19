@@ -146,3 +146,15 @@ describe('punctuation up on a key (review round 4)', () => {
     expect(stepTyping(typedA, { code: 'Digit1', key: '!', held: new Set(['Digit1', 'ShiftLeft']), holdRule: false }).event).toBe('done');
   });
 });
+
+describe('the wrong-Shift nudge on another layout (review round 5)', () => {
+  it('a lit key that typed another character is a miss, not a Shift nudge', () => {
+    const p = startTyping('a');
+    // AZERTY: the physical A key types "q".
+    const azerty = stepTyping(p, { code: 'KeyA', key: 'q', held: new Set(['KeyA']), holdRule: false });
+    expect(azerty.event).toBe('wrong');
+    expect(azerty.next.misses).toBe(1);
+    // QWERTY: the same key with Caps Lock on is the caps nudge, as ever.
+    expect(stepTyping(p, { code: 'KeyA', key: 'A', held: new Set(['KeyA']), holdRule: false }).event).toBe('caps');
+  });
+});

@@ -6,6 +6,7 @@ import { sfx } from '../../lib/audio';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
+import { shortWindow } from './hints';
 import { LineRun } from './TypingLesson';
 import { KeyboardGate } from './TypingLessons';
 
@@ -51,7 +52,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     setActive(null);
   }
   // A short window (800×600): the keyboard without the hands, so the page's line and its Back stay in view (review round 4).
-  const short = typeof window !== 'undefined' && window.matchMedia?.('(max-height: 700px)').matches === true;
+  const short = shortWindow();
 
   function lineDone(p: TypingProgress) {
     const total = { hits: tally.hits + p.hits, misses: tally.misses + p.misses };
@@ -172,7 +173,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
             </span>
           ))}
         </p>
-        <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} compact={short} />
+        <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} compact={short} label={`Line ${line + 1} of ${active.lines.length}`} />
         <button onClick={leave} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
           ← Back to the pages
         </button>

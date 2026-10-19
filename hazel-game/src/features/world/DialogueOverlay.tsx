@@ -11,6 +11,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import { LINE_HOLD_MS, penPalFor, penPalReadLine, penPalReplyFlag, scriptoriumOpen, type PenPal } from '../../content/typing';
 import { LineRun } from '../typing/TypingLesson';
+import { shortWindow } from '../typing/hints';
 import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
@@ -79,6 +80,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // The envelope's beat after the line is typed (review round 4), cleared if the talk closes first.
   const written = useRef<number | null>(null);
   useEffect(() => () => window.clearTimeout(written.current ?? undefined), []);
+  // The line is typed and its envelope is on its way (round 5: the buttons beside it stayed live in the beat).
+  const [sealing, setSealing] = useState(false);
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
@@ -187,8 +190,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       return { ...done, flags: { ...done.flags, [flag]: true } };
     });
     // The envelope after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    setSealing(true);
     written.current = window.setTimeout(() => {
       sfx('chest');
+      setSealing(false);
       setWriting('done');
     }, LINE_HOLD_MS);
   }
@@ -225,13 +230,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {typeof writing === 'number' && (
             <>
               <p className="text-xs text-white/70 mb-2">Type your line, every letter and dot:</p>
-              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} announce />
+              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} announce compact={shortWindow()} label="Your line" />
               <div className="mt-3 flex gap-2">
-                <button onClick={() => setWriting('pick')} className="flex-1 min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
+                <button disabled={sealing} onClick={() => setWriting('pick')} className="flex-1 min-h-11 bg-white/10 hover:bg-white/20 disabled:opacity-50 font-semibold rounded-lg py-2 text-sm">
                   Pick another line
                 </button>
                 {/* A way out from here too (review round 4: it took two steps). */}
-                <button onClick={() => setWriting(null)} className="min-h-11 bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2 text-sm">
+                <button disabled={sealing} onClick={() => setWriting(null)} className="min-h-11 bg-white/15 hover:bg-white/25 disabled:opacity-50 font-semibold rounded-lg px-4 py-2 text-sm">
                   Maybe not
                 </button>
               </div>
