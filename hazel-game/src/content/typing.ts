@@ -10,7 +10,7 @@
  * still right when the right letter comes out. The labels drawn on the
  * on-screen keyboard are QWERTY's (ISSUES #159: other layouts).
  */
-import type { ConsumableId } from './items';
+import { CONSUMABLES, type ConsumableId } from './items';
 
 export type Hand = 'left' | 'right';
 export type Finger = 'pinky' | 'ring' | 'middle' | 'index' | 'thumb';
@@ -396,4 +396,12 @@ export function rollTypingBonus(
   const reward: TypingBonusReward =
     r === 0 ? { kind: 'coins', amount: TYPING_BONUS_COINS } : r === 1 ? { kind: 'xp', amount: TYPING_BONUS_XP } : r === 2 ? { kind: 'item', id: 'potion' } : { kind: 'item', id: 'hint' };
   return { word, who, reward };
+}
+
+/** What a bonus pays, in words: "🪙 15 coins", "⭐ 20 XP", "🧪 a Berry Potion". */
+export function bonusWords(reward: TypingBonusReward): string {
+  if (reward.kind === 'coins') return `🪙 ${reward.amount} coins`;
+  if (reward.kind === 'xp') return `⭐ ${reward.amount} XP`;
+  const item = CONSUMABLES[reward.id];
+  return `${item.emoji} a ${item.name}`;
 }

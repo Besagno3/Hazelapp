@@ -564,6 +564,12 @@ zod, react-query. Add the package in the same change that first uses it.
   Attack hits `SCRIBE_ATTACK_MULT`× (`scribeRef`, read when ▶ Go! resolves
   it) and a block adds `SCRIBE_BLOCK_CHARGE` ◆ at once; too late or ▶ Go!
   first, nothing. Each right key sparks on the hero.
+  **After a win (item 3):** with a keyboard seen, one win in three
+  (`rollTypingBonus`, `TYPING_BONUS_CHANCE`) adds a bonus scroll to the
+  victory panel (`features/battle/TypingBonus.tsx`, through `BattleResult`'s
+  `bonus` / `onClaimBonus`): the hero's, Ember's or the foe's name as it is
+  written, no clock, for coins, XP, a potion or a feather (`claimBonus` in
+  the arena pays it once, at the last key).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -986,6 +992,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing III: the bonus scroll after a win (#159)
+Third of three — the owner's idea: a surprise after random battles.
+- **One won battle in three**, with a real keyboard seen (no lesson needed:
+  the keyboard and hands are drawn, so it teaches on its own), the victory
+  panel adds 📜 A bonus scroll: type the hero's name, Ember's or the foe's
+  — written as it is, so a capital wants the other hand's Shift — for 🪙 15
+  coins, ⭐ 20 XP, a Berry Potion or a Hint Feather. No clock. Onward!
+  without typing is fine.
+- Paid once, at the last key, with the chest sound and confetti
+  (`claimBonus`); `rollTypingBonus` takes its dice, so tests pick.
+- Tests: +5 (`TypingBonus.test`, `BattleArena.test`); lint + tsc clean.
 
 ### 2026-10-19 — Touch typing II: ✍️ scribe bursts in battle (#159)
 Second of three: every keystroke does something, in a fight.

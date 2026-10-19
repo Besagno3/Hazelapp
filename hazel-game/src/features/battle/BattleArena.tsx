@@ -86,7 +86,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, typingUnlocked } from '../../content/typing';
+import { SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, rollTypingBonus, typingUnlocked, type TypingBonus } from '../../content/typing';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -121,7 +121,7 @@ type Turn =
   | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null }
+  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
   | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
@@ -1049,7 +1049,18 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
+    // The bonus scroll (#159 item 3): one win in three, with a keyboard, a name to type for a little extra.
+    const bonus = keyboard ? rollTypingBonus(avatar!.name, enemy!.name) : null;
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus });
+  }
+
+  /** The bonus scroll's name typed (#159 item 3): pay it. `TypingBonus` asks once. */
+  function claimBonus(bonus: TypingBonus) {
+    sfx('chest');
+    burst({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    const r = bonus.reward;
+    if (r.kind === 'xp') void addXp(r.amount);
+    else updateSave((s) => (r.kind === 'coins' ? { ...s, coins: s.coins + r.amount } : { ...s, items: { ...s.items, [r.id]: s.items[r.id] + 1 } }));
   }
 
   function defeat() {
@@ -1409,6 +1420,9 @@ export default function BattleArena() {
             shelter={turn.kind === 'defeat' ? turn.shelter : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             boatLine={turn.kind === 'defeat' ? turn.boatLine : null}
+            bonus={turn.kind === 'victory' ? turn.bonus : null}
+            holdRule={save.typingAnchor}
+            onClaimBonus={claimBonus}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

@@ -743,7 +743,7 @@ describe('starter questions never move the saved skill level (#153 review round 
 
 // --- ✍️ Scribe bursts (#159 item 2) ----------------------------------------------
 const { useKeyboardStore } = await import('../../store/keyboardStore');
-const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, charKey, typingLessonFlag } = await import('../../content/typing');
+const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, anchorsFor, charKey, typingLessonFlag } = await import('../../content/typing');
 
 /** A keyboard seen and the first lesson cleared — the burst's two conditions. */
 function unlockTyping(hold = false) {
@@ -862,5 +862,105 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     const first = charKey(word[0])!.key.code;
     fireEvent.keyDown(window, { code: first, key: word[0] });
     expect(screen.getByTestId('type-burst')).toHaveTextContent(/Other hand home/);
+  });
+});
+
+// --- The bonus scroll (#159 item 3) -----------------------------------------------
+const { TYPING_BONUS_COINS, TYPING_BONUS_XP } = await import('../../content/typing');
+
+/** A critter one Attack beats, so the victory panel is a few clicks away. */
+function startWeakling() {
+  useBattleStore.getState().reset();
+  useBattleStore.getState().start({ ...enemy, maxHp: 10 }, 60, 100);
+}
+function winTheFight() {
+  fireEvent.click(screen.getByText('Attack'));
+  fireEvent.click(screen.getByText('4'));
+  fireEvent.click(screen.getByText('▶ Go!'));
+  fireEvent.click(screen.getByText(/tap to continue/));
+  expect(screen.getByText('Victory!')).toBeInTheDocument();
+}
+
+describe('the bonus scroll after a win (#159 item 3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('one win in three, with a keyboard: type the name, claim the coins — once', () => {
+    // Every roll 0: the scroll is offered (0 < 1/3), it's the hero's name, the reward coins.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    useKeyboardStore.getState().seen();
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({ save: { ...save, typingAnchor: false } });
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    const coinsAfterWin = useSaveStore.getState().save!.coins;
+    const scroll = screen.getByTestId('typing-bonus');
+    expect(scroll).toHaveTextContent(`Type your name to claim 🪙 ${TYPING_BONUS_COINS} coins`);
+    expect(screen.getByLabelText('Type: Valor')).toBeInTheDocument();
+    for (const ch of 'Valor') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(scroll).toHaveTextContent(/Claimed/);
+    expect(useSaveStore.getState().save!.coins).toBe(coinsAfterWin + TYPING_BONUS_COINS);
+    // Typing it again pays nothing more.
+    for (const ch of 'Valor') fireEvent.keyDown(window, { code: charKey(ch)!.key.code, key: ch });
+    expect(useSaveStore.getState().save!.coins).toBe(coinsAfterWin + TYPING_BONUS_COINS);
+  });
+
+  it("an XP scroll pays XP; Ember's name with the hold on wants the other Shift for its capital", () => {
+    // On the win, the dice go: the drop (0.9 → none), then the scroll's offer 0.1 → yes, who 0.4 → Ember, reward 0.3 → XP.
+    const rolls = [0.9, 0.1, 0.4, 0.3];
+    const spy = vi.spyOn(Math, 'random').mockImplementation(() => 0.2);
+    useKeyboardStore.getState().seen();
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    startWeakling();
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    spy.mockImplementation(() => rolls.shift() ?? 0.2);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const scroll = screen.getByTestId('typing-bonus');
+    expect(scroll).toHaveTextContent(`Type Ember's name to claim ⭐ ${TYPING_BONUS_XP} XP`);
+    addXp.mockClear();
+    // "E" with the hold on: the right Shift must be held.
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'E' });
+    expect(scroll).toHaveTextContent(/Hold the RIGHT Shift/);
+    fireEvent.keyDown(window, { code: 'ShiftRight', key: 'Shift' });
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'E' });
+    fireEvent.keyUp(window, { code: 'KeyE', key: 'E' });
+    fireEvent.keyUp(window, { code: 'ShiftRight', key: 'Shift' });
+    // The rest the touch-typing way: the other hand's bump key held for each letter.
+    for (const ch of 'mber') {
+      const anchor = anchorsFor(ch)[0];
+      fireEvent.keyDown(window, { code: anchor, key: anchor === 'KeyF' ? 'f' : 'j' });
+      fireEvent.keyDown(window, { code: charKey(ch)!.key.code, key: ch });
+      fireEvent.keyUp(window, { code: charKey(ch)!.key.code, key: ch });
+      fireEvent.keyUp(window, { code: anchor, key: anchor === 'KeyF' ? 'f' : 'j' });
+    }
+    expect(scroll).toHaveTextContent(/Claimed/);
+    expect(addXp).toHaveBeenCalledWith(TYPING_BONUS_XP);
+  });
+
+  it('no scroll without a keyboard, nor on the other two wins in three', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    expect(screen.queryByTestId('typing-bonus')).toBeNull();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    useKeyboardStore.getState().seen();
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    expect(screen.queryByTestId('typing-bonus')).toBeNull();
   });
 });
