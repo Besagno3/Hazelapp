@@ -215,6 +215,26 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     expect(save.coins).toBe(CHEST_COINS);
   });
 
+  it('a wrong riddle answer focuses nothing while the lock is up, and the sentence still opens the chest (review round 2)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    fireEvent.click(await screen.findByText('Wrong A'));
+    const back = screen.getByRole('button', { name: /come back/ });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.activeElement).not.toBe(back);
+    // A Space for the pangram's space is the line's, never the button's.
+    const sentence = pangramFor(lockedChest.id);
+    for (const ch of sentence) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    expect(screen.getByTestId('scribe-lock-open')).toBeInTheDocument();
+    expect(useSaveStore.getState().save!.openedChests).toEqual([lockedChest.id]);
+  });
+
   it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {
     useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
     const { unmount } = render(<PathQuestionOverlay target={lockedChest} />);

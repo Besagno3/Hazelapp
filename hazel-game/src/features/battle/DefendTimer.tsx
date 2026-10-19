@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { sfx } from '../../lib/audio';
 
-/** Seconds left at which the countdown turns red and starts ticking. */
+/** Seconds left at which the countdown turns red and starts ticking — at most, for a short clock, a third of it (review round 2: a 6 s race was red from its first second). */
 const URGENT_SECONDS = 5;
 const TICK_SECONDS = 3;
+const urgentAt = (durationMs: number) => Math.min(URGENT_SECONDS, Math.max(1, Math.floor(durationMs / 3000)));
+const tickAt = (durationMs: number) => Math.min(TICK_SECONDS, urgentAt(durationMs));
 
 /**
  * Countdown for a defend question: answer before it runs out or the enemy's
@@ -62,10 +64,10 @@ export function DefendTimer({
 
   const secs = Math.ceil(left / 1000);
   useEffect(() => {
-    if (!held && secs > 0 && secs <= TICK_SECONDS) sfx('select');
-  }, [secs, held]);
+    if (!held && secs > 0 && secs <= tickAt(durationMs)) sfx('select');
+  }, [secs, held, durationMs]);
 
-  const urgent = !held && secs <= URGENT_SECONDS;
+  const urgent = !held && secs <= urgentAt(durationMs);
   const pct = (left / durationMs) * 100;
   return (
     <div
@@ -82,7 +84,7 @@ export function DefendTimer({
               : paused
                 ? 'bg-violet-500/40 text-violet-50'
                 : urgent
-                  ? 'bg-red-500/40 text-red-100 animate-pulse'
+                  ? 'bg-red-500/40 text-red-100 motion-safe:animate-pulse'
                   : 'bg-white/20'
           }`}
         >

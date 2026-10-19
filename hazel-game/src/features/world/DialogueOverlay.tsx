@@ -317,7 +317,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           {!choosing && picked === null && (
           <button
-            autoFocus
+            // Not focused beside a pen-pal offer (review round 2): a held Enter skipped the one-time ask, as it would a quest's choice.
+            autoFocus={!(isLast && canWrite)}
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
           >

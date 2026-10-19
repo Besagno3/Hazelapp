@@ -743,7 +743,7 @@ describe('starter questions never move the saved skill level (#153 review round 
 
 // --- ✍️ Scribe bursts (#159 item 2) ----------------------------------------------
 const { useKeyboardStore } = await import('../../store/keyboardStore');
-const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, anchorsFor, charKey, typingLessonFlag } = await import('../../content/typing');
+const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, anchorsFor, charKey, songFor, typingLessonFlag } = await import('../../content/typing');
 
 /**
  * A keyboard seen and the first lesson cleared — the burst's two conditions.
@@ -833,7 +833,7 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
   it('▶ Go! before the word is typed, or the clock running out, gives no bonus', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     render(<BattleArena />);
     attackAndAnswer();
     expect(screen.getByTestId('type-burst')).toBeInTheDocument();
@@ -877,6 +877,16 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     fireEvent.click(screen.getByText('▶ Go!'));
     expect(screen.getByText(/the word was true/)).toBeInTheDocument();
     expect(before - useBattleStore.getState().enemyHp).toBe(Math.round(plain * SCRIBE_ATTACK_MULT));
+  });
+
+  it('before every letter\'s lesson, the burst runs with no clock (review round 2)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/No clock/);
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Type it for a harder hit/);
+    expect(screen.queryByRole('timer')).toBeNull();
   });
 
   it('with the defend countdown off, the burst has no clock and the word still counts (review round 1)', () => {
@@ -1026,7 +1036,7 @@ describe('the bonus scroll after a win (#159 item 3)', () => {
 });
 
 // --- The name race (#159 item 4) ---------------------------------------------------
-const { NAME_RACE_MS, FIRST_STRIKE_SHARE } = await import('../../content/typing');
+const { NAME_RACE_MS, RACE_READY_MS, FIRST_STRIKE_SHARE } = await import('../../content/typing');
 const { attackDamage } = await import('../../lib/battleMath');
 
 describe('the name race as a battle opens (#159 item 4)', () => {
@@ -1069,8 +1079,14 @@ describe('the name race as a battle opens (#159 item 4)', () => {
     vi.useFakeTimers();
     render(<BattleArena />);
     const race = screen.getByTestId('name-race');
+    // The ready beat first (its state lands when this act ends), then the clock.
+    expect(race).toHaveTextContent(/Ready…/);
     act(() => {
-      vi.advanceTimersByTime(NAME_RACE_MS + 100);
+      vi.advanceTimersByTime(RACE_READY_MS + 50);
+    });
+    expect(race).not.toHaveTextContent(/Ready…/);
+    act(() => {
+      vi.advanceTimersByTime(NAME_RACE_MS + 200);
     });
     expect(race).toHaveTextContent(/Too slow/);
     expect(useBattleStore.getState().enemyHp).toBe(200);
@@ -1197,7 +1213,7 @@ describe('the song that breaks the hush (#159 item 6)', () => {
 
   it("the Hush Fiend's wind-up offers a line of the song; sung in time, the Great Shush fizzles to a plain blow", () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     toTheWindUp();
     const box = screen.getByTestId('hush-song');
     expect(box).toHaveTextContent(/Great Shush is coming/);
@@ -1225,7 +1241,7 @@ describe('the song that breaks the hush (#159 item 6)', () => {
 
   it('too slow: the usual warning, and the Great Shush lands ×2 (Guard would still block it)', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     vi.useFakeTimers();
     toTheWindUp();
     const box = screen.getByTestId('hush-song');
@@ -1253,6 +1269,27 @@ describe('the song that breaks the hush (#159 item 6)', () => {
     expect(box).toHaveTextContent(/No clock/);
     fireEvent.click(screen.getByText(/Let it come/));
     expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+  });
+
+  it('"Let it come" steps back once the line is sung, so the beat before the result cannot be double-booked (review round 2)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    toTheWindUp();
+    const letIt = screen.getByText(/Let it come/);
+    expect(letIt).toBeEnabled();
+    for (const ch of songFor('hush-fiend')!.lines[0]) {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(letIt).toBeDisabled();
+    fireEvent.click(letIt);
+    expect(screen.queryByText(/gathering power…/)).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/whole island hums along/)).toBeInTheDocument();
   });
 
   it('without a keyboard, or against a boss with no song, the wind-up is the plain warning', () => {

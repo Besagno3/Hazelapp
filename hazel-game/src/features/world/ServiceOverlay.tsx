@@ -12,7 +12,8 @@ import NameFinale from './NameFinale';
 import TypingLessons from '../typing/TypingLessons';
 import Scriptorium from '../typing/Scriptorium';
 import FallingLeaves from '../typing/FallingLeaves';
-import { SCRIPTORIUM_XP, TYPING_LESSONS, pagesCopied, scriptoriumOpen, typingLessonsCleared } from '../../content/typing';
+import { SCRIPTORIUM_OPENS_AFTER, SCRIPTORIUM_XP, TYPING_LESSONS, pagesCopied, scriptoriumOpen, typingLessonsCleared, typingUnlocked } from '../../content/typing';
+import { useKeyboardStore } from '../../store/keyboardStore';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
@@ -181,11 +182,21 @@ function Library() {
   const [desk, setDesk] = useState(false);
   // ...and the 🍂 Falling Leaves game (#159 item 7), from lesson 1.
   const [leaves, setLeaves] = useState(false);
+  const keyboard = useKeyboardStore((s) => s.present);
   if (typing) return <TypingLessons onBack={() => setTyping(false)} />;
   if (desk) return <Scriptorium onBack={() => setDesk(false)} />;
   if (leaves) return <FallingLeaves onBack={() => setLeaves(false)} />;
   const typed = typingLessonsCleared(flags);
   const copied = pagesCopied(flags);
+  // Locked cards look locked (review round 2: all three were the same amber card); a glass keyboard is told up front.
+  const glass = !keyboard && typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
+  const deskLocked = !scriptoriumOpen(flags);
+  const leavesLocked = !typingUnlocked(flags);
+  const deskAt = TYPING_LESSONS.findIndex((l) => l.id === SCRIPTORIUM_OPENS_AFTER) + 1;
+  const card = (locked: boolean) =>
+    locked
+      ? 'w-full text-left flex items-center gap-3 bg-white/10 border border-white/15 rounded-xl p-3 mb-4 text-sm min-h-11 opacity-70 cursor-not-allowed'
+      : 'w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11';
 
   function finish() {
     if (active && solved) {
@@ -224,10 +235,7 @@ function Library() {
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">📚 The Library</h2>
-      <button
-        onClick={() => setTyping(true)}
-        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
-      >
+      <button onClick={() => setTyping(true)} className={card(false)}>
         <span className="text-2xl" aria-hidden="true">
           ⌨️
         </span>
@@ -236,35 +244,36 @@ function Library() {
           <span className="block text-xs text-white/70">
             Learn to type like a scribe — ten fingers, eyes on the page.
             {typed > 0 ? ` ${typed} of ${TYPING_LESSONS.length} cleared.` : ''}
+            {glass ? ' Needs a real keyboard.' : ''}
           </span>
         </span>
       </button>
-      <button
-        onClick={() => setDesk(true)}
-        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
-      >
+      <button onClick={() => !deskLocked && setDesk(true)} aria-disabled={deskLocked} className={card(deskLocked)}>
         <span className="text-2xl" aria-hidden="true">
-          📜
+          {deskLocked ? '🔒' : '📜'}
         </span>
         <span className="flex-1">
-          <span className="font-bold text-amber-200">The Scriptorium</span>
+          <span className={deskLocked ? 'font-bold text-white/80' : 'font-bold text-amber-200'}>The Scriptorium</span>
           <span className="block text-xs text-white/70">
-            {scriptoriumOpen(flags)
-              ? `Copy out a page — why a question went wrong, or a true fact — for +${SCRIPTORIUM_XP} XP.${copied > 0 ? ` ${copied} copied.` : ''}`
-              : 'Copy out whole pages, once you can type capitals.'}
+            {deskLocked
+              ? `Copy out whole pages. Clear typing lesson ${deskAt} (capitals) first.`
+              : `Copy out a page — why a question went wrong, or a true fact — for +${SCRIPTORIUM_XP} XP.${copied > 0 ? ` ${copied} copied.` : ''}`}
+            {glass && !deskLocked ? ' Needs a real keyboard.' : ''}
           </span>
         </span>
       </button>
-      <button
-        onClick={() => setLeaves(true)}
-        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
-      >
+      <button onClick={() => !leavesLocked && setLeaves(true)} aria-disabled={leavesLocked} className={card(leavesLocked)}>
         <span className="text-2xl" aria-hidden="true">
-          🍂
+          {leavesLocked ? '🔒' : '🍂'}
         </span>
         <span className="flex-1">
-          <span className="font-bold text-amber-200">Falling Leaves</span>
-          <span className="block text-xs text-white/70">A game: catch the letters before their leaves land. The keys you've learned, at your pace.</span>
+          <span className={leavesLocked ? 'font-bold text-white/80' : 'font-bold text-amber-200'}>Falling Leaves</span>
+          <span className="block text-xs text-white/70">
+            {leavesLocked
+              ? 'A game: catch the letters before their leaves land. Clear typing lesson 1 first.'
+              : "A game: catch the letters before their leaves land. The keys you've learned, at your pace."}
+            {glass && !leavesLocked ? ' Needs a real keyboard.' : ''}
+          </span>
         </span>
       </button>
       <p className="text-sm text-white/80 mb-4">

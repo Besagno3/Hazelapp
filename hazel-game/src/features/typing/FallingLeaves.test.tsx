@@ -47,7 +47,7 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
     expect(screen.getByText('🍂 Play')).toBeInTheDocument();
-    expect(screen.getByText(/Leaves today/)).toHaveTextContent('f j');
+    expect(screen.getByText(/Today's letters/)).toHaveTextContent('f j');
     act(() => {
       useSaveStore.setState({ save: { ...useSaveStore.getState().save!, flags: {} } });
     });
@@ -92,7 +92,7 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
       catchLowest();
     }
     expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 10');
-    fireEvent.click(screen.getByText('Stop for now'));
+    fireEvent.click(screen.getByText('⏹ Stop the round'));
     expect(screen.getByText(/10 in one round/)).toBeInTheDocument();
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp).toHaveBeenCalledWith(LEAVES_XP);
@@ -103,9 +103,37 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
       tick(leafPace(i).spawnMs);
       catchLowest();
     }
-    fireEvent.click(screen.getByText('Stop for now'));
+    fireEvent.click(screen.getByText('⏹ Stop the round'));
     expect(screen.queryByText(/10 in one round/)).toBeNull();
     expect(addXp).toHaveBeenCalledTimes(1);
+  });
+
+  it('two milestones in one round pay with one XP write; a capital nudges about Shift or Caps Lock (review round 2)', () => {
+    vi.useFakeTimers();
+    render(<FallingLeaves onBack={() => {}} />);
+    fireEvent.click(screen.getByText('🍂 Play'));
+    for (let i = 0; i < 25; i++) {
+      tick(leafPace(i).spawnMs);
+      if (i === 3) {
+        const ch = leaves()[0].textContent!;
+        const code = charKey(ch)!.key.code;
+        fireEvent.keyDown(window, { code, key: ch.toUpperCase() });
+        fireEvent.keyUp(window, { code, key: ch.toUpperCase() });
+        expect(screen.getByRole('status')).toHaveTextContent(/let go of Shift/);
+        fireEvent.keyDown(window, { code, key: ch.toUpperCase(), modifierCapsLock: true });
+        fireEvent.keyUp(window, { code, key: ch.toUpperCase() });
+        expect(screen.getByRole('status')).toHaveTextContent(/Caps Lock is on/);
+        expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 3');
+      }
+      catchLowest();
+    }
+    expect(screen.getByText('Caught', { exact: false })).toHaveTextContent('Caught 25');
+    fireEvent.click(screen.getByText('⏹ Stop the round'));
+    expect(screen.getByText(/25 in one round/)).toBeInTheDocument();
+    expect(addXp).toHaveBeenCalledTimes(1);
+    expect(addXp).toHaveBeenCalledWith(LEAVES_XP * 2);
+    expect(useSaveStore.getState().save!.flags[leavesFlag(10)]).toBe(true);
+    expect(useSaveStore.getState().save!.flags[leavesFlag(25)]).toBe(true);
   });
 
   it('with the hold on, a leaf wants the other hand on its bump key', () => {

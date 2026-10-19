@@ -29,6 +29,7 @@ export default function QuestionCard({
   secondChance = false,
   onSecondChance,
   focusContinue = false,
+  focusContinueKey,
   afterAnswer,
 }: {
   question: Question;
@@ -49,6 +50,8 @@ export default function QuestionCard({
    * tale-stone's "🔄 Ask me another!" was five Tabs away). Off by default.
    */
   focusContinue?: boolean;
+  /** Changes when the caller wants Continue focused later — a scribe burst settling (#159, review round 2). */
+  focusContinueKey?: unknown;
   /** Fires once with whether the pick was correct — guarded against double-clicks. */
   onContinue: (correct: boolean) => void;
   /**
@@ -88,6 +91,13 @@ export default function QuestionCard({
     return () => cancelAnimationFrame(raf);
   }, [selected, focusContinue]);
   const [continued, setContinued] = useState(false);
+  // Continue takes focus when `focusContinueKey` turns (never on its first value).
+  const focusKeyWas = useRef(focusContinueKey);
+  useEffect(() => {
+    if (focusContinueKey === focusKeyWas.current) return;
+    focusKeyWas.current = focusContinueKey;
+    continueRef.current?.focus({ preventScroll: true });
+  }, [focusContinueKey]);
 
   function pick(idx: number) {
     if (selected !== null || idx === retried) return;

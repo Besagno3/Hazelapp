@@ -34,6 +34,10 @@ import {
   isPangram,
   pangramChest,
   pangramFor,
+  LETTERS_LESSON,
+  lettersLearned,
+  plainName,
+  BURST_MAX,
   PEN_PALS,
   penPalFor,
   penPalReadLine,
@@ -42,6 +46,7 @@ import {
 } from './typing';
 import { ZONES, pathTargetId } from './zones';
 import { QUESTS } from './quests';
+import { ENEMY_DEFS } from './enemies';
 import { FUN_FACTS } from '../lib/funFacts';
 import { ALL_TOPICS } from './topics';
 import type { LibraryEntry } from '../types';
@@ -156,6 +161,19 @@ describe('the battle words (#159)', () => {
     expect(enemyWord('Count Bat')).toBe('count bat');
     expect(enemyWord('The Clockwork Titan')).toBe('titan');
     expect(enemyWord('Quill Imp')).toBe('quill imp');
+    // A hyphen is a space (no lesson teaches the dash), and a long name is never cut mid-word (review round 2).
+    expect(enemyWord('Dog-Knight')).toBe('dog knight');
+    expect(enemyWord('Cuttle-Scribe')).toBe('scribe');
+    for (const def of Object.values(ENEMY_DEFS)) {
+      const word = enemyWord(def.name);
+      expect(word, def.name).toMatch(/^[a-z ]+$/);
+      expect(word.length, def.name).toBeLessThanOrEqual(BURST_MAX);
+      // Never cut mid-word: the whole name, or its last word.
+      expect(plainName(def.name).toLowerCase().endsWith(word), def.name).toBe(true);
+      expect(plainName(def.name).toLowerCase().split(' ')).toContain(word.split(' ').pop());
+    }
+    expect(lettersLearned({})).toBe(false);
+    expect(lettersLearned({ [typingLessonFlag(LETTERS_LESSON)]: true })).toBe(true);
     const critter = { isBoss: false };
     expect(nameRaceDue(critter, true, 0)).toBe(true);
     expect(nameRaceDue(critter, true, NAME_RACE_CHANCE - 0.01)).toBe(true);
@@ -251,6 +269,11 @@ describe('the song that breaks the hush (#159 item 6)', () => {
 });
 
 describe('pangram chests (#159 item 8)', () => {
+  it('every pangram uses only keys the lessons teach (review round 2: "!" asked for the number row)', () => {
+    const taught = keysTaughtBy(TYPING_LESSONS[TYPING_LESSONS.length - 1].id);
+    for (const p of PANGRAMS) for (const ch of p) expect(taught.has(charKey(ch)!.key.code), `${p}: ${ch}`).toBe(true);
+  });
+
   it('every pangram has all 26 letters and types on the key map; a non-pangram is not one', () => {
     for (const p of PANGRAMS) {
       expect(isPangram(p), p).toBe(true);

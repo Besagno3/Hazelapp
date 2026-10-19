@@ -69,7 +69,7 @@ describe('the Scriptorium (#159 item 5)', () => {
     act(() => {
       useSaveStore.setState({ save: { ...useSaveStore.getState().save!, flags: { [typingLessonFlag(TYPING_LESSONS[0].id)]: true } } });
     });
-    expect(screen.getByText(/Clear the typing lessons up to 12\. Capitals/)).toBeInTheDocument();
+    expect(screen.getByText(/Clear typing lesson 12 \(Capitals/)).toBeInTheDocument();
     expect(screen.getByText(/1 of 12 so far/)).toBeInTheDocument();
   });
 
@@ -77,7 +77,7 @@ describe('the Scriptorium (#159 item 5)', () => {
     render(<Scriptorium onBack={() => {}} />);
     expect(screen.getByText('No pages copied yet', { exact: false })).toBeInTheDocument();
     const pages = screen.getAllByRole('button').filter((b) => /lines?$/.test(b.textContent ?? ''));
-    expect(pages[0]).toHaveTextContent('Why: Why does ice float?');
+    expect(pages[0]).toHaveTextContent('Why does ice float?');
     expect(pages[0]).toHaveTextContent('From your shelf');
     expect(pages[1]).toHaveTextContent('A true fact');
     fireEvent.click(pages[0]);
@@ -92,13 +92,13 @@ describe('the Scriptorium (#159 item 5)', () => {
     expect(addXp).toHaveBeenCalledWith(SCRIPTORIUM_XP);
     expect(flags()[pageFlag('q-why')]).toBe(true);
     // Back on the desk the shelf page is gone and the count moved on.
-    fireEvent.click(screen.getByText('📜 Back to the pages'));
+    fireEvent.click(screen.getByText('← Back to the pages'));
     expect(screen.getByText('1 page copied', { exact: false })).toBeInTheDocument();
-    expect(screen.queryByText('Why: Why does ice float?')).toBeNull();
+    expect(screen.queryByText('Why does ice float?')).toBeNull();
     // ➡️ Next page opens the next one straight from the result screen.
     const next = screen.getAllByRole('button').filter((b) => /lines?$/.test(b.textContent ?? ''))[0];
     fireEvent.click(next);
-    fireEvent.click(screen.getByText('Stop for now'));
+    fireEvent.click(screen.getByText('← Back to the pages'));
     expect(screen.getByText('📜 The Scriptorium')).toBeInTheDocument();
   });
 

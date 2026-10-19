@@ -8,14 +8,39 @@ import { KEY_BY_CODE, type Finger } from '../../content/typing';
 /** Finger names as the lessons say them. */
 export const FINGER_WORDS: Record<Finger, string> = { pinky: 'little finger', ring: 'ring finger', middle: 'middle finger', index: 'pointer', thumb: 'thumb' };
 
-/** "the F key", "the space bar", "the right Shift". */
+/** Keys whose label a screen reader would skip at its usual punctuation level (review round 2). */
+const KEY_NAMES: Record<string, string> = {
+  Space: 'space',
+  ShiftLeft: 'left Shift',
+  ShiftRight: 'right Shift',
+  CapsLock: 'Caps Lock',
+  Semicolon: 'semicolon',
+  Comma: 'comma',
+  Period: 'full stop',
+  Quote: 'apostrophe',
+  Slash: 'slash',
+  Minus: 'dash',
+  Equal: 'equals',
+  Backquote: 'backtick',
+  BracketLeft: 'left bracket',
+  BracketRight: 'right bracket',
+  Backslash: 'backslash',
+};
+
+/** A key's short name, as said aloud: "J", "comma", "space", "left Shift". */
+export function keyName(code: string): string {
+  const key = KEY_BY_CODE[code];
+  if (!key) return code;
+  return KEY_NAMES[code] ?? key.label;
+}
+
+/** "the F key", "the space bar", "the right Shift", "the comma key". */
 export function describe(code: string): string {
   const key = KEY_BY_CODE[code];
   if (!key) return code;
   if (code === 'Space') return 'the space bar';
-  if (code === 'ShiftLeft') return 'the left Shift';
-  if (code === 'ShiftRight') return 'the right Shift';
-  return `the ${key.label} key`;
+  if (code === 'ShiftLeft' || code === 'ShiftRight') return `the ${keyName(code)}`;
+  return `the ${keyName(code)} key`;
 }
 
 /**

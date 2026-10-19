@@ -27,7 +27,8 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
  */
 export function watchKeyboard(): () => void {
   const onKey = (e: KeyboardEvent) => {
-    if (fromPhysicalKeyboard(e)) useKeyboardStore.getState().seen();
+    // Written once (review round 2: every key, WASD's auto-repeat included, wrote the store).
+    if (fromPhysicalKeyboard(e) && !useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
   };
   window.addEventListener('keydown', onKey);
   return () => window.removeEventListener('keydown', onKey);

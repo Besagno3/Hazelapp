@@ -557,8 +557,14 @@ zod, react-query. Add the package in the same change that first uses it.
   `TYPING_LESSONS` — `typing.test` checks a drill uses only keys taught by
   then.
   `useTypingRun` leaves Space to a focused button unless the line wants a
-  space next (`onControl`); `hints.ts` says the next key in words for a screen
-  reader (`keyHint`) and which key to flash (`wrongKey`).
+  space next (`onControl`; a Space it takes, it takes on keyup too), and
+  never types over a focused text field (`inField`); `hints.ts` says the next
+  key in words for a screen reader (`keyHint`, the short `keyName` between
+  nudges) and which key to flash (`wrongKey`). The clocks on the bursts and
+  the song wait for every letter's lesson (`lettersLearned`, lesson 11
+  `LETTERS_LESSON`) and the player's countdown setting; `TypeBurst`'s
+  `readyMs` holds the clock a beat ("Ready…"); `LITTLE_HANDS_AGE` (8) lengthens
+  the race and the song; a name's hyphen types as a space (`plainName`).
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1032,6 +1038,32 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing review round 2: clocks that wait, focus that follows, names that type (#159)
+Round 2 of three: fresh code (2 medium, 5 low, 2 nits) and UX (2 high, 7
+medium, 3 low) reviewers over the round-1 screenshots; all fixed.
+- **Code:** a hyphenated one-word name was cut mid-word ("cuttle-scrib" —
+  now a hyphen is a space and a long name is never cut, every enemy name
+  swept); after a wrong riddle answer a stray Space could click the focused
+  button and close a pangram chest mid-sentence (nothing focused while the
+  lock is up; the run takes Space's keyup too); Falling Leaves paid two
+  milestones with two racing writes and had no Caps Lock handling (a `caps`
+  nudge, a bare Space ignored); the keyboard store written on every key;
+  "Let it come" live during the beat after the line was sung; a pangram
+  ending in "!" (untaught); a run typing over a focused text field
+  (`inField`); `LITTLE_HANDS_AGE` moved to `content/typing.ts`.
+- **UX:** the bursts and the song ran clocks from lesson 1 (now untimed
+  until every letter's lesson, `lettersLearned` / `typingClock`); ▶ Go! is
+  focused as a burst settles (`QuestionCard` `focusContinueKey`) and a lesson
+  line takes focus as it appears; one live region per lesson and per desk
+  page; the next key read as a short name (`keyName`); the race gets a 1.2 s
+  "Ready…" beat (`RACE_READY_MS`, `TypeBurst` `readyMs`), 8 s / 12 s for
+  little hands, its urgency a third of the clock; the song 30 s under 8;
+  locked Library cards look locked; the hold switch by its tip; "← Back to
+  the lessons" / "⏹ Stop the round"; the keyboard stays dimmed after a burst
+  so ▶ Go! doesn't jump; bursts say what the word does; the pen-pal offer
+  can't be skipped by a held Enter; plainer song lines and copy.
+- Tests: +10 (TC-1502, TC-1503); lint + tsc clean; `bench … typing` rerun.
 
 ### 2026-10-19 — Touch typing review round 1: Space, screen readers, cards that fit (#159)
 The owner asked for three rounds of code and UX review with every finding

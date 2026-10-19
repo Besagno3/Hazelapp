@@ -80,7 +80,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         <h2 className="text-xl font-extrabold mb-2">The Scriptorium</h2>
         <p className="text-sm text-white/80 mb-1">"A scribe copies whole pages here — big letters, little letters, every dot and comma."</p>
         <p className="text-xs text-white/60 mb-5">
-          Clear the typing lessons up to {at}. {gate.title} first ({typingLessonsCleared(flags)} of {at} so far).
+          Clear typing lesson {at} ({gate.title}) first — {typingLessonsCleared(flags)} of {at} so far.
         </p>
         <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
           📚 Back to the shelf
@@ -89,10 +89,25 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     );
   }
 
+  // One live region for the desk, a page and its result (review round 2).
+  const stars = result ? typingStars(result.accuracy) : 0;
+  const announce =
+    active && result
+      ? `Page copied! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${SCRIPTORIUM_XP} XP.` : ''}`
+      : active
+        ? `Line ${line + 1} of ${active.lines.length}: ${active.lines[line]}`
+        : '';
+  const live = (
+    <p key="live" className="sr-only" role="status">
+      {announce}
+    </p>
+  );
+
   if (active && result) {
-    const stars = typingStars(result.accuracy);
     const next = pages[0];
     return (
+      <>
+        {live}
       <div className="text-center">
         <div className="text-5xl mb-2" aria-hidden="true">
           📜
@@ -102,8 +117,8 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
         </p>
-        <p className="text-sm text-white/80 mb-1" role="status">
-          Page copied! {stars} of 3 stars. {Math.round(result.accuracy * 100)}% of your keys were right.
+        <p className="text-sm text-white/80 mb-1">
+          {Math.round(result.accuracy * 100)}% of your keys were right.
           {stars === 3 ? ' A true scribe!' : stars === 2 ? ' Nearly perfect!' : ' Every page you copy gets easier.'}
         </p>
         {result.paid ? (
@@ -118,18 +133,21 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
             </button>
           )}
           <button autoFocus={!next} onClick={() => setActive(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
-            📜 Back to the pages
+            ← Back to the pages
           </button>
         </div>
       </div>
+      </>
     );
   }
 
   if (active) {
     return (
+      <>
+        {live}
       <div>
         <div className="flex items-center justify-between gap-2 mb-1">
-          <h2 className="text-lg font-extrabold truncate">📜 {active.source === 'shelf' ? 'Copy why' : active.title}</h2>
+          <h2 className="text-lg font-extrabold truncate">📜 {active.source === 'shelf' ? 'Copy out the why' : active.title}</h2>
           <span className="shrink-0 text-xs text-white/70">
             Line {line + 1} of {active.lines.length}
           </span>
@@ -144,14 +162,17 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
           )}
         </p>
         <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} />
-        <button onClick={() => setActive(null)} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
-          Stop for now
+        <button onClick={() => setActive(null)} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
+          ← Back to the pages
         </button>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      {live}
     <div>
       <h2 className="text-xl font-extrabold mb-1">📜 The Scriptorium</h2>
       <p className="text-sm text-white/80 mb-1">"Copy a page, every letter and dot, and it's yours for good. That's how the old books were kept."</p>
@@ -174,9 +195,9 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
                 {page.source === 'shelf' ? '📚' : '💡'}
               </span>
               <span className="flex-1 min-w-0">
-                <span className="font-bold block truncate">{page.source === 'shelf' ? `Why: ${page.title}` : page.title}</span>
+                <span className="font-bold block truncate">{page.title}</span>
                 <span className="block text-xs text-white/60">
-                  {page.source === 'shelf' ? 'From your shelf · ' : 'A true fact · '}
+                  {page.source === 'shelf' ? 'From your shelf — copy out why · ' : 'A true fact · '}
                   {page.lines.length} {page.lines.length === 1 ? 'line' : 'lines'}
                 </span>
               </span>
@@ -188,5 +209,6 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         📚 Back to the shelf
       </button>
     </div>
+    </>
   );
 }

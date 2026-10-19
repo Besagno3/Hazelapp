@@ -91,6 +91,18 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(pressLeaf(fLow, press('f', 'KeyF', [], true)).event).toBe('hold');
   });
 
+  it('a capital of a falling letter is a caps nudge, not a wrong key; a bare space is nothing (review round 2)', () => {
+    const s = untilSpawn();
+    expect(s.leaves[0].ch).toBe('f');
+    const caps = pressLeaf(s, press('F', 'KeyF'));
+    expect(caps.event).toBe('caps');
+    expect(caps.leaf?.ch).toBe('f');
+    expect(caps.next.wrong).toBe(0);
+    expect(caps.next.leaves).toHaveLength(1);
+    expect(pressLeaf(s, press('J', 'KeyJ')).event).toBe('wrong');
+    expect(pressLeaf(s, press(' ', 'Space')).event).toBe('none');
+  });
+
   it('the round ends on the third leaf on the ground, or when the clock runs out; nothing moves after', () => {
     let s = startLeaves();
     for (let i = 0; i < 3; i++) {

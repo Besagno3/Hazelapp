@@ -57,14 +57,14 @@ describe('TypingLessons (#159)', () => {
     useKeyboardStore.getState().seen();
     render(<TypingLessons onBack={() => {}} />);
     fireEvent.click(openLessons()[0]);
-    expect(screen.getByText(/F and J, the bumpy keys/)).toBeInTheDocument();
+    expect(screen.getAllByText(/F and J, the bumpy keys/)[0]).toBeInTheDocument();
     fireEvent.click(screen.getByText('⌨️ Start typing'));
     expect(screen.getByText(`Line 1 of ${TYPING_LESSONS[0].lines.length}`)).toBeInTheDocument();
 
     // "f" without J held: a nudge, and the line hasn't moved.
     fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
     fireEvent.keyUp(window, { code: 'KeyF', key: 'f' });
-    expect(screen.getByRole('status')).toHaveTextContent(/Other hand home! Hold J/);
+    expect(screen.getByText(/Other hand home! Hold J/)).toHaveAttribute('role', 'status');
     expect(screen.getByText(`Line 1 of ${TYPING_LESSONS[0].lines.length}`)).toBeInTheDocument();
 
     for (const [i, line] of TYPING_LESSONS[0].lines.entries()) {
@@ -78,7 +78,7 @@ describe('TypingLessons (#159)', () => {
     expect(screen.getByText(`⭐ +${TYPING_LESSON_XP} XP`)).toBeInTheDocument();
 
     // Back on the list, lesson 2 is open; the first says cleared.
-    fireEvent.click(screen.getByText('📚 Back to the lessons'));
+    fireEvent.click(screen.getByText('← Back to the lessons'));
     expect(screen.getByText(`1 of ${TYPING_LESSONS.length} lessons cleared`)).toBeInTheDocument();
     const buttons = openLessons();
     expect(buttons[1]).toBeEnabled();
@@ -103,7 +103,7 @@ describe('TypingLessons (#159)', () => {
       fireEvent.keyDown(window, { code: 'KeyG', key: 'g' });
       fireEvent.keyUp(window, { code: 'KeyG', key: 'g' });
     }
-    expect(screen.getByRole('status')).toHaveTextContent(/Not that one/);
+    expect(screen.getByText(/Not that one/)).toHaveAttribute('role', 'status');
     for (const line of TYPING_LESSONS[0].lines) typeLine(line);
     expect(screen.getByRole('img', { name: '2 of 3 stars' })).toBeInTheDocument();
   });
@@ -140,7 +140,7 @@ describe('TypingLessons (#159)', () => {
     // No "Next lesson" after the last one.
     expect(screen.queryByText('➡️ Next lesson')).toBeNull();
     // Again: still one badge.
-    fireEvent.click(screen.getByText('📚 Back to the lessons'));
+    fireEvent.click(screen.getByText('← Back to the lessons'));
     fireEvent.click(openLessons()[TYPING_LESSONS.length - 1]);
     fireEvent.click(screen.getByText('⌨️ Start typing'));
     for (const line of last.lines) typeLine(line);
@@ -162,7 +162,7 @@ describe('round 1 review fixes (#159)', () => {
     render(<TypingLessons onBack={() => {}} />);
     fireEvent.click(openLessons()[0]);
     fireEvent.click(screen.getByText('⌨️ Start typing'));
-    const stop = screen.getByText('Stop for now');
+    const stop = screen.getByText('← Back to the lessons');
     stop.focus();
     // "f" is next: Space on the button is left alone (not prevented).
     expect(fireEvent.keyDown(stop, { key: ' ', code: 'Space' })).toBe(true);

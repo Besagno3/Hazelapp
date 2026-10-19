@@ -23,6 +23,13 @@ export function onControl(target: EventTarget | null): boolean {
   return el.closest('button, a[href], input, textarea, select, summary, [role="button"]') !== null;
 }
 
+/** A text field or an editable area owns every key (review round 2): a run never types over it. */
+export function inField(target: EventTarget | null): boolean {
+  const el = target as Element | null;
+  if (!el || typeof el.closest !== 'function') return false;
+  return el.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') !== null;
+}
+
 /**
  * Types one line against the real keyboard (#159): listens on `window` while
  * `active`, keeps the set of keys held down (for the home-row hold), and
@@ -66,10 +73,14 @@ export function useTypingRun({
 
   useEffect(() => {
     if (!active) return;
+    // A Space the line took off a focused button: its keyup is taken too (Firefox clicks
+    // a button on Space's keyup even after a prevented keydown — review round 2).
+    let spaceTaken = false;
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (!fromPhysicalKeyboard(e)) return;
       if (!useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
+      if (inField(e.target)) return;
       if (!e.repeat) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
@@ -80,6 +91,7 @@ export function useTypingRun({
       if (e.key === ' ') {
         if (onControl(e.target) && progressRef.current.text[progressRef.current.index] !== ' ') return;
         e.preventDefault();
+        spaceTaken = onControl(e.target);
       } else if ([...e.key].length === 1) e.preventDefault();
       // A held key repeating is one press (the anchor key, mostly).
       if (e.repeat) return;
@@ -98,6 +110,10 @@ export function useTypingRun({
       if (event === 'done') cb.current.onDone?.(next);
     };
     const up = (e: KeyboardEvent) => {
+      if (e.key === ' ' && spaceTaken) {
+        spaceTaken = false;
+        e.preventDefault();
+      }
       if (!heldRef.current.has(e.code)) return;
       const s = new Set(heldRef.current);
       s.delete(e.code);

@@ -18,6 +18,7 @@ export function TypingLine({ progress, shake = false, big = false }: { progress:
   });
   return (
     <p
+      role="group"
       className={cn('flex flex-wrap justify-center gap-y-1 font-mono font-bold leading-none', big ? 'text-2xl' : 'text-xl', shake && 'hq-shake')}
       aria-label={`Type: ${progress.text}`}
     >

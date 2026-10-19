@@ -52,7 +52,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {}) && !solved;
   function openByLock() {
     sfx('chest');
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true });
     update((s) => {
       const opened = openChest(s, target.id);
       // The bonus rides a real opening only (an already-open chest returns the save unchanged).
@@ -186,7 +186,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
         {lockOpened && (
           <div className="w-full max-w-xl bg-white rounded-2xl p-5 text-center shadow-2xl" data-testid="scribe-lock-open">
-            <p className="font-bold text-gray-800 mb-1">✨ The lock springs open — {chestRewardText(target.id)}</p>
+            <p className="font-bold text-gray-800 mb-1">✨ Inside: {chestRewardText(target.id)}</p>
             <p className="text-sm text-amber-700 font-semibold mb-1">A scribe's bonus: 🪙 {PANGRAM_BONUS_COINS} more!</p>
             {wanted && <p className="text-sm text-gray-700 mb-2">{wanted}</p>}
             <button autoFocus onClick={() => sendFlow({ type: 'CLOSE' })} className="mt-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3 min-h-11">
@@ -228,7 +228,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
-            focusContinue
+            // Not while the lock is up (review round 2): a Space typed for the pangram would click the focused button and close the chest.
+            focusContinue={!lockShown}
             continueLabel={solved ? `✨ ${successText}` : missed ? '🔄 Ask me another!' : 'Hmm… I’ll come back!'}
             // A tale-stone asks again on the spot (15e round 3) — no walking back up to it.
             onContinue={() => {

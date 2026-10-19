@@ -86,8 +86,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { FIRST_STRIKE_SHARE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_MS, burstWord, enemyWord, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
-import { LITTLE_HANDS_AGE } from '../typing/TypingLessons';
+import { FIRST_STRIKE_SHARE, LITTLE_HANDS_AGE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, RACE_READY_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_LITTLE_MS, SONG_MS, burstWord, enemyWord, lettersLearned, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -359,6 +358,10 @@ export default function BattleArena() {
   // answer, on the card it belongs to. Typed in time, an Attack's burst sets
   // `scribeRef` for the strike that follows; a block's adds ◆ at once.
   const [scribeBurst, setScribeBurst] = useState<{ key: string; mode: 'attack' | 'block'; word: string } | null>(null);
+  // Turns each time a burst settles, so the card focuses ▶ Go! then (review round 2: focus had fallen to the page).
+  const [scribeSettled, setScribeSettled] = useState(0);
+  // The song's line is typed or timed out, and its result is on screen (review round 2: "Let it come" stayed live for that beat).
+  const [songSettled, setSongSettled] = useState(false);
   const scribeRef = useRef(false);
   const keyboard = useKeyboardStore((s) => s.present);
   // Displayed HP while a blow is still in the air (null = show the store's).
@@ -464,8 +467,10 @@ export default function BattleArena() {
   const viewEnemyHp = shownHp?.e ?? enemyHp;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const powerMove = powerMoveName(enemy.id);
-  // Scribe bursts need a real keyboard and the first typing lesson (#159).
+  // Scribe bursts need a real keyboard and the first typing lesson (#159); their clocks
+  // wait for every letter's lesson and the player's countdown setting (review round 2).
   const scribe = keyboard && typingUnlocked(save.flags);
+  const typingClock = save.defendTimer && lettersLearned(save.flags);
   const charging = intent === 'power';
   const nextQuestion = () => {
     // A long battle goes round its questions again; each ask gets a fresh
@@ -637,6 +642,7 @@ export default function BattleArena() {
    * nothing — the answer already counted.
    */
   function scribeDone(mode: 'attack' | 'block', ok: boolean) {
+    setScribeSettled((n) => n + 1);
     if (!ok) return;
     sfx('streak');
     if (mode === 'attack') {
@@ -922,6 +928,7 @@ export default function BattleArena() {
    * "a charge is always followed by its power blow" has this one exception).
    */
   function songDone(ok: boolean) {
+    setSongSettled(false);
     if (!ok) {
       say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
@@ -1335,6 +1342,7 @@ export default function BattleArena() {
               holdRule={save.typingAnchor}
               durationMs={age < LITTLE_HANDS_AGE ? NAME_RACE_LITTLE_MS : NAME_RACE_MS}
               timed
+              readyMs={RACE_READY_MS}
               label="⚡ Name it first to strike first!"
               doneText="⚡ First strike is yours!"
               lateText="Too slow — it darts in first!"
@@ -1353,8 +1361,8 @@ export default function BattleArena() {
               key={turn.line}
               word={turn.line}
               holdRule={save.typingAnchor}
-              durationMs={SONG_MS}
-              timed={save.defendTimer}
+              durationMs={age < LITTLE_HANDS_AGE ? SONG_LITTLE_MS : SONG_MS}
+              timed={typingClock}
               label={`💢 ${turn.move} is coming — ${songFor(enemy.id)!.prompt}`}
               doneText={songFor(enemy.id)!.done}
               lateText={songFor(enemy.id)!.late}
@@ -1362,12 +1370,17 @@ export default function BattleArena() {
                 if (e === 'typed' || e === 'done') float('🎵', 'hero', 'text-amber-200');
               }}
               // A beat to read the result, then what the boss does next.
-              onResult={(ok) => later(() => songDone(ok), 700)}
+              onResult={(ok) => {
+                setSongSettled(true);
+                later(() => songDone(ok), 700);
+              }}
             />
-            {/* A kid who can't type the line needn't wait the clock out (review round 1): let the move come — Guard still blocks it. */}
+            {/* A kid who can't type the line needn't wait the clock out (review round 1): let the move come — Guard still
+                blocks it. Out of reach once the line is settled (review round 2), keeping its room so the card doesn't jump. */}
             <button
               onClick={() => songDone(false)}
-              className="mt-2 w-full min-h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg py-2 text-sm"
+              disabled={songSettled}
+              className={`mt-2 w-full min-h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg py-2 text-sm${songSettled ? ' invisible' : ''}`}
             >
               Let it come — I'll Guard it
             </button>
@@ -1485,9 +1498,11 @@ export default function BattleArena() {
               afterAnswer={
                 scribeBurst && scribeBurst.key === qKey ? (
                   <TypeBurst
-                  timed={save.defendTimer}
+                  timed={typingClock}
                     word={scribeBurst.word}
                     holdRule={save.typingAnchor}
+                    label={scribeBurst.mode === 'attack' ? '✍️ Type it for a harder hit!' : `✍️ Type it for +${SCRIBE_BLOCK_CHARGE} ◆!`}
+                    doneText={scribeBurst.mode === 'attack' ? '✍️ Done! Your hit will be harder.' : `✍️ Done! +${SCRIBE_BLOCK_CHARGE} ◆ is yours.`}
                     // Every right key sparks on the hero: each press does something at once.
                     onEvent={(e) => {
                       if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
@@ -1497,6 +1512,7 @@ export default function BattleArena() {
                 ) : undefined
               }
               continueLabel="▶ Go!"
+              focusContinueKey={scribeSettled}
               onContinue={(correct) => {
                 // ▶ Go! before the word is typed: no bonus, the move resolves as ever.
                 setScribeBurst(null);

@@ -9,9 +9,9 @@ import { useKeyboardStore } from '../../store/keyboardStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
-import { keyHint } from './hints';
+import { keyName } from './hints';
 import { KeyboardGate } from './TypingLessons';
-import { onControl } from './useTypingRun';
+import { inField, onControl } from './useTypingRun';
 
 /**
  * 🍂 Falling Leaves (#159, item 7), in the Library: letters drift down on
@@ -59,6 +59,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     if (phase !== 'playing') return;
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || !fromPhysicalKeyboard(e)) return;
+      if (inField(e.target)) return;
       if (!e.repeat) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
@@ -78,8 +79,11 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         setNudge(null);
       } else if (event === 'hold' && leaf) {
         setNudge(nudgeText('hold', anchorsFor(leaf.ch), leaf.ch));
+      } else if (event === 'caps' && leaf) {
+        // Caps Lock, or a Shift held from the capitals lesson (review round 2).
+        setNudge(nudgeText('caps', anchorsFor(leaf.ch), leaf.ch, e.getModifierState?.('CapsLock') === true));
       } else if (event === 'wrong') {
-        setNudge(`No leaf says "${e.key}" — look for the lowest one!`);
+        setNudge(`No leaf says "${e.key.toLowerCase()}" — look for the lowest one!`);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -112,7 +116,8 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     setReached(fresh);
     if (fresh.length === 0) return;
     update((s) => ({ ...s, flags: { ...s.flags, ...Object.fromEntries(fresh.map((m) => [leavesFlag(m), true])) } }));
-    fresh.forEach(() => void addXp(LEAVES_XP));
+    // One write for every milestone this round reached (review round 2: one per milestone raced the server).
+    void addXp(LEAVES_XP * fresh.length);
     sfx('levelup');
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, disableForReducedMotion: true });
   }, [phase, update, addXp]);
@@ -177,11 +182,10 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
               on the ground and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
-              Leaves today: <span className="font-mono text-white/80">{letters}</span> (the keys your lessons have taught).
+              Today's letters: <span className="font-mono text-white/80">{letters}</span>
             </p>
             <p className="text-xs text-white/60 mb-4">
-              {holdRule ? 'The home-row hold is on: keep your other hand on its bump key.' : 'The home-row hold is off: type with either hand.'} Catch 10,
-              25 or 50 in one round for ⭐ {LEAVES_XP} XP each, once.
+              {holdRule ? 'Keep your other hand on its bump key. ' : ''}10, 25 or 50 in one round: ⭐ {LEAVES_XP} XP each, once.
             </p>
           </>
         )}
@@ -211,7 +215,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           · {secondsLeft}s
         </span>
       </div>
-      <div className="relative h-56 rounded-xl bg-gradient-to-b from-sky-300/30 to-amber-200/20 overflow-hidden mb-2" data-testid="leaf-field">
+      <div className="relative h-56 [@media(max-height:700px)]:h-40 rounded-xl bg-gradient-to-b from-sky-300/30 to-amber-200/20 overflow-hidden mb-2" data-testid="leaf-field">
         {state.leaves.map((leaf) => (
           <span
             key={leaf.id}
@@ -234,11 +238,11 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
       </div>
       {/* Always mounted and this tall (a nudge never shoves the keyboard); a screen reader hears each nudge, else the lowest leaf's key. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
-        {nudge ?? <span className="sr-only">{lowest ? `Lowest leaf: ${lowest.ch}. ${keyHint(lowest.code, holdRule ? anchorsFor(lowest.ch) : [])}` : ''}</span>}
+        {nudge ?? <span className="sr-only">{lowest ? `Lowest leaf: ${keyName(lowest.code)}` : ''}</span>}
       </p>
       <KeyboardDiagram compact target={lowest?.code ?? null} anchors={lowest && holdRule ? anchorsFor(lowest.ch) : []} held={held} />
-      <button onClick={() => setPhase('over')} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
-        Stop for now
+      <button onClick={() => setPhase('over')} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
+        ⏹ Stop the round
       </button>
     </div>
   );

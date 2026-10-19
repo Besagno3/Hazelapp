@@ -137,7 +137,7 @@ export function stepLeaves(state: LeavesState, dtMs: number, pool: readonly Leaf
   return { ...state, leaves, missed, elapsedMs, sinceSpawnMs, nextId, over };
 }
 
-export type LeafEvent = 'caught' | 'hold' | 'wrong' | 'none';
+export type LeafEvent = 'caught' | 'hold' | 'caps' | 'wrong' | 'none';
 
 /** The leaf nearest the ground with this character, if one is falling. */
 export function lowestLeaf(state: LeavesState, ch?: string): Leaf | null {
@@ -152,13 +152,20 @@ export function lowestLeaf(state: LeavesState, ch?: string): Leaf | null {
 /**
  * A key press: the leaf nearest the ground with that character is caught —
  * with the home-row hold on, only while the other hand holds its bump key
- * (else a nudge, as in a lesson). A character with no leaf is a wrong key;
- * anything that isn't a character does nothing.
+ * (else a nudge, as in a lesson). A capital of a falling letter is a caps
+ * nudge (Caps Lock, or a Shift held from the capitals lesson — review round
+ * 2), never a wrong key. A character with no leaf is a wrong key; a space,
+ * or anything that isn't a character, does nothing.
  */
 export function pressLeaf(state: LeavesState, press: TypingPress): { next: LeavesState; event: LeafEvent; leaf: Leaf | null } {
-  if (state.over || IGNORED_CODES.has(press.code) || [...press.key].length !== 1) return { next: state, event: 'none', leaf: null };
+  if (state.over || IGNORED_CODES.has(press.code) || press.key === ' ' || [...press.key].length !== 1) return { next: state, event: 'none', leaf: null };
   const leaf = lowestLeaf(state, press.key);
   if (!leaf) {
+    const small = press.key.toLowerCase();
+    if (small !== press.key) {
+      const wanted = lowestLeaf(state, small);
+      if (wanted) return { next: state, event: 'caps', leaf: wanted };
+    }
     // The other hand's bump key going down is anchoring, not a wrong key.
     if (press.holdRule && state.leaves.some((l) => anchorsFor(l.ch).includes(press.code))) return { next: state, event: 'none', leaf: null };
     return { next: { ...state, wrong: state.wrong + 1 }, event: 'wrong', leaf: null };

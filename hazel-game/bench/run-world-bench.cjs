@@ -1161,7 +1161,7 @@ async function typing(browser, outDir) {
     await press(page, '⌨️ Start typing');
     await page.waitForTimeout(300);
     await shot(page, `lesson-line-${size}`);
-    await layoutCheck(page, `${size} lesson line`, 'Stop for now');
+    await layoutCheck(page, `${size} lesson line`, '← Back to the lessons');
     await page.keyboard.press('KeyF'); // without J: the nudge
     await page.waitForTimeout(200);
     await shot(page, `lesson-nudge-${size}`);
@@ -1170,7 +1170,7 @@ async function typing(browser, outDir) {
     await page.keyboard.up('KeyJ');
     await page.waitForTimeout(200);
     await shot(page, `lesson-typed-${size}`);
-    await press(page, 'Stop for now');
+    await press(page, '← Back to the lessons');
     await press(page, '📚 Back to the shelf');
     // The scriptorium.
     await press(page, 'The Scriptorium');
@@ -1179,8 +1179,8 @@ async function typing(browser, outDir) {
     await page.getByRole('button', { name: /From your shelf/ }).first().click();
     await page.waitForTimeout(300);
     await shot(page, `scriptorium-page-${size}`);
-    await layoutCheck(page, `${size} scriptorium page`, 'Stop for now');
-    await press(page, 'Stop for now');
+    await layoutCheck(page, `${size} scriptorium page`, '← Back to the pages');
+    await press(page, '← Back to the pages');
     await press(page, '📚 Back to the shelf');
     // Falling Leaves.
     await press(page, 'Falling Leaves');
@@ -1188,7 +1188,7 @@ async function typing(browser, outDir) {
     await press(page, '🍂 Play');
     await page.waitForTimeout(4600);
     await shot(page, `leaves-playing-${size}`);
-    await layoutCheck(page, `${size} leaves playing`, 'Stop for now');
+    await layoutCheck(page, `${size} leaves playing`, '⏹ Stop the round');
     const leaf = await page.locator('[data-testid=leaf]').first().textContent().catch(() => null);
     if (leaf) {
       // Caught the touch-typing way: the other hand's bump key down, then the letter (either anchor satisfies a right-hand letter; a left-hand one wants J).
@@ -1199,7 +1199,7 @@ async function typing(browser, outDir) {
       await page.keyboard.up('KeyJ');
       await page.waitForTimeout(200);
     }
-    await press(page, 'Stop for now');
+    await press(page, '⏹ Stop the round');
     await shot(page, `leaves-over-${size}`);
     note(page.errors.length === 0, `${size} Library screens: no page errors`, page.errors.join(' | '));
     await page.close();
@@ -1276,7 +1276,7 @@ async function typing(browser, outDir) {
   // --- In battle: the scribe burst (Eldergrove's Ringkeeper) -------------------------
   for (const [width, height] of parts.has('burst') ? [[1024, 768], [800, 600]] : []) {
     const size = `${width}×${height}`;
-    const save = typingSave({ zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, typingAnchor: false }, 1);
+    const save = typingSave({ zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, typingAnchor: false }, 11);
     const page = await stubbedApp(browser, { width, height }, save, TYPING_PROFILE, { ready: '[data-testid=world-topbar], [data-testid=battle-topbar]' });
     await page.keyboard.press('KeyZ');
     for (let i = 0; i < 10 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
@@ -1314,7 +1314,7 @@ async function typing(browser, outDir) {
 
   // --- The Hush Fiend's wind-up: a line of the song (Chorus Isle) --------------------
   if (parts.has('song')) {
-    const save = typingSave({ zoneId: 'chorus-isle', pos: { x: 21 * 32 + 16, y: 7 * 32 + 16 }, typingAnchor: false }, 1);
+    const save = typingSave({ zoneId: 'chorus-isle', pos: { x: 21 * 32 + 16, y: 7 * 32 + 16 }, typingAnchor: false }, 11);
     const page = await stubbedApp(browser, { width: 1024, height: 768 }, save, TYPING_PROFILE, { ready: '[data-testid=world-topbar], [data-testid=battle-topbar]' });
     await page.keyboard.press('KeyZ');
     for (let i = 0; i < 8 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {

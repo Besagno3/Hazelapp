@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BURST_MS } from '../../content/typing';
 import { nudgeText, type TypingEvent, type TypingProgress } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
-import { keyHint, wrongKey } from '../typing/hints';
+import { keyName, wrongKey } from '../typing/hints';
 import { TypingLine } from '../typing/TypingLine';
 import { useTypingRun } from '../typing/useTypingRun';
 import { DefendTimer } from './DefendTimer';
@@ -20,6 +20,7 @@ export function TypeBurst({
   holdRule,
   durationMs = BURST_MS,
   timed = true,
+  readyMs = 0,
   onResult,
   onEvent,
   label = "✍️ Scribe's power — type it!",
@@ -31,6 +32,8 @@ export function TypeBurst({
   durationMs?: number;
   /** Off for a player whose defend countdown is off (📜 → ⚔️ Battle): no clock, the word waits (the arena decides what ends it). */
   timed?: boolean;
+  /** A beat before the clock starts (the race: hands coming off the arrow keys, review round 2). Keys count from the first moment. */
+  readyMs?: number;
   /** The prompt over the bar, and what's said when the word is typed in time or the clock runs out. */
   label?: string;
   doneText?: string;
@@ -41,6 +44,12 @@ export function TypeBurst({
   onEvent?: (event: TypingEvent, progress: TypingProgress) => void;
 }) {
   const [state, setState] = useState<'typing' | 'done' | 'late'>('typing');
+  const [ready, setReady] = useState(readyMs <= 0);
+  useEffect(() => {
+    if (readyMs <= 0) return;
+    const id = window.setTimeout(() => setReady(true), readyMs);
+    return () => clearTimeout(id);
+  }, [readyMs]);
   const settled = useRef(false);
   const settle = (done: boolean) => {
     if (settled.current) return;
@@ -56,8 +65,9 @@ export function TypeBurst({
         <DefendTimer
           durationMs={durationMs}
           stopped={state !== 'typing'}
+          paused={!ready}
           onExpire={() => settle(false)}
-          label={label}
+          label={ready ? label : <>{label} <span className="normal-case tracking-normal text-white/80">Ready…</span></>}
           what="to type"
         />
       ) : (
@@ -70,9 +80,12 @@ export function TypeBurst({
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>)}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{run.target ? keyName(run.target) : ''}</span>)}
       </p>
-      {state === 'typing' && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
+      {/* The keyboard stays once the word is done, dimmed, so the card keeps its height and ▶ Go! doesn't jump (review round 2). */}
+      <div className={state === 'typing' ? '' : 'opacity-40'}>
+        <KeyboardDiagram compact target={state === 'typing' ? run.target : null} anchors={state === 'typing' ? run.anchors : []} held={run.held} wrong={state === 'typing' ? wrongKey(run.last) : null} />
+      </div>
     </div>
   );
 }

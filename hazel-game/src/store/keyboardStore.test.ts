@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { useKeyboardStore, watchKeyboard } from './keyboardStore';
 
@@ -11,6 +11,13 @@ describe('keyboardStore (#159)', () => {
     expect(useKeyboardStore.getState().present).toBe(false);
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
     expect(useKeyboardStore.getState().present).toBe(true);
+    // Written once (review round 2): more keys change nothing.
+    const changed = vi.fn();
+    const unsub = useKeyboardStore.subscribe(changed);
+    fireEvent.keyDown(window, { code: 'KeyB', key: 'b' });
+    fireEvent.keyDown(window, { code: 'KeyB', key: 'b', repeat: true });
+    expect(changed).not.toHaveBeenCalled();
+    unsub();
     useKeyboardStore.getState().reset();
     stop();
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });

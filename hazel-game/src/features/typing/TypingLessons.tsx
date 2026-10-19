@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { TYPING_LESSONS, typingLessonFlag, typingLessonOpen, typingLessonsCleared } from '../../content/typing';
+import { LITTLE_HANDS_AGE, TYPING_LESSONS, typingLessonFlag, typingLessonOpen, typingLessonsCleared } from '../../content/typing';
 import { fromPhysicalKeyboard } from '../../lib/typing';
 import { playerAge } from '../../lib/age';
 import { useKeyboardStore } from '../../store/keyboardStore';
@@ -8,7 +8,6 @@ import { useSaveStore } from '../../store/saveStore';
 import TypingLesson from './TypingLesson';
 
 /** Below this age the lessons suggest going slow (small hands reach less far). */
-export const LITTLE_HANDS_AGE = 8;
 
 /**
  * Librarian Sage's typing lessons (#159), inside the Library's panel: a real
@@ -64,9 +63,25 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
       )}
       {little && (
         <p className="text-xs text-white/70 bg-white/10 rounded-lg px-3 py-2 mb-3">
-          🖐️ Little hands? Go slow, and it's fine to turn the home-row hold off below until your fingers can reach.
+          🖐️ Little hands? Go slow, and it's fine to turn the home-row hold off until your fingers can reach.
         </p>
       )}
+      {/* The hold switch sits by the tip that names it (review round 2), above the list. */}
+      <div className="mb-3">
+      <button
+        onClick={() => update((s) => ({ ...s, typingAnchor: !s.typingAnchor }))}
+        aria-pressed={holdRule}
+        className="w-full min-h-11 flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+      >
+        <span className="text-left">
+          🖐️ Home-row hold
+          <span className="block text-xs text-white/70">
+            {holdRule ? 'Hold F or J with your other hand while you type' : 'Type with either hand — no holding'}
+          </span>
+        </span>
+        <span className={holdRule ? 'text-emerald-300 font-bold' : 'text-white/70'}>{holdRule ? 'On' : 'Off'}</span>
+      </button>
+      </div>
       <div className="space-y-2 mb-3">
         {TYPING_LESSONS.map((lesson, i) => {
           const done = flags[typingLessonFlag(lesson.id)] === true;
@@ -94,19 +109,6 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
           );
         })}
       </div>
-      <button
-        onClick={() => update((s) => ({ ...s, typingAnchor: !s.typingAnchor }))}
-        aria-pressed={holdRule}
-        className="w-full min-h-11 flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
-      >
-        <span className="text-left">
-          🖐️ Home-row hold
-          <span className="block text-xs text-white/70">
-            {holdRule ? 'Hold F or J with your other hand while you type' : 'Type with either hand — no holding'}
-          </span>
-        </span>
-        <span className={holdRule ? 'text-emerald-300 font-bold' : 'text-white/70'}>{holdRule ? 'On' : 'Off'}</span>
-      </button>
       <button onClick={onBack} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
         📚 Back to the shelf
       </button>

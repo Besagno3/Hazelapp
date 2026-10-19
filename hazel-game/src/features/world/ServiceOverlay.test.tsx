@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { Question } from '../../types';
 
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
@@ -9,6 +9,7 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { LIBRARY_XP } = await import('../../content/items');
+const { TYPING_LESSONS, typingLessonFlag } = await import('../../content/typing');
 
 const missed = (id: string, text: string): Question => ({
   id,
@@ -60,15 +61,26 @@ describe('the Library — starter questions pay no XP (#153)', () => {
 });
 
 describe('the Library — the scriptorium (#159 item 5)', () => {
-  it('a desk button under the lessons, open only after the capitals lesson, counting pages copied', () => {
+  it('the desk and the game look locked until their lessons (review round 2), then open', () => {
     render(<ServiceOverlay service="library" npcId={null} />);
     const desk = screen.getByText('The Scriptorium').closest('button')!;
-    expect(desk).toHaveTextContent('once you can type capitals');
+    expect(desk).toHaveAttribute('aria-disabled', 'true');
+    expect(desk).toHaveTextContent('Clear typing lesson 12 (capitals) first');
     fireEvent.click(desk);
+    expect(screen.queryByText('Press any key on your keyboard to begin.')).toBeNull();
+    const game = screen.getByText('Falling Leaves').closest('button')!;
+    expect(game).toHaveAttribute('aria-disabled', 'true');
+    expect(game).toHaveTextContent('Clear typing lesson 1 first');
+    cleanup();
+    const all: Record<string, boolean> = {};
+    for (const l of TYPING_LESSONS) all[typingLessonFlag(l.id)] = true;
+    useSaveStore.setState({ save: { ...defaultSave(), flags: all } });
+    render(<ServiceOverlay service="library" npcId={null} />);
+    const open = screen.getByText('The Scriptorium').closest('button')!;
+    expect(open).toHaveAttribute('aria-disabled', 'false');
+    fireEvent.click(open);
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.click(screen.getByText('📚 Back to the shelf'));
-    expect(screen.getByText('📚 The Library')).toBeInTheDocument();
-    // …and the 🍂 Falling Leaves game under it (#159 item 7).
     fireEvent.click(screen.getByText('Falling Leaves').closest('button')!);
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.click(screen.getByText('📚 Back to the shelf'));

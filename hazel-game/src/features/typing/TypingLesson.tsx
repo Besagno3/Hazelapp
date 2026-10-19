@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   TYPING_BADGE_ID,
@@ -13,7 +13,7 @@ import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
-import { keyHint, wrongKey } from './hints';
+import { keyName, wrongKey } from './hints';
 import { TypingLine } from './TypingLine';
 import { useTypingRun } from './useTypingRun';
 
@@ -55,9 +55,24 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
     setResult({ accuracy: typingAccuracy(total), paid: !clearedBefore, badge });
   }
 
+  // One live region for the whole lesson (review round 2): a per-line remount
+  // never announced the new line, nor the result that replaced it.
+  const stars = result ? typingStars(result.accuracy) : 0;
+  const announce = result
+    ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ''}`
+    : started
+      ? `Line ${line + 1} of ${lesson.lines.length}: ${lesson.lines[line]}`
+      : `${lesson.title}. ${lesson.teaches}`;
+  const live = (
+    <p key="live" className="sr-only" role="status">
+      {announce}
+    </p>
+  );
+
   if (result) {
-    const stars = typingStars(result.accuracy);
     return (
+      <>
+        {live}
       <div className="text-center">
         <div className="text-5xl mb-2" aria-hidden="true">
           {lesson.emoji}
@@ -67,8 +82,8 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
         </p>
-        <p className="text-sm text-white/80 mb-1" role="status">
-          Lesson cleared! {stars} of 3 stars. {Math.round(result.accuracy * 100)}% of your keys were right.
+        <p className="text-sm text-white/80 mb-1">
+          {Math.round(result.accuracy * 100)}% of your keys were right.
           {stars === 3 ? ' A true scribe!' : stars === 2 ? ' Nearly perfect!' : ' Every key you practise gets easier.'}
         </p>
         {result.paid && <p className="text-sm text-yellow-200 font-semibold">⭐ +{TYPING_LESSON_XP} XP</p>}
@@ -80,15 +95,18 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
             </button>
           )}
           <button autoFocus={!onNext} onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
-            📚 Back to the lessons
+            ← Back to the lessons
           </button>
         </div>
       </div>
+      </>
     );
   }
 
   if (!started) {
     return (
+      <>
+        {live}
       <div className="text-center">
         <div className="text-5xl mb-2" aria-hidden="true">
           {lesson.emoji}
@@ -108,14 +126,17 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
             ⌨️ Start typing
           </button>
           <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-3 min-h-11">
-            Back
+            ← Back to the lessons
           </button>
         </div>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      {live}
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
         <h2 className="text-lg font-extrabold truncate">
@@ -126,10 +147,11 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
         </span>
       </div>
       <LineRun key={line} text={lesson.lines[line]} holdRule={holdRule} onDone={lineDone} />
-      <button onClick={onBack} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
-        Stop for now
+      <button onClick={onBack} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
+        ← Back to the lessons
       </button>
     </div>
+    </>
   );
 }
 
@@ -137,15 +159,22 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
 export function LineRun({ text, holdRule, onDone }: { text: string; holdRule: boolean; onDone: (p: TypingProgress) => void }) {
   const run = useTypingRun({ text, holdRule, onDone });
   const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '', run.last.capsLock) : null;
+  // The line takes focus as it appears (review round 2: the Start button unmounted and focus fell to the page) —
+  // a plain box, so Space is the line's, never a button's.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    box.current?.focus({ preventScroll: true });
+  }, []);
   return (
-    <div>
+    <div ref={box} tabIndex={-1} className="outline-none">
       <div className="bg-white/10 rounded-xl px-3 py-4 mb-2">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} />
       </div>
       {/* Always mounted and always this tall, so a nudge never shoves the keyboard (review round 1); a
-          screen reader hears each nudge, and between nudges the next key. */}
+          screen reader hears each nudge, and between nudges just the next key's name (round 2: a whole
+          sentence a key was forty sentences a line) — the full words are the keyboard's own label. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
-        {nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>}
+        {nudge ?? <span className="sr-only">{run.target ? keyName(run.target) : ''}</span>}
       </p>
       <KeyboardDiagram target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
     </div>

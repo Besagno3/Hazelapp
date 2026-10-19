@@ -349,7 +349,7 @@ export const SCRIBE_ATTACK_MULT = 1.25;
 export const SCRIBE_BLOCK_CHARGE = 1;
 
 /** Keep a burst word short enough for a young typist. */
-const BURST_MAX = 12;
+export const BURST_MAX = 12;
 
 /**
  * The word a ✍️ scribe burst asks for: the hero's name, Ember's, or the foe's
@@ -361,10 +361,21 @@ export function burstWord(heroName: string, enemyName: string, roll = Math.rando
   return words[Math.min(words.length - 1, Math.floor(roll * words.length))];
 }
 
-/** A foe's name as a word to type: lowercase, "The" dropped, a long name's last word. */
+/**
+ * A foe's name as a word to type: lowercase, "The" dropped, a hyphen a space
+ * (no lesson teaches the dash — review round 2: "dog-knight"), a long name's
+ * last word, never cut mid-word.
+ */
 export function enemyWord(enemyName: string): string {
-  const foe = enemyName.replace(/^The /, '').toLowerCase();
-  return foe.length <= BURST_MAX ? foe : (foe.split(' ').pop() ?? foe).slice(0, BURST_MAX);
+  const foe = plainName(enemyName).toLowerCase();
+  if (foe.length <= BURST_MAX) return foe;
+  const last = foe.split(' ').pop() ?? foe;
+  return last.length <= BURST_MAX ? last : last.slice(0, BURST_MAX);
+}
+
+/** A name as it's typed: "The" dropped, hyphens spaces. */
+export function plainName(name: string): string {
+  return name.replace(/^The /, '').replace(/-/g, ' ');
 }
 
 // --- The name race (#159, item 4) ---------------------------------------------
@@ -376,18 +387,32 @@ export function enemyWord(enemyName: string): string {
  * first move). Never a boss, nor a swift critter (it strikes first anyway).
  */
 export const NAME_RACE_CHANCE = 1 / 3;
-/** How long the race gives, in ms — shorter than a burst: it's a race. Little hands get longer. */
-export const NAME_RACE_MS = 6_000;
-export const NAME_RACE_LITTLE_MS = 9_000;
 /**
- * The race asks for a whole name, so it waits for the lesson that completes
- * the letters (review round 1: on F and J alone it read as a punishment).
+ * How long the race gives, in ms, after a short "ready" beat (`RACE_READY_MS`,
+ * the hands coming off the arrow keys — review round 2). Little hands get longer.
  */
-export const NAME_RACE_OPENS_AFTER = 'bottom-cxz';
+export const NAME_RACE_MS = 8_000;
+export const NAME_RACE_LITTLE_MS = 12_000;
+export const RACE_READY_MS = 1_200;
+/** Under this age the clocks run longer and the lessons list suggests going slow. */
+export const LITTLE_HANDS_AGE = 8;
+/**
+ * The lesson that completes the letters. The race waits for it (review round
+ * 1: on F and J alone it read as a punishment), and until then the bursts and
+ * the song run with no clock (review round 2).
+ */
+export const LETTERS_LESSON = 'bottom-cxz';
+/** @deprecated name kept for the race; `lettersLearned` is the rule. */
+export const NAME_RACE_OPENS_AFTER = LETTERS_LESSON;
+
+/** Whether every letter's lesson is cleared. */
+export function lettersLearned(flags: Record<string, boolean>): boolean {
+  return flags[typingLessonFlag(LETTERS_LESSON)] === true;
+}
 
 /** Whether this player can be raced: every letter's lesson cleared. */
 export function nameRaceOpen(flags: Record<string, boolean>): boolean {
-  return flags[typingLessonFlag(NAME_RACE_OPENS_AFTER)] === true;
+  return lettersLearned(flags);
 }
 /** The free first strike's power, as a share of a landed Attack's. */
 export const FIRST_STRIKE_SHARE = 0.5;
@@ -429,7 +454,7 @@ export function rollTypingBonus(
 ): TypingBonus | null {
   if (rolls.offer >= TYPING_BONUS_CHANCE) return null;
   const who = (['hero', 'ember', 'enemy'] as const)[Math.min(2, Math.floor(rolls.who * 3))];
-  const word = who === 'hero' ? heroName : who === 'ember' ? 'Ember' : enemyName.replace(/^The /, '');
+  const word = who === 'hero' ? heroName : who === 'ember' ? 'Ember' : plainName(enemyName);
   const r = Math.floor(rolls.reward * 4);
   const reward: TypingBonusReward =
     r === 0 ? { kind: 'coins', amount: TYPING_BONUS_COINS } : r === 1 ? { kind: 'xp', amount: TYPING_BONUS_XP } : r === 2 ? { kind: 'item', id: 'potion' } : { kind: 'item', id: 'hint' };
@@ -573,13 +598,14 @@ export interface BossSong {
   broken: (name: string, move: string) => string;
 }
 
-/** How long a song line gives, in ms — a whole line, so longer than a burst. */
+/** How long a song line gives, in ms — a whole line, so longer than a burst. Little hands get longer. */
 export const SONG_MS = 20_000;
+export const SONG_LITTLE_MS = 30_000;
 
 export const BOSS_SONGS: Record<string, BossSong> = {
   'hush-fiend': {
-    lines: ['hush now little ones and hear', 'every name is a song i keep', 'sing it back and i am near', 'no voice is lost that is sung'],
-    prompt: "sing the first Sage's song to break the hush!",
+    lines: ['hush now little ones and hear', 'a name is a song to keep', 'sing it back and we are near', 'no voice is lost that is sung'],
+    prompt: 'sing to break it!',
     done: '🎶 Your song rings out — the hush breaks!',
     late: 'Too slow — the shush swallows your song. Next time!',
     broken: (name, move) => `🎶 The whole island hums along! ${name} claps its mittens over its ears — its ${move} fizzles. Next turn it can only swipe at you.`,
@@ -600,7 +626,7 @@ export function songFor(enemyId: string): BossSong | null {
  */
 export const PANGRAMS: readonly string[] = [
   'The quick brown fox jumps over the lazy dog.',
-  'How vexingly quick daft zebras jump!',
+  'How vexingly quick daft zebras jump.',
   'Sphinx of black quartz, judge my vow.',
   'The five boxing wizards jump quickly.',
   'Jackdaws love my big sphinx of quartz.',

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { bonusWords, type TypingBonus as Bonus } from '../../content/typing';
 import { nudgeText } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
-import { keyHint, wrongKey } from '../typing/hints';
+import { keyName, wrongKey } from '../typing/hints';
 import { TypingLine } from '../typing/TypingLine';
 import { useTypingRun } from '../typing/useTypingRun';
 
@@ -45,7 +45,7 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>)}
+        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{run.target ? keyName(run.target) : ''}</span>)}
       </p>
       {!claimed && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
     </div>
