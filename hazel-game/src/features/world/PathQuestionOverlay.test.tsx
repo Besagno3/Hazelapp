@@ -26,6 +26,9 @@ const { defaultSave } = await import('../../lib/save');
 const { pathTargetId } = await import('../../content/zones');
 const { useProfileStore } = await import('../../store/profileStore');
 const { XP_PER_CORRECT } = await import('../../lib/level');
+const { useKeyboardStore } = await import('../../store/keyboardStore');
+const { PANGRAM_BONUS_COINS, charKey, pangramChest, pangramFor, typingLessonFlag } = await import('../../content/typing');
+const { CHEST_COINS } = await import('../../content/items');
 
 const moonstoneChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 8, 7), topic: 'history', zoneId: 'echo-mine' };
 const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 19, 2), topic: 'history', zoneId: 'echo-mine' };
@@ -158,5 +161,57 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     expect(screen.getByRole('status')).toHaveTextContent('');
     expect(screen.queryByRole('button', { name: /Ask me another/ })).toBeNull();
     expect(screen.getByRole('button', { name: /come back/ })).toBeInTheDocument();
+  });
+});
+
+describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 8)", () => {
+  // The first Echo Mine cell whose chest id has a lock, and one without.
+  const ids = Array.from({ length: 40 }, (_, i) => pathTargetId('echo-mine', 'chest', i % 20, Math.floor(i / 20)));
+  const lockedChest: PathTarget = { kind: 'chest', id: ids.find(pangramChest)!, topic: 'history', zoneId: 'echo-mine' };
+  const plainLock: PathTarget = { kind: 'chest', id: ids.find((id) => !pangramChest(id))!, topic: 'history', zoneId: 'echo-mine' };
+  const capitals = { [typingLessonFlag('capitals')]: true };
+
+  beforeEach(() => useKeyboardStore.getState().reset());
+
+  it('with a keyboard and the capitals lesson, the sentence typed opens the chest with the bonus and no question answered', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    const lock = screen.getByTestId('scribe-lock');
+    const sentence = pangramFor(lockedChest.id);
+    expect(screen.getByLabelText(`Type: ${sentence}`)).toBeInTheDocument();
+    // The riddle is still there to answer instead.
+    expect(await screen.findByText('Right')).toBeInTheDocument();
+    for (const ch of sentence) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    expect(lock).not.toBeInTheDocument();
+    expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
+    expect(screen.queryByText('Right')).toBeNull();
+    const save = useSaveStore.getState().save!;
+    expect(save.openedChests).toEqual([lockedChest.id]);
+    expect(save.coins).toBe(CHEST_COINS + PANGRAM_BONUS_COINS);
+    expect(addXp).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Onward!' })).toBeInTheDocument();
+  });
+
+  it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
+    const { unmount } = render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    unmount();
+    useKeyboardStore.getState().seen();
+    withFlags({});
+    const second = render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    second.unmount();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
+    render(<PathQuestionOverlay target={plainLock} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    expect(await screen.findByText('Right')).toBeInTheDocument();
   });
 });

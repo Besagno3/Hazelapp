@@ -12,6 +12,9 @@ import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
+import { useKeyboardStore } from '../../store/keyboardStore';
+import { PANGRAM_BONUS_COINS, pangramChest, pangramFor, scriptoriumOpen } from '../../content/typing';
+import { LineRun } from '../typing/TypingLesson';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
 import ModalLayer from '../../components/ModalLayer';
@@ -39,6 +42,20 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const [solved, setSolved] = useState(false);
   // A tale-stone's question answered wrong (15e review): it offers another, right here.
   const [missed, setMissed] = useState(false);
+  // A scribe's lock (#159 item 8): a pangram chest, with a keyboard and the
+  // capitals lesson, can be opened by typing its sentence instead — for a bonus.
+  const keyboard = useKeyboardStore((s) => s.present);
+  const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {});
+  const [lockOpened, setLockOpened] = useState(false);
+  function openByLock() {
+    sfx('chest');
+    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    update((s) => {
+      const opened = openChest(s, target.id);
+      return { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
+    });
+    setLockOpened(true);
+  }
   const [attempt, setAttempt] = useState(0);
 
   // A tale-stone's riddle reads as a challenge on the path, not a treasure chest's (15e review).
@@ -133,13 +150,35 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           {title}
         </motion.h2>
 
-        {!question && !error && (
+        {scribeLock && !lockOpened && (
+          <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-amber-300/80 rounded-xl p-4 text-white shadow-2xl mb-4" data-testid="scribe-lock">
+            <p className="font-bold text-amber-300 text-sm">📜 A scribe's lock!</p>
+            <p className="text-xs text-white/80 mb-2">
+              Type its sentence — every letter of the alphabet is in it — and it springs open with a scribe's bonus of 🪙 {PANGRAM_BONUS_COINS}. Or
+              answer the riddle below, as ever.
+            </p>
+            <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} />
+          </div>
+        )}
+
+        {lockOpened && (
+          <div className="w-full max-w-xl bg-white rounded-2xl p-5 text-center shadow-2xl" data-testid="scribe-lock-open">
+            <p className="font-bold text-gray-800 mb-1">✨ The lock springs open — {chestRewardText(target.id)}</p>
+            <p className="text-sm text-amber-700 font-semibold mb-1">A scribe's bonus: 🪙 {PANGRAM_BONUS_COINS} more!</p>
+            {wanted && <p className="text-sm text-gray-700 mb-2">{wanted}</p>}
+            <button autoFocus onClick={() => sendFlow({ type: 'CLOSE' })} className="mt-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3 min-h-11">
+              Onward!
+            </button>
+          </div>
+        )}
+
+        {!lockOpened && !question && !error && (
           <div className="text-white/90 bg-white/10 rounded-xl px-6 py-4">
             Thinking of a good one… 🤔
           </div>
         )}
 
-        {error && (
+        {!lockOpened && error && (
           <div className="bg-white rounded-xl p-5 max-w-sm text-center">
             <p className="text-sm text-gray-600 mb-4">{error}</p>
             <div className="flex justify-center gap-3">
@@ -159,7 +198,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           </div>
         )}
 
-        {question && (
+        {!lockOpened && question && (
           <QuestionCard
             key={question.id}
             question={question}
@@ -191,7 +230,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
             }
           />
         )}
-        {question && missed && (
+        {!lockOpened && question && missed && (
           <button
             onClick={() => sendFlow({ type: 'CLOSE' })}
             className="mt-3 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-lg px-4 py-2 text-sm"

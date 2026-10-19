@@ -29,7 +29,13 @@ import {
   scriptoriumPages,
   BOSS_SONGS,
   songFor,
+  PANGRAMS,
+  PANGRAM_CHEST_EVERY,
+  isPangram,
+  pangramChest,
+  pangramFor,
 } from './typing';
+import { ZONES, pathTargetId } from './zones';
 import { FUN_FACTS } from '../lib/funFacts';
 import { ALL_TOPICS } from './topics';
 import type { LibraryEntry } from '../types';
@@ -235,5 +241,32 @@ describe('the song that breaks the hush (#159 item 6)', () => {
       }
       expect(song.broken('The Hush Fiend', 'Great Shush')).toMatch(/Great Shush/);
     }
+  });
+});
+
+describe('pangram chests (#159 item 8)', () => {
+  it('every pangram has all 26 letters and types on the key map; a non-pangram is not one', () => {
+    for (const p of PANGRAMS) {
+      expect(isPangram(p), p).toBe(true);
+      expect(scribeText(p)).toBe(p);
+      expect(p.length).toBeLessThanOrEqual(48);
+    }
+    expect(isPangram('The quick brown fox.')).toBe(false);
+  });
+
+  it("about one riddle-chest in four has a scribe's lock, always the same ones with the same sentence", () => {
+    const ids: string[] = [];
+    for (const z of Object.values(ZONES)) z.map.forEach((row, y) => [...row].forEach((ch, x) => ch === 'C' && ids.push(pathTargetId(z.id, 'chest', x, y))));
+    expect(ids.length).toBeGreaterThan(20);
+    const locked = ids.filter(pangramChest);
+    const share = locked.length / ids.length;
+    expect(share).toBeGreaterThan(1 / PANGRAM_CHEST_EVERY - 0.12);
+    expect(share).toBeLessThan(1 / PANGRAM_CHEST_EVERY + 0.12);
+    for (const id of locked) {
+      expect(PANGRAMS).toContain(pangramFor(id));
+      expect(pangramFor(id)).toBe(pangramFor(id));
+    }
+    // More than one sentence is in use across the world.
+    expect(new Set(locked.map(pangramFor)).size).toBeGreaterThan(1);
   });
 });

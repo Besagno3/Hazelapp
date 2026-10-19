@@ -594,6 +594,11 @@ zod, react-query. Add the package in the same change that first uses it.
   (`leafPool`) drift down; the right key catches the lowest such leaf; three
   on the ground or the clock end the round; milestones of 10 / 25 / 50 in a
   round pay `LEAVES_XP` once (`leaves:<n>` flags).
+  **Pangram chests (item 8):** about one riddle-chest in four
+  (`pangramChest`, by its id) also has a scribe's lock: with a keyboard and
+  the capitals lesson, `PathQuestionOverlay` offers its pangram
+  (`pangramFor`, from `PANGRAMS`) above the riddle; typed, the chest opens
+  with `PANGRAM_BONUS_COINS` on top. The riddle stays on offer.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1016,6 +1021,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing VIII: pangram chests (#159)
+A rare chest opened by typing a sentence.
+- **A scribe's lock** on about one riddle-chest in four (always the same
+  ones): with a keyboard and the capitals lesson, a box above the riddle
+  offers a pangram — "The quick brown fox jumps over the lazy dog." and
+  five more, every letter of the alphabet in each. Type it over the
+  keyboard and hands and the chest springs open with its coins (and key
+  item) plus a scribe's bonus of 15. The riddle stays on offer, so no chest
+  is ever locked to a kid without a keyboard.
+- Tests: +4 (`content/typing.test`, `PathQuestionOverlay.test`); 1658 green, lint +
+  tsc clean.
 
 ### 2026-10-19 — Touch typing VII: 🍂 Falling Leaves (#159)
 A typing game in the Library, from lesson 1.

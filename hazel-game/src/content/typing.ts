@@ -578,3 +578,50 @@ export const BOSS_SONGS: Record<string, BossSong> = {
 export function songFor(enemyId: string): BossSong | null {
   return BOSS_SONGS[enemyId] ?? null;
 }
+
+// --- Pangram chests (#159, item 8) ---------------------------------------------
+
+/**
+ * Sentences with every letter of the alphabet — a scribe's test since the
+ * first typewriters. Short, kid-safe, and typeable on the key map (a test
+ * checks all 26 letters and the keys).
+ */
+export const PANGRAMS: readonly string[] = [
+  'The quick brown fox jumps over the lazy dog.',
+  'How vexingly quick daft zebras jump!',
+  'Sphinx of black quartz, judge my vow.',
+  'The five boxing wizards jump quickly.',
+  'Jackdaws love my big sphinx of quartz.',
+  'Bright vixens jump; dozy fowl quack.',
+];
+
+/** The scribe's bonus for opening a chest by its sentence, on top of the chest's coins. */
+export const PANGRAM_BONUS_COINS = 15;
+/** About this share of riddle-chests have a scribe's lock (by their id, so a given chest always does or never does). */
+export const PANGRAM_CHEST_EVERY = 4;
+
+function chestHash(chestId: string): number {
+  let h = 0;
+  for (const ch of chestId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+/**
+ * Whether this riddle-chest also has a scribe's lock: a pangram to type that
+ * opens it with a bonus — with a keyboard and the capitals lesson (a sentence
+ * has big letters); the riddle opens it as ever, so no one is locked out.
+ */
+export function pangramChest(chestId: string): boolean {
+  return chestHash(chestId) % PANGRAM_CHEST_EVERY === 0;
+}
+
+/** The sentence on this chest's lock (the same every time). */
+export function pangramFor(chestId: string): string {
+  return PANGRAMS[Math.floor(chestHash(chestId) / PANGRAM_CHEST_EVERY) % PANGRAMS.length];
+}
+
+/** Every letter of the alphabet, at least once. */
+export function isPangram(text: string): boolean {
+  const letters = new Set(text.toLowerCase().replace(/[^a-z]/g, ''));
+  return letters.size === 26;
+}
