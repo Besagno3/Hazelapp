@@ -570,6 +570,11 @@ zod, react-query. Add the package in the same change that first uses it.
   `bonus` / `onClaimBonus`): the hero's, Ember's or the foe's name as it is
   written, no clock, for coins, XP, a potion or a feather (`claimBonus` in
   the arena pays it once, at the last key).
+  **As a battle opens (item 4):** one regular critter in three (`nameRaceDue`,
+  `NAME_RACE_CHANCE`; never a boss or a swift critter) starts on a `race`
+  turn: the critter's name (`enemyWord`) within `NAME_RACE_MS`. Won, a free
+  blow at `FIRST_STRIKE_SHARE` then the hero's turn (`heroStrike`'s `then`);
+  lost, the critter darts in first (`enemyTurn`), as a swift one does.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -992,6 +997,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing IV: the name race (#159)
+The owner: name the critter for first strike, but random, so some critters
+get the first move.
+- **As a regular critter's battle opens**, with a keyboard and lesson 1,
+  one encounter in three starts on a race where the command menu sits: type
+  the critter's name in 6 s. Won, the hero strikes first for half an Attack's
+  power and then takes their turn. Too slow, the critter darts in before you
+  can move and its defend question comes first, as a swift critter's does.
+  Never a boss, never a swift critter.
+- `TypeBurst` takes its words (`label`, `doneText`, `lateText`);
+  `heroStrike` takes what follows the blow (`then`).
+- Tests: +4 (`BattleArena.test`, `content/typing.test`: `enemyWord`, `nameRaceDue`); 1631 green, lint + tsc clean.
 
 ### 2026-10-19 — Touch typing III: the bonus scroll after a win (#159)
 Third of three — the owner's idea: a surprise after random battles.

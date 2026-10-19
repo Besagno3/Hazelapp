@@ -353,10 +353,33 @@ const BURST_MAX = 12;
  * A long foe's name ("Clockwork Titan") gives its last word. `roll` picks (0–1).
  */
 export function burstWord(heroName: string, enemyName: string, roll = Math.random()): string {
-  const foe = enemyName.replace(/^The /, '').toLowerCase();
-  const short = foe.length <= BURST_MAX ? foe : (foe.split(' ').pop() ?? foe).slice(0, BURST_MAX);
-  const words = [heroName.toLowerCase(), 'ember', short];
+  const words = [heroName.toLowerCase(), 'ember', enemyWord(enemyName)];
   return words[Math.min(words.length - 1, Math.floor(roll * words.length))];
+}
+
+/** A foe's name as a word to type: lowercase, "The" dropped, a long name's last word. */
+export function enemyWord(enemyName: string): string {
+  const foe = enemyName.replace(/^The /, '').toLowerCase();
+  return foe.length <= BURST_MAX ? foe : (foe.split(' ').pop() ?? foe).slice(0, BURST_MAX);
+}
+
+// --- The name race (#159, item 4) ---------------------------------------------
+
+/**
+ * As a regular critter's battle opens, one encounter in this many starts on a
+ * race: name the critter in time and the hero strikes first; too slow and
+ * the critter darts in first (the owner: random, so some critters get the
+ * first move). Never a boss, nor a swift critter (it strikes first anyway).
+ */
+export const NAME_RACE_CHANCE = 1 / 3;
+/** How long the race gives, in ms — shorter than a burst: it's a race. */
+export const NAME_RACE_MS = 6_000;
+/** The free first strike's power, as a share of a landed Attack's. */
+export const FIRST_STRIKE_SHARE = 0.5;
+
+/** Whether this battle opens on a name race. `roll` is 0–1 (injected by tests). */
+export function nameRaceDue(enemy: { isBoss: boolean; behavior?: string }, scribe: boolean, roll = Math.random()): boolean {
+  return scribe && !enemy.isBoss && enemy.behavior !== 'swift' && roll < NAME_RACE_CHANCE;
 }
 
 /** How often a won battle offers the ✍️ name bonus. */

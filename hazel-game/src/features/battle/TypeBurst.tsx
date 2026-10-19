@@ -20,10 +20,17 @@ export function TypeBurst({
   durationMs = BURST_MS,
   onResult,
   onEvent,
+  label = "✍️ Scribe's power — type it!",
+  doneText = "✍️ Done! The scribe's power is yours.",
+  lateText = 'The ink dried — next time!',
 }: {
   word: string;
   holdRule: boolean;
   durationMs?: number;
+  /** The prompt over the bar, and what's said when the word is typed in time or the clock runs out. */
+  label?: string;
+  doneText?: string;
+  lateText?: string;
   /** Once: typed in time (true) or the clock ran out (false). */
   onResult: (done: boolean) => void;
   /** Each press that did something (the arena's sparks). */
@@ -45,14 +52,14 @@ export function TypeBurst({
         durationMs={durationMs}
         stopped={state !== 'typing'}
         onExpire={() => settle(false)}
-        label="✍️ Scribe's power — type it!"
+        label={label}
         what="to type"
       />
       <div className="py-2">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {state === 'done' ? "✍️ Done! The scribe's power is yours." : state === 'late' ? 'The ink dried — next time!' : (nudge ?? '')}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? '')}
       </p>
       {state === 'typing' && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={run.last?.event === 'wrong' ? run.last.code : null} />}
     </div>

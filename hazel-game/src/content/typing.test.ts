@@ -2,13 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   KEYBOARD_ROWS,
   KEY_BY_CODE,
+  NAME_RACE_CHANCE,
   TYPING_BONUS_CHANCE,
   TYPING_LESSONS,
   anchorsFor,
   burstWord,
   charKey,
+  enemyWord,
   fingerFor,
   keysTaughtBy,
+  nameRaceDue,
   rollTypingBonus,
   typingLessonFlag,
   typingLessonOpen,
@@ -121,6 +124,20 @@ describe('the battle words (#159)', () => {
     expect(burstWord('Valor', 'The Clockwork Titan', 0.9)).toBe('titan');
     expect(burstWord('Valor', 'The Ringkeeper', 0.9)).toBe('ringkeeper');
     expect(burstWord('Valor', 'Count Bat', 1)).toBe('count bat');
+  });
+
+  it("the race's word is the foe's name, lowercase, without 'The', a long one's last word; the race is one regular critter in three", () => {
+    expect(enemyWord('Count Bat')).toBe('count bat');
+    expect(enemyWord('The Clockwork Titan')).toBe('titan');
+    expect(enemyWord('Quill Imp')).toBe('quill imp');
+    const critter = { isBoss: false };
+    expect(nameRaceDue(critter, true, 0)).toBe(true);
+    expect(nameRaceDue(critter, true, NAME_RACE_CHANCE - 0.01)).toBe(true);
+    expect(nameRaceDue(critter, true, NAME_RACE_CHANCE)).toBe(false);
+    expect(nameRaceDue(critter, false, 0)).toBe(false);
+    expect(nameRaceDue({ isBoss: true }, true, 0)).toBe(false);
+    expect(nameRaceDue({ isBoss: false, behavior: 'swift' }, true, 0)).toBe(false);
+    expect(nameRaceDue({ isBoss: false, behavior: 'healer' }, true, 0)).toBe(true);
   });
 
   it('the name bonus comes one time in three, names who it is, and pays coins, XP, a potion or a feather', () => {

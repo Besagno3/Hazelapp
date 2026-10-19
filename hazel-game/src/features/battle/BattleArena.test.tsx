@@ -770,6 +770,7 @@ function attackAndAnswer() {
 
 describe('✍️ scribe bursts (#159 item 2)', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
     useKeyboardStore.getState().reset();
   });
@@ -799,6 +800,8 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     useBattleStore.getState().reset();
     // Full HP: the enemy's blow below mustn't wake Valor's Lionheart and muddle the second Attack's number.
     useBattleStore.getState().start(enemy, 100, 100);
+    // The dice at 0.5: no name race on this battle's opening (item 4), and the critter attacks.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     unlockTyping();
     render(<BattleArena />);
     attackAndAnswer();
@@ -823,6 +826,7 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
 
   it('▶ Go! before the word is typed, or the clock running out, gives no bonus', () => {
     vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     unlockTyping();
     render(<BattleArena />);
     attackAndAnswer();
@@ -837,6 +841,7 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
   });
 
   it(`a block followed by its word adds ${SCRIBE_BLOCK_CHARGE} ◆ at once`, () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     unlockTyping();
     render(<BattleArena />);
     // Guard → wrong → the enemy attacks → a right defend answer.
@@ -855,6 +860,7 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
   });
 
   it('with the home-row hold on, the burst asks for the other hand too', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
     unlockTyping(true);
     render(<BattleArena />);
     attackAndAnswer();
@@ -962,5 +968,93 @@ describe('the bonus scroll after a win (#159 item 3)', () => {
     render(<BattleArena />);
     winTheFight();
     expect(screen.queryByTestId('typing-bonus')).toBeNull();
+  });
+});
+
+// --- The name race (#159 item 4) ---------------------------------------------------
+const { NAME_RACE_MS, FIRST_STRIKE_SHARE } = await import('../../content/typing');
+const { attackDamage } = await import('../../lib/battleMath');
+
+describe('the name race as a battle opens (#159 item 4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('one critter in three: name it in time and the hero strikes first, then takes their turn', () => {
+    // 0.3: the race is on (< 1/3); the enemy's first intent is an attack (≥ its charge chance).
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping();
+    render(<BattleArena />);
+    expect(screen.queryByText('Attack')).toBeNull();
+    const race = screen.getByTestId('name-race');
+    expect(race).toHaveTextContent(/Name the critter for first strike/);
+    expect(screen.getByLabelText('Type: count bat')).toBeInTheDocument();
+    vi.useFakeTimers();
+    for (const ch of 'count bat') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(race).toHaveTextContent(/First strike is yours/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/names it first and strikes/)).toBeInTheDocument();
+    // Half an Attack's power (Valor's Battle Cry doubles only a landed Attack, not this).
+    expect(200 - useBattleStore.getState().enemyHp).toBe(Math.round(attackDamage(true, 'aggressive', {}) * FIRST_STRIKE_SHARE));
+    expect(useBattleStore.getState().playerHp).toBe(60);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it('too slow, and the critter darts in first: its turn, a defend question', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping();
+    vi.useFakeTimers();
+    render(<BattleArena />);
+    const race = screen.getByTestId('name-race');
+    act(() => {
+      vi.advanceTimersByTime(NAME_RACE_MS + 100);
+    });
+    expect(race).toHaveTextContent(/Too slow/);
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/darts in before you can move/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Count Bat attacks — answer to block/)).toBeInTheDocument();
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+  });
+
+  it('no race on the other two in three, without a keyboard, before lesson 1, or against a boss', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    useKeyboardStore.getState().reset();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1' } });
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...enemy, id: 'null-fiend', name: 'The Null Fiend', isBoss: true, role: 'fiend' }, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
   });
 });

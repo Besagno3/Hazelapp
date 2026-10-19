@@ -86,7 +86,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, rollTypingBonus, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { FIRST_STRIKE_SHARE, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, enemyWord, nameRaceDue, rollTypingBonus, typingUnlocked, type TypingBonus } from '../../content/typing';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -121,6 +121,8 @@ type Turn =
   | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
+  /** The name race (#159 item 4): type the critter's name before it moves. */
+  | { kind: 'race'; word: string }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
   | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
@@ -400,13 +402,19 @@ export default function BattleArena() {
     // A swift critter (#75 item 14h) takes the first turn: its blow, blocked by a
     // defend question as ever, comes before the hero's first command.
     const swift = enemy.behavior === 'swift';
-    if (lines.length === 0 && !swift) return;
+    // The name race (#159 item 4): one regular critter in three, with a keyboard and lesson 1.
+    const race = nameRaceDue(enemy, useKeyboardStore.getState().present && typingUnlocked(save?.flags ?? {}));
+    if (lines.length === 0 && !swift && !race) return;
     const chain = lines.reduceRight<() => void>(
       (next, line) => () => {
         line.shown?.();
         setTurn({ kind: 'message', text: line.text, next });
       },
-      swift ? () => setTurn({ kind: 'message', text: `⚡ ${enemy.name} darts in before you can move!`, next: enemyTurn }) : () => setTurn({ kind: 'command' }),
+      swift
+        ? () => setTurn({ kind: 'message', text: `⚡ ${enemy.name} darts in before you can move!`, next: enemyTurn })
+        : race
+          ? () => setTurn({ kind: 'race', word: enemyWord(enemy.name) })
+          : () => setTurn({ kind: 'command' }),
     );
     chain();
     // `enemyTurn` (a swift critter's first move) is made afresh each render; the
@@ -793,7 +801,8 @@ export default function BattleArena() {
       heal = 0,
       superEffective = false,
       skipsTurn = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean },
+      then = enemyTurn,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean; then?: () => void },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -830,7 +839,26 @@ export default function BattleArena() {
       say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
       return;
     }
-    say(text, enemyTurn);
+    // `then`: what follows the blow — the enemy's turn, or the hero's own (a first strike, #159 item 4).
+    say(text, then);
+  }
+
+  /**
+   * The name race ended (#159 item 4). Won: a free first blow at
+   * `FIRST_STRIKE_SHARE` of an Attack's power, then the hero's turn as usual.
+   * Lost: the critter darts in first — its turn, a defend question as ever.
+   */
+  function raceDone(ok: boolean) {
+    if (!ok) {
+      say(`⚡ ${enemy!.name} darts in before you can move!`, enemyTurn);
+      return;
+    }
+    sfx('streak');
+    const dmg = boost(Math.round(attackDamage(true, style, powerUps) * FIRST_STRIKE_SHARE));
+    heroStrike(dmg, `⚡ ${avatar!.name} names it first and strikes before it can blink! Now, your move.`, 'text-amber-300', {
+      sound: 'attack',
+      then: () => setTurn({ kind: 'command' }),
+    });
   }
 
   /** Boss enrage callout when the enemy's HP crosses into phase `p` (from any damage). */
@@ -1253,6 +1281,26 @@ export default function BattleArena() {
             onSwap={() => setTurn({ kind: 'swap' })}
             onFlee={commandFlee}
           />
+        )}
+
+        {turn.kind === 'race' && (
+          <div className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-4 shadow-2xl" data-testid="name-race">
+            <p className="text-center font-bold text-sm uppercase tracking-widest text-indigo-900">⚡ Name it before it moves!</p>
+            <TypeBurst
+              key={turn.word}
+              word={turn.word}
+              holdRule={save.typingAnchor}
+              durationMs={NAME_RACE_MS}
+              label="⚡ Quick! Name the critter for first strike!"
+              doneText="⚡ First strike is yours!"
+              lateText="Too slow — it darts in first!"
+              onEvent={(e) => {
+                if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
+              }}
+              // A beat to read the result, then the blow or the critter's move.
+              onResult={(ok) => later(() => raceDone(ok), 700)}
+            />
+          </div>
         )}
 
         {turn.kind === 'swap' && <SwapMenu party={party} active={companionId} flags={save?.flags} onSwap={swapTo} onBack={toCommand} />}
