@@ -15,6 +15,10 @@ describe('typing hints (#159 review round 3)', () => {
     expect(describeKey('Period')).toBe('the full stop key');
     expect(keyHint('KeyF', [])).toMatch(/the F key/);
     expect(keyHint('KeyF', ['KeyJ'])).toMatch(/J/);
+    // A mark up on its key says Shift (review round 4).
+    expect(keyHint('Digit1', [], '!')).toBe('Press Shift and the 1 key (!) with your left little finger.');
+    expect(keyHint('Digit1', [], '1')).toBe('Press the 1 key with your left little finger.');
+    expect(keyHint('KeyE', ['ShiftRight'], 'E')).toBe('Press the E key with your left middle finger, holding the right Shift with your other hand.');
   });
 
   it('spells drill lines for a screen reader, and leaves words alone', () => {
@@ -22,9 +26,13 @@ describe('typing hints (#159 review round 3)', () => {
     expect(spellLine('fjf jfj fjf')).toBe('F J F, J F J, F J F');
     expect(spellLine('ei ie ei ie')).toBe('E I, I E, E I, I E');
     expect(spellLine('a; a; ;a ;a')).toBe('A semicolon, A semicolon, semicolon A, semicolon A');
-    expect(spellLine('sad lad dad')).toBe('sad, lad, dad');
-    expect(spellLine('a kid is skilled')).toBe('a, kid, is, skilled');
-    expect(spellLine('to too lot')).toBe('to, too, lot');
+    // Words read as a sentence (review round 4: a comma pause between every word); a word's trailing mark is named.
+    expect(spellLine('sad lad dad')).toBe('sad lad dad');
+    expect(spellLine('a kid is skilled')).toBe('a kid is skilled');
+    expect(spellLine('to too lot')).toBe('to too lot');
+    expect(spellLine('ask all fall;')).toBe('ask all fall semicolon');
+    expect(spellLine('fd jk fd jk')).toBe('F D, J K, F D, J K');
+    expect(spellLine('fur jar rule')).toBe('fur jar rule');
   });
 
   it('the key to flash: the wrong key, or Caps Lock when a small letter came out big', () => {

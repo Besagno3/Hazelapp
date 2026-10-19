@@ -19,10 +19,11 @@ export function TypingLine({ progress, shake = false, big = false }: { progress:
   return (
     <p
       role="group"
-      className={cn('flex flex-wrap justify-center gap-y-1 font-mono font-bold leading-none', big ? 'text-2xl' : 'text-xl', shake && 'hq-shake')}
+      // The group's label is the one reading of the line (review round 4: a hidden copy read it twice more); the
+      // big size steps up from `sm` so a twelve-letter foe word fits a 320 px card.
+      className={cn('flex flex-wrap justify-center gap-y-1 font-mono font-bold leading-none', big ? 'text-xl sm:text-2xl' : 'text-xl', shake && 'hq-shake')}
       aria-label={`Type: ${progress.text}`}
     >
-      <span className="sr-only">Type: {progress.text}</span>
       {groups.map((g) => (
         <span key={g.start} aria-hidden="true" className="inline-flex whitespace-nowrap">
           {g.chars.map((ch, j) => {

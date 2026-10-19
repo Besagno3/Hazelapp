@@ -24,6 +24,12 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
     },
   });
   const whose = bonus.who === 'hero' ? 'your name' : bonus.who === 'ember' ? "Ember's name" : "the foe's name";
+  // The task goes into the live region a tick after it mounts (review round 4).
+  const [primed, setPrimed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setPrimed(true), 0);
+    return () => clearTimeout(id);
+  }, []);
   const nudge = !claimed && run.last ? nudgeText(run.last.event, run.anchors, bonus.word[run.progress.index] ?? '', run.last.capsLock) : null;
   // Under the spoils, the scroll can sit below the fold: bring it into view once (review round 1).
   const box = useRef<HTMLDivElement>(null);
@@ -45,9 +51,9 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{!run.last ? `Type ${whose}: ${bonus.word}.` : run.target ? keyName(run.target) : ''}</span>)}
+        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type ${whose}: ${bonus.word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>
-      {!claimed && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
+      {!claimed && <KeyboardDiagram compact target={run.target} targetChar={bonus.word[run.progress.index] ?? null} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
     </div>
   );
 }

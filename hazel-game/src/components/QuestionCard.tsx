@@ -86,8 +86,13 @@ export default function QuestionCard({
     const raf = requestAnimationFrame(() => {
       const btn = continueRef.current;
       if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-      if (focusContinue) continueRef.current?.focus({ preventScroll: true });
     });
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
+  // Focus apart from the scroll (review round 4: `focusContinue` turning scrolled the card, under a scribe's lock being unfolded).
+  useEffect(() => {
+    if (selected === null || !focusContinue) return;
+    const raf = requestAnimationFrame(() => continueRef.current?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(raf);
   }, [selected, focusContinue]);
   const [continued, setContinued] = useState(false);

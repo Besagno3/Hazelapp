@@ -36,6 +36,9 @@ describe('TypeBurst (#159 item 2)', () => {
     render(<TypeBurst word="bat" holdRule={false} onResult={onResult} />);
     // The card holds focus from the start (review round 3), and reads the whole task first.
     expect(document.activeElement).toBe(screen.getByTestId('type-burst'));
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
     expect(screen.getByRole('status')).toHaveTextContent('Type: bat.');
     act(() => {
       vi.advanceTimersByTime(BURST_MS + 200);

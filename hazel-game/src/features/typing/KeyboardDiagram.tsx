@@ -1,4 +1,4 @@
-import { KEYBOARD_ROWS, KEY_BY_CODE, type Finger, type Hand } from '../../content/typing';
+import { KEYBOARD_ROWS, KEY_BY_CODE, charKey, type Finger, type Hand } from '../../content/typing';
 import { cn } from '../../lib/utils';
 import { keyHint } from './hints';
 
@@ -22,9 +22,12 @@ export function KeyboardDiagram({
   held,
   wrong = null,
   compact = false,
+  targetChar = null,
 }: {
   /** The code of the key to press next. */
   target: string | null;
+  /** The character wanted: a mark up on its key ("!") is drawn on the lit key, and the Shifts light for it (review round 4). */
+  targetChar?: string | null;
   /** The codes the other hand should be holding. */
   anchors?: readonly string[];
   held: ReadonlySet<string>;
@@ -34,6 +37,7 @@ export function KeyboardDiagram({
   compact?: boolean;
 }) {
   const targetKey = target ? KEY_BY_CODE[target] : undefined;
+  const shifted = targetChar !== null && !/[a-z]/i.test(targetChar) && charKey(targetChar)?.shift === true;
   const anchorKeys = anchors.map((a) => KEY_BY_CODE[a]).filter(Boolean);
   const anchorHeld = anchors.length === 0 || anchors.some((a) => held.has(a));
   const handsH = compact ? 0 : 58;
@@ -42,7 +46,7 @@ export function KeyboardDiagram({
       viewBox={`0 0 ${WIDTH} ${KEYS_H + handsH}`}
       className="w-full h-auto select-none"
       role="img"
-      aria-label={targetKey ? keyHint(targetKey.code, anchors) : 'The keyboard'}
+      aria-label={targetKey ? keyHint(targetKey.code, anchors, targetChar) : 'The keyboard'}
     >
       {KEYBOARD_ROWS.map((row, r) => {
         // Rows are centred under one another, so the space bar sits under the thumbs (review round 1).
@@ -55,6 +59,8 @@ export function KeyboardDiagram({
           const isAnchor = anchors.includes(key.code);
           const isHeld = held.has(key.code);
           const isWrong = key.code === wrong;
+          // A Shift to press with the mark (not the one the other hand already holds as an anchor).
+          const isShiftFor = shifted && !isAnchor && (key.code === 'ShiftLeft' || key.code === 'ShiftRight');
           return (
             <g key={key.code} transform={`translate(${at} ${r * ROW_H})`}>
               <rect
@@ -72,9 +78,11 @@ export function KeyboardDiagram({
                           // Held: pressed in, with a rim — not told from "not yet" by motion alone (review round 1).
                           ? 'fill-sky-200 stroke-white stroke-[1.5]'
                           : 'fill-sky-400 motion-safe:animate-pulse'
-                        : isHeld
-                          ? 'fill-white/60'
-                          : 'fill-white/15',
+                        : isShiftFor
+                          ? 'fill-amber-200/70'
+                          : isHeld
+                            ? 'fill-white/60'
+                            : 'fill-white/15',
                 )}
               />
               {(key.code === 'KeyF' || key.code === 'KeyJ') && (
@@ -87,11 +95,11 @@ export function KeyboardDiagram({
                 textAnchor="middle"
                 className={cn(
                   'font-bold',
-                  isTarget || isAnchor || isWrong || isHeld ? 'fill-indigo-950' : 'fill-white/80',
+                  isTarget || isAnchor || isWrong || isHeld || isShiftFor ? 'fill-indigo-950' : 'fill-white/80',
                   key.label.length > 1 ? 'text-[6px]' : 'text-[9px]',
                 )}
               >
-                {key.label}
+                {isTarget && shifted ? key.chars[1] : key.label}
               </text>
             </g>
           );

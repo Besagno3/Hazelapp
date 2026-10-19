@@ -86,6 +86,14 @@ describe('the Scriptorium (#159 item 5)', () => {
     expect(screen.getByText(/The question that stumped you/)).toHaveTextContent('Why does ice float?');
     expect(screen.getByText('Line 1 of 2')).toBeInTheDocument();
     typeLine('Ice is lighter than the same amount of');
+    // Back during the beat, then the page again at once: the old beat must not move the new page on (review round 4).
+    fireEvent.click(screen.getByText('← Back to the pages'));
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent?.includes('Why does ice float?'))!);
+    act(() => {
+      vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+    });
+    expect(screen.getByText('Line 1 of 2')).toBeInTheDocument();
+    typeLine('Ice is lighter than the same amount of');
     // The finished line stays a beat, all green, before the next (review round 3); the passage shows the way.
     expect(screen.getByLabelText('Type: Ice is lighter than the same amount of')).toBeInTheDocument();
     expect(screen.getByTestId('passage')).toHaveTextContent('Ice is lighter than the same amount of water, so it floats on top.');
@@ -94,6 +102,11 @@ describe('the Scriptorium (#159 item 5)', () => {
     });
     expect(screen.getByText('Line 2 of 2')).toBeInTheDocument();
     typeLine('water, so it floats on top.');
+    // The result card after the same beat (review round 4).
+    expect(screen.queryByText('Page copied!')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+    });
     expect(screen.getByText('Page copied!')).toBeInTheDocument();
     expect(screen.getByText(`⭐ +${SCRIPTORIUM_XP} XP`)).toBeInTheDocument();
     expect(addXp).toHaveBeenCalledTimes(1);

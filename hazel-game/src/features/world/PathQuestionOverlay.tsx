@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
@@ -13,7 +13,7 @@ import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useKeyboardStore } from '../../store/keyboardStore';
-import { PANGRAM_BONUS_COINS, pangramChest, pangramFor, scriptoriumOpen } from '../../content/typing';
+import { LINE_HOLD_MS, PANGRAM_BONUS_COINS, pangramChest, pangramFor, scriptoriumOpen } from '../../content/typing';
 import { LineRun } from '../typing/TypingLesson';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
@@ -50,15 +50,22 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const [lockShown, setLockShown] = useState(false);
   // Gone once the riddle has opened the chest (review round 1: the lock stayed, and paid its bonus on an open chest).
   const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {}) && !solved;
+  // The riddle answered wrong (review round 4): the lock stays the way in, and says so.
+  const [answeredWrong, setAnsweredWrong] = useState(false);
+  const opening = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(opening.current ?? undefined), []);
   function openByLock() {
-    sfx('chest');
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true });
     update((s) => {
       const opened = openChest(s, target.id);
       // The bonus rides a real opening only (an already-open chest returns the save unchanged).
       return opened === s ? s : { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
     });
-    setLockOpened(true);
+    // The chest springs after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    opening.current = window.setTimeout(() => {
+      sfx('chest');
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true });
+      setLockOpened(true);
+    }, LINE_HOLD_MS);
   }
   const [attempt, setAttempt] = useState(0);
 
@@ -101,6 +108,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
       if (!correct) {
         if (target.kind === 'riddle') setMissed(true);
+        if (target.kind === 'chest') setAnsweredWrong(true);
         return;
       }
       setSolved(true);
@@ -147,8 +155,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
       label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
-      {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the HUD band. */}
-      <div className="min-h-full flex flex-col items-center justify-center py-8">
+      {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the
+          HUD band — under it, with the lock up (round 4). */}
+      <div className={`min-h-full flex flex-col items-center justify-center pb-8 ${lockShown ? 'pt-24' : 'pt-8'}`}>
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -163,9 +172,13 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
               <p className="flex-1 min-w-[12rem] text-sm">
                 <span className="font-bold text-amber-300">📜 A scribe's lock!</span>{' '}
                 <span className="text-white/80">
-                  {lockShown
-                    ? `Type its sentence — every letter of the alphabet is in it — for a bonus of 🪙 ${PANGRAM_BONUS_COINS}. The riddle below still works too.`
-                    : `Type its sentence for a bonus of 🪙 ${PANGRAM_BONUS_COINS}, or answer the riddle as ever.`}
+                  {answeredWrong
+                    ? lockShown
+                      ? `Type its sentence — every letter of the alphabet is in it — and the chest opens, 🪙 ${PANGRAM_BONUS_COINS} on top.`
+                      : `The riddle got you — but a scribe can still open it: type its sentence for 🪙 ${PANGRAM_BONUS_COINS} on top.`
+                    : lockShown
+                      ? `Type its sentence — every letter of the alphabet is in it — for a bonus of 🪙 ${PANGRAM_BONUS_COINS}. The riddle below still works too.`
+                      : `Type its sentence for a bonus of 🪙 ${PANGRAM_BONUS_COINS}, or answer the riddle as ever.`}
                 </span>
               </p>
               {!lockShown && (

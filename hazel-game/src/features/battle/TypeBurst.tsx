@@ -56,6 +56,12 @@ export function TypeBurst({
   useEffect(() => {
     box.current?.focus({ preventScroll: true });
   }, []);
+  // The task goes into the live region a tick after it mounts (review round 4: text a region is born with may not be read).
+  const [primed, setPrimed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setPrimed(true), 0);
+    return () => clearTimeout(id);
+  }, []);
   const settled = useRef(false);
   const settle = (done: boolean) => {
     if (settled.current) return;
@@ -88,11 +94,18 @@ export function TypeBurst({
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
         {/* Before the first key a screen reader hears the whole task (review round 3), then just the next key's name. */}
-        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? `Type: ${word}.` : run.target ? keyName(run.target) : ''}</span>)}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type: ${word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>
       {/* The keyboard stays once the word is done, dimmed, so the card keeps its height and ▶ Go! doesn't jump (review round 2). */}
       <div className={state === 'typing' ? '' : 'opacity-40'}>
-        <KeyboardDiagram compact target={state === 'typing' ? run.target : null} anchors={state === 'typing' ? run.anchors : []} held={run.held} wrong={state === 'typing' ? wrongKey(run.last) : null} />
+        <KeyboardDiagram
+          compact
+          target={state === 'typing' ? run.target : null}
+          targetChar={state === 'typing' ? (word[run.progress.index] ?? null) : null}
+          anchors={state === 'typing' ? run.anchors : []}
+          held={run.held}
+          wrong={state === 'typing' ? wrongKey(run.last) : null}
+        />
       </div>
     </div>
   );

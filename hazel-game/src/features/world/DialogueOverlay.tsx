@@ -9,7 +9,7 @@ import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
 import { useKeyboardStore } from '../../store/keyboardStore';
-import { penPalFor, penPalReadLine, penPalReplyFlag, scriptoriumOpen, type PenPal } from '../../content/typing';
+import { LINE_HOLD_MS, penPalFor, penPalReadLine, penPalReplyFlag, scriptoriumOpen, type PenPal } from '../../content/typing';
 import { LineRun } from '../typing/TypingLesson';
 import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
@@ -76,6 +76,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   const penPal: PenPal | null = quest?.finishKind === 'step' && quest.step ? penPalFor(quest.step) : null;
   const canWrite = !!penPal && keyboard && scriptoriumOpen(flagsNow ?? {});
   const [writing, setWriting] = useState<'pick' | number | 'done' | null>(null);
+  // The envelope's beat after the line is typed (review round 4), cleared if the talk closes first.
+  const written = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(written.current ?? undefined), []);
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
@@ -183,8 +186,11 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
       const done = finish ? finish(s) : s;
       return { ...done, flags: { ...done.flags, [flag]: true } };
     });
-    sfx('chest');
-    setWriting('done');
+    // The envelope after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    written.current = window.setTimeout(() => {
+      sfx('chest');
+      setWriting('done');
+    }, LINE_HOLD_MS);
   }
 
   if (penPal && writing !== null) {
@@ -219,10 +225,16 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {typeof writing === 'number' && (
             <>
               <p className="text-xs text-white/70 mb-2">Type your line, every letter and dot:</p>
-              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} />
-              <button onClick={() => setWriting('pick')} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
-                Pick another line
-              </button>
+              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} announce />
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => setWriting('pick')} className="flex-1 min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
+                  Pick another line
+                </button>
+                {/* A way out from here too (review round 4: it took two steps). */}
+                <button onClick={() => setWriting(null)} className="min-h-11 bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-2 text-sm">
+                  Maybe not
+                </button>
+              </div>
             </>
           )}
           {writing === 'done' && (

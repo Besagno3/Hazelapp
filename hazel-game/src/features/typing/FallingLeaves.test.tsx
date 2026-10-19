@@ -139,6 +139,23 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(useSaveStore.getState().save!.flags[leavesFlag(25)]).toBe(true);
   });
 
+  it('the result says why: three on the ground, or the clock; the round holds focus from ▶ Play (review round 4)', () => {
+    vi.useFakeTimers();
+    render(<FallingLeaves onBack={() => {}} />);
+    fireEvent.click(screen.getByText('🍂 Play'));
+    expect(document.activeElement).toBe(screen.getByTestId('leaf-round'));
+    tick(LEAVES_TUNING.roundMs);
+    expect(screen.getByRole('status')).toHaveTextContent(/3 leaves landed\./);
+    fireEvent.click(screen.getByText('🍂 Play again'));
+    // Every leaf caught as it starts: the clock ends the round.
+    for (let i = 0; i < 80 && !screen.queryByText(/The leaves have settled/); i++) {
+      tick(leafPace(i).spawnMs);
+      if (leaves().length) catchLowest();
+    }
+    expect(screen.getByRole('status')).toHaveTextContent(/Time's up!/);
+    expect(screen.getByRole('status')).not.toHaveTextContent(/landed/);
+  });
+
   it('with the hold on, a leaf wants the other hand on its bump key', () => {
     vi.useFakeTimers();
     useSaveStore.setState({ save: { ...useSaveStore.getState().save!, typingAnchor: true } });

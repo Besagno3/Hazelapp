@@ -1,4 +1,4 @@
-import { anchorsFor, charKey } from '../content/typing';
+import { anchorsFor, charKey, keyName } from '../content/typing';
 
 /**
  * The rules of typing a line (#159), pure and table-tested: what a key press
@@ -103,6 +103,8 @@ export function stepTyping(p: TypingProgress, press: TypingPress): { next: Typin
   if ([...press.key].length !== 1) return { next: p, event: 'none' };
   // The right letter, the wrong case: Caps Lock, or a capital without Shift.
   if (press.key.toLowerCase() === target.toLowerCase() && press.key !== target) return { next: p, event: 'caps' };
+  // The right key, the wrong Shift ("1" for "!", "/" for "?") — the key the picture lit, so a nudge, never a miss (review round 4).
+  if (charKey(target)?.key.code === press.code) return { next: p, event: 'caps' };
   return { next: { ...p, misses: p.misses + 1 }, event: 'wrong' };
 }
 
@@ -120,11 +122,20 @@ export function typingAccuracy(p: Pick<TypingProgress, 'hits' | 'misses'>): numb
 export function nudgeText(event: TypingEvent, anchors: string[], target: string, capsLock = true): string | null {
   if (event === 'hold') {
     const a = anchors[0];
-    if (a === 'ShiftLeft' || a === 'ShiftRight') return `🖐️ Hold the ${a === 'ShiftLeft' ? 'LEFT' : 'RIGHT'} Shift with your other hand for a capital ${target}.`;
+    if (a === 'ShiftLeft' || a === 'ShiftRight') {
+      return `🖐️ Hold the ${a === 'ShiftLeft' ? 'LEFT' : 'RIGHT'} Shift with your other hand for ${/[a-z]/i.test(target) ? `a capital ${target}` : target}.`;
+    }
     return `🖐️ Other hand home! Hold ${a === 'KeyF' ? 'F' : 'J'} with your ${a === 'KeyF' ? 'left' : 'right'} pointer while you type.`;
   }
   if (event === 'caps') {
-    if (target !== target.toLowerCase()) return `🔠 ${target} is a capital: hold Shift with your other hand.`;
+    const letter = /[a-z]/i.test(target);
+    if (letter && target !== target.toLowerCase()) return `🔠 ${target} is a capital: hold Shift with your other hand.`;
+    if (!letter) {
+      // Punctuation up on a key (review round 4): "!" wants Shift on the 1 key; "1" typed as "!" wants it let go.
+      const want = charKey(target);
+      if (want?.shift) return `🔠 ${target} is up on the ${keyName(want.key.code)} key: hold Shift with your other hand.`;
+      return `🔡 Just ${target} here — let go of Shift.`;
+    }
     // A small letter came out big: Caps Lock, or a Shift held by habit (`capsLock` tells them apart when known).
     return capsLock ? '🔠 Caps Lock is on! Turn it off and try again.' : `🔡 Just a small ${target} here — let go of Shift.`;
   }

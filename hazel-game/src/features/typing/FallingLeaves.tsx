@@ -191,7 +191,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           <>
             <p className="text-sm text-white/80 mb-1">
               "Letters drift down on leaves. Press each one with the right finger before its leaf lands — the lowest leaf has a white ring. Three
-              on the ground and the round ends."
+              on the ground — or a minute gone — and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
               Your letters so far: <span className="font-mono text-white/80">{letters}</span> — more with each lesson.
@@ -217,7 +217,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   const secondsLeft = Math.max(0, Math.ceil((LEAVES_TUNING.roundMs - state.elapsedMs) / 1000));
   return (
     // The round takes focus as it starts (review round 3: ▶ Play unmounted and focus fell to the page).
-    <div ref={field} tabIndex={-1} className="outline-none">
+    <div ref={field} tabIndex={-1} className="outline-none" data-testid="leaf-round">
       <div className="flex items-center justify-between gap-2 mb-2 text-sm">
         <h2 className="text-lg font-extrabold">🍂 Falling Leaves</h2>
         <span className="text-xs text-white/80" data-testid="leaf-tally">

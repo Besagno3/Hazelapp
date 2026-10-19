@@ -87,7 +87,7 @@ describe('TypingLessons (#159)', () => {
     fireEvent.click(screen.getByText('← Back to the lessons'));
     expect(screen.getByText(`1 of ${TYPING_LESSONS.length} lessons cleared`)).toBeInTheDocument();
     const buttons = openLessons();
-    expect(buttons[1]).toBeEnabled();
+    expect(buttons[1]).toHaveAttribute('aria-disabled', 'false');
     expect(buttons[2]).toHaveAttribute('aria-disabled', 'true');
 
     // Played again, it pays nothing more.
@@ -97,6 +97,39 @@ describe('TypingLessons (#159)', () => {
     for (const line of TYPING_LESSONS[0].lines) typeLine(line);
     expect(screen.getByText('Lesson cleared!')).toBeInTheDocument();
     expect(addXp).not.toHaveBeenCalled();
+  });
+
+  it('a key pressed in the beat after a line does nothing, and the result card follows its own beat (review round 4)', () => {
+    useKeyboardStore.getState().seen();
+    vi.useFakeTimers();
+    render(<TypingLessons onBack={() => {}} />);
+    fireEvent.click(openLessons()[0]);
+    fireEvent.click(screen.getByText('⌨️ Start typing'));
+    const [first, second] = TYPING_LESSONS[0].lines;
+    for (const ch of first) pressChar(ch);
+    // Typed in rhythm, straight into the beat: not counted against the next line.
+    pressChar(second[0]);
+    act(() => {
+      vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+    });
+    expect(screen.getByText(`Line 2 of ${TYPING_LESSONS[0].lines.length}`)).toBeInTheDocument();
+    for (const ch of second.slice(0, -1)) pressChar(ch);
+    expect(screen.getByText(`Line 2 of ${TYPING_LESSONS[0].lines.length}`)).toBeInTheDocument();
+    pressChar(second[second.length - 1]);
+    act(() => {
+      vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+    });
+    expect(screen.getByText(`Line 3 of ${TYPING_LESSONS[0].lines.length}`)).toBeInTheDocument();
+    // The last line: cleared at once, the card after the beat.
+    const rest = TYPING_LESSONS[0].lines.slice(2);
+    for (const line of rest.slice(0, -1)) typeLine(line);
+    for (const ch of rest[rest.length - 1]) pressChar(ch);
+    expect(useSaveStore.getState().save!.flags[typingLessonFlag(TYPING_LESSONS[0].id)]).toBe(true);
+    expect(screen.queryByText(/of 3 stars/)).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+    });
+    expect(screen.getByRole('img', { name: /of 3 stars/ })).toBeInTheDocument();
   });
 
   it('a wrong key is a miss with the glowing-key nudge, and costs a star', () => {
@@ -137,7 +170,7 @@ describe('TypingLessons (#159)', () => {
     useSaveStore.setState({ save: { ...defaultSave(), flags: { ...defaultSave().flags, ...done } } });
     render(<TypingLessons onBack={() => {}} />);
     const buttons = openLessons();
-    expect(buttons[buttons.length - 1]).toBeEnabled();
+    expect(buttons[buttons.length - 1]).toHaveAttribute('aria-disabled', 'false');
     fireEvent.click(buttons[buttons.length - 1]);
     fireEvent.click(screen.getByText('⌨️ Start typing'));
     for (const line of last.lines) typeLine(line);

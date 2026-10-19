@@ -889,7 +889,22 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     expect(screen.queryByRole('timer')).toBeNull();
   });
 
-  it('a word that runs out hands ▶ Go! the focus only after a beat (review round 3); a typed one at once', () => {
+  it('a word typed in time hands ▶ Go! the focus after a short beat, so a trailing Space or Enter lands on nothing (review round 4)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    attackAndAnswer();
+    typeBurstWord();
+    const go = screen.getByText('▶ Go!');
+    expect(document.activeElement).not.toBe(go);
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(document.activeElement).toBe(go);
+  });
+
+  it('a word that runs out hands ▶ Go! the focus only after a longer beat (review round 3)', () => {
     vi.useFakeTimers();
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     unlockTyping(false, ALL_LETTERS);

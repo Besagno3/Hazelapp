@@ -192,6 +192,9 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
       fireEvent.keyDown(window, { code: found.key.code, key: ch });
       fireEvent.keyUp(window, { code: found.key.code, key: ch });
     }
+    // The chest springs after the line's beat (review round 4): the last key never lands on "Onward!".
+    expect(screen.queryByTestId('scribe-lock-open')).toBeNull();
+    await screen.findByTestId('scribe-lock-open');
     expect(lock).not.toBeInTheDocument();
     expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
     expect(screen.queryByText('Right')).toBeNull();
@@ -221,6 +224,8 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     render(<PathQuestionOverlay target={lockedChest} />);
     fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
     fireEvent.click(await screen.findByText('Wrong A'));
+    // The lock says it is the way in now (review round 4).
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/and the chest opens, 🪙 15 on top/);
     const back = screen.getByRole('button', { name: /come back/ });
     await new Promise((r) => setTimeout(r, 20));
     expect(document.activeElement).not.toBe(back);
@@ -231,7 +236,7 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
       fireEvent.keyDown(window, { code: found.key.code, key: ch });
       fireEvent.keyUp(window, { code: found.key.code, key: ch });
     }
-    expect(screen.getByTestId('scribe-lock-open')).toBeInTheDocument();
+    expect(await screen.findByTestId('scribe-lock-open')).toBeInTheDocument();
     expect(useSaveStore.getState().save!.openedChests).toEqual([lockedChest.id]);
   });
 
@@ -241,11 +246,21 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     render(<PathQuestionOverlay target={lockedChest} />);
     fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
     // The lock reads its whole sentence to a screen reader before the first key.
-    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type: ${pangramFor(lockedChest.id)}.`);
+    await waitFor(() => expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type: ${pangramFor(lockedChest.id)}.`));
     fireEvent.click(await screen.findByText('Right'));
     expect(screen.queryByTestId('scribe-lock')).toBeNull();
     const onward = screen.getByRole('button', { name: /pops open/ });
     await waitFor(() => expect(document.activeElement).toBe(onward));
+  });
+
+  it('the riddle answered wrong with the lock folded: the lock says a scribe can still open it (review round 4)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(await screen.findByText('Wrong B'));
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/The riddle got you — but a scribe can still open it/);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/and the chest opens/);
   });
 
   it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {

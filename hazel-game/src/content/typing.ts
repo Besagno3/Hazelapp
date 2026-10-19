@@ -300,6 +300,32 @@ export function keysTaughtBy(lessonId: string): Set<string> {
   return keys;
 }
 
+/** Keys whose label a screen reader would skip at its usual punctuation level (review round 2). */
+const KEY_NAMES: Record<string, string> = {
+  Space: 'space',
+  ShiftLeft: 'left Shift',
+  ShiftRight: 'right Shift',
+  CapsLock: 'Caps Lock',
+  Semicolon: 'semicolon',
+  Comma: 'comma',
+  Period: 'full stop',
+  Quote: 'apostrophe',
+  Slash: 'slash',
+  Minus: 'dash',
+  Equal: 'equals',
+  Backquote: 'backtick',
+  BracketLeft: 'left bracket',
+  BracketRight: 'right bracket',
+  Backslash: 'backslash',
+};
+
+/** A key's short name, as said aloud: "J", "comma", "space", "left Shift". */
+export function keyName(code: string): string {
+  const key = KEY_BY_CODE[code];
+  if (!key) return code;
+  return KEY_NAMES[code] ?? key.label;
+}
+
 /** The save flag set when a lesson is cleared. */
 export function typingLessonFlag(id: string): string {
   return `typing:${id}`;
@@ -343,6 +369,8 @@ export function typingStars(accuracy: number): 1 | 2 | 3 {
 
 /** How long a ✍️ scribe burst gives to type its word, in ms. Generous: the hold rule slows a kid down. */
 export const BURST_MS = 10_000;
+/** Little hands get half as long again (review round 4), as on the race and the song. */
+export const BURST_LITTLE_MS = 15_000;
 /** A landed Attack hits this much harder after its word is typed in time. */
 export const SCRIBE_ATTACK_MULT = 1.25;
 /** A block followed by its word typed in time adds this much ◆ charge. */
@@ -692,7 +720,8 @@ export const PEN_PALS: readonly PenPal[] = [
     questId: SHUSH_QUEST,
     stepId: 'shush-deliver',
     to: 'Shush',
-    replies: ['The cliffs are singing again!', 'Ember says hello to the Quiet Quarter.', 'Five kittens! Please send a drawing.'],
+    // No "!" (review round 4): no lesson teaches the number row's Shift, as with the pangrams.
+    replies: ['The cliffs are singing again.', 'Ember says hello to the Quiet Quarter.', 'Five kittens. Please send a drawing.'],
     offer: "Shush would love a line in YOUR hand too. Pick one and type it, and I'll tuck it in with mine!",
     written: "There — your line is in the envelope, in your own hand. Shush will read it twice, I'm sure of it.",
     read: (reply) => `And a line in YOUR hand! "${reply}" Shush reads it twice, and smiles the quietest smile.`,

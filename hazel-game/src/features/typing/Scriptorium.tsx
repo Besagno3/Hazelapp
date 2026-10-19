@@ -39,11 +39,19 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const copied = pagesCopied(flags);
 
   function open(page: ScriptoriumPage) {
+    // A beat still running from the last page would move this one on (review round 4: it could open a page past its last line).
+    window.clearTimeout(hold.current ?? undefined);
     setActive(page);
     setLine(0);
     setTally({ hits: 0, misses: 0 });
     setResult(null);
   }
+  function leave() {
+    window.clearTimeout(hold.current ?? undefined);
+    setActive(null);
+  }
+  // A short window (800×600): the keyboard without the hands, so the page's line and its Back stay in view (review round 4).
+  const short = typeof window !== 'undefined' && window.matchMedia?.('(max-height: 700px)').matches === true;
 
   function lineDone(p: TypingProgress) {
     const total = { hits: tally.hits + p.hits, misses: tally.misses + p.misses };
@@ -56,9 +64,12 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     const paid = flags[flag] !== true;
     update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
     if (paid) void addXp(SCRIPTORIUM_XP);
-    sfx('levelup');
-    confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, disableForReducedMotion: true });
-    setResult({ accuracy: typingAccuracy(total), paid });
+    // The result after the same beat as any line (review round 4).
+    hold.current = window.setTimeout(() => {
+      sfx('levelup');
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, disableForReducedMotion: true });
+      setResult({ accuracy: typingAccuracy(total), paid });
+    }, LINE_HOLD_MS);
   }
 
   if (!scriptoriumOpen(flags)) {
@@ -124,7 +135,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
               ➡️ Next page
             </button>
           )}
-          <button autoFocus={!next} onClick={() => setActive(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
+          <button autoFocus={!next} onClick={leave} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
             ← Back to the pages
           </button>
         </div>
@@ -161,8 +172,8 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
             </span>
           ))}
         </p>
-        <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} />
-        <button onClick={() => setActive(null)} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
+        <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} compact={short} />
+        <button onClick={leave} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
           ← Back to the pages
         </button>
       </div>

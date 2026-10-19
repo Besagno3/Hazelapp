@@ -105,7 +105,8 @@ export function useTypingRun({
       progressRef.current = next;
       setProgress(next);
       setLast({ event, code: e.code, seq: ++seq.current, capsLock: e.getModifierState?.('CapsLock') === true });
-      if (event === 'typed' || event === 'done') sfx('select');
+      // The last key's sound is the caller's (a lesson chimes, the arena strikes — review round 4: three sounds on one key).
+      if (event === 'typed') sfx('select');
       cb.current.onEvent?.(event, next);
       if (event === 'done') cb.current.onDone?.(next);
     };

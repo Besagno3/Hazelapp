@@ -128,3 +128,21 @@ describe('the caps nudge (review round 1)', () => {
     expect(nudgeText('caps', [], 'A', false)).toMatch(/is a capital/);
   });
 });
+
+describe('punctuation up on a key (review round 4)', () => {
+  it('the right key with the wrong Shift is a nudge, never a miss; the nudge names the key', () => {
+    const p = startTyping('a!');
+    const typedA = stepTyping(p, { code: 'KeyA', key: 'a', held: new Set(['KeyA']), holdRule: false }).next;
+    const plainOne = stepTyping(typedA, { code: 'Digit1', key: '1', held: new Set(['Digit1']), holdRule: false });
+    expect(plainOne.event).toBe('caps');
+    expect(plainOne.next.misses).toBe(0);
+    expect(nudgeText('caps', [], '!')).toBe('🔠 ! is up on the 1 key: hold Shift with your other hand.');
+    expect(nudgeText('caps', [], '1')).toBe('🔡 Just 1 here — let go of Shift.');
+    expect(nudgeText('hold', ['ShiftRight'], '(')).toBe('🖐️ Hold the RIGHT Shift with your other hand for (.');
+    expect(nudgeText('hold', ['ShiftRight'], 'E')).toBe('🖐️ Hold the RIGHT Shift with your other hand for a capital E.');
+    // Another key is still a miss.
+    expect(stepTyping(typedA, { code: 'Digit2', key: '2', held: new Set(['Digit2']), holdRule: false }).event).toBe('wrong');
+    // And the mark itself types.
+    expect(stepTyping(typedA, { code: 'Digit1', key: '!', held: new Set(['Digit1', 'ShiftLeft']), holdRule: false }).event).toBe('done');
+  });
+});

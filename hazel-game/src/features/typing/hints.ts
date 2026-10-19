@@ -1,4 +1,4 @@
-import { KEY_BY_CODE, charKey, type Finger } from '../../content/typing';
+import { KEY_BY_CODE, charKey, keyName, type Finger } from '../../content/typing';
 
 /**
  * Words for keys and fingers (#159), shared by the diagram, the lines and the
@@ -8,31 +8,8 @@ import { KEY_BY_CODE, charKey, type Finger } from '../../content/typing';
 /** Finger names as the lessons say them. */
 export const FINGER_WORDS: Record<Finger, string> = { pinky: 'little finger', ring: 'ring finger', middle: 'middle finger', index: 'pointer', thumb: 'thumb' };
 
-/** Keys whose label a screen reader would skip at its usual punctuation level (review round 2). */
-const KEY_NAMES: Record<string, string> = {
-  Space: 'space',
-  ShiftLeft: 'left Shift',
-  ShiftRight: 'right Shift',
-  CapsLock: 'Caps Lock',
-  Semicolon: 'semicolon',
-  Comma: 'comma',
-  Period: 'full stop',
-  Quote: 'apostrophe',
-  Slash: 'slash',
-  Minus: 'dash',
-  Equal: 'equals',
-  Backquote: 'backtick',
-  BracketLeft: 'left bracket',
-  BracketRight: 'right bracket',
-  Backslash: 'backslash',
-};
 
-/** A key's short name, as said aloud: "J", "comma", "space", "left Shift". */
-export function keyName(code: string): string {
-  const key = KEY_BY_CODE[code];
-  if (!key) return code;
-  return KEY_NAMES[code] ?? key.label;
-}
+export { keyName } from '../../content/typing';
 
 /** Two-letter words a drill line may hold; anything else that short is spelled. */
 const SHORT_WORDS = new Set(['a', 'i', 'to', 'is', 'as', 'at', 'an', 'in', 'it', 'on', 'of', 'or', 'us', 'up', 'do', 'go', 'no', 'so', 'be', 'we', 'he', 'me', 'my', 'by', 'if', 'am', 'oh', 'ok']);
@@ -51,19 +28,28 @@ function isDrill(token: string): boolean {
  * "F F F, J J J", not a pseudo-word; "sad lad dad" stays as it is.
  */
 export function spellLine(text: string): string {
-  return text
+  const spell = (s: string) =>
+    [...s]
+      .map((ch) => {
+        const key = charKey(ch);
+        return key ? keyName(key.key.code) : ch;
+      })
+      .join(' ');
+  // A word stays a word; a drill is spelled, set off by commas; a word's trailing mark is named ("fall semicolon" — review round 4).
+  const parts = text
     .split(' ')
+    .filter(Boolean)
     .map((token) => {
-      if (!token) return '';
-      if (!isDrill(token)) return token;
-      return [...token]
-        .map((ch) => {
-          const key = charKey(ch);
-          return key ? keyName(key.key.code) : ch;
-        })
-        .join(' ');
-    })
-    .join(', ');
+      const m = token.match(/^([a-z]+)([^a-z]+)$/i);
+      if (m && m[1].length > 1 && !isDrill(m[1])) return { text: `${m[1]} ${spell(m[2])}`, drill: false };
+      return isDrill(token) ? { text: spell(token), drill: true } : { text: token, drill: false };
+    });
+  let out = '';
+  parts.forEach((part, i) => {
+    if (i > 0) out += !part.drill && !parts[i - 1].drill ? ' ' : ', ';
+    out += part.text;
+  });
+  return out;
 }
 
 /** "the F key", "the space bar", "the right Shift", "the comma key". */
@@ -79,11 +65,13 @@ export function describe(code: string): string {
  * The next key in words: "Press the J key with your right pointer, holding
  * the F key with your other hand." Empty when there is none.
  */
-export function keyHint(target: string | null, anchors: readonly string[] = []): string {
+export function keyHint(target: string | null, anchors: readonly string[] = [], char?: string | null): string {
   const key = target ? KEY_BY_CODE[target] : undefined;
   if (!key) return '';
   const hold = anchors.map((a) => KEY_BY_CODE[a]).filter(Boolean);
-  return `Press ${describe(key.code)} with your ${key.hand} ${FINGER_WORDS[key.finger]}${
+  // Punctuation up on a key wants Shift too (review round 4: "!" said only "the 1 key").
+  const shifted = char && !/[a-z]/i.test(char) && charKey(char)?.shift === true;
+  return `Press ${shifted ? `Shift and ${describe(key.code)} (${char})` : describe(key.code)} with your ${key.hand} ${FINGER_WORDS[key.finger]}${
     hold.length ? `, holding ${hold.map((a) => describe(a.code)).join(' or ')} with your other hand` : ''
   }.`;
 }

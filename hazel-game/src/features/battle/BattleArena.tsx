@@ -86,7 +86,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { FIRST_STRIKE_SHARE, LITTLE_HANDS_AGE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, RACE_READY_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_LITTLE_MS, SONG_MS, burstWord, enemyWord, lettersLearned, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { BURST_LITTLE_MS, BURST_MS, FIRST_STRIKE_SHARE, LITTLE_HANDS_AGE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, RACE_READY_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_LITTLE_MS, SONG_MS, burstWord, enemyWord, lettersLearned, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -642,10 +642,9 @@ export default function BattleArena() {
    * nothing — the answer already counted.
    */
   function scribeDone(mode: 'attack' | 'block', ok: boolean) {
-    // ▶ Go! takes focus as the word settles — after a beat when the clock ran out (review round 3:
-    // a kid still typing "count bat" sent their Space to the button).
-    if (ok) setScribeSettled((n) => n + 1);
-    else later(() => setScribeSettled((n) => n + 1), 600);
+    // ▶ Go! takes focus a beat after the word settles (review rounds 3–4: a kid still typing "count bat",
+    // or ending a word with Space or Enter by habit, sent that key to the button).
+    later(() => setScribeSettled((n) => n + 1), ok ? 300 : 600);
     if (!ok) return;
     sfx('streak');
     if (mode === 'attack') {
@@ -1504,6 +1503,7 @@ export default function BattleArena() {
                   timed={typingClock}
                     word={scribeBurst.word}
                     holdRule={save.typingAnchor}
+                    durationMs={age < LITTLE_HANDS_AGE ? BURST_LITTLE_MS : BURST_MS}
                     label={scribeBurst.mode === 'attack' ? '✍️ Type it for a harder hit!' : `✍️ Type it for +${SCRIBE_BLOCK_CHARGE} ◆!`}
                     doneText={scribeBurst.mode === 'attack' ? '✍️ Done! Your hit will be harder.' : `✍️ Done! +${SCRIBE_BLOCK_CHARGE} ◆ is yours.`}
                     // Every right key sparks on the hero: each press does something at once.

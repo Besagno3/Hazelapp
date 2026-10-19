@@ -571,7 +571,10 @@ zod, react-query. Add the package in the same change that first uses it.
   `LINE_HOLD_MS` before the next; `LineRun`'s `announce` reads the line to a
   screen reader where no lesson live line does (the chest's lock, the letter)
   and `compact` drops the hands; `spellLine` spells drill lines ("F F F, J J
-  J"); `TypeBurst` and `LineRun` take focus as they appear.
+  J"); `TypeBurst` and `LineRun` take focus as they appear. The right key with
+  the wrong Shift ("1" for "!") is a `caps` nudge, never a miss; the diagram's
+  `targetChar` draws a shifted mark on its lit key (`keyName` lives in
+  `content/typing.ts`).
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1045,6 +1048,31 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing review round 4: the mark on its key, every last line lingers (#159)
+The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)
+and UX (1 high, 3 medium, 8 low, 1 nit) reviewers over round 3's
+screenshots; all fixed.
+- **Code:** the desk's line-hold timer outlived "← Back to the pages" and
+  could move a page opened in the beat past its last line (a render crash);
+  a word typed in time handed ▶ Go! the focus on its last key (a 300 ms
+  beat, as the late path has); `spellLine` paused at every word of a
+  sentence; `QuestionCard` scrolled when only focus changed; "Type: …" fills
+  its live region a tick after mount; one tick a key (the run no longer
+  sounds the last key — the lesson's chime and the arena's strike do).
+- **UX:** a mark up on a key ("!", "?", "(") lit the plain key and pressing
+  it was a miss — now a nudge that names the key, the lit key shows the mark,
+  the Shifts light for it, `keyHint` says "Shift and the 1 key (!)", the
+  pen-pal lines lost their "!"; the letter reads "Type: …" to a screen
+  reader; the last line of a lesson, a page, the pangram and the letter
+  lingers `LINE_HOLD_MS` before its result card (a habitual Enter had closed
+  it unread; the pay is immediate); the lock's words after a wrong riddle;
+  the capitals lesson's hold tip; the leaves intro names the clock;
+  `BURST_LITTLE_MS` (15 s) under 8; the line read once; the chest's heading
+  under the HUD band; the desk compact under 700 px; "Maybe not" beside
+  "Pick another line".
+- Tests: +5 (TC-1506, TC-1507); 1699 green, lint + tsc clean; `bench …
+  typing` rerun.
 
 ### 2026-10-19 — Touch typing review round 3: a clock that says time's up, lines that linger, a screen reader told the task (#159)
 The last of the three rounds: fresh code (1 high, 1 medium, 4 low, 3 nits)

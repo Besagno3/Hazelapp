@@ -37,7 +37,8 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
       hold.current = window.setTimeout(() => setLine(line + 1), LINE_HOLD_MS);
       return;
     }
-    // The lesson is cleared the moment the last line ends (leaving now keeps it).
+    // The lesson is cleared the moment the last line ends (leaving now keeps it) — the result card
+    // follows after the same beat as any line (review round 4: a habitual Enter on the last key closed it unread).
     const flag = typingLessonFlag(lesson.id);
     let badge = false;
     update((s) => {
@@ -47,9 +48,12 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
       return { ...s, flags, badges: badge ? [...s.badges, TYPING_BADGE_ID] : s.badges };
     });
     if (!clearedBefore) void addXp(TYPING_LESSON_XP);
-    sfx('levelup');
-    confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, disableForReducedMotion: true });
-    setResult({ accuracy: typingAccuracy(total), paid: !clearedBefore, badge });
+    const paid = !clearedBefore;
+    hold.current = window.setTimeout(() => {
+      sfx('levelup');
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 }, disableForReducedMotion: true });
+      setResult({ accuracy: typingAccuracy(total), paid, badge });
+    }, LINE_HOLD_MS);
   }
 
   // One live region for the whole lesson (review round 2): a per-line remount
@@ -112,7 +116,11 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
         <p className="text-sm text-white/80 mb-1">"{lesson.teaches}"</p>
         <p className="text-xs text-white/60 mb-5">
           {lesson.lines.length} lines to type.{' '}
-          {holdRule ? 'Keep your other hand on its bump key (F or J) while you type.' : 'The home-row hold is off: type with either hand.'}
+          {holdRule
+            ? lesson.lines.some((l) => /[A-Z]/.test(l))
+              ? "Keep your other hand on its bump key (F or J) — and for a capital, hold that hand's Shift instead."
+              : 'Keep your other hand on its bump key (F or J) while you type.'
+            : 'The home-row hold is off: type with either hand.'}
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <button
@@ -177,6 +185,12 @@ export function LineRun({
       onDone(p);
     },
   });
+  // The task goes into the live region a tick after it mounts (review round 4).
+  const [primed, setPrimed] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setPrimed(true), 0);
+    return () => clearTimeout(id);
+  }, []);
   const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '', run.last.capsLock) : null;
   // The line takes focus as it appears (review round 2: the Start button unmounted and focus fell to the page) —
   // a plain box, so Space is the line's, never a button's.
@@ -193,9 +207,9 @@ export function LineRun({
           screen reader hears each nudge, and between nudges just the next key's name (round 2: a whole
           sentence a key was forty sentences a line) — the full words are the keyboard's own label. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem] [@media(max-width:639px)]:min-h-[3rem]">
-        {nudge ?? <span className="sr-only">{announce && !run.last ? `Type: ${text}.` : run.target ? keyName(run.target) : ''}</span>}
+        {nudge ?? <span className="sr-only">{announce && !run.last ? (primed ? `Type: ${text}.` : '') : run.target ? keyName(run.target) : ''}</span>}
       </p>
-      <KeyboardDiagram compact={compact} target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
+      <KeyboardDiagram compact={compact} target={run.target} targetChar={text[run.progress.index] ?? null} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
     </div>
   );
 }
