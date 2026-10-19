@@ -807,15 +807,16 @@ npm test         # Vitest suite (test:watch / test:ui also available)
 
 # World renderer bench (dev-only; needs Playwright — a global install works)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fps [cols rows]   # frame times on a big test map
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs shots <dir>       # screenshot every zone + Spire floor (a screen with no open ground is shot flying, #82f)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs diff <dirA> <dirB> # pixel-compare two shot sets
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs journey [outDir]   # the real hero walks Act I's legs + Spire floors (#75 item 14b)
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs hud [outDir]       # the real app, Supabase stubbed: world HUD at 5 sizes (#102i), flying with Calm on too (#136e)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs sea [outDir]       # sea critters on the real canvas: battle, Calm, arrival, sleeping after a Flee / a landing, no walking through a boss after a bump (#75 item 14d)
-NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit (#75 item 14f)
+NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs battle [outDir]    # the real app, Supabase stubbed: a battle at 5 sizes — top bar, the "!!!", the commands fit, and a boss's power-move turn (#75 item 14f, #158b)
 NODE_PATH=$(npm root -g) node bench/run-world-bench.cjs fly [outDir]       # flying on Ember on the real canvas: take off, over mountains and the sea, across an edge, over a critter, landing, no Fly before Memory, the Roost (#75 item 15b), over the Great Fogbank to Port Lantern (#75 item 15c)
 # (bench/world.html also takes __bench.travel(zone, x, y) / __bench.calm(s) — Return / Calm, #75 item 9)
-# (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g)
+# (…and escort=1 — an escort's walk under way, by its flags — and __bench.walkTo(x, y), #75 item 14g; hero=a1…a5, #115f)
+# Run `hud` / `battle` on a quiet tree: they load the live src/, and a save elsewhere hot-reloads the page mid-run. BENCH_PORT runs two at once.
 
 # Tiled maps (docs/MAP-AUTHORING.md) — needs Pillow
 python3 tools/tiled/tiled.py to-ascii src/content/maps/dawnreach.tmj    # a Tiled map as ASCII rows
@@ -969,6 +970,22 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — TypeScript `strict` on; the bench flies, every screen shot, pinned edge imports (#111, #136e, #82f, #115f, #131d)
+`strict` is on in both tsconfigs (#111): the last three errors were the
+bench's (`target.cell` may be null). `bench … hud` now also flies — a save-v3
+hero on Ember with Calm on; 🛬 Land / 🐉 Fly, the 🕊️ timer and 📜 Menu at all
+five sizes, and a tap on a button's face must land on it (`faceTaps`), which
+caught 📜 Menu's tap area over 🛬 Land at 740×360 until the HUD's buttons got
+their spaced group (6/6). `bench … battle` checks 🏃 Flee at 320 px too (no
+exemption) and plays on to a boss's power-move turn (5/5). `bench … shots`
+flies over a screen with no open ground in view (`…__fly.png`, `bench/
+benchPage.ts`, tested) — re-shoot a baseline once, those screens' names
+changed; the bench page takes `hero=a1…a5`. The edge function and the bank
+recheck pin `@anthropic-ai/sdk@0.135.0` and `@supabase/supabase-js@2.101.1`
+(`edgeImports.test`; `deno check` passes as CI runs it). `docs/PRODUCTION-
+DB-SETUP.md` covers migrations 0001–0021, the bundle, the function deploy and
+how to check what's applied (its SQL tried on Postgres 16).
 
 ### 2026-10-19 — The issues audit's quick fixes: Scholar XP everywhere, critters off people, touch words, Escape, friendly errors, 320 px battles (#159)
 The audit (previous commit) found small fixes inside many open entries; this

@@ -4,15 +4,20 @@
  *
  *   node bench/run-world-bench.cjs fps [cols] [rows]   frame times on the stress map
  *   node bench/run-world-bench.cjs shots <outDir>      screenshot every zone screen + Spire floor
+ *                                                      (on an overworld map, a screen with no open
+ *                                                      ground in view is shot flying, `…__fly.png`)
  *   node bench/run-world-bench.cjs diff <dirA> <dirB>  pixel-compare two shots dirs
  *   node bench/run-world-bench.cjs journey [outDir]    walk Act I's legs and the Spire's floors
  *                                                      with the real hero (#75 item 14b)
  *   node bench/run-world-bench.cjs hud [outDir]        the real app (Supabase stubbed) at phone to
  *                                                      desktop sizes: nothing in the world HUD
- *                                                      overlaps, overlays cover the top bar (#102i)
+ *                                                      overlaps, overlays cover the top bar (#102i);
+ *                                                      flying with Calm on, 🛬 Land / 🐉 Fly, the
+ *                                                      timer and 📜 Menu fit and each tap lands (#136e)
  *   node bench/run-world-bench.cjs battle [outDir]     the real app (Supabase stubbed): a battle at
  *                                                      five sizes — its top bar covers nothing, the
- *                                                      enemy's "!!!" shows, the commands fit (#75 item 14f)
+ *                                                      enemy's "!!!" shows, the commands fit (#75 item 14f),
+ *                                                      and again on the boss's "💢 … next!" turn (#158b)
  *   node bench/run-world-bench.cjs sea [outDir]        sea critters on the real canvas (#75 item 14d):
  *                                                      sailing into one battles it, Calm passes it,
  *                                                      arriving starts none; one that could reach the
@@ -121,7 +126,11 @@ async function shots(browser, outDir) {
     await page.goto(`${BASE}?zone=${zone}&paused=1`);
     await page.waitForFunction(() => window.__bench);
     const { screens } = await page.evaluate(() => window.__bench.info());
-    for (const s of screens) targets.push({ name: `${zone}__${s.x}_${s.y}`, query: `zone=${zone}&paused=1&at=${s.x},${s.y}` });
+    // A screen with no open ground near its middle is shot with the hero flying over it (#82f).
+    for (const s of screens) {
+      const fly = s.fly ? '&fly=1' : '';
+      targets.push({ name: `${zone}__${s.x}_${s.y}${s.fly ? '__fly' : ''}`, query: `zone=${zone}&paused=1&at=${s.x},${s.y}${fly}` });
+    }
   }
   for (const theme of spireThemes) {
     targets.push({ name: `spire-${theme}`, query: `zone=crystal-spire&floor=${theme}&paused=1` });
@@ -273,6 +282,7 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion, rea
   );
   page.errors = [];
   page.on('pageerror', (e) => page.errors.push(String(e)));
+  let askedSoFar = 0;
   await page.route(`${STUB}/**`, async (route) => {
     const req = route.request();
     const url = req.url();
@@ -283,10 +293,23 @@ async function stubbedApp(browser, viewport, save, profile, { reducedMotion, rea
     if (url.includes('/rest/v1/profiles')) return json(one ? profile : [{ display_name: 'Hud', icon: 'fox', has_pin: true, ...profile }]);
     if (url.includes('/rest/v1/saves')) return json(one ? { data: save } : [{ data: save }]);
     if (url.includes('/functions/v1/generate-questions')) {
-      const questions = Array.from({ length: 6 }, (_, i) => ({
-        id: `q${i}`, level: 3, text: `What is ${i} + 2?`, options: [`${i + 2}`, `${i + 3}`, `${i + 4}`, `${i + 5}`],
-        correctIndex: 0, explanation: 'Count on two.', timesAsked: 0,
-      }));
+      // As many as asked (so no starter question fills in), each its own: a bench
+      // can answer "What is n + 2?" right (`answerRight`).
+      const body = (() => {
+        try {
+          return JSON.parse(req.postData() || '{}');
+        } catch {
+          return {};
+        }
+      })();
+      const count = Math.min(20, Math.max(1, Number(body.count) || 6));
+      const questions = Array.from({ length: count }, () => {
+        const n = (askedSoFar += 1);
+        return {
+          id: `q${n}`, level: 3, text: `What is ${n} + 2?`, options: [`${n + 2}`, `${n + 3}`, `${n + 4}`, `${n + 5}`],
+          correctIndex: 0, explanation: 'Count on two.', timesAsked: 0,
+        };
+      });
       return json({ questions });
     }
     return json({});
@@ -308,6 +331,8 @@ function hudLayout() {
   for (const el of stats.children) {
     // The Spire's seals, candles and Leave button sit in a `contents` slot (they lay out as the HUD's own).
     if (el.classList.contains('contents')) for (const c of el.children ?? []) named.push([`Spire: ${c.textContent.trim().slice(0, 14)}`, c]);
+    // The buttons (and Calm's timer) keep together in a group of their own: each one counts.
+    else if (el.tagName === 'DIV') for (const c of el.children) named.push([`HUD: ${c.textContent.trim().slice(0, 14) || c.title}`, c]);
     else named.push([`HUD: ${el.textContent.trim().slice(0, 14) || el.title}`, el]);
   }
   const boxes = named.map(([name, el]) => ({ name, r: el.getBoundingClientRect() })).filter((b) => b.r.width > 0 && b.r.height > 0);
@@ -361,6 +386,55 @@ function tapsLand(name) {
   return miss.length ? `"${name}" ${Math.round(r.height)}px tall: a tap at y ${miss.map(Math.round)} misses` : '';
 }
 
+/**
+ * In the page: 🐉 Fly / 🛬 Land, Calm's timer and 📜 Menu in the HUD row
+ * (#136e) — each one's box, whether it's on screen, and how many lines the
+ * row of stats wraps onto.
+ */
+function flightRow() {
+  const stats = document.querySelector('h1').parentElement.nextElementSibling;
+  // The buttons (and Calm's timer) may sit in a group of their own: count what's in it.
+  const items = [...stats.children].flatMap((el) => (el.tagName === 'DIV' ? [...el.children] : [el]));
+  const shown = items.filter((el) => el.getBoundingClientRect().width > 0);
+  const box = (re) => {
+    const el = shown.find((c) => re.test(c.textContent));
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { text: el.textContent.trim(), onScreen: r.left >= 0 && r.right <= innerWidth + 0.5 && r.top >= 0 && r.bottom <= innerHeight };
+  };
+  return {
+    flight: box(/🐉 Fly|🛬 Land/),
+    calm: box(/🕊️/),
+    menu: box(/📜 Menu/),
+    // Items in one line share a middle (the row is `items-center`).
+    lines: new Set(shown.map((el) => Math.round((el.getBoundingClientRect().top + el.getBoundingClientRect().height / 2) / 6))).size,
+    titleLines: Math.round(document.querySelector('h1').getBoundingClientRect().height / 28),
+  };
+}
+
+/**
+ * In the page: does a tap anywhere on each named button's own face land on it?
+ * A 44 px tap area (`HUD_TAP`) drawn later can sit over a neighbour's face when
+ * the HUD row wraps (#136e).
+ */
+function faceTaps(names) {
+  return names.flatMap((name) => {
+    const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(name));
+    if (!b) return [];
+    const r = b.getBoundingClientRect();
+    const spots = [
+      [r.left + r.width / 2, r.top + 2, 'top'],
+      [r.left + r.width / 2, r.bottom - 2, 'bottom'],
+      [r.left + 2, r.top + r.height / 2, 'left'],
+      [r.right - 2, r.top + r.height / 2, 'right'],
+    ];
+    return spots.flatMap(([x, y, edge]) => {
+      const hit = document.elementFromPoint(x, y)?.closest('button');
+      return hit === b ? [] : [`a tap on the ${edge} edge of "${name}" lands on ${hit ? `"${hit.textContent.trim().slice(0, 14)}"` : 'nothing'}`];
+    });
+  });
+}
+
 /** Tab `n` times, noting where focus lands each time. */
 async function tabs(page, n) {
   const seen = [];
@@ -375,7 +449,8 @@ async function tabs(page, n) {
  * The world HUD on the real app at phone, sideways-phone and desktop sizes
  * (#75 item 14b, #102i): no two of its pieces overlap, no sideways scroll,
  * and with the menu open the overlay covers the whole top bar. Then the same
- * in the Spire, its seals and Leave button in the HUD row.
+ * in the Spire, its seals and Leave button in the HUD row, and flying on
+ * Ember with Calm on (`flyingHud`, #136e).
  */
 /** In the page, on the battle screen: the top bar, the status boxes and the enemy's "!" marks (#75 item 14f review). */
 function battleLayout() {
@@ -393,7 +468,41 @@ function battleLayout() {
     marksOnTop: !!top && !!marks && (top === marks || marks.parentElement.contains(top)),
     offScreen: visible.filter((b) => b.getBoundingClientRect().bottom > innerHeight + 1).map((b) => b.textContent.trim().slice(0, 16)),
     sideways: document.documentElement.scrollWidth > innerWidth,
+    scrolls: document.documentElement.scrollHeight > innerHeight + 1,
+    // A coming power move (💢 … next!): the line a sighted kid sees, if any, on screen and on top.
+    warning: (() => {
+      const el = [...document.querySelectorAll('span')].find((x) => {
+        const r = x.getBoundingClientRect();
+        return x.children.length === 0 && /^💢 .* next!$/.test(x.textContent.trim()) && r.width > 2 && r.height > 2 && getComputedStyle(x).display !== 'none';
+      });
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + Math.min(r.width, 40) / 2, r.top + r.height / 2);
+      return { text: el.textContent.trim(), onScreen: r.left >= 0 && r.right <= innerWidth + 0.5 && r.bottom <= innerHeight, onTop: !!top && el.contains(top) };
+    })(),
   };
+}
+
+/** Answer the question on screen right — the stub only asks "What is n + 2?" — and go on. */
+async function answerRight(page) {
+  const ask = page.getByText(/What is \d+ \+ 2\?/).first();
+  const text = await ask.textContent({ timeout: 8000 }).catch(() => '');
+  const n = Number(/What is (\d+) \+ 2/.exec(text)?.[1]);
+  if (!Number.isFinite(n)) return false;
+  await page.getByRole('button', { name: String(n + 2), exact: true }).click();
+  await page.getByRole('button', { name: /Go!/ }).click();
+  return true;
+}
+
+/** Read on (tap to continue) until the commands or the next question show. */
+async function readOn(page) {
+  for (let i = 0; i < 10; i++) {
+    if (await page.getByRole('button', { name: /Attack/ }).count()) return 'commands';
+    if (await page.getByText(/What is \d+ \+ 2\?/).count()) return 'question';
+    await page.getByText(/tap to continue/).first().click({ timeout: 2000 }).catch(() => {});
+    await page.waitForTimeout(500);
+  }
+  return 'stuck';
 }
 
 /**
@@ -401,7 +510,10 @@ function battleLayout() {
  * the Ringkeeper, Eldergrove's tier-5 warden, at five sizes. The level and
  * streak sit in their own row above the status boxes (they floated over the
  * enemy's "!!!" on a phone), the "!!!" is on top, nothing scrolls sideways,
- * and the 💪 line and then the commands fit on screen.
+ * and the 💪 line and then the commands fit on screen — 🏃 Flee too, at 320
+ * px (#158b). Then it Guards on (right answers) to the boss's power-move turn:
+ * the "💢 … next!" line shows and is on top, every command is on screen, and
+ * the page doesn't scroll.
  */
 async function battleHud(browser, outDir) {
   fs.mkdirSync(outDir, { recursive: true });
@@ -454,24 +566,94 @@ async function battleHud(browser, outDir) {
     }
     const commands = await page.evaluate(battleLayout);
     await page.screenshot({ path: path.join(outDir, `battle-${size}-commands.png`) });
-    for (const [when, l] of [['opening', opening], ['commands', commands]]) {
+    if (!(await page.getByRole('button', { name: /Attack/ }).count())) problems.push('never reached the commands');
+    // A boss winds up its power move every third turn: Guard (so it never falls
+    // first), answer right, defend right, until the commands come back under
+    // "💢 Big hit next!" (#158b).
+    let power = null;
+    for (let round = 0; round < 5 && !power && (await page.getByRole('button', { name: /Attack/ }).count()); round++) {
+      await page.getByRole('button', { name: /Guard/ }).first().click();
+      if (!(await answerRight(page))) break;
+      let next = await readOn(page);
+      if (next === 'question') {
+        if (!(await answerRight(page))) break;
+        next = await readOn(page);
+      }
+      if (next !== 'commands') break;
+      await page.waitForTimeout(600);
+      const l = await page.evaluate(battleLayout);
+      if (l.warning) power = l;
+    }
+    if (power) await page.screenshot({ path: path.join(outDir, `battle-${size}-power.png`) });
+    else problems.push("never reached the boss's power-move turn");
+    for (const [when, l] of [['opening', opening], ['commands', commands], ['power move', power]]) {
+      if (!l) continue;
       if (l.barHeight && l.gap < 0) problems.push(`${when}: the top bar runs ${-l.gap}px into the status boxes`);
       if (!l.marksOnTop) problems.push(`${when}: the enemy's "${l.marks}" is covered`);
-      // A boss's 🏃 Flee ("No escape!") never fit a 320×568 screen, row or no row (ISSUES #117q).
-      const off = width === 320 ? l.offScreen.filter((b) => !b.startsWith('🏃Flee')) : l.offScreen;
-      if (off.length) problems.push(`${when}: off the bottom: ${off.join(', ')}`);
+      if (l.offScreen.length) problems.push(`${when}: off the bottom: ${l.offScreen.join(', ')}`);
       if (l.sideways) problems.push(`${when}: the page scrolls sideways`);
     }
-    if (!(await page.getByRole('button', { name: /Attack/ }).count())) problems.push('never reached the commands');
+    if (power?.scrolls) problems.push('power move: the page scrolls');
+    if (power && !(power.warning.onScreen && power.warning.onTop)) problems.push(`power move: "${power.warning.text}" is ${power.warning.onScreen ? 'covered' : 'off the screen'}`);
     problems.push(...page.errors);
     const barText = commands.barHeight ? `top bar ${commands.barHeight}px, ${commands.gap}px above the status boxes` : 'no top bar (too small)';
-    console.log(`${problems.length ? '✗' : '✓'} ${size}  ${barText}; "${commands.marks}" on top: ${commands.marksOnTop ? 'yes' : 'no'}`);
+    const powerText = power ? `; power move: "${power.warning.text}", ${power.offScreen.length ? 'commands cut off' : 'every command on screen'}, ${power.scrolls ? 'scrolls' : 'no scroll'}` : '';
+    console.log(`${problems.length ? '✗' : '✓'} ${size}  ${barText}; "${commands.marks}" on top: ${commands.marksOnTop ? 'yes' : 'no'}${powerText}`);
     for (const pr of problems) console.log(`    ${pr}`);
     if (problems.length) bad++;
     await page.close();
   }
   console.log(`\n${sizes.length - bad}/${sizes.length} battle checks clean. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;
+}
+
+/**
+ * Flying over Dawnreach in the real app (#136e): a save-v3 hero on Ember casts
+ * Calm from the 📜 Menu, so 🛬 Land, "🕊️ 60s" and 📜 Menu share the HUD row;
+ * then 🛬 Land sets them down and the row reads 🐉 Fly instead. Each time:
+ * nothing in the HUD overlaps, all three are there and on screen, Land / Fly
+ * and Menu keep 44 px taps and a tap on either one's face lands on it, no
+ * sideways scroll, the map fits.
+ */
+async function flyingHud(browser, viewport, save, profile, outDir, size) {
+  const page = await stubbedApp(browser, viewport, save, profile);
+  const problems = [];
+  const looks = [];
+  const look = async (when, button) => {
+    const layout = await page.evaluate(hudLayout);
+    const row = await page.evaluate(flightRow);
+    await page.screenshot({ path: path.join(outDir, `hud-${size}-${when}.png`) });
+    for (const o of layout.overlaps) problems.push(`${when}: overlap: ${o}`);
+    if (layout.hscroll) problems.push(`${when}: scrolls sideways`);
+    if (layout.mapCut) problems.push(`${when}: the map runs ${layout.mapCut}px off the bottom of the screen`);
+    for (const [name, b] of [[button, row.flight], ['🕊️ Calm', row.calm], ['📜 Menu', row.menu]]) {
+      if (!b) problems.push(`${when}: no ${name} in the HUD`);
+      else if (!b.onScreen) problems.push(`${when}: ${b.text} is off the screen`);
+    }
+    if (row.flight && !row.flight.text.includes(button)) problems.push(`${when}: the flight button reads "${row.flight.text}", not ${button}`);
+    for (const name of [button, '📜 Menu']) {
+      const tap = await page.evaluate(tapsLand, name);
+      if (tap) problems.push(`${when}: ${tap}`);
+    }
+    for (const miss of await page.evaluate(faceTaps, [button, '📜 Menu'])) problems.push(`${when}: ${miss}`);
+    looks.push(`${when}: ${[row.flight?.text, row.calm?.text, row.menu?.text].filter(Boolean).join(' · ')} — stats on ${row.lines} line${row.lines === 1 ? '' : 's'}, title on ${row.titleLines}`);
+  };
+  // Calm from the menu (the HUD shows its timer only while it runs).
+  await page.getByRole('button', { name: '📜 Menu' }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'Cast', exact: true }).click();
+  await page.waitForTimeout(800);
+  // On a phone the "Calm!" toast floats over the HUD row for a few seconds (it lets taps through);
+  // wait it out so the screenshots show the row.
+  await page.waitForFunction(() => !document.body.innerText.includes('Critters will let you pass'), null, { timeout: 12000 }).catch(() => {});
+  await look('flying', '🛬 Land');
+  await page.getByRole('button', { name: 'Land', exact: true }).click();
+  await page.getByRole('button', { name: 'Fly on Ember', exact: true }).waitFor({ timeout: 5000 }).catch(() => problems.push('🛬 Land never set the hero down'));
+  await page.waitForTimeout(300);
+  await look('landed', '🐉 Fly');
+  const errors = [...page.errors];
+  await page.close();
+  return { problems, looks, errors };
 }
 
 async function hud(browser, outDir) {
@@ -491,6 +673,17 @@ async function hud(browser, outDir) {
     ...base, zoneId: 'crystal-spire', pos: { x: 10 * 32 + 16, y: 4 * 32 + 16 },
     flags: { ...seen, 'ending-seen': true, 'key-verdara-key': true, 'key-gearfall-key': true, 'key-chromaria-key': true, ...Object.fromEntries(crystals.flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])) },
   };
+  // Save v3 (#75 item 15b), flying on Ember over open ground on Dawnreach: the Crystal of Memory
+  // restored (so `canFly`), every story panel and fog lift already seen, Calm learned (#136e).
+  const flyingSave = {
+    ...base, version: 3, vehicle: 'ember', zoneId: 'dawnreach', pos: { x: 41 * 32 + 16, y: 18 * 32 + 16 },
+    flags: {
+      ...seen, 'ending-seen': true, 'spire-cleared': true, 'spire-victory-seen': true, 'act2-seen': true, 'flight-tutorial-seen': true, 'spell:calm': true,
+      ...Object.fromEntries([...crystals, 'history'].flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])),
+      ...Object.fromEntries(['shrine-fog', 'spire-fog', 'math-fog', 'science-fog', 'engineering-fog', 'creativity-fog', 'hill-fog', 'roost-clouds'].map((id) => [`fog-${id}-seen`, true])),
+    },
+  };
+  delete flyingSave.aboard; // v3 has `vehicle` in its place
   const profile = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 12, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
   const sizes = [[320, 568], [360, 640], [375, 667], [740, 360], [1024, 768]];
   let bad = 0;
@@ -570,11 +763,16 @@ async function hud(browser, outDir) {
     }
     errors.push(...sp.errors);
     await sp.close();
+    // Flying: 🛬 Land / 🐉 Fly, Calm's timer and 📜 Menu in one HUD row (#136e).
+    const flight = await flyingHud(browser, { width, height }, flyingSave, profile, outDir, size);
+    errors.push(...flight.errors);
+    problems.push(...flight.problems);
     const cut = Math.max(layout.mapCut, spireLayout?.mapCut ?? 0);
     const ok =
       !layout.overlaps.length && !layout.hscroll && covered.every(Boolean) && inSpire && !spireLayout.overlaps.length && !spireLayout.hscroll && !cut && !errors.length && !problems.length;
     if (!ok) bad += 1;
     console.log(`${ok ? '✓' : '✗'} ${size}  top bar ${layout.barHeight}px, stage ${layout.stage}; menu covers the bar: ${covered.every(Boolean) ? 'yes' : `no (${covered})`}; Spire HUD: ${inSpire ? 'in the row' : 'never reached'}`);
+    for (const l of flight.looks) console.log(`    ${l}`);
     for (const o of [...layout.overlaps, ...(spireLayout?.overlaps ?? [])]) console.log(`    overlap: ${o}`);
     if (layout.hscroll || spireLayout?.hscroll) console.log('    scrolls sideways');
     if (cut) console.log(`    the map runs ${cut}px off the bottom of the screen${spireLayout?.mapCut ? ' (in the Spire)' : ''}`);

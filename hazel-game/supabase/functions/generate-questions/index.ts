@@ -54,8 +54,13 @@
 // Deploy:  supabase functions deploy generate-questions
 // ----------------------------------------------------------------------------
 
-import Anthropic from 'npm:@anthropic-ai/sdk';
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js';
+// Exact versions (#131d), so a deploy runs what CI checked: supabase-js as the
+// app's package-lock has it; the SDK new enough for adaptive thinking, effort,
+// structured output and the beta `fallbacks: 'default'`. The recheck script
+// pins the same two; `src/lib/edgeImports.test.ts` fails if they drift apart,
+// lose their version, or supabase-js stops matching the app's.
+import Anthropic from 'npm:@anthropic-ai/sdk@0.135.0';
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.101.1';
 
 // The model (`MODEL`) and the checks' settings live in the screening block
 // below, shared with the bank recheck (supabase/scripts/recheck-questions.ts).

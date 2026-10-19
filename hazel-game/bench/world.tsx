@@ -18,6 +18,9 @@
  *   fly=1                              start flying on Ember (#75 item 15b; set the
  *                                      Memory crystal's flag too); `__bench.fly()` /
  *                                      `__bench.land()` press 🐉 Fly / 🛬 Land
+ *   hero=a1…a5                         the hero drawn (#115f; default a1, Valor — a4 Kira,
+ *                                      a5 Selene…); an unknown id stops the page with an
+ *                                      error naming the real ones
  *   leg=<n>                            Act I's leg n (`lib/journey.ts`): its zone, start
  *                                      cell and story flags; `__bench.walkLeg()` walks it
  *   walk=1                             (with floor=…) `__bench.walkFloor()` walks the Spire
@@ -42,10 +45,9 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import WorldCanvas, { type Travel } from '../src/features/world/WorldCanvas';
-import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, buildingInside, type ZoneDef, type ZoneId } from '../src/content/zones';
+import { ZONES, ZONE_IDS, TILE, VIEW_COLS, VIEW_ROWS, type ZoneDef, type ZoneId } from '../src/content/zones';
 import type { BoatSpot } from '../src/types';
 import { SPIRE_FLOOR_MAPS, SPIRE_THEMES, floorSpawnPx, floorZone, type SpireTheme } from '../src/content/spire';
-import { avatarById } from '../src/content/avatars';
 import { camAxis } from '../src/lib/camera';
 import { BLEND_OPS_PER_CORNER, blendLayer, blendsEdges } from '../src/lib/terrain';
 import { FOG_OVERHANG } from '../src/lib/fog';
@@ -55,6 +57,7 @@ import { actOneJourney, goalTarget } from '../src/lib/journey';
 import { reachPath, type Cell } from '../src/lib/reach';
 import { floorWards } from '../src/content/spire';
 import { makeWalker, type HopReport } from './walker';
+import { benchHero, screenCells } from './benchPage';
 import { activeEscort } from '../src/content/quests';
 import { stepFlag, withoutEscorts } from '../src/content/questFlags';
 import { defaultSave } from '../src/lib/save';
@@ -64,6 +67,10 @@ const q = new URLSearchParams(location.search);
 const zoneParam = q.get('zone') ?? 'stress';
 const floor = q.get('floor') as SpireTheme | null;
 const paused = q.get('paused') === '1';
+/** `fly=1`: the hero starts flying on Ember (`shots` uses it where no open ground shows a screen, #82f). */
+const flying = q.get('fly') === '1';
+/** `hero=<id>` (#115f): who walks the map. */
+const hero = benchHero(q.get('hero'));
 /** `leg=<n>`: one of Act I's legs, walked by `__bench.walkLeg()` (#75 item 14b). */
 const leg = q.has('leg') ? actOneJourney()[Number(q.get('leg'))] ?? null : null;
 
@@ -152,28 +159,6 @@ const startPos = atParam
     ? floorSpawnPx(floor, TILE)
     : null;
 
-/** One outdoor, walkable start cell near the centre of each screen of the map. */
-function screenCells(): { x: number; y: number }[] {
-  const out: { x: number; y: number }[] = [];
-  const ok = (x: number, y: number) => '.,='.includes(z.map[y]?.[x] ?? '#') && !buildingInside(z, x, y);
-  for (let by = 0; by < Math.ceil(rows / VIEW_ROWS); by++) {
-    for (let bx = 0; bx < Math.ceil(cols / VIEW_COLS); bx++) {
-      const tx = Math.min(cols - 1, bx * VIEW_COLS + Math.floor(VIEW_COLS / 2));
-      const ty = Math.min(rows - 1, by * VIEW_ROWS + Math.floor(VIEW_ROWS / 2));
-      let best: { x: number; y: number } | null = null;
-      for (let r = 0; r < 12 && !best; r++) {
-        for (let dy = -r; dy <= r && !best; dy++) {
-          for (let dx = -r; dx <= r && !best; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) === r && ok(tx + dx, ty + dy)) best = { x: tx + dx, y: ty + dy };
-          }
-        }
-      }
-      if (best) out.push(best);
-    }
-  }
-  return out;
-}
-
 /**
  * Screen-pixel rects of things that animate even while paused — water, the
  * save crystal, Spire seals, and every character's idle cycle (villagers,
@@ -217,6 +202,9 @@ function animatedRects(): [number, number, number, number][] {
   if (umbra) box((umbra.x + 1) * TILE, umbra.y * TILE + TILE / 2, 34);
   box(px.x, px.y, 24); // hero
   box(px.x - 24, px.y + 8, 24); // Ember, trailing
+  // `fly=1`: once the world runs, Ember carries the hero, big, bobbing, a shadow below.
+  // (A `paused=1` shot never runs a frame, so it shows them standing there instead.)
+  if (flying) box(px.x, px.y + 16, 48);
   return rects.filter(([x, y, w, h]) => x > -w && y > -h && x < VW && y < VH);
 }
 
@@ -283,7 +271,7 @@ const pct = (xs: number[], p: number) => [...xs].sort((a, b) => a - b)[Math.min(
     floor,
     cols,
     rows,
-    screens: screenCells(),
+    screens: screenCells(z),
     animated: animatedRects(),
     zoneIds: ZONE_IDS,
     spireThemes: SPIRE_THEMES,
@@ -367,7 +355,7 @@ const live: {
   boat: boatParam,
   boardings: 0,
   landings: 0,
-  flying: q.get('fly') === '1',
+  flying,
   takeOffs: 0,
   touchDowns: 0,
   noLandings: 0,
@@ -407,7 +395,7 @@ bench.walkLeg = async () => {
   if (!(await walker.ready())) return { title: leg.goal.title, ok: false, hops: [], seconds: 0, talks: 0, error: 'the world never started' };
   const t0 = performance.now();
   const target = goalTarget(leg.goal);
-  const bossId = leg.goal.kind === 'spire' ? null : ZONES[target.zoneId].enemies.find((e) => e.x === target.cell.x && e.y === target.cell.y)!.defId;
+  const bossId = leg.goal.kind === 'spire' ? null : ZONES[target.zoneId].enemies.find((e) => e.x === target.cell?.x && e.y === target.cell?.y)!.defId;
   const hops: HopReport[] = [];
   for (const h of leg.hops) {
     if (live.zoneId !== h.zoneId) {
@@ -419,7 +407,7 @@ bench.walkLeg = async () => {
       break;
     }
     const touched = () => (bossId ? live.battles.includes(bossId) : live.spire > 0);
-    const r = await walker.walk(h.path, h.to ? { to: h.to } : { target: target.cell, touched });
+    const r = await walker.walk(h.path, h.to ? { to: h.to } : { target: target.cell ?? undefined, touched });
     hops.push(r);
     if (!r.ok) break;
   }
@@ -495,7 +483,7 @@ function Bench() {
     <div style={{ width: VIEW_COLS * TILE + 4 }}>
       <WorldCanvas
         zoneId={where.zoneId}
-        avatar={avatarById('a1')!}
+        avatar={hero}
         age={9}
         skillLevels={{}}
         emberStage="hatchling"
