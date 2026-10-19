@@ -77,3 +77,14 @@ describe('useBattleQuestions (#158)', () => {
     expect(more.mock.calls[0][5]).toBe('spell');
   });
 });
+
+describe('useBattleQuestions — a failure is logged in words, never shown (#163)', () => {
+  it('logs the reason as text, not the raw error, and never errors', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    quick.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useBattleQuestions('math', 5, 4));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('Questions failed to load:', 'boom'));
+    expect(result.current.error).toBeNull();
+    warn.mockRestore();
+  });
+});

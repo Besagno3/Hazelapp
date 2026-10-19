@@ -288,6 +288,36 @@ export async function moreQuestions(
   return [...fresh, ...starters];
 }
 
+// --- A quiz round that starts at once (#163) --------------------------------
+// The Training Grounds quiz waited for its whole round too ("Building your
+// questions…", up to 15–30 s on a thin bank — the first screen a new kid
+// sees). It now loads the battle's way (`useBattleQuestions`: saved questions
+// first, starters for a thin, slow or down bank, the rest while the kid
+// answers) and takes each question as the kid reaches it (`useQuizRound`).
+
+/**
+ * The next question for a round that has asked `asked`, from `pool`: the
+ * first bank question not asked yet — bank questions move the level and pay
+ * XP (#153) — else the first starter not asked yet; null while the pool has
+ * nothing new (the rest are still on their way).
+ */
+export function nextRoundQuestion(pool: Question[], asked: Question[]): Question | null {
+  const ids = new Set(asked.map((q) => q.id));
+  const unasked = pool.filter((q) => !ids.has(q.id));
+  return unasked.find((q) => !isStarterId(q.id)) ?? unasked[0] ?? null;
+}
+
+/**
+ * A starter question the round hasn't asked, its answers shuffled: for a kid
+ * who reached a question before the rest of the round arrived.
+ */
+export function spareStarter(topic: Topic, skillLevel: number, asked: Question[]): Question {
+  const ids = new Set(asked.map((q) => q.id));
+  // One more than the round has asked, so at least one of them is new.
+  const starters = starterQuestions(topic, skillLevel, ids.size + 1);
+  return shuffleAnswers(starters.find((q) => !ids.has(q.id)) ?? starters[0]);
+}
+
 /**
  * Whether a question is in the server's question bank — not a starter
  * question (B5), nor one that failed to cache ("fresh-…").

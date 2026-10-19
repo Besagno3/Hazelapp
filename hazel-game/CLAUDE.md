@@ -300,7 +300,7 @@ zod, react-query. Add the package in the same change that first uses it.
   the commands off the screen (`bench … battle`, a boss fight); 🏃 Flee sits
   beside "Your move!", so the other six commands fill the grid (#158b). The
   Training Grounds, quiz and hero pick use `ScreenTopBar` (the same row in
-  the page, #110h; the quiz's loading and error screens too) — no screen
+  the page, #110h; the quiz keeps it while a question is on its way, #163) — no screen
   floats badges any more; there "Switch player" is spelled out from 400 px.
   🏃 Flee comes last in the page (after the grid), so Tab reaches Attack first. Switch asks
   "Switch?" first (same size; the hint floats below it), and any other tap
@@ -782,9 +782,21 @@ zod, react-query. Add the package in the same change that first uses it.
   (`fetchQuestions`) invokes it from the client; the optional `flavor` arg
   (a `FlavorId` key — battle, spell, gate, chest, shrine, spire — never text,
   #131) adds adventure flavour to fresh generations (#37).
-- Quiz and battle screens load **AI-generated questions** via the
-  `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
-  with loading and error/retry states.
+- Quiz and battle screens load **AI-generated questions** without waiting for
+  the whole batch (#158, #163): `useBattleQuestions` (age + per-topic skill
+  level) starts on saved questions — a look-ahead, or a saved-questions-only
+  request, at most `QUICK_WAIT_MS` (`quickQuestions`), starter questions
+  filling a thin, slow or down bank — and adds the rest as they arrive
+  (`moreQuestions`, which may ask Claude). It never errors, so neither screen
+  has an error state. The battle goes round its pool; **the Training Grounds
+  quiz** (`useQuizRound`, `features/quiz/`) takes each of its 5 questions as
+  the kid reaches it — the next bank question when one is in, else a starter
+  (`nextRoundQuestion`), never one the round asked — and if nothing new has
+  arrived it says "One moment…" in its card (not a full-screen loader) for at
+  most `QUICK_WAIT_MS`, then asks a starter (`spareStarter`), so a round
+  always finishes. Gates, chests and tale-stones, shrine trials, the Spire
+  and a battle's speed boost still use `fetchQuestions` (one call, the whole
+  batch, starters for whatever the server can't give).
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
   `profileStore.setSkillLevel`; (2) overall **player level** — saved in
@@ -810,7 +822,8 @@ zod, react-query. Add the package in the same change that first uses it.
   seen window — the last 100 distinct questions shown in that topic (read
   from their latest 1,000 shown views, so the cost doesn't grow with play).
   `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need. A
-  zone's critters are warmed from the saved bank only (`cacheOnly`, #153:
+  zone's critters — and the next quiz round, warmed as a round ends (#163) —
+  are warmed from the saved bank only (`cacheOnly`, #153:
   unseen saved questions, never a Claude call, maybe short or empty, and it
   holds nothing on the family budget — `p_fresh_wanted: 0`); the
   battle asks for whatever is still missing when it starts.
@@ -999,6 +1012,34 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — The quiz starts at once (#163)
+The Training Grounds quiz — the first screen a new kid sees — waited for its
+whole round behind "Building your questions…" (`useGeneratedQuestions` →
+`fetchQuestions`), 15–30 s on a thin bank. It now loads the battle's way
+(#158): new `useQuizRound` (`features/quiz/`) runs `useBattleQuestions` for
+the round's 5 — saved questions first (a saved-only request, at most
+`QUICK_WAIT_MS`; fewer than 3 saved and starters fill the round), the rest
+asked for while the kid answers, a late saved batch joining too — and takes
+each question as the kid reaches it: the next bank question when one is in,
+else a starter (`nextRoundQuestion`), never one the round asked. With nothing
+new yet the card says "One moment… Your question is on its way!" (a status
+line says it too; it fades in a beat late and leaves at once, so a quick
+question never flashes it), and after `QUICK_WAIT_MS` comes a starter the
+round hasn't had (`spareStarter`), so a round always finishes. The rules
+stay: 5 a round, `PASS_THRESHOLD` / `ROUNDS_TO_UNLOCK`, the ramp on bank
+answers only (`bankRamp`), no XP for starters or before the world opens, the
+recap, 🚩, on screen = seen, the level pinned under the results. The
+next-round look-ahead is saved-only now (`cacheOnly`, like a zone's
+critters): nothing is written for a round the kid may never play, and the
+round asks for the rest. `useGeneratedQuestions` and the quiz's error screens
+are gone (neither could show since #153: the starters fill in); a loading bug
+is logged in words (`console.warn(…, errorMessage(e))`), never shown. On the
+stubbed app with a question server that answers saved-only requests at once
+(3) and the rest after 15 s: the first question is in the page ~90 ms after
+the tap at 320×568 and 1024×768 (main: "Building your questions…" for the
+15 s); a kid at question 4 before the rest gets a starter after ~3 s; a
+slower kid gets the late bank questions. Tests 1805 → 1816.
 
 ### 2026-10-19 — #159 review round 2: saving is never a fight, the boat a walk away, Escape that always lands, sign-in words for every case
 Second `/saas-code-review` + `/saas-ux-review` pass over the whole PR (16

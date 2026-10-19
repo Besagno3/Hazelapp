@@ -19,7 +19,8 @@ vi.mock('./supabase', () => ({
 }));
 
 // Import AFTER the mock is registered.
-import { BATTLE_QUESTION_COUNT, fetchQuestions, flagQuestion, inQuestionBank, moreQuestions, prefetchQuestions, quickQuestions, shuffleAnswers } from './questions';
+import { BATTLE_QUESTION_COUNT, QUIZ_QUESTION_COUNT, fetchQuestions, flagQuestion, inQuestionBank, moreQuestions, nextRoundQuestion, prefetchQuestions, quickQuestions, shuffleAnswers, spareStarter } from './questions';
+import type { Question } from '../types';
 import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
@@ -314,7 +315,7 @@ describe('fetchQuestions never fails a child (B5)', () => {
     expect(out.filter((q) => q.id.startsWith('starter-'))).toHaveLength(2);
   });
 
-  it('a normal look-ahead (the next quiz round) never asks for saved questions only', async () => {
+  it('a normal look-ahead never asks for saved questions only', async () => {
     invokeMock.mockResolvedValue({ data: { questions: apiBatch(5) }, error: null });
     prefetchQuestions('words', 9, 3, 5);
     expect(invokeMock.mock.calls[0][1].body).not.toHaveProperty('cacheOnly');
@@ -422,5 +423,48 @@ describe('a battle that starts at once (#158)', () => {
     expect(await moreQuestions('math', 9, 2, 3, bank)).toEqual([]);
     expect(invokeMock).not.toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('a quiz round that starts at once (#163)', () => {
+  const q = (id: string): Question => ({ id, topic: 'math', level: 3, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
+
+  it('asks the next bank question first, then a starter, never one already asked', () => {
+    const pool = [q('starter-math-easy-1'), q('starter-math-easy-2'), q('b1'), q('b2')];
+    expect(nextRoundQuestion(pool, [])?.id).toBe('b1');
+    expect(nextRoundQuestion(pool, [q('b1')])?.id).toBe('b2');
+    expect(nextRoundQuestion(pool, [q('b1'), q('b2')])?.id).toBe('starter-math-easy-1');
+    expect(nextRoundQuestion(pool, [q('b1'), q('b2'), q('starter-math-easy-1')])?.id).toBe('starter-math-easy-2');
+  });
+
+  it('has nothing to ask while the rest are on their way', () => {
+    expect(nextRoundQuestion([], [])).toBeNull();
+    expect(nextRoundQuestion([q('b1')], [q('b1')])).toBeNull();
+  });
+
+  it('a spare starter is never one the round asked, and keeps its right answer right', () => {
+    for (let run = 0; run < 50; run++) {
+      const asked: Question[] = [q('b1')];
+      for (let i = 0; i < QUIZ_QUESTION_COUNT - 1; i++) {
+        const spare = spareStarter('math', 2, asked);
+        expect(spare.id.startsWith('starter-math-')).toBe(true);
+        expect(asked.map((x) => x.id)).not.toContain(spare.id);
+        asked.push(spare);
+      }
+    }
+    // Shuffled like any starter: the right answer moves with its index.
+    const spare = spareStarter('science', 8, []);
+    expect(spare.options).toHaveLength(4);
+    expect(spare.options[spare.correctIndex]).toBeTruthy();
+  });
+
+  it("the next round's look-ahead is saved questions only, and the round starts on it", async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(5) }, error: null });
+    // QuizRound's call, word for word.
+    prefetchQuestions('words', 9, 4, QUIZ_QUESTION_COUNT, undefined, { cacheOnly: true });
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'words', count: 5, cacheOnly: true });
+    const { questions } = await quickQuestions('words', 9, 4, QUIZ_QUESTION_COUNT);
+    expect(questions).toHaveLength(5);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
   });
 });

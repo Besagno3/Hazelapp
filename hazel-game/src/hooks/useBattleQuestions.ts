@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { moreQuestions, quickQuestions, waitFor, QUICK_WAIT_MS } from '../lib/questions';
 import { playerAge, skillLevelFor } from '../lib/age';
+import { errorMessage } from '../lib/errors';
 import { useProfileStore } from '../store/profileStore';
 import type { Question, Topic } from '../types';
 import type { FlavorId } from '../../supabase/functions/_shared/flavors';
@@ -19,9 +20,9 @@ interface Pool {
  * batch (`moreQuestions`, which may ask Claude) is added to `questions` when
  * it arrives. A saved batch that came too late to start with is added when
  * it lands, and the rest are only asked for once it has (or a little later),
- * so nothing the server handed over is wasted. Same shape as
- * `useGeneratedQuestions`; it never errors. The spell pool uses it too
- * (`flavor` 'spell'), so spells are ready as soon as the battle is.
+ * so nothing the server handed over is wasted. It never errors. The spell
+ * pool uses it too (`flavor` 'spell'), so spells are ready as soon as the
+ * battle is, and so does the Training Grounds quiz (`useQuizRound`, #163).
  */
 export function useBattleQuestions(topic: Topic, count: number, levelOverride?: number, flavor?: FlavorId) {
   const profile = useProfileStore((s) => s.profile);
@@ -47,6 +48,9 @@ export function useBattleQuestions(topic: Topic, count: number, levelOverride?: 
       have = [...have, ...fresh];
       setPool((p) => (p.key === requestKey ? { key: p.key, questions: [...p.questions, ...fresh] } : p));
     };
+    // Neither request ever fails (starter questions fill in), so a failure
+    // here is a bug: logged in words, never shown — neither the battle nor the
+    // quiz has an error screen any more (#158, #163).
     (async () => {
       const { questions: first, late } = await quickQuestions(topic, age, skillLevel, count, { flavor });
       if (!active) return;
@@ -58,7 +62,7 @@ export function useBattleQuestions(topic: Topic, count: number, levelOverride?: 
       await Promise.race([late, waitFor(QUICK_WAIT_MS)]);
       if (!active) return;
       add(await moreQuestions(topic, age, skillLevel, count, have, flavor));
-    })().catch((e) => console.error('Battle questions failed:', e));
+    })().catch((e) => console.warn('Questions failed to load:', errorMessage(e)));
     return () => {
       active = false;
     };
