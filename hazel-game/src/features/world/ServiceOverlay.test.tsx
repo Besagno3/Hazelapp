@@ -68,5 +68,10 @@ describe('the Library — the scriptorium (#159 item 5)', () => {
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.click(screen.getByText('📚 Back to the shelf'));
     expect(screen.getByText('📚 The Library')).toBeInTheDocument();
+    // …and the 🍂 Falling Leaves game under it (#159 item 7).
+    fireEvent.click(screen.getByText('Falling Leaves').closest('button')!);
+    expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('📚 Back to the shelf'));
+    expect(screen.getByText('📚 The Library')).toBeInTheDocument();
   });
 });

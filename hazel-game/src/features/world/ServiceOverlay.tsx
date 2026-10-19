@@ -11,6 +11,7 @@ import ShrineTrial from './ShrineTrial';
 import NameFinale from './NameFinale';
 import TypingLessons from '../typing/TypingLessons';
 import Scriptorium from '../typing/Scriptorium';
+import FallingLeaves from '../typing/FallingLeaves';
 import { SCRIPTORIUM_XP, TYPING_LESSONS, pagesCopied, scriptoriumOpen, typingLessonsCleared } from '../../content/typing';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
@@ -178,8 +179,11 @@ function Library() {
   const [typing, setTyping] = useState(false);
   // ...and the scriptorium's desk (#159 item 5), once the capitals lesson is cleared.
   const [desk, setDesk] = useState(false);
+  // ...and the 🍂 Falling Leaves game (#159 item 7), from lesson 1.
+  const [leaves, setLeaves] = useState(false);
   if (typing) return <TypingLessons onBack={() => setTyping(false)} />;
   if (desk) return <Scriptorium onBack={() => setDesk(false)} />;
+  if (leaves) return <FallingLeaves onBack={() => setLeaves(false)} />;
   const typed = typingLessonsCleared(flags);
   const copied = pagesCopied(flags);
 
@@ -249,6 +253,18 @@ function Library() {
               ? `Copy out a page — why a question went wrong, or a true fact — for +${SCRIPTORIUM_XP} XP.${copied > 0 ? ` ${copied} copied.` : ''}`
               : 'Copy out whole pages, once you can type capitals.'}
           </span>
+        </span>
+      </button>
+      <button
+        onClick={() => setLeaves(true)}
+        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
+      >
+        <span className="text-2xl" aria-hidden="true">
+          🍂
+        </span>
+        <span className="flex-1">
+          <span className="font-bold text-amber-200">Falling Leaves</span>
+          <span className="block text-xs text-white/70">A game: catch the letters before their leaves land. The keys you've learned, at your pace.</span>
         </span>
       </button>
       <p className="text-sm text-white/80 mb-4">

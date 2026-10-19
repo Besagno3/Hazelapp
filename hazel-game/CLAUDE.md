@@ -588,6 +588,12 @@ zod, react-query. Add the package in the same change that first uses it.
   song (one per wind-up, round and round) within `SONG_MS`. In time, the
   move drops to a plain blow (`songDone` → `setIntent('attack')`); too slow,
   the warning as ever — Guard still blocks it.
+  **🍂 Falling Leaves (item 7):** 📚 Library → 🍂 Falling Leaves
+  (`features/typing/FallingLeaves.tsx`, rules in `lib/leaves.ts`: `stepLeaves`
+  / `pressLeaf`, pure): letters from the keys the lessons have taught
+  (`leafPool`) drift down; the right key catches the lowest such leaf; three
+  on the ground or the clock end the round; milestones of 10 / 25 / 50 in a
+  round pay `LEAVES_XP` once (`leaves:<n>` flags).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1010,6 +1016,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing VII: 🍂 Falling Leaves (#159)
+A typing game in the Library, from lesson 1.
+- **Letters on leaves** drift down the field; press each one with the right
+  finger before its leaf lands (the keyboard under the field points at the
+  lowest). Only keys the kid's lessons have taught fall — f and j after
+  lesson 1, more with each — and the home-row hold applies as set. A wrong
+  key is a nudge; three leaves on the ground (or 60 s) end the round. Leaves
+  come a little faster the more are caught.
+- **Accuracy first:** the result is leaves caught and keys right; 10, 25 and
+  50 in one round each pay 20 XP, once — nothing to farm.
+- The rules are pure (`lib/leaves.ts`, table-tested); the screen drives
+  them with a 50 ms tick and the window's keys.
+- Tests: +11 (`lib/leaves.test`, new `FallingLeaves.test`,
+  `ServiceOverlay.test`); 1654 green, lint + tsc clean.
 
 ### 2026-10-19 — Touch typing VI: the song that breaks the hush (#159)
 The Crystal of Voices gets its typing boss.
