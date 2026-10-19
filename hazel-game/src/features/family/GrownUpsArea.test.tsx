@@ -63,8 +63,10 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByText(/mum@example\.com/)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'guess' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    // In plain words, not the raw error (#130 S6).
-    expect(await screen.findByText(/That email and password don't match/)).toBeInTheDocument();
+    // In plain words, not the raw error (#130 S6) — and only about what's here:
+    // no email field, and the link reads "Forgot it?" (#130 S6 review).
+    const status = screen.getByRole('status');
+    await waitFor(() => expect(status).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" below.'));
     expect(screen.queryByText('Invalid login credentials')).toBeNull();
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'guess' });
     expect(screen.queryByText('Sam')).not.toBeInTheDocument();
@@ -77,6 +79,25 @@ describe('GrownUpsArea (#124)', () => {
     expect(await screen.findByText(/reset link is on its way to mum@example\.com/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Back to Who/ }));
     expect(setGrownUpsOpen).toHaveBeenCalledWith(false);
+  });
+
+  it('a reset link is sent once however often it is tapped, and its trouble is read out (#130 S6 review)', async () => {
+    let send: (v: { error: unknown }) => void = () => {};
+    auth.resetPasswordForEmail.mockReturnValue(new Promise((r) => (send = r)));
+    render(<GrownUpsArea />);
+    const link = screen.getByRole('button', { name: /Forgot it/ });
+    link.focus();
+    fireEvent.click(link);
+    // Waiting, without going disabled under the keyboard's focus.
+    expect(link).toHaveTextContent('Sending a reset link…');
+    expect(link).toHaveAttribute('aria-disabled', 'true');
+    expect(link).not.toBeDisabled();
+    fireEvent.click(link);
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
+    await act(async () => send({ error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } }));
+    expect(screen.getByRole('status')).toHaveTextContent(/try again in about an hour/);
+    expect(link).toHaveFocus();
+    expect(link).toHaveTextContent('Forgot it? Email me a reset link');
   });
 
   it('with a grown-up PIN: the PIN opens it, a wrong one does not, and the password still works', async () => {

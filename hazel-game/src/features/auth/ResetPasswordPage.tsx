@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { authErrorMessage, errorMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage, isExpiredLink } from '../../lib/errors';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -8,13 +8,16 @@ import { MIN_PASSWORD_LENGTH } from '../../content/family';
 /**
  * Shown after a password-reset email link signs the user in with a temporary
  * recovery session (#88). They must pick a new password before the game
- * continues; "Cancel" signs them out instead.
+ * continues; "Cancel" signs them out instead — or, once the link has run
+ * out, "Back to sign in" (the same sign-out), as its message says.
  */
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The link's recovery session has run out: the way on is a new link.
+  const [expired, setExpired] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,7 +36,8 @@ export default function ResetPasswordPage() {
     if (authError) {
       // Friendly words on screen, the whole error in the console (#130 S6).
       console.warn('Saving the new password failed:', errorMessage(authError));
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, { where: 'reset', password }));
+      setExpired(isExpiredLink(authError));
       return;
     }
     // Drop the recovery token from the address bar so a refresh can't replay it.
@@ -66,20 +70,25 @@ export default function ResetPasswordPage() {
             required
             className={fieldClass}
           />
-          {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
-          >
-            {loading ? 'Saving…' : 'Save new password'}
-          </button>
+          <div>
+            {/* Always there, so a screen reader hears each message as it appears. */}
+            <div role="status" className="mb-3 empty:mb-0 text-sm">
+              {error && <p className="text-red-700">{error}</p>}
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+            >
+              {loading ? 'Saving…' : 'Save new password'}
+            </button>
+          </div>
         </form>
         <button
           onClick={() => void supabase.auth.signOut()}
-          className="mt-4 w-full text-center text-sm text-purple-600 hover:underline"
+          className={`mt-2 w-full min-h-[44px] py-2 text-center text-sm text-purple-600 hover:underline ${expired ? 'font-semibold' : ''}`}
         >
-          Cancel and sign out
+          {expired ? 'Back to sign in' : 'Cancel and sign out'}
         </button>
       </div>
     </div>

@@ -19,13 +19,14 @@ export function helpLine({
   fogTip?: boolean;
 }): string {
   const move = touch ? 'the arrow pad' : 'arrow keys / WASD';
+  // Words a 7-year-old knows, and what to tap (#159 r1): not "foes", not "a tap".
   if (vehicle === 'ember') {
-    return `Fly: ${move} · Land: ${touch ? '🛬, ✋ or a tap' : 'Space, F or 🛬'} (over grass, sand or a road)`;
+    return `Fly: ${move} · Land: ${touch ? 'tap 🛬, ✋ or the map' : 'Space, F or 🛬'} (over grass, sand or a road)`;
   }
   if (vehicle === 'boat') {
     return `Sail: ${move} · into a beach or dock to land, a critter to battle!${fogTip ? ' · to cross the fog: go ashore, then 🐉 Fly' : ''}`;
   }
-  const use = touch ? '✋ or a tap' : 'Space, Enter or a click';
+  const use = touch ? 'tap ✋ or tap someone' : 'Space, Enter or a click';
   const fly = flightOffered ? (touch ? ' · 🐉 to fly' : ' · F or 🐉 to fly') : '';
-  return `Walk: ${move} · ${use} to talk, open and use · walk into foes to battle!${fly}`;
+  return `Walk: ${move} · ${use} to talk, open and use · bump into a critter to battle!${fly}`;
 }

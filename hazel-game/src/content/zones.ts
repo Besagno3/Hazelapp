@@ -765,11 +765,12 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'spore-puff', x: 5, y: 9 },
-      // These two keep a step clear of the villager (16,11) (#114aa).
-      { defId: 'static-jelly', x: 20, y: 12 },
+      // These two keep a step clear of the villager (16,11) (#114aa), and off
+      // the mouth of the hidden way to the Queen Bee's glade (21,10) (#159 r1).
+      { defId: 'static-jelly', x: 6, y: 12 },
       { defId: 'comet-crab', x: 6, y: 4 },
       { defId: 'fizzlet', x: 11, y: 11 },
-      { defId: 'magnetick', x: 20, y: 8 },
+      { defId: 'magnetick', x: 7, y: 8 },
       { defId: 'germinator', x: 16, y: 5 },
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
@@ -1138,8 +1139,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     the: true,
     kind: 'field',
     topic: 'nature',
-    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
-    // critters roam the open right half where the spawn and both exits live.
+    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure,
+    // watched by the Oak Owl and a Grumblebee; the other critters roam the open
+    // right half where the spawn and both exits live (#159 r1).
     map: [
       '######################',
       '#..C....#............#',
@@ -1171,11 +1173,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'mossback-cub', x: 12, y: 4 },
-      // Wisp's corner (17,10) stays clear: these three ringed it (#114aa).
-      { defId: 'thornhare', x: 14, y: 6 },
+      // Wisp's corner (17,10) stays clear: these three ringed it (#114aa). The
+      // Thornhare's level tag sits on grass, not under the hut's roof (#159 r1).
+      { defId: 'thornhare', x: 14, y: 5 },
       { defId: 'grumblebee', x: 2, y: 8 },
       { defId: 'dart-frog', x: 11, y: 2 },
-      { defId: 'snapjaw', x: 6, y: 11 },
+      // The only Snapjaw anywhere: out in the open, not behind the gate (#159 r1).
+      { defId: 'snapjaw', x: 14, y: 2 },
       { defId: 'oak-owl', x: 5, y: 4 },
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],

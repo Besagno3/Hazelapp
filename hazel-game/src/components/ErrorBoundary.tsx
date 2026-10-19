@@ -44,9 +44,13 @@ export default class ErrorBoundary extends Component<Props, State> {
           >
             🔄 Reload
           </button>
-          <details className="mt-6 text-left">
-            <summary className="min-h-[44px] flex items-center cursor-pointer text-sm text-gray-600">
-              Details for grown-ups
+          <details className="group mt-6 text-left">
+            {/* Flex hides the browser's ▸, so it brings its own: it turns down when open. */}
+            <summary className="min-h-[44px] flex items-center gap-1.5 cursor-pointer list-none rounded-lg px-1 text-sm font-medium text-gray-600 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 [&::-webkit-details-marker]:hidden">
+              <span aria-hidden className="inline-block w-4 text-center text-base leading-none transition-transform motion-reduce:transition-none group-open:rotate-90">
+                ▸
+              </span>
+              <span className="underline decoration-dotted underline-offset-2">Details for grown-ups</span>
             </summary>
             <p className="text-sm text-red-700 font-mono break-words mt-1">{errorMessage(error)}</p>
             {import.meta.env.DEV && error.stack && (

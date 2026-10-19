@@ -89,6 +89,30 @@ describe('QuizRound — the top bar (#110h)', () => {
     await playPerfectRound();
     expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Round Passed!')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it('…and through the wait for the questions, and a failure: Switch player is never out of reach (#110h review)', () => {
+    start(1, false);
+    hook.loading = true;
+    render(<QuizRound />);
+    expect(screen.getByText('Building your questions…')).toBeInTheDocument();
+    expect(screen.getByTestId('screen-topbar')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    cleanup();
+    hook.loading = false;
+    hook.error = 'Question generation failed — rate limited';
+    render(<QuizRound />);
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Try again')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a short landscape phone keeps the bar and the card tight, so the answers stay on screen', () => {
+    start(1, false);
+    render(<QuizRound />);
+    expect(screen.getByTestId('screen-topbar')).toHaveClass('[@media(max-height:500px)]:mb-1');
+    expect(screen.getByText('Question 0?')).toHaveClass('[@media(max-height:500px)]:mb-3');
+    // Still 48 px a tap (py-2.5 + the line + the border).
+    expect(screen.getByRole('button', { name: 'Right 0' })).toHaveClass('[@media(max-height:500px)]:py-2.5');
+  });
 });
 
 describe('QuizRound — on screen = seen (#134)', () => {

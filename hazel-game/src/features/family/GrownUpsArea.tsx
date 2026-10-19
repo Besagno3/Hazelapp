@@ -39,6 +39,7 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,20 +53,25 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
     if (authError) {
       // Friendly words on screen, the whole error in the console (#130 S6).
       console.warn('Grown-ups sign-in failed:', errorMessage(authError));
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, { where: 'gate' }));
       return;
     }
     onUnlock();
   }
 
   async function sendReset() {
+    // One link at a time: a second tap while it sends would only be refused.
+    if (sendingReset) return;
+    setSendingReset(true);
     setError(null);
+    setNotice(null);
     const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + window.location.pathname,
     });
+    setSendingReset(false);
     if (authError) {
       console.warn('Grown-ups reset link failed:', errorMessage(authError));
-      setError(authErrorMessage(authError));
+      setError(authErrorMessage(authError, { where: 'gate' }));
     } else setNotice(`A reset link is on its way to ${email}.`);
   }
 
@@ -104,18 +110,28 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
           required
           className={fieldClass}
         />
-        {error && <p className="text-red-500 text-sm">{error}</p>}
-        {notice && <p className="text-green-600 text-sm">{notice}</p>}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
-        >
-          {loading ? 'Checking…' : 'Open'}
-        </button>
+        <div>
+          {/* Always there, so a screen reader hears each message as it appears. */}
+          <div role="status" className="mb-3 empty:mb-0 space-y-1 text-sm">
+            {error && <p className="text-red-700">{error}</p>}
+            {notice && <p className="text-green-700">{notice}</p>}
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+          >
+            {loading ? 'Checking…' : 'Open'}
+          </button>
+        </div>
       </form>
-      <button onClick={() => void sendReset()} className="mt-3 w-full text-center text-sm text-gray-500 hover:underline">
-        Forgot it? Email me a reset link
+      {/* aria-disabled while it sends: a disabled button would drop the keyboard's focus. */}
+      <button
+        onClick={() => void sendReset()}
+        aria-disabled={sendingReset}
+        className="mt-3 w-full text-center text-sm text-gray-500 hover:underline aria-disabled:cursor-default aria-disabled:no-underline"
+      >
+        {sendingReset ? 'Sending a reset link…' : 'Forgot it? Email me a reset link'}
       </button>
       {hasParentPin && (
         <button onClick={() => setUsePassword(false)} className="mt-3 w-full text-center text-sm text-gray-500 hover:underline">

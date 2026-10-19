@@ -537,6 +537,56 @@ describe('the Glimmer Candle (#75 item 14g)', () => {
     }
   });
 
+  it('the fight won, no banner is left over the result panel (#97c review)', () => {
+    vi.useFakeTimers();
+    try {
+      useBattleStore.getState().start({ ...enemy, maxHp: 1, behavior: 'trickster' } as BattleEnemy, 60, 100);
+      render(<BattleArena />);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      // The opening callout is up for several seconds.
+      expect(screen.getByText(/too slippery for Hint Feathers/)).toBeInTheDocument();
+      for (let i = 0; i < 4 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+      fireEvent.click(screen.getByText('Attack'));
+      fireEvent.click(screen.getByText('4'));
+      fireEvent.click(screen.getByText('▶ Go!'));
+      for (let i = 0; i < 8 && !screen.queryByText('Victory!'); i++) {
+        const next = screen.queryByText(/tap to continue/);
+        if (next) fireEvent.click(next);
+      }
+      expect(screen.getByText('Victory!')).toBeInTheDocument();
+      expect(screen.queryByText(/too slippery for Hint Feathers/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('a swap during the opening callout says so at once, and the callout comes back after (#97c review)', () => {
+    vi.useFakeTimers();
+    try {
+      const save = useSaveStore.getState().save!;
+      useSaveStore.setState({ save: { ...save, flags: { ...save.flags, 'quest:pips-marble:done': true } } });
+      useBattleStore.getState().start({ ...enemy, behavior: 'trickster' } as BattleEnemy, 60, 100);
+      render(<BattleArena />);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(screen.getByText(/Count Bat is too slippery for Hint Feathers!/)).toBeInTheDocument();
+      for (let i = 0; i < 4 && !screen.queryByText('Swap'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+      fireEvent.click(screen.getByText('Swap'));
+      fireEvent.click(screen.getByText('Pip'));
+      expect(screen.getByText('🧒 Pip tags in — still your move!')).toBeInTheDocument();
+      expect(screen.queryByText(/too slippery for Hint Feathers/)).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(1800);
+      });
+      expect(screen.getByText(/Count Bat is too slippery for Hint Feathers!/)).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('after its free hint, Hint Feathers still work on the trickster', () => {
     const save = useSaveStore.getState().save!;
     useSaveStore.setState({ save: { ...save, items: { ...save.items, candle: 1, hint: 1 } } });
@@ -634,6 +684,21 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
     });
     expect(screen.getAllByText(/super effective/i)).toHaveLength(1);
     expect(screen.getByText(/It's super effective!/).closest('button')).toHaveTextContent(/tap to continue/);
+    // …and the damage number shows it without words, for a kid who doesn't read the box.
+    expect(screen.getByText(/^-\d+!!$/)).toHaveClass('text-4xl', 'text-yellow-300');
+  });
+
+  it('an ordinary hit floats a plain number', () => {
+    vi.useFakeTimers();
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+    expect(screen.getByText(/^-\d+$/)).toHaveClass('text-2xl');
+    expect(screen.queryByText(/^-\d+!!$/)).toBeNull();
   });
 
   it('rested at the Quiet Shelf Inn and beaten elsewhere: carried back there, not "Binder finds you" (review fix)', () => {

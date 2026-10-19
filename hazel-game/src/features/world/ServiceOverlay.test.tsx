@@ -76,6 +76,16 @@ describe("a Sage's Learn panel says what their own spell does (#128b)", () => {
     expect(screen.getByText(/is in your Spellbook/)).toBeInTheDocument();
   });
 
+  it('the spell is named before what it does is said, and the Sage\'s name isn\'t said twice (#159 r1)', () => {
+    render(<ServiceOverlay service="sage" npcId="sage-chronicle" />);
+    const line = screen.getByText(/the enemy loses its next turn/).closest('p')!;
+    expect(line).toHaveTextContent(/^⏳ Time Ripple: a strong strike, and the enemy loses its next turn!$/);
+    expect(line).not.toHaveTextContent('Sage Chronicle');
+    // …after the Sage names it ("I will add ⏳ Time Ripple to your Spellbook").
+    const promise = screen.getByText(/Prove your curiosity/);
+    expect(promise.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("each Sage's panel shows that Sage's spell, not one text for all", () => {
     render(<ServiceOverlay service="sage" npcId="sage-aria" />);
     expect(screen.getByText(/sings one ◆ back to you/)).toBeInTheDocument();
@@ -89,8 +99,34 @@ describe('Escape is Leave (#110o)', () => {
       sendFlow.mockClear();
       const { unmount } = render(<ServiceOverlay service={service} npcId={npcId} />);
       if (service === 'library') fireEvent.click(screen.getByText('A bank question?'));
-      fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
       expect(sendFlow, service).toHaveBeenCalledWith({ type: 'CLOSE' });
+      unmount();
+    }
+  });
+
+  // Where a keyboard player's focus really is after a step: on the page, once
+  // the button they pressed went away or turned off (#110o r1).
+  it('still Leave after a step that takes the focused button away: Rest, the last coins spent, ✨ Learn, a Library answer', () => {
+    const steps: [Parameters<typeof ServiceOverlay>[0], string, string?][] = [
+      [{ service: 'inn', npcId: null }, 'Rest until morning'],
+      [{ service: 'shop', npcId: 'numbria-merchant' }, '🪙 25'],
+      [{ service: 'sage', npcId: 'sage-abacus' }, '✨ Learn'],
+      [{ service: 'library', npcId: null }, 'A bank question?', 'Wrong A'],
+    ];
+    for (const [props, first, second] of steps) {
+      sendFlow.mockClear();
+      useSaveStore.setState({ save: { ...useSaveStore.getState().save!, coins: 30 } });
+      const { unmount } = render(<ServiceOverlay {...props} />);
+      for (const name of [first, second]) {
+        if (!name) continue;
+        const button = screen.getByText(name, { exact: false }).closest('button')!;
+        button.focus();
+        fireEvent.click(button);
+      }
+      expect(document.activeElement, props.service).not.toBe(screen.getByRole('button', { name: 'Leave' }));
+      fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      expect(sendFlow, props.service).toHaveBeenCalledWith({ type: 'CLOSE' });
       unmount();
     }
   });

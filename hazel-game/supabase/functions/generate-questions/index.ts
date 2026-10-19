@@ -54,9 +54,11 @@
 // Deploy:  supabase functions deploy generate-questions
 // ----------------------------------------------------------------------------
 
-// Exact versions (#131d), so a deploy runs what CI checked: supabase-js as the
-// app's package-lock has it; the SDK new enough for adaptive thinking, effort,
-// structured output and the beta `fallbacks: 'default'`. The recheck script
+// Exact versions of the two direct imports (#131d): supabase-js as the app's
+// package-lock has it; the SDK new enough for adaptive thinking, effort,
+// structured output and the beta `fallbacks: 'default'`. Only these two are
+// pinned — there's no deno.lock, so their own dependencies resolve again at
+// deploy and can differ from what CI's `deno check` saw. The recheck script
 // pins the same two; `src/lib/edgeImports.test.ts` fails if they drift apart,
 // lose their version, or supabase-js stops matching the app's.
 import Anthropic from 'npm:@anthropic-ai/sdk@0.135.0';

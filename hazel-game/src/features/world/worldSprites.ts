@@ -1,7 +1,7 @@
 /**
  * KaPlay world sprite helpers.
  *
- * - `loadWorldSprites` MUST be called ONCE right after the kaplay() instance
+ * - `loadWorldSprites` MUST be called right after the kaplay() instance
  *   is created (before any scene is built) to register all sprite sheets —
  *   except the per-zone edge-blend sheets, which `ensureBlendSheets` loads
  *   as zones are built (each zone's own plus its neighbours').
@@ -99,13 +99,18 @@ export function toKaplayAnims(
 /**
  * Register every sprite sheet in the SPRITES manifest, plus the zone
  * tilesets / props / Spire tower, with KaPlay.
- * Call this exactly once, immediately after `kaplay()` is created, before any
- * scene is drawn.
+ * Call this immediately after `kaplay()` is created, before any scene is
+ * drawn. A sheet KaPlay already has is left alone, so after a hot reload
+ * (the instance handed across, `WorldCanvas`) a second call loads only what's
+ * new — a sprite added mid-session (#159 r1).
  */
 export function loadWorldSprites(k: KaplayCtx): void {
+  const load = (key: string, src: string, opt?: Parameters<KaplayCtx['loadSprite']>[2]) => {
+    if (!k.getSprite(key)) k.loadSprite(key, src, opt);
+  };
   for (const [id, def] of Object.entries(SPRITES)) {
     if (!def.world) continue;
-    k.loadSprite(worldKey(id), def.world.sheet, {
+    load(worldKey(id), def.world.sheet, {
       sliceX: def.world.frames,
       sliceY: 1,
       anims: toKaplayAnims(def.world.anims),
@@ -114,49 +119,49 @@ export function loadWorldSprites(k: KaplayCtx): void {
   // 16-bit environment art: one tileset strip per zone + shared props.
   // (Water animates in the terrain renderer — `lib/terrain.ts` — not as a sprite anim.)
   for (const id of ZONE_IDS) {
-    k.loadSprite(tilesetKey(id), tilesetSheet(id), {
+    load(tilesetKey(id), tilesetSheet(id), {
       sliceX: TILESET_FRAMES,
       sliceY: 1,
     });
   }
-  k.loadSprite(PROPS_KEY, PROPS_SHEET, {
+  load(PROPS_KEY, PROPS_SHEET, {
     sliceX: PROPS_FRAMES,
     sliceY: 1,
     anims: { glow: { from: PROP_FRAME.crystal[0], to: PROP_FRAME.crystal[1], loop: true, speed: 2 } },
   });
-  k.loadSprite(SPIRE_KEY, SPIRE_SHEET);
+  load(SPIRE_KEY, SPIRE_SHEET);
   // Overworld (#75 Phase 1): mountains, sand, drifting fog, place icons.
-  k.loadSprite(OVERWORLD_KEY, OVERWORLD_SHEET, {
+  load(OVERWORLD_KEY, OVERWORLD_SHEET, {
     sliceX: OVERWORLD_FRAMES,
     sliceY: 1,
     anims: { drift: { from: OVERWORLD_FRAME.fog[0], to: OVERWORLD_FRAME.fog[1], loop: true, speed: 1.5 } },
   });
   // Fog banks (#75 item 7): soft puffs that drift around each other.
-  k.loadSprite(FOG_PUFF_KEY, FOG_PUFF_SHEET, { sliceX: FOG_PUFF_FRAMES, sliceY: 1 });
+  load(FOG_PUFF_KEY, FOG_PUFF_SHEET, { sliceX: FOG_PUFF_FRAMES, sliceY: 1 });
   // The Spire's floor maps (#74): one tileset per floor theme + shared props.
   for (const theme of SPIRE_THEMES) {
     const name = `spire-${theme}`;
-    k.loadSprite(namedTilesetKey(name), namedTilesetSheet(name), {
+    load(namedTilesetKey(name), namedTilesetSheet(name), {
       sliceX: TILESET_FRAMES,
       sliceY: 1,
     });
   }
-  k.loadSprite(STAIRS_KEY, STAIRS_SHEET, { sliceX: STAIRS_FRAMES, sliceY: 1 });
-  k.loadSprite(BOAT_KEY, BOAT_SHEET, { sliceX: BOAT_FRAMES, sliceY: 1 });
-  k.loadSprite(LIGHTHOUSE_KEY, LIGHTHOUSE_SHEET, {
+  load(STAIRS_KEY, STAIRS_SHEET, { sliceX: STAIRS_FRAMES, sliceY: 1 });
+  load(BOAT_KEY, BOAT_SHEET, { sliceX: BOAT_FRAMES, sliceY: 1 });
+  load(LIGHTHOUSE_KEY, LIGHTHOUSE_SHEET, {
     sliceX: LIGHTHOUSE_FRAMES,
     sliceY: 1,
     anims: { shine: { from: 0, to: LIGHTHOUSE_FRAMES - 1, loop: true, speed: 3 } },
   });
-  k.loadSprite(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
+  load(SPIRE_PROPS_KEY, SPIRE_PROPS_SHEET, {
     sliceX: SPIRE_PROPS_FRAMES,
     sliceY: 1,
     anims: { glow: { from: SPIRE_PROP_FRAME.ward[0], to: SPIRE_PROP_FRAME.ward[1], loop: true, speed: 3 } },
   });
   for (const style of BUILDING_STYLES) {
-    k.loadSprite(townKey(style), townSheet(style), { sliceX: TOWN_FRAMES, sliceY: 1 });
+    load(townKey(style), townSheet(style), { sliceX: TOWN_FRAMES, sliceY: 1 });
   }
-  k.loadSprite(ROOF_KEY, ROOF_SHEET, { sliceX: ROOF_FRAMES, sliceY: 1 });
+  load(ROOF_KEY, ROOF_SHEET, { sliceX: ROOF_FRAMES, sliceY: 1 });
 }
 
 /** Start loading `z`'s edge-blend sheets (and its neighbours') if not already loading. */
@@ -203,7 +208,7 @@ export function whenSheetLoads(
   const fallBack = () => {
     if (obj.exists()) obj.add([k.text(emoji, { size }), k.anchor('center')]);
   };
-  if (!sheet) return ready(); // not registered yet: KaPlay holds the play until it is
+  if (!sheet) return ready(); // not registered (`worldFace` never asks then): nothing to wait on
   if (sheet.error) return fallBack();
   if (sheet.data) return ready();
   // Still loading. (Only while loading: a loaded sheet would keep these for good.)
@@ -228,7 +233,9 @@ export function worldFace(
   const { spriteId, emoji, x, y, size = 22, z = 5 } = opts;
   const { def } = resolveSprite(spriteId, emoji);
 
-  if (def?.world && spriteId && !sheetFailed(k, worldKey(spriteId))) {
+  // A sheet KaPlay was never told of (a sprite added since the hot reload) gets
+  // the emoji too: a sprite of an unknown key throws inside KaPlay (#159 r1).
+  if (def?.world && spriteId && k.getSprite(worldKey(spriteId)) && !sheetFailed(k, worldKey(spriteId))) {
     const obj = k.add([k.sprite(worldKey(spriteId)), k.pos(x, y), k.anchor('center'), k.z(z)]);
     // KaPlay's sprite component exposes `play` at runtime but the inferred
     // add() return type doesn't include it — cast narrowly.

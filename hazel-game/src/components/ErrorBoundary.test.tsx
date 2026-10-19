@@ -29,7 +29,14 @@ describe('ErrorBoundary (#130 S6)', () => {
     const details = raw.closest('details')!;
     expect(details).not.toBeNull();
     expect(details).not.toHaveAttribute('open');
-    expect(details.querySelector('summary')).toHaveTextContent('Details for grown-ups');
+    const summary = details.querySelector('summary')!;
+    expect(summary).toHaveTextContent('Details for grown-ups');
+    // It looks like it opens: its own ▸ (flex hides the browser's), turning down when open, and a focus ring.
+    const marker = summary.querySelector('[aria-hidden]')!;
+    expect(marker).toHaveTextContent('▸');
+    expect(marker).toHaveClass('group-open:rotate-90');
+    expect(details).toHaveClass('group');
+    expect(summary).toHaveClass('focus-visible:ring-2');
     expect(log).toHaveBeenCalledWith('Uncaught error:', expect.any(Error), expect.anything());
   });
 

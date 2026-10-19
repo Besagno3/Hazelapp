@@ -23,7 +23,7 @@ import { edgeLinkProblem, exitSide } from '../lib/transition';
 import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
-import { WANDER_TUNING } from '../lib/wander';
+import { WANDER_TUNING, npcWanders } from '../lib/wander';
 import { idleReach } from '../lib/encounter';
 import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
 import { GENERATED_SPRITES } from './sprites.generated';
@@ -1926,24 +1926,65 @@ describe("nobody you talk to stands in a critter's patch (#114aa)", () => {
   const leash = TILE * WANDER_TUNING.enemy.leashTiles;
   /** Every quest-giver, and everyone a quest sends you to talk to. */
   const questPeople = new Set(QUESTS.flatMap((q) => [q.giverNpcId, ...q.steps.flatMap((s) => (s.npc ? [s.npc.id] : []))]));
-  /** The cells a critter can reach from home: walking, never further than `px` from it. */
-  const within = (z: ZoneDef, home: { x: number; y: number }, px: number) =>
-    reach(z, { from: home, exits: 'stop', flags: null, blocked: (x, y) => Math.hypot(x - home.x, y - home.y) * TILE > px });
+  /**
+   * The cells a critter can reach from home: walking, never further than `px`
+   * from it — through a gate once it's open, as a wanderer does (`blockerAt`, #159 r1).
+   */
+  const within = (z: ZoneDef, home: { x: number; y: number }, px: number, gates: 'closed' | 'open') =>
+    reach(z, { from: home, exits: 'stop', flags: null, gates, blocked: (x, y) => Math.hypot(x - home.x, y - home.y) * TILE > px });
+  /** Every critter that wanders into you: not a boss (it holds its ground), not a sea critter (it only meets a sailing hero). */
+  const wanderers = (z: ZoneDef) => z.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss && ENEMY_DEFS[e.defId].habitat !== 'sea');
+  const critterReach = idleReach({ isBoss: false }, leash);
 
   it('a quest person stands a step clear of every critter (the Starfall rule, zone-wide); anyone else out of its reach', () => {
     for (const z of allZones) {
-      for (const e of z.enemies) {
-        const def = ENEMY_DEFS[e.defId];
-        // A boss holds its ground (anyone standing on its spot comes after it's beaten);
-        // a sea critter only ever meets a sailing hero.
-        if (def.isBoss || def.habitat === 'sea') continue;
-        const critterReach = idleReach({ isBoss: false }, leash);
-        const touch = within(z, e, critterReach);
-        const stepClear = within(z, e, critterReach + TILE);
-        for (const p of z.npcs) {
-          const near = questPeople.has(p.defId) ? stepClear : touch;
-          expect(near.has(`${p.x},${p.y}`), `${z.id}: ${e.defId} (${e.x},${e.y}) reaches ${p.defId} (${p.x},${p.y})`).toBe(false);
+      for (const e of wanderers(z)) {
+        for (const gates of ['closed', 'open'] as const) {
+          const touch = within(z, e, critterReach, gates);
+          const stepClear = within(z, e, critterReach + TILE, gates);
+          for (const p of z.npcs) {
+            const near = questPeople.has(p.defId) ? stepClear : touch;
+            // A quest person who strolls (`npcWanders`) is a step clear wherever the stroll takes them.
+            const stroll = questPeople.has(p.defId) && npcWanders(NPC_DEFS[p.defId])
+              ? reach(z, { from: p, exits: 'stop', flags: null, blocked: (x, y) => Math.hypot(x - p.x, y - p.y) > WANDER_TUNING.npc.leashTiles })
+              : new Set([`${p.x},${p.y}`]);
+            for (const c of stroll) {
+              expect(near.has(c), `${z.id} (gates ${gates}): ${e.defId} (${e.x},${e.y}) reaches ${p.defId} (${p.x},${p.y}) at ${c}`).toBe(false);
+            }
+          }
         }
+      }
+    }
+  });
+
+  it('only a tough critter (a level up) lives nowhere but behind a gate — the rest are met in the open (the only Snapjaw, #159 r1)', () => {
+    const met = new Set<string>();
+    const kinds = new Set<string>();
+    for (const z of allZones) {
+      const open = reach(z, { gates: 'closed', flags: null });
+      for (const e of wanderers(z)) {
+        kinds.add(e.defId);
+        if (open.has(`${e.x},${e.y}`)) met.add(e.defId);
+      }
+    }
+    const gatedOnly = [...kinds].filter((k) => !met.has(k));
+    expect(gatedOnly.length).toBeGreaterThan(0);
+    for (const k of gatedOnly) expect(ENEMY_DEFS[k].levelOffset, k).toBeGreaterThan(0);
+  });
+
+  it("no critter wanders up to the mouth of a hidden way: a secret isn't found in a fight (Verdara's glade, #159 r1)", () => {
+    for (const z of allZones) {
+      // A hidden passage ('H'), with the cells at its ends.
+      const spots: string[] = [];
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          if (ch !== 'H') return;
+          for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) spots.push(`${x + dx},${y + dy}`);
+        }),
+      );
+      for (const e of wanderers(z)) {
+        const touch = within(z, e, critterReach, 'open');
+        for (const c of spots) expect(touch.has(c), `${z.id}: ${e.defId} (${e.x},${e.y}) reaches ${c}`).toBe(false);
       }
     }
   });

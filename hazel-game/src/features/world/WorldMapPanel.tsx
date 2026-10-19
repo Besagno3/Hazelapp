@@ -18,8 +18,8 @@ import {
   placeEmoji,
   whereOnMap,
 } from '../../lib/worldMap';
-import { goalDirections, nextObjective } from '../../lib/wayfinding';
-import { boatAway, hasBoat } from '../../content/boat';
+import { goalDirections, nextObjective, npcHome, seaWayStart } from '../../lib/wayfinding';
+import { MARLOW, boatAway, hasBoat } from '../../content/boat';
 import { canFly } from '../../content/story';
 import { flownLink } from '../../lib/travel';
 
@@ -66,14 +66,25 @@ export default function WorldMapPanel({
   const emojiOf = (p: (typeof places)[number]) => placeEmoji(world, p, flags);
   const anyHidden = places.some((p) => emojiOf(p) === HIDDEN_PLACE_EMOJI);
   const goal = nextObjective(flags);
-  // A goal across the sea flags where it starts (Marlow's dock) on its own map;
-  // out on the goal's own sea, its place (Eldergrove, #75 item 14f).
-  const flagAtStart = !!goal.at && goal.at.zoneId === world.id;
-  const flagAt = flagAtStart
-    ? { x: goal.at!.x, y: goal.at!.y, exact: true, place: undefined }
-    : goal.zoneId && goal.zoneId !== world.id
-      ? whereOnMap(ZONES, world, goal.zoneId, null)
-      : null;
+  // A goal across the sea flags where its way starts, as the words below do
+  // (`seaWayStart`, #117p r1): Marlow's dock on its own map — or Old Marlow's
+  // place, with the Biscuit left away from the dock; none while sailing off it,
+  // where the sea's edge label shows the way. Out on the goal's own sea, its
+  // place (Eldergrove, #75 item 14f).
+  const start = seaWayStart(goal, zoneId, aboard, boat);
+  const startsHere = !!goal.at && goal.at.zoneId === world.id;
+  const marlow = start === 'marlow' ? npcHome(ZONES, MARLOW) : null;
+  const marlowPlace = marlow && overworldOf(ZONES, marlow.zoneId).id === world.id ? whereOnMap(ZONES, world, marlow.zoneId, null) : null;
+  const flagAtStart = startsHere && start === 'dock';
+  const flagAt = marlowPlace
+    ? marlowPlace
+    : flagAtStart
+      ? { x: goal.at!.x, y: goal.at!.y, exact: true, place: undefined }
+      : startsHere
+        ? null
+        : goal.zoneId && goal.zoneId !== world.id
+          ? whereOnMap(ZONES, world, goal.zoneId, null)
+          : null;
   const boatHere = boat && boat.zoneId === world.id ? boat : null;
   // Moored on another map (after a Return, say): the legend says where —
   // out at sea, or home at Marlow's dock (15c review: from Taleshore it's usually home).
@@ -98,7 +109,7 @@ export default function WorldMapPanel({
   // …and the boat never sits on them, a place or a landmark: on a phone, inside
   // Eldergrove, ⭐ 🚩 ⛵ and 🌳 all landed on one small island (#117n).
   const boatOff = boatHere
-    ? boatNudge(cols, boatHere, { icons: [...places, ...landmarks, ...fogMarks], here, shared, flag: flagAt })
+    ? boatNudge(cols, rows, boatHere, { icons: [...places, ...landmarks, ...fogMarks], here, shared, flag: flagAt })
     : null;
 
   useEffect(() => {

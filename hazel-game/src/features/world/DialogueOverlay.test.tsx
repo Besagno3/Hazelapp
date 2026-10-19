@@ -119,6 +119,17 @@ describe("Old Marlow rows the boat home (#75 item 14)", () => {
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
+  it('once ⛵ Row her home has gone from under focus, Escape still says Bye (#110o r1)', async () => {
+    await marlowWithBoatAt({ zoneId: 'silver-shallows', x: 3, y: 22 });
+    while (screen.queryByText('▼ Next')) fireEvent.click(screen.getByText('▼ Next'));
+    const row = screen.getByText('⛵ Row her home');
+    row.focus();
+    fireEvent.click(row);
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
   it("closing without asking leaves the boat where it is; one moored right by his dock is home already", async () => {
     const { boatSpot } = await import('../../content/boat');
     await marlowWithBoatAt({ zoneId: 'dawnreach', x: 60, y: 56 });
@@ -265,6 +276,14 @@ describe('a screen reader hears each new line on ▼ Next (#142)', () => {
     // The same region with new words — that's what gets read out.
     expect(document.querySelector('p')).toBe(line);
     expect(line.textContent).not.toBe(first);
+  });
+
+  it('the first line, often the only one, is heard too: a live region says nothing of what it opened with (#142 r1)', () => {
+    render(<DialogueOverlay npcId="hub-innkeeper" />);
+    const line = document.querySelector('p')!;
+    const box = screen.getByRole('dialog');
+    expect(box).toHaveAccessibleDescription(line.textContent!);
+    expect(box.contains(document.activeElement)).toBe(true);
   });
 });
 

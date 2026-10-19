@@ -5,7 +5,7 @@ import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, hasVisited, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER } from '../content/questFlags';
-import { BOAT_HOME, BOAT_QUEST_ID, MARLOW, hasBoat } from '../content/boat';
+import { BOAT_HOME, BOAT_QUEST_ID, MARLOW, atDock, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
@@ -825,6 +825,20 @@ export function sentence(steps: string[]): string {
 const UNDERGROUND: ReadonlySet<ZoneId> = new Set(REGIONS.find((r) => r.id === 'lumina-that-was')?.zones ?? []);
 
 /**
+ * Where the way to a goal across the sea starts (#117p r1) — the words begin
+ * there, and the menu map's 🚩 marks it: `'aboard'`, sailing on the dock's own
+ * map already (no dock to go to); `'marlow'`, with the Biscuit left away from
+ * his dock (on another map, or down the coast: `boatAway`'s rule), so Old
+ * Marlow rows her home first; else `'dock'`. Null for a goal that doesn't
+ * start at the dock.
+ */
+export function seaWayStart(goal: Objective, here: ZoneId, aboard: boolean, boat: BoatSpot | null): 'aboard' | 'marlow' | 'dock' | null {
+  if (!goal.at) return null;
+  if (aboard) return here === goal.at.zoneId ? 'aboard' : 'dock';
+  return boat && !atDock(boat) ? 'marlow' : 'dock';
+}
+
+/**
  * The way to a goal from `here`, as a sentence: the route, or "It's right
  * here in Numbria!" when you're already there. Empty for a goal with nowhere
  * to go (the story's done).
@@ -852,27 +866,35 @@ export function goalDirections(
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
     const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    // Already sailing on the dock's own map (#114r): no dock to go to — just sail on.
+    const start = seaWayStart(goal, here, aboard, boat);
+    // Already sailing on the dock's own map (#114r): no dock to go to — just sail
+    // on, to the place the map's edge names (r1: not "off the edge of the sea").
     // (Never on Ember here: every voyage from the dock comes before she flies.)
-    if (aboard && here === goal.at.zoneId) return beyond.length > 1 ? sentence(beyond) : 'Sail east, off the edge of the sea!';
-    // The boat left on another map (after a Return from the Shallows, #117p): the
-    // dock is empty, so the way starts with Old Marlow, who rows her home to it.
-    const marlow = !aboard && boat && boat.zoneId !== goal.at.zoneId ? npcHome(zones, MARLOW) : null;
+    if (start === 'aboard') return beyond.length > 1 ? sentence(beyond) : beyond.length ? `${sentence(beyond).slice(0, -1)}!` : 'Sail on east!';
+    const dock = goal.at;
+    /** From a zone (and a tile in it) to the end of the dock, and off. */
+    const toDock = (from: ZoneId, fromAt: { x: number; y: number } | undefined, name: string): string[] => {
+      const steps = routeSteps(zones, from, dock.zoneId, fromAt, flags, aboard) ?? [];
+      const route = routeTo(zones, from, dock.zoneId) ?? [];
+      const last = route.length ? route[route.length - 1].exit : null;
+      const on = from === dock.zoneId ? (fromAt ?? zones[from].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
+      // Already on the dock (or right by it): just climb in.
+      if (from === dock.zoneId && on && Math.max(Math.abs(dock.x - on.x), Math.abs(dock.y - on.y)) <= 1) {
+        return [`climb into Marlow's boat at the end of the dock and ${sail}`];
+      }
+      const dir = on ? compass(dock.x - on.x, dock.y - on.y) : null;
+      return [...steps, `${dir ? `go ${dir} ` : 'go '}to ${name} and ${sail}`];
+    };
+    // The boat left away from the dock (on another map after a Return from the
+    // Shallows, #117p, or down the coast — `boatAway`'s rule, r1): the dock is
+    // empty, so the way starts with Old Marlow, who rows her home — then from
+    // him, out to the dock.
+    const marlow = start === 'marlow' ? npcHome(zones, MARLOW) : null;
     if (marlow) {
       const toMarlow = routeSteps(zones, here, marlow.zoneId, at, flags) ?? [];
-      return sentence([...toMarlow, `ask Old Marlow to row the Biscuit home to his dock, then ${sail}`]);
+      return sentence([...toMarlow, 'ask Old Marlow to row the Biscuit home', ...toDock(marlow.zoneId, marlow, 'his dock')]);
     }
-    const steps = routeSteps(zones, here, goal.at.zoneId, at, flags, aboard) ?? [];
-    const route = routeTo(zones, here, goal.at.zoneId) ?? [];
-    const last = route.length ? route[route.length - 1].exit : null;
-    const from = here === goal.at.zoneId ? (at ?? zones[here].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
-    // Already on the dock (or right by it): just climb in.
-    if (here === goal.at.zoneId && from && Math.max(Math.abs(goal.at.x - from.x), Math.abs(goal.at.y - from.y)) <= 1) {
-      return sentence([`climb into Marlow's boat at the end of the dock and ${sail}`]);
-    }
-    const dir = from ? compass(goal.at.x - from.x, goal.at.y - from.y) : null;
-    steps.push(`${dir ? `go ${dir} ` : 'go '}to Marlow's dock and ${sail}`);
-    return sentence(steps);
+    return sentence(toDock(here, at, "Marlow's dock"));
   }
   // Down to the Nameless Hall and the Deep Root below it (16d review rounds 2–3):
   // a run of "take the south path" steps reads as one, and from up top the way
@@ -1168,6 +1190,8 @@ export function wayfindingLines(
   zones: Record<ZoneId, ZoneDef>,
   npc: Pick<WorldNpcDef, 'id' | 'guide' | 'signpost' | 'mentor'>,
   flags: Record<string, boolean>,
+  /** Where the boat is moored (`boatSpot`): left away from the dock, the way starts with Old Marlow, as on the map (#117p r1). */
+  boat: BoatSpot | null = null,
 ): string[] {
   // The mentor: the big picture, then (first meeting only) where to find him again.
   if (npc.mentor) return [...mentorTips(zones, flags), ...(flags[MET_ELDER] ? [] : [npc.mentor.invite])];
@@ -1178,7 +1202,7 @@ export function wayfindingLines(
   // A guide who IS the goal ("Meet Harbormaster Gale") points past it: by the
   // time their lines end, you've met them.
   if (goal.npc === npc.id && goal.doneFlag) goal = nextObjective({ ...flags, [goal.doneFlag]: true });
-  const how = goalDirections(zones, goal, home.zoneId, home, flags);
+  const how = goalDirections(zones, goal, home.zoneId, home, flags, false, boat);
   if (npc.signpost) {
     const read = signpostLines(zones[home.zoneId], home.x, home.y, flags).join('\n');
     return [read, goal.zoneId ? `🚩 Next: ${goal.title}. ${how}`.trim() : `🎉 ${goal.why}`];

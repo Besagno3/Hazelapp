@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem } from '../../content/items';
 import { SAGES } from '../../content/abilities';
-import { sageSpell } from '../../content/spells';
+import { sageSpell, sageSpellDoes } from '../../content/spells';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
@@ -252,9 +252,16 @@ function Sage({ npcId }: { npcId: string | null }) {
   const topic = (npcId ? NPC_DEFS[npcId]?.topic : undefined) as CrystalTopic | undefined;
   if (!save || !topic) return null;
   const sage = SAGES[topic];
-  // What this Sage's spell does, as the Spellbook says it — Time Ripple skips a turn (#128b).
+  // What this Sage's spell does — Time Ripple skips a turn (#128b) — led by the
+  // spell's own name, once the Sage has named it (#159 r1).
   const spell = sageSpell(topic);
   const known = save.sages.includes(topic);
+  const spellLine = (
+    <p className="text-sm text-white/90 mb-4">
+      <span aria-hidden>{spell.emoji} </span>
+      <span className={`font-bold ${sage.flashColor}`}>{spell.name}</span>: {sageSpellDoes(topic)}
+    </p>
+  );
 
   function learn() {
     update((s) => ({
@@ -270,19 +277,16 @@ function Sage({ npcId }: { npcId: string | null }) {
         <CharacterPortrait spriteId={npcId ? npcSpriteId(NPC_DEFS[npcId]) : undefined} emoji={sage.sprite} scale={2} />
       </div>
       <h2 className="text-xl font-extrabold mb-1">{sage.name}</h2>
-      <p className="text-sm text-white/90 mb-2">
-        <span aria-hidden>{spell.emoji} </span>
-        {spell.description}
-      </p>
       {!known ? (
         <>
-          <p className="text-sm text-white/80 mb-5">
+          <p className="text-sm text-white/80 mb-2">
             "Prove your curiosity, and I will add{' '}
             <span className={`font-bold ${sage.flashColor}`}>
               {sage.specialEmoji} {sage.specialName}
             </span>{' '}
             to your Spellbook — a mighty spell powered by tough questions!"
           </p>
+          {spellLine}
           <button
             onClick={learn}
             className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-3"
@@ -291,11 +295,14 @@ function Sage({ npcId }: { npcId: string | null }) {
           </button>
         </>
       ) : (
-        <p className="text-sm text-emerald-300 mb-4">
-          {sage.specialEmoji} {sage.specialName} is in your Spellbook! In battle, open
-          <span className="font-bold"> 📖 Spells</span>, spend your charge (◆), and answer one
-          super-hard question to cast it.
-        </p>
+        <>
+          {spellLine}
+          <p className="text-sm text-emerald-300 mb-4">
+            {sage.specialEmoji} {sage.specialName} is in your Spellbook! In battle, open
+            <span className="font-bold"> 📖 Spells</span>, spend your charge (◆), and answer one
+            super-hard question to cast it.
+          </p>
+        </>
       )}
     </div>
   );

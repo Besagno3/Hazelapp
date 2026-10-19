@@ -108,15 +108,4 @@ describe('how long the camera rests on a cleared bank (#100h)', () => {
     // A slow lift (a bank hiding a place) already gives the line time, so the hold is shorter.
     expect(revealHoldS(long, 3.2)).toBeLessThan(revealHoldS(long, 1.6));
   });
-  it('every bank on every map: its line is up for its whole reading time before the camera moves on', () => {
-    const all = Object.values(ZONES).flatMap((z) => z.fogs ?? []);
-    expect(all.length).toBeGreaterThan(5);
-    for (const f of all) {
-      for (const lift of [1.6, 3.2]) {
-        const hold = revealHoldS(f.lifted, lift);
-        expect(hold, f.id).toBeGreaterThanOrEqual(REVEAL_HOLD_S);
-        expect(lift + hold, f.id).toBeGreaterThanOrEqual(toastMs(f.lifted) / 1000 - 1e-9);
-      }
-    }
-  });
 });

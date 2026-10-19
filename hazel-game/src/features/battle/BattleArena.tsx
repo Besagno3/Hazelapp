@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import LevelBadge from '../../components/LevelBadge';
@@ -548,7 +548,7 @@ export default function BattleArena() {
       updateSave((s) => ({ ...s, companionId: id }));
       fx.dropIn();
       sfx('swap');
-      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
+      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji, { kind: 'swap' });
     }
     setTurn({ kind: 'command' });
   }
@@ -576,7 +576,7 @@ export default function BattleArena() {
     const did = id === 'candle' ? (enemy?.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
     // "Light a candle!" is done: the banner says so instead of still asking
     // (it answers the trickster callout, so it doesn't wait behind it, #97c).
-    if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', TRICKSTER_CALLOUT);
+    if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: TRICKSTER_CALLOUT });
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -663,7 +663,7 @@ export default function BattleArena() {
     const s = combatState();
     applyCombat({ ...s, charge: Math.max(0, s.charge - pair.cost) });
     burst({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
-    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
+    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji, { kind: 'pair' });
     const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
     const heal = pair.heal ? Math.min(s.playerMaxHp, s.playerHp + pair.heal) - s.playerHp : 0;
     if (heal > 0) {
@@ -715,7 +715,8 @@ export default function BattleArena() {
     }
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
     // Said once, in the message box (#128): a float over the enemy said it
-    // again, on top of the damage number.
+    // again, on top of the damage number. The number shows it instead, bigger
+    // and glowing ("-42!!"), for a kid who doesn't read the message box.
     const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
     const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
     const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
@@ -737,6 +738,7 @@ export default function BattleArena() {
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
       skipsTurn: r.skipsTurn,
+      superEffective: weak,
     });
   }
 
@@ -758,7 +760,8 @@ export default function BattleArena() {
       sound,
       heal = 0,
       skipsTurn = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean },
+      superEffective = false,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -771,7 +774,8 @@ export default function BattleArena() {
         return;
       }
       if (sound !== 'pair') sfx('impact');
-      float(`-${r.dealt}`, 'enemy', floatColor);
+      if (superEffective) float(`-${r.dealt}!!`, 'enemy', 'text-yellow-300', true);
+      else float(`-${r.dealt}`, 'enemy', floatColor);
     }, choreo.hitMs);
 
     if (r.outcome === 'shield-broken') {
@@ -1013,6 +1017,8 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
+    // The fight is over: a banner still waiting must not cycle over the result.
+    fx.clearBanners();
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
   }
 
@@ -1043,6 +1049,7 @@ export default function BattleArena() {
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
+    fx.clearBanners();
     setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }
 
@@ -1152,18 +1159,20 @@ export default function BattleArena() {
           any backdrop; out of the layout (h-0), so nothing below it — a question's
           answers — jumps when it comes and goes; read aloud as it appears. */}
       <div role="status" aria-live="polite" className="relative z-20 h-0">
-        <AnimatePresence>
-          {fx.banner && (
-            <motion.p
-              initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
-            >
-              {fx.banner}
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* Keyed by its words, so each banner in the queue comes in on its own.
+            No exit fade: the one it replaces goes at once (two pills fading
+            over each other read as neither, and waiting for the fade would
+            hold a swap's banner back). */}
+        {fx.banner && (
+          <motion.p
+            key={fx.banner}
+            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
+          >
+            {fx.banner}
+          </motion.p>
+        )}
       </div>
 
       <BattleStage

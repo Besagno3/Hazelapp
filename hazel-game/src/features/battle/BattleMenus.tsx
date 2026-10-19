@@ -76,6 +76,9 @@ function CommandButton({
  * the grid's rows (2 × 3 on a phone, 3 × 2 from `sm` up); a seventh row for
  * Flee alone pushed a boss fight's Items, Swap and Flee below a 320×568
  * screen. A short screen tightens the padding too (still ≥ 44 px a button).
+ * Flee is placed in the header row but comes last in the page, after the
+ * grid: the first Tab (and a screen reader, after "Your move!") meets Attack,
+ * not an escape that asks nothing (#158b review).
  */
 export function CommandMenu({
   charge,
@@ -118,8 +121,8 @@ export function CommandMenu({
 }) {
   return (
     <div className={`${PANEL} [@media(max-height:600px)]:p-3`}>
-      <div className="mb-3 flex items-center justify-between gap-2 [@media(max-height:600px)]:mb-2">
-        <p className={HEADER}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2">
+        <p className={`${HEADER} col-start-1 row-start-1`}>
           {powerMove ? (
             <>
               {/* The move's name is in the status box and on Guard: a phone says just what to do. */}
@@ -133,63 +136,63 @@ export function CommandMenu({
             </>
           )}
         </p>
+        <div className="col-span-2 row-start-2 mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 [@media(max-height:600px)]:mt-2">
+          <CommandButton emoji="⚔️" label="Attack" onClick={onAttack} />
+          <CommandButton
+            emoji="📖"
+            label="Spells"
+            disabled={!canCastAny}
+            hint={
+              !spellsLoaded
+                ? 'Loading…'
+                : canCastAny
+                  ? `◆ ${charge}/${CHARGE_MAX}`
+                  : `Charge ◆ ${charge}/${CHARGE_MAX}`
+            }
+            onClick={onSpells}
+          />
+          <CommandButton
+            emoji={companion.emoji}
+            label={companion.name}
+            disabled={!companionReady}
+            hint={companionHint}
+            onClick={onCompanion}
+          />
+          <CommandButton
+            emoji="🛡️"
+            label="Guard"
+            hint={powerMove ? `Blocks ${powerMove}!` : undefined}
+            highlight={!!powerMove}
+            onClick={onGuard}
+          />
+          <CommandButton
+            emoji="🎒"
+            label="Items"
+            disabled={BATTLE_ITEMS.every((id) => items[id] === 0)}
+            hint={
+              BATTLE_ITEMS.filter((id) => items[id] > 0)
+                .map((id) => `${CONSUMABLES[id].emoji}×${items[id]}`)
+                .join(' ') || 'Empty'
+            }
+            onClick={onItems}
+          />
+          <CommandButton
+            emoji="🔄"
+            label="Swap"
+            hint={canSwap ? 'Free — keeps your turn' : 'Friends can join you'}
+            onClick={onSwap}
+          />
+        </div>
         {/* A boss can't be fled: the button stays, saying so. */}
         <button
           onClick={onFlee}
           disabled={isBoss}
-          className={`${OPTION} shrink-0 min-h-[44px] py-1.5 whitespace-nowrap`}
+          className={`${OPTION} col-start-2 row-start-1 min-h-[44px] py-1.5 whitespace-nowrap`}
         >
           <span className="text-lg mr-1.5">🏃</span>
           <span className="font-bold text-sm">Flee</span>
           {isBoss && <span className="ml-1.5 text-xs text-white/70">No escape!</span>}
         </button>
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        <CommandButton emoji="⚔️" label="Attack" onClick={onAttack} />
-        <CommandButton
-          emoji="📖"
-          label="Spells"
-          disabled={!canCastAny}
-          hint={
-            !spellsLoaded
-              ? 'Loading…'
-              : canCastAny
-                ? `◆ ${charge}/${CHARGE_MAX}`
-                : `Charge ◆ ${charge}/${CHARGE_MAX}`
-          }
-          onClick={onSpells}
-        />
-        <CommandButton
-          emoji={companion.emoji}
-          label={companion.name}
-          disabled={!companionReady}
-          hint={companionHint}
-          onClick={onCompanion}
-        />
-        <CommandButton
-          emoji="🛡️"
-          label="Guard"
-          hint={powerMove ? `Blocks ${powerMove}!` : undefined}
-          highlight={!!powerMove}
-          onClick={onGuard}
-        />
-        <CommandButton
-          emoji="🎒"
-          label="Items"
-          disabled={BATTLE_ITEMS.every((id) => items[id] === 0)}
-          hint={
-            BATTLE_ITEMS.filter((id) => items[id] > 0)
-              .map((id) => `${CONSUMABLES[id].emoji}×${items[id]}`)
-              .join(' ') || 'Empty'
-          }
-          onClick={onItems}
-        />
-        <CommandButton
-          emoji="🔄"
-          label="Swap"
-          hint={canSwap ? 'Free — keeps your turn' : 'Friends can join you'}
-          onClick={onSwap}
-        />
       </div>
     </div>
   );

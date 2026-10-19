@@ -74,7 +74,7 @@ describe('the callout banner queues (#97c)', () => {
       result.current.showBanner('So quick!', 3200, '⚡');
     });
     wait(1000);
-    act(() => result.current.showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', 'too slippery for Hint Feathers'));
+    act(() => result.current.showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: 'too slippery for Hint Feathers' }));
     expect(result.current.banner).toBe('🕯️ Your Glimmer Candle is lit!');
     wait(2500);
     expect(result.current.banner).toBe('⚡ So quick!');
@@ -87,7 +87,7 @@ describe('the callout banner queues (#97c)', () => {
     act(() => {
       result.current.showBanner('Roar!', 1000);
       result.current.showBanner('Pixel Witch is too slippery for Hint Feathers!', 3000);
-      result.current.showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', 'too slippery for Hint Feathers');
+      result.current.showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: 'too slippery for Hint Feathers' });
     });
     expect(result.current.banner).toBe('⚠️ Roar!');
     wait(1000);
@@ -103,6 +103,75 @@ describe('the callout banner queues (#97c)', () => {
     expect(result.current.banner).toBe('⚠️ Second');
   });
 
+  it('a swap banner cuts in at once; the callout it cut short comes back for the rest of its time (#97c review)', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => result.current.showBanner('Pixel Witch is too slippery for Hint Feathers!', 6000));
+    wait(1000);
+    act(() => result.current.showBanner('Pip tags in — still your move!', 1800, '🧒', { kind: 'swap' }));
+    // Now, not 5 s later mid-question.
+    expect(result.current.banner).toBe('🧒 Pip tags in — still your move!');
+    wait(1800);
+    expect(result.current.banner).toBe('⚠️ Pixel Witch is too slippery for Hint Feathers!');
+    wait(4990);
+    expect(result.current.banner).toMatch(/too slippery/);
+    wait(10);
+    expect(result.current.banner).toBeNull();
+  });
+
+  it('…and a callout nearly done still comes back long enough to read', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => result.current.showBanner('Roar!', 3000));
+    wait(2900);
+    act(() => result.current.showBanner('Pip tags in — still your move!', 1800, '🧒', { kind: 'swap' }));
+    wait(1800);
+    expect(result.current.banner).toBe('⚠️ Roar!');
+    wait(1490);
+    expect(result.current.banner).toBe('⚠️ Roar!');
+    wait(10);
+    expect(result.current.banner).toBeNull();
+  });
+
+  it('quick swaps: the last banner names the friend fighting now, and none waits behind it', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => {
+      result.current.showBanner('Pip tags in — still your move!', 1800, '🧒', { kind: 'swap' });
+      result.current.showBanner('Ember tags in — still your move!', 1800, '🐉', { kind: 'swap' });
+      result.current.showBanner('Pip tags in — still your move!', 1800, '🧒', { kind: 'swap' });
+    });
+    expect(result.current.banner).toBe('🧒 Pip tags in — still your move!');
+    wait(1800);
+    // Not "Ember tags in" after it: Ember isn't fighting any more.
+    expect(result.current.banner).toBeNull();
+  });
+
+  it('a Pair Attack banner shows with its strike, not after a "So quick!" — which still gets its time', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => result.current.showBanner('So quick! The questions just got harder — level 4 → 5', 3200, '⚡'));
+    wait(500);
+    act(() => result.current.showBanner('PAIR ATTACK — STARFIRE!', 1800, '🌟', { kind: 'pair' }));
+    expect(result.current.banner).toBe('🌟 PAIR ATTACK — STARFIRE!');
+    wait(1800);
+    expect(result.current.banner).toMatch(/^⚡ So quick!/);
+    wait(2700);
+    expect(result.current.banner).toBeNull();
+  });
+
+  it('the fight over, nothing on screen or waiting — and the next banner shows at once', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => {
+      result.current.showBanner('One', 1000);
+      result.current.showBanner('Two', 1000);
+    });
+    act(() => result.current.clearBanners());
+    expect(result.current.banner).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    wait(3000);
+    expect(result.current.banner).toBeNull();
+    // The timer's ref was reset with it: a new banner isn't stuck waiting on a cleared timer.
+    act(() => result.current.showBanner('Three', 1000));
+    expect(result.current.banner).toBe('⚠️ Three');
+  });
+
   it('nothing is left running once the arena closes', () => {
     const { result, unmount } = renderHook(() => useBattleFx());
     act(() => {
@@ -111,5 +180,19 @@ describe('the callout banner queues (#97c)', () => {
     });
     unmount();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe('floating numbers', () => {
+  it('a big one (super effective) says so, for the stage to draw larger', () => {
+    const { result } = renderHook(() => useBattleFx());
+    act(() => {
+      result.current.float('-42!!', 'enemy', 'text-yellow-300', true);
+      result.current.float('-12', 'enemy', 'text-orange-300');
+    });
+    expect(result.current.stage.floats.map((f) => [f.text, f.big])).toEqual([
+      ['-42!!', true],
+      ['-12', false],
+    ]);
   });
 });

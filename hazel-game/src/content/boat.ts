@@ -173,9 +173,12 @@ export const DOCK_NEAR = 2;
  */
 export function boatAway(save: Pick<SaveData, 'boat' | 'vehicle' | 'flags'>): BoatSpot | null {
   if (!hasBoat(save.flags) || save.vehicle === 'boat' || save.boat === null) return null;
-  const { zoneId, x, y } = save.boat;
-  const home = zoneId === BOAT_HOME.zoneId && Math.max(Math.abs(x - BOAT_HOME.x), Math.abs(y - BOAT_HOME.y)) <= DOCK_NEAR;
-  return home ? null : save.boat;
+  return atDock(save.boat) ? null : save.boat;
+}
+
+/** Is a boat moored here home at Marlow's dock — within `DOCK_NEAR` cells of it? */
+export function atDock({ zoneId, x, y }: BoatSpot): boolean {
+  return zoneId === BOAT_HOME.zoneId && Math.max(Math.abs(x - BOAT_HOME.x), Math.abs(y - BOAT_HOME.y)) <= DOCK_NEAR;
 }
 
 /**

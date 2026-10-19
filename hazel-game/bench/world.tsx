@@ -387,6 +387,14 @@ const walker = makeWalker({
   zone: (id) => (floor ? z : ZONES[id]),
 });
 const bench = (window as unknown as { __bench: Record<string, unknown> }).__bench;
+/** The boss standing on a leg's goal cell — named errors, not a TypeError, when the goal has none. */
+function bossAt(zoneId: ZoneId, at: { x: number; y: number } | null, title: string) {
+  const cell = at;
+  if (!cell) throw new Error(`walkLeg: "${title}" has no goal cell in ${zoneId}`);
+  const boss = ZONES[zoneId].enemies.find((e) => e.x === cell.x && e.y === cell.y);
+  if (!boss) throw new Error(`walkLeg: no enemy at ${zoneId} (${cell.x}, ${cell.y}) for "${title}"`);
+  return boss.defId;
+}
 /** Act I's legs, by title (the runner walks each on its own page). */
 bench.legs = () => actOneJourney().map((l) => l.goal.title);
 /** Walk this page's Act I leg (`leg=<n>`): every hop, then into its boss (or the Spire). */
@@ -395,7 +403,7 @@ bench.walkLeg = async () => {
   if (!(await walker.ready())) return { title: leg.goal.title, ok: false, hops: [], seconds: 0, talks: 0, error: 'the world never started' };
   const t0 = performance.now();
   const target = goalTarget(leg.goal);
-  const bossId = leg.goal.kind === 'spire' ? null : ZONES[target.zoneId].enemies.find((e) => e.x === target.cell?.x && e.y === target.cell?.y)!.defId;
+  const bossId = leg.goal.kind === 'spire' ? null : bossAt(target.zoneId, target.cell, leg.goal.title);
   const hops: HopReport[] = [];
   for (const h of leg.hops) {
     if (live.zoneId !== h.zoneId) {

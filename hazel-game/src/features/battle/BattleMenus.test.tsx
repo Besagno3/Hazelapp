@@ -43,6 +43,19 @@ describe('the command menu fits a 320×568 boss fight (#117q, #158b)', () => {
     expect(props.onFlee).toHaveBeenCalledOnce();
   });
 
+  it('…but last in the page: the first Tab meets Attack, and "Your move!" is still read first (#158b review)', () => {
+    menu();
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[0]).toHaveTextContent('Attack');
+    expect(buttons[buttons.length - 1]).toHaveTextContent('Flee');
+    const header = screen.getByText('Your move!').closest('p')!;
+    const attack = screen.getByText('Attack').closest('button')!;
+    expect(header.compareDocumentPosition(attack) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Placed in the header row by the grid, beside "Your move!".
+    expect(screen.getByRole('button', { name: /Flee/ })).toHaveClass('col-start-2', 'row-start-1');
+    expect(header).toHaveClass('col-start-1', 'row-start-1');
+  });
+
   it("a boss's Flee is still there, greyed out, saying why", () => {
     const props = menu({ isBoss: true });
     const flee = screen.getByRole('button', { name: /Flee/ });

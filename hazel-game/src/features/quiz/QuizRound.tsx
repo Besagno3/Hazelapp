@@ -61,11 +61,14 @@ export default function QuizRound() {
   }, [shownId]);
 
   if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
-  if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
+  // The top bar stays through the wait (15–30 s on a thin bank, #163) and a
+  // failure: Switch player is never out of reach.
+  if (loading) return <LoadingScreen label="Building your questions…" topic={topic} topBar={<ScreenTopBar />} />;
   if (error) {
     return (
       // A topic the server doesn't know yet (#135) fails the same way every time: no Try again.
       <ErrorScreen
+        topBar={<ScreenTopBar />}
         message={error}
         {...(error === TOPIC_NOT_READY
           ? { title: 'Coming soon!', emoji: '🚧', backLabel: 'Pick another topic' }
@@ -128,11 +131,13 @@ export default function QuizRound() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6">
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
       <ScreenTopBar />
       <div className="flex-1 w-full flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg">
-          <div className="flex justify-between text-sm text-gray-400 mb-4">
+        {/* A short landscape phone (740×360) tightens the card, so the answers
+            stay on screen under the top bar. */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:py-4">
+          <div className="flex justify-between text-sm text-gray-400 mb-4 [@media(max-height:500px)]:mb-2">
             <span className="capitalize font-medium text-purple-600">
               {topic} · Lvl {skillLevel}
             </span>
@@ -148,10 +153,10 @@ export default function QuizRound() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -40, opacity: 0 }}
             >
-              <h2 className="text-xl font-semibold mb-6">{q.text}</h2>
-              <div className="space-y-3">
+              <h2 className="text-xl font-semibold mb-6 [@media(max-height:500px)]:mb-3">{q.text}</h2>
+              <div className="space-y-3 [@media(max-height:500px)]:space-y-2">
                 {q.options.map((opt, idx) => {
-                  let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 transition font-medium ';
+                  let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 [@media(max-height:500px)]:py-2.5 transition font-medium ';
                   if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
                   else if (idx === q.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
                   else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
@@ -198,7 +203,7 @@ export default function QuizRound() {
               )}
             </motion.div>
           </AnimatePresence>
-      </div>
+        </div>
       </div>
     </div>
   );
@@ -214,7 +219,7 @@ function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnl
     .filter((m) => m.correct === false);
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6">
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
       <ScreenTopBar />
       <div className="flex-1 w-full flex items-center justify-center">
         <motion.div

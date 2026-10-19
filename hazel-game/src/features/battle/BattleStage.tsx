@@ -17,7 +17,10 @@ function motionProps(k: Keyframes | null, reduceMotion: boolean) {
   };
 }
 
-/** Damage / heal numbers drifting up over one side of the stage (fade in place under reduced motion). */
+/**
+ * Damage / heal numbers drifting up over one side of the stage (fade in place
+ * under reduced motion); a `big` one (super effective) is larger and glows.
+ */
 function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxSide; reduceMotion: boolean }) {
   return (
     <>
@@ -32,7 +35,7 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
             // Centred through Motion's own `x`: its transform replaces a Tailwind
             // translate class, which left every float hanging off to the right.
             style={{ x: '-50%' }}
-            className={`absolute -top-6 left-1/2 whitespace-nowrap font-extrabold text-2xl ${f.color}`}
+            className={`absolute -top-6 left-1/2 whitespace-nowrap font-extrabold ${f.big ? 'text-4xl drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]' : 'text-2xl'} ${f.color}`}
           >
             {f.text}
           </motion.span>

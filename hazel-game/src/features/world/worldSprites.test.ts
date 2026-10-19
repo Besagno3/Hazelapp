@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { blendSheetsFor, toKaplayAnims, worldFace, worldKey } from './worldSprites';
+import { blendSheetsFor, loadWorldSprites, toKaplayAnims, worldFace, worldKey } from './worldSprites';
 import { SPRITES } from '../../content/sprites';
 import { ZONES } from '../../content/zones';
 import { floorZone } from '../../content/spire';
@@ -114,5 +114,42 @@ describe('worldFace (sprite review B1, B3)', () => {
     const { k, added } = fakeK(null);
     expect(worldFace(k, { spriteId: 'no-such-sprite', emoji: '🦊', x: 0, y: 0 }).isSprite).toBe(false);
     expect(hasText(added[0].comps)).toBe(true);
+  });
+});
+
+// ── After a hot reload (#159 r1) ─────────────────────────────────────────────
+describe('a sprite added during a hot reload', () => {
+  /** A stand-in KaPlay that remembers what it was told to load. */
+  function loader(known: Set<string>) {
+    const loaded: string[] = [];
+    const k = {
+      getSprite: (key: string) => (known.has(key) ? sheet('loaded') : null),
+      loadSprite: (key: string) => {
+        loaded.push(key);
+        known.add(key);
+      },
+    };
+    return { k: k as unknown as Parameters<typeof loadWorldSprites>[0], loaded };
+  }
+
+  it('loading again (the instance handed across a reload) loads only the sheets KaPlay lacks', () => {
+    const known = new Set<string>();
+    const first = loader(known);
+    loadWorldSprites(first.k);
+    expect(first.loaded).toContain(worldKey(spriteId));
+    expect(new Set(first.loaded).size).toBe(first.loaded.length);
+    // A new sprite since: only it is loaded on the second go.
+    known.delete(worldKey(spriteId));
+    const again = loader(known);
+    loadWorldSprites(again.k);
+    expect(again.loaded).toEqual([worldKey(spriteId)]);
+  });
+
+  it('a sprite KaPlay was never told of draws the emoji — a sprite of an unknown key would throw inside KaPlay', () => {
+    const { k, added } = fakeK(null);
+    const face = worldFace(k, { spriteId, emoji: '🦊', x: 1, y: 2 });
+    expect(face.isSprite).toBe(false);
+    expect(hasText(added[0].comps)).toBe(true);
+    expect(added[0].comps).not.toContainEqual({ sprite: worldKey(spriteId) });
   });
 });

@@ -214,6 +214,8 @@ export default function WorldScreen() {
   const travelRef = useRef<Travel | null>(null);
   /** 🐉 Fly / 🛬 Land (#75 item 15b): asked of the canvas, taken once the world runs. */
   const flightRef = useRef<'fly' | 'land' | null>(null);
+  /** "⏩ Tap to skip" pressed while a fog reveal plays (#159 r1): the canvas skips it. */
+  const skipRef = useRef(false);
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
   /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
@@ -593,8 +595,13 @@ export default function WorldScreen() {
       >
       {/* HUD */}
       {/* On a phone the stats don't leave a place name room beside them, so the
-          row wraps: the name on its own line, the stats right-aligned below. */}
-      <div className="w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-white mb-2 px-1">
+          row wraps: the name on its own line, the stats right-aligned below.
+          On a sideways phone (a coarse pointer, landscape, at most 500 px
+          tall: `touch-wide` and short) the stage is a narrow column
+          between the pad's halves, where the row stacked four lines deep and
+          pushed the map off the bottom: there it spans the page, like the top
+          bar, over the pad (#159 r1). */}
+      <div className="w-full [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:w-[calc(100vw-2rem)] flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-white mb-2 px-1">
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
@@ -831,15 +838,34 @@ export default function WorldScreen() {
         aboard={save.vehicle === 'boat'}
         flying={save.vehicle === 'ember'}
         flightRef={flightRef}
+        skipRef={skipRef}
         escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
       {/* The keyboard's words, or on a touch screen the pad's (#130 S4, #110m) —
-          the same `touch:` screen that shows the d-pad at any width. */}
-      <p className="text-white/50 text-xs mt-2" data-testid="world-help">
-        <span className="touch:hidden">{helpLine({ ...help, touch: false })}</span>
-        <span className="hidden touch:inline">{helpLine({ ...help, touch: true })}</span>
-      </p>
+          the same `touch:` screen that shows the d-pad at any width. Not on a
+          sideways phone, where it fell below the screen's edge (the pad's ✋
+          and 🐉 say it there, #159 r1). While a fog reveal plays, the way to
+          skip it in its place, clear of the map and the pad on every screen:
+          big enough to read and tap, and reached by Tab (#159 r1: the canvas's
+          own pill was 3 px text on a phone). */}
+      {revealing ? (
+        <button
+          data-testid="reveal-skip"
+          onClick={() => {
+            skipRef.current = true;
+          }}
+          className="mt-2 min-h-11 rounded-full bg-black/60 px-4 text-sm font-semibold text-white"
+        >
+          <span className="touch:hidden">⏩ Press any key to skip</span>
+          <span className="hidden touch:inline">⏩ Tap to skip</span>
+        </button>
+      ) : (
+        <p className="text-white/50 text-xs mt-2 [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:hidden" data-testid="world-help">
+          <span className="touch:hidden">{helpLine({ ...help, touch: false })}</span>
+          <span className="hidden touch:inline">{helpLine({ ...help, touch: true })}</span>
+        </p>
+      )}
       </div>
       <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />
 
@@ -860,6 +886,13 @@ export default function WorldScreen() {
       >
         {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
         <span className="sr-only">{flightNote}</span>
+        {/* …and so is the way to skip a fog reveal (#159 r1). */}
+        {revealing && (
+          <span className="sr-only">
+            <span className="touch:hidden">The fog is lifting. Press any key to skip.</span>
+            <span className="hidden touch:inline">The fog is lifting. Tap to skip.</span>
+          </span>
+        )}
         {toast && (
           <motion.div
             initial={{ y: 16, opacity: 0 }}

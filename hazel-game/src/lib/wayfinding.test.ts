@@ -29,7 +29,7 @@ import {
   ACT_ONE_FIEND_GATES,
 } from './wayfinding';
 import { FIELD_SPELL_IDS, fieldSpellFlag, visitedFlag } from '../content/fieldSpells';
-import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
+import { BOAT_HOME, BOAT_MENDED, boatAway } from '../content/boat';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
@@ -244,7 +244,8 @@ describe('nextObjective', () => {
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 70, y: 30 })).toBe("Climb into Marlow's boat at the end of the dock and sail east.");
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 60, y: 30 })).toBe("Go east to Marlow's dock and sail east.");
     // Already sailing the Biscuit on Dawnreach: no dock to go to, just sail on (#114r).
-    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 71, y: 30 }, null, true)).toBe('Sail east, off the edge of the sea!');
+    // …named as the map's edge names it, not "off the edge of the sea" (r1).
+    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 71, y: 30 }, null, true)).toBe('Sail east to the Silver Shallows!');
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 71, y: 30 }, null, true)).not.toMatch(/dock/);
   });
 
@@ -281,9 +282,24 @@ describe('nextObjective', () => {
     // so the way starts with Old Marlow, who rows her home (#117p).
     const outThere = { zoneId: 'silver-shallows' as const, x: 30, y: 20 };
     expect(goalDirections(ZONES, g, 'lumina-village', undefined, afterHill, false, outThere)).toBe(
-      "Go east to Starfall Coast, then ask Old Marlow to row the Biscuit home to his dock, then sail east to the Silver Shallows, then go south-east to Eldergrove.",
+      'Go east to Starfall Coast, then ask Old Marlow to row the Biscuit home, then go east to his dock and sail east to the Silver Shallows, then go south-east to Eldergrove.',
     );
-    expect(goalDirections(ZONES, g, 'starfall-coast', undefined, afterHill, false, outThere)).toMatch(/^Ask Old Marlow to row the Biscuit home to his dock, then sail east/);
+    // From his own shore too, the walk out to the dock after asking (r1).
+    expect(goalDirections(ZONES, g, 'starfall-coast', undefined, afterHill, false, outThere)).toBe(
+      'Ask Old Marlow to row the Biscuit home, then go east to his dock and sail east to the Silver Shallows, then go south-east to Eldergrove.',
+    );
+    // Moored down Dawnreach's own coast, she's away too (`boatAway`): the dock is empty (r1).
+    const downTheCoast = { zoneId: 'dawnreach' as const, x: 64, y: 4 };
+    expect(boatAway({ boat: downTheCoast, vehicle: 'foot', flags: afterHill })).toEqual(downTheCoast);
+    expect(goalDirections(ZONES, g, 'remembrance-hill', undefined, afterHill, false, downTheCoast)).toMatch(/^Go .*to Starfall Coast, then ask Old Marlow to row the Biscuit home, then go east to his dock/);
+    // …and so do the guides and signposts, from the same boat (r1).
+    for (const guide of ['village-elder', 'dawnreach-scout']) {
+      expect(wayfindingLines(ZONES, NPC_DEFS[guide], afterHill, outThere).join(' '), guide).toMatch(/ask Old Marlow to row the Biscuit home, then go .*to his dock/);
+      expect(wayfindingLines(ZONES, NPC_DEFS[guide], afterHill, BOAT_HOME).join(' '), guide).not.toMatch(/Old Marlow/);
+    }
+    const signs = Object.values(NPC_DEFS).filter((n) => n.signpost && npcHome(ZONES, n.id)?.zoneId === 'dawnreach');
+    expect(signs).toHaveLength(4);
+    for (const sign of signs) expect(wayfindingLines(ZONES, sign, afterHill, outThere)[1], sign.id).toMatch(/ask Old Marlow to row the Biscuit home/);
     // …but with her home at the dock (or not known), the way is as ever.
     expect(goalDirections(ZONES, g, 'remembrance-hill', undefined, afterHill, false, BOAT_HOME)).toMatch(/^Go north-east to Marlow's dock and sail east/);
     // Sailing on Dawnreach already: the voyage from the dock, without the dock (#114r).

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PLACE_ICONS, TILE, ZONES } from '../content/zones';
+import { PLACE_ICONS, SEA_CHARS, TILE, WALKABLE_CHARS, ZONES } from '../content/zones';
 import { crystalFlag } from '../content/topics';
 import {
   ANY_CRYSTAL_EMOJI,
@@ -257,7 +257,7 @@ describe('markers that would pile up on the menu map (#117n)', () => {
     for (const m of moorings) {
       const before = box(m, 8, 7);
       if ([box(grove, 8, 8), star, pin].some((b) => boxesMeet(before, b))) crowded++;
-      const { dx, dy } = boatNudge(sea.map[0].length, m, { icons: sea.places, here, shared: true, flag });
+      const { dx, dy } = boatNudge(sea.map[0].length, sea.map.length, m, { icons: sea.places, here, shared: true, flag });
       const after = box(m, 8, 7, dx, dy);
       for (const b of [box(grove, 8, 8), star, pin]) expect(boxesMeet(after, b), `${m.x},${m.y}`).toBe(false);
       // Out the way it already lay from the island, never across it.
@@ -267,12 +267,51 @@ describe('markers that would pile up on the menu map (#117n)', () => {
     }
     // The north beach, where the island's path starts, was one of the crowded ones.
     expect(crowded).toBeGreaterThan(0);
-    expect(boatNudge(sea.map[0].length, { x: 12, y: 33 }, { icons: sea.places, here, shared: true, flag }).dy).toBeLessThan(0);
+    expect(boatNudge(sea.map[0].length, sea.map.length, { x: 12, y: 33 }, { icons: sea.places, here, shared: true, flag }).dy).toBeLessThan(0);
+  });
+
+  it('nudged off a place or a pin, the boat never leaves the map — over its edge is the title (r1)', () => {
+    const inside = { inside: 0, total: 0 };
+    for (const id of ['dawnreach', 'taleshore', 'silver-shallows'] as const) {
+      const z = ZONES[id];
+      const cols = z.map[0].length;
+      const rows = z.map.length;
+      const s = MAP_MIN_PX / cols;
+      // How far a ⛵ at (x, y) nudged by (dx, dy) sticks out past the map's edges, in px.
+      const over = (x: number, y: number, dx: number, dy: number) => {
+        const cx = (x + 0.5) * s + dx;
+        const cy = (y + 0.5) * s + dy;
+        return Math.max(0, 8 - cx) + Math.max(0, cx + 8 - MAP_MIN_PX) + Math.max(0, 7 - cy) + Math.max(0, cy + 7 - rows * s);
+      };
+      // Every sea cell a boat can be left at: beside a beach or a dock.
+      const moorings: { x: number; y: number }[] = [];
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          if (!SEA_CHARS.has(z.map[y][x])) continue;
+          if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([ox, oy]) => WALKABLE_CHARS.has(z.map[y + oy]?.[x + ox] ?? '#'))) moorings.push({ x, y });
+        }
+      }
+      for (const m of moorings) {
+        for (const flag of [null, ...(z.places ?? [])]) {
+          const { dx, dy } = boatNudge(cols, rows, m, { icons: z.places, flag });
+          inside.total++;
+          if (dx || dy) inside.inside++;
+          expect(over(m.x, m.y, dx, dy), `${id} ${m.x},${m.y} 🚩 ${flag?.name}`).toBeLessThanOrEqual(over(m.x, m.y, 0, 0));
+        }
+      }
+    }
+    // Plenty of them do get nudged.
+    expect(inside.inside).toBeGreaterThan(100);
+    // The one the review found: by Dawnreach's top edge, the 🚩 on the place below.
+    const dawn = ZONES.dawnreach;
+    const below = dawn.places!.find((p) => p.x === 68 && p.y === 10)!;
+    const { dy } = boatNudge(dawn.map[0].length, dawn.map.length, { x: 64, y: 4 }, { icons: dawn.places, flag: below });
+    expect((4 + 0.5) * (MAP_MIN_PX / dawn.map[0].length) + dy - 7).toBeGreaterThanOrEqual(0);
   });
 
   it('a boat out at sea, far from everything, is drawn right where it is moored', () => {
     const sea = ZONES['silver-shallows'];
-    expect(boatNudge(sea.map[0].length, { x: 30, y: 25 }, { icons: sea.places })).toEqual({ dx: 0, dy: 0 });
+    expect(boatNudge(sea.map[0].length, sea.map.length, { x: 30, y: 25 }, { icons: sea.places })).toEqual({ dx: 0, dy: 0 });
   });
 
   it("pins hang below a place in the map's top rows, never over the title above the map", () => {

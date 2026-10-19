@@ -317,11 +317,27 @@ const NUDGE_TURNS = [0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180].ma
  * The smallest nudge (whole px) that keeps `mark` `gap` px clear of every box
  * in `taken`: none when it's clear already; else straight out from what it
  * would cover (up, when it sits right on top of it), turning further round
- * only if that's blocked. Never more than `maxPx` — past that it stays put.
+ * only if that's blocked. Never more than `maxPx` — past that it stays put —
+ * and, given the map's size, never out over its edge (or further out than it
+ * started, for a mark already over it): up there is the map's title (r1).
  */
-export function nudgeClear(mark: MapBox, taken: readonly MapBox[], gap = GAP_PX, maxPx = 40): { dx: number; dy: number } {
+export function nudgeClear(
+  mark: MapBox,
+  taken: readonly MapBox[],
+  gap = GAP_PX,
+  maxPx = 40,
+  bounds: { w: number; h: number } | null = null,
+): { dx: number; dy: number } {
   const clear = (dx: number, dy: number) => !taken.some((t) => boxesMeet({ ...mark, x: mark.x + dx, y: mark.y + dy }, t, gap));
   if (clear(0, 0)) return { dx: 0, dy: 0 };
+  // How far past the map's edges the mark would stick out.
+  const over = (dx: number, dy: number) => {
+    if (!bounds) return 0;
+    const x = mark.x + dx;
+    const y = mark.y + dy;
+    return Math.max(0, mark.hw - x) + Math.max(0, x + mark.hw - bounds.w) + Math.max(0, mark.hh - y) + Math.max(0, y + mark.hh - bounds.h);
+  };
+  const was = over(0, 0);
   const hit = taken.filter((t) => boxesMeet(mark, t, gap));
   const ox = mark.x - hit.reduce((n, t) => n + t.x, 0) / hit.length;
   const oy = mark.y - hit.reduce((n, t) => n + t.y, 0) / hit.length;
@@ -330,7 +346,7 @@ export function nudgeClear(mark: MapBox, taken: readonly MapBox[], gap = GAP_PX,
     for (const turn of NUDGE_TURNS) {
       const dx = Math.round(Math.cos(out + turn) * d);
       const dy = Math.round(Math.sin(out + turn) * d);
-      if (clear(dx, dy)) return { dx, dy };
+      if (clear(dx, dy) && over(dx, dy) <= was) return { dx, dy };
     }
   }
   return { dx: 0, dy: 0 };
@@ -347,6 +363,7 @@ export function nudgeClear(mark: MapBox, taken: readonly MapBox[], gap = GAP_PX,
  */
 export function boatNudge(
   cols: number,
+  rows: number,
   boat: { x: number; y: number },
   {
     icons = [],
@@ -379,6 +396,7 @@ export function boatNudge(
     const c = at(flag);
     taken.push({ x: c.x + 0.35 * 17, y: pinY(c, flag.y, 15, FLAG_PERCH), hw: 8.5, hh: 7.5 });
   }
-  return nudgeClear({ ...at(boat), hw: ICON_HALF_PX, hh: 7 }, taken);
+  // …and kept on the map: the wrapper doesn't clip, and above it is the title (r1).
+  return nudgeClear({ ...at(boat), hw: ICON_HALF_PX, hh: 7 }, taken, GAP_PX, 40, { w: MAP_MIN_PX, h: rows * s });
 }
 

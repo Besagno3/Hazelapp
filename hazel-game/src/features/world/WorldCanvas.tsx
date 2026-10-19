@@ -375,6 +375,7 @@ export default function WorldCanvas({
   aboard = false,
   flying = false,
   flightRef,
+  skipRef,
   escort = null,
 }: {
   zoneId: ZoneId;
@@ -415,6 +416,11 @@ export default function WorldCanvas({
   flying?: boolean;
   /** 🐉 Fly / 🛬 Land from the HUD (#75 item 15b): taken by the loop once the world runs. */
   flightRef?: MutableRefObject<'fly' | 'land' | null>;
+  /**
+   * The screen's "⏩ Tap to skip" while a fog reveal plays (#159 r1): set to
+   * skip it — for a screen reader's click, which presses no key and taps nothing.
+   */
+  skipRef?: MutableRefObject<boolean>;
   /** An escort's walk under way here (#75 item 14g), read live. */
   escort?: EscortWalk | null;
 }) {
@@ -619,6 +625,9 @@ export default function WorldCanvas({
     } else {
       // Reuse the live instance: move its canvas into this mount's container.
       host.appendChild(sharedKaplay.canvas);
+      // After a hot reload, a sprite added since has no sheet yet (#159 r1):
+      // load what's new (the rest is already loaded and left alone).
+      if (import.meta.hot) loadWorldSprites(sharedKaplay.k);
     }
     kRef.current = sharedKaplay.k;
     return () => {
@@ -2196,10 +2205,8 @@ export default function WorldCanvas({
       t: number;
       from: { x: number; y: number };
       to: { x: number; y: number };
-      /** Presses so far when it started: a newer one skips it. */
+      /** Presses so far when it started: a newer one skips it (the screen says so: `onReveal`). */
       presses: number;
-      /** "Tap or press a key to skip", pinned to the screen while it plays. */
-      hint: { destroy: () => void }[];
     };
     let reveal: Reveal | null = null;
     const camFor = (x: number, y: number) => {
@@ -2231,29 +2238,6 @@ export default function WorldCanvas({
       const home = camFor(player.pos.x, player.pos.y);
       k.setCamPos(home.x, home.y);
     }
-    /** The skip hint: a small pill at the top of the screen. */
-    function skipHint(): { destroy: () => void }[] {
-      const label = 'Tap or press a key to skip ⏩';
-      const text = k.add([
-        k.text(label, { size: 11 }),
-        k.pos(VIEW_W / 2, 16),
-        k.anchor('center'),
-        k.color(255, 252, 235),
-        k.fixed(),
-        k.z(30),
-      ]) as unknown as { width?: number; destroy: () => void };
-      const pill = k.add([
-        k.rect((text.width ?? label.length * 6) + 14, 20, { radius: 6 }),
-        k.pos(VIEW_W / 2, 16),
-        k.anchor('center'),
-        k.color(20, 16, 36),
-        k.opacity(0.6),
-        k.fixed(),
-        k.z(29),
-      ]);
-      return [text, pill];
-    }
-
     /** Advance the reveal by `dt`; false once it's over. */
     function stepReveal(r: Reveal, dt: number): boolean {
       r.t += dt;
@@ -2503,8 +2487,8 @@ export default function WorldCanvas({
             from: camNow(),
             to: bankCam(due[0].def),
             presses: pressesRef.current,
-            hint: skipHint(),
           };
+          if (skipRef) skipRef.current = false;
           cinematic = true;
           cbRef.current.onReveal?.(true);
           showPrompt(null);
@@ -2520,9 +2504,9 @@ export default function WorldCanvas({
         if (flightRef) flightRef.current = null;
         // Skip on a fresh key press, click or tap (the d-pad too) — never on a
         // key or the d-pad already held when it began.
-        if (pressesRef.current > reveal.presses) skipReveal(reveal);
+        if (pressesRef.current > reveal.presses || skipRef?.current) skipReveal(reveal);
         else if (stepReveal(reveal, dt)) return;
-        for (const part of reveal.hint) part.destroy();
+        if (skipRef) skipRef.current = false;
         reveal = null;
         cinematic = false;
         cbRef.current.onReveal?.(false);

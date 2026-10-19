@@ -133,6 +133,39 @@ describe('AuthPage — a grown-up signs up (#124)', () => {
     expect(screen.getByLabelText('Email')).toHaveValue('mum@example.com');
     expect(screen.getByLabelText('Email')).toHaveFocus();
   });
+
+  it('signing up with an email that has an account says to sign in — "Forgot password?" is hidden on sign-up', async () => {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: { code: 'user_already_exists', message: 'User already registered', status: 422 } });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    await screen.findByText('There\'s already an account with that email. Tap "Sign in" below instead.');
+    expect(screen.queryByText('Forgot password?')).toBeNull();
+    expect(screen.getByRole('button', { name: /Sign in$/ })).toBeInTheDocument();
+  });
+
+  it('a stricter password rule on sign-up names what the typed password is missing', async () => {
+    auth.signUp.mockResolvedValue({
+      data: { session: null },
+      error: {
+        code: 'weak_password',
+        message: 'Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789.',
+        reasons: ['characters'],
+        status: 422,
+      },
+    });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragon7fire' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    // It has small letters and a number: only the capital is missing.
+    await screen.findByText('That password needs a capital letter.');
+  });
 });
 
 describe('AuthPage — signing in before confirming', () => {
@@ -183,7 +216,7 @@ describe('AuthPage — signing in before confirming', () => {
     expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'mum@example.com' });
     expect(screen.getByText(/Sent! A new link is on its way to mum@example\.com/)).toHaveClass('text-green-700');
     // It just went: the button waits before another.
-    expect(screen.getByRole('button', { name: /Send the link again in \d+s/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Send the link again in \d+ seconds/ })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('the offer goes with its message (Forgot password? clears both)', async () => {
@@ -218,23 +251,44 @@ describe('AuthPage — send the link again (#146)', () => {
     await signUp();
     expect(screen.getByRole('heading', { name: 'Check your inbox' })).toBeInTheDocument();
     // The sign-up email only just went: Supabase would refuse another yet.
-    const wait = screen.getByRole('button', { name: 'Send the link again in 60s' });
-    expect(wait).toBeDisabled();
+    // The wait in words ("60s" can be read as "sixties"); on screen, short.
+    const wait = screen.getByRole('button', { name: 'Send the link again in 60 seconds' });
+    expect(wait).toHaveTextContent('Send the link again in 60s');
+    expect(wait).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(wait);
+    expect(auth.resend).not.toHaveBeenCalled();
     tick(20_000);
-    expect(screen.getByRole('button', { name: 'Send the link again in 40s' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send the link again in 40 seconds' })).toHaveAttribute('aria-disabled', 'true');
     tick(40_000);
     const again = screen.getByRole('button', { name: '📨 Send the link again' });
-    expect(again).toBeEnabled();
+    expect(again).toHaveAttribute('aria-disabled', 'false');
     fireEvent.click(again);
     await act(async () => {});
     expect(auth.resend).toHaveBeenCalledOnce();
     expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'mum@example.com' });
     // Said where screen readers hear it, and the wait starts again.
     expect(screen.getAllByRole('status').some((r) => /Sent! A new link is on its way to mum@example\.com/.test(r.textContent ?? ''))).toBe(true);
-    expect(screen.getByRole('button', { name: 'Send the link again in 60s' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send the link again in 60 seconds' })).toHaveAttribute('aria-disabled', 'true');
   });
 
-  it("a refused resend says why in plain words, and doesn't start the wait over", async () => {
+  it('keeps the keyboard where it was: the button waits without going disabled under the focus (#146 review)', async () => {
+    vi.useFakeTimers();
+    auth.resend.mockResolvedValue({ data: {}, error: null });
+    await signUp();
+    tick(60_000);
+    const again = screen.getByRole('button', { name: '📨 Send the link again' });
+    again.focus();
+    fireEvent.click(again);
+    // Sending…, then counting down: never `disabled`, which drops focus to the page.
+    expect(again).toHaveTextContent('Sending…');
+    expect(again).not.toBeDisabled();
+    await act(async () => {});
+    expect(again).toHaveAccessibleName('Send the link again in 60 seconds');
+    expect(again).not.toBeDisabled();
+    expect(again).toHaveFocus();
+  });
+
+  it('a refused resend says why in plain words, and counts down the wait it named (#146 review)', async () => {
     vi.useFakeTimers();
     auth.resend.mockResolvedValue({
       data: {},
@@ -245,7 +299,30 @@ describe('AuthPage — send the link again (#146)', () => {
     fireEvent.click(screen.getByRole('button', { name: '📨 Send the link again' }));
     await act(async () => {});
     expect(screen.getByText('Too many tries for now. Please wait 12 seconds, then try again.')).toHaveClass('text-red-700');
-    expect(screen.getByRole('button', { name: '📨 Send the link again' })).toBeEnabled();
+    // The button and the words agree: not another tap the server would refuse.
+    const wait = screen.getByRole('button', { name: 'Send the link again in 12 seconds' });
+    expect(wait).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(wait);
+    expect(auth.resend).toHaveBeenCalledOnce();
+    tick(12_000);
+    expect(screen.getByRole('button', { name: '📨 Send the link again' })).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('the hourly email cap says about an hour — and no countdown promising a minute', async () => {
+    vi.useFakeTimers();
+    auth.resend.mockResolvedValue({ data: {}, error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } });
+    await signUp();
+    tick(60_000);
+    fireEvent.click(screen.getByRole('button', { name: '📨 Send the link again' }));
+    await act(async () => {});
+    expect(screen.getByText(/try again in about an hour \(and check spam for the last one\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '📨 Send the link again' })).toBeInTheDocument();
+  });
+
+  it('says what to do if they already had an account (a confirmed address gets no new email, and no error)', async () => {
+    vi.useFakeTimers();
+    await signUp();
+    expect(screen.getByText('Already have an account? Go back and sign in, or reset your password.')).toBeInTheDocument();
   });
 
   it('going back to sign in clears the note', async () => {
@@ -332,12 +409,38 @@ describe('ResetPasswordPage', () => {
   });
 
   it('stays in recovery mode and says what went wrong in plain words if saving fails (#130 S6)', async () => {
-    auth.updateUser.mockResolvedValue({ error: { code: 'weak_password', message: 'Password is too weak' } });
+    auth.updateUser.mockResolvedValue({
+      error: { code: 'weak_password', message: 'Password is known to be weak and easy to guess, please choose a different one.', reasons: ['pwned'] },
+    });
     useAuthStore.setState({ passwordRecovery: true });
     render(<ResetPasswordPage />);
     fill('dragonfire', 'dragonfire');
-    await screen.findByText(/That password is too easy to guess/);
-    expect(screen.queryByText('Password is too weak')).toBeNull();
+    // Read out as it appears (#130 S6 review).
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('That password has shown up in a data leak. Choose a different one.'));
+    expect(screen.queryByText(/known to be weak/)).toBeNull();
     expect(useAuthStore.getState().passwordRecovery).toBe(true);
+  });
+
+  it('a stricter password rule names what this password is missing', async () => {
+    auth.updateUser.mockResolvedValue({
+      error: {
+        code: 'weak_password',
+        message: 'Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789.',
+        reasons: ['characters'],
+      },
+    });
+    render(<ResetPasswordPage />);
+    fill('dragonfire', 'dragonfire');
+    await screen.findByText('That password needs a capital letter and a number.');
+  });
+
+  it('a link that has run out: its words and its button agree on the way back (#88 review)', async () => {
+    auth.updateUser.mockResolvedValue({ error: { name: 'AuthSessionMissingError', message: 'Auth session missing!', status: 400 } });
+    render(<ResetPasswordPage />);
+    expect(screen.getByRole('button', { name: 'Cancel and sign out' })).toBeInTheDocument();
+    fill('dragonfire', 'dragonfire');
+    await screen.findByText('That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.');
+    fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    expect(auth.signOut).toHaveBeenCalled();
   });
 });

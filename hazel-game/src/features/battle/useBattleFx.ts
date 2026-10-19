@@ -17,6 +17,26 @@ export interface FloatText {
   text: string;
   side: FxSide;
   color: string;
+  /** Bigger and glowing: a super-effective hit, seen by a kid who doesn't read the message box. */
+  big?: boolean;
+}
+/**
+ * A banner that says what the player just did (a swap, a Pair Attack): it
+ * shows at once instead of waiting behind the queue — late, it would be out
+ * of date — and drops any of its kind still waiting.
+ */
+export type BannerKind = 'swap' | 'pair';
+export interface BannerOptions {
+  /** Words of an earlier banner this one answers ("Light a candle!" → lit): it takes that one's place at once. */
+  answers?: string;
+  kind?: BannerKind;
+}
+interface Banner {
+  text: string;
+  ttl: number;
+  kind?: BannerKind;
+  /** When it went on screen. */
+  at?: number;
 }
 export interface Fireball {
   id: number;
@@ -31,6 +51,8 @@ export const IMPACT_MS = 260;
 const FLINCH_MS = 420;
 /** How long the companion cheers for a streak. */
 const CHEER_MS = 1200;
+/** A banner an action banner cut short comes back for the rest of its time — at least this long, to be read again. */
+const BANNER_REREAD_MS = 1500;
 
 type Later = (fn: () => void, ms: number) => void;
 
@@ -88,9 +110,9 @@ export function useBattleFx() {
   const [floats, setFloats] = useState<FloatText[]>([]);
   const fxId = useRef(0);
   const float = useCallback(
-    (text: string, side: FxSide, color: string) => {
+    (text: string, side: FxSide, color: string, big = false) => {
       const id = ++fxId.current;
-      setFloats((f) => [...f, { id, text, side, color }]);
+      setFloats((f) => [...f, { id, text, side, color, big }]);
       later(() => setFloats((f) => f.filter((x) => x.id !== id)), 1100);
     },
     [later],
@@ -103,42 +125,72 @@ export function useBattleFx() {
   // stale timeout can never cut a banner short. The same banner showing or
   // waiting isn't queued twice. A banner that `answers` an earlier one (the
   // candle lit, for "Light a candle!") takes its place at once and drops it
-  // from the queue — still asking would be wrong. Warnings default to ⚠️;
+  // from the queue — still asking would be wrong. An action banner (`kind`:
+  // a swap, a Pair Attack) shows at once too: seconds late it would name a
+  // friend who's gone, or a strike long over (#97c review). It drops the
+  // waiting ones of its kind, and a callout it cuts short goes back to the
+  // front of the queue for the rest of its time. Warnings default to ⚠️;
   // other callers bring their own emoji.
   const [banner, setBanner] = useState<string | null>(null);
-  const bannerShown = useRef<string | null>(null);
-  const bannerQueue = useRef<{ text: string; ttl: number }[]>([]);
+  const bannerShown = useRef<Banner | null>(null);
+  const bannerQueue = useRef<Banner[]>([]);
   const bannerTimer = useRef<number | null>(null);
   const nextBanner = useCallback(function next() {
     const b = bannerQueue.current.shift() ?? null;
-    bannerShown.current = b?.text ?? null;
+    bannerShown.current = b ? { ...b, at: Date.now() } : null;
     bannerTimer.current = b ? window.setTimeout(next, b.ttl) : null;
     setBanner(b?.text ?? null);
   }, []);
-  const showBanner = useCallback(
-    (text: string, ttl = 2500, icon = '⚠️', answers?: string) => {
-      const line = `${icon} ${text}`;
-      if (answers) {
-        bannerQueue.current = bannerQueue.current.filter((b) => !b.text.includes(answers));
-        if (bannerShown.current?.includes(answers)) {
-          if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
-          bannerQueue.current.unshift({ text: line, ttl });
-          nextBanner();
-          return;
-        }
-      }
-      if (bannerShown.current === line || bannerQueue.current.some((b) => b.text === line)) return;
-      bannerQueue.current.push({ text: line, ttl });
-      if (bannerTimer.current === null) nextBanner();
+  /** `b` on screen now, ahead of anything waiting. */
+  const cutIn = useCallback(
+    (b: Banner) => {
+      if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+      bannerQueue.current.unshift(b);
+      nextBanner();
     },
     [nextBanner],
   );
-  useEffect(
-    () => () => {
-      if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+  const showBanner = useCallback(
+    (text: string, ttl = 2500, icon = '⚠️', { answers, kind }: BannerOptions = {}) => {
+      const line = `${icon} ${text}`;
+      const shown = bannerShown.current;
+      if (answers) {
+        bannerQueue.current = bannerQueue.current.filter((b) => !b.text.includes(answers));
+        if (shown?.text.includes(answers)) {
+          cutIn({ text: line, ttl });
+          return;
+        }
+      }
+      if (kind) {
+        bannerQueue.current = bannerQueue.current.filter((b) => b.kind !== kind);
+        // An action banner it cuts short is out of date already; a callout comes back.
+        if (shown && !shown.kind) {
+          const left = shown.ttl - (Date.now() - (shown.at ?? Date.now()));
+          bannerQueue.current.unshift({ text: shown.text, ttl: Math.max(BANNER_REREAD_MS, left) });
+        }
+        cutIn({ text: line, ttl, kind });
+        return;
+      }
+      if (shown?.text === line || bannerQueue.current.some((b) => b.text === line)) return;
+      bannerQueue.current.push({ text: line, ttl });
+      if (bannerTimer.current === null) nextBanner();
     },
-    [],
+    [nextBanner, cutIn],
   );
+  /**
+   * No banner on screen or waiting: the fight is over (nothing queued may
+   * cycle over the result panel), or the arena is going. Resets the timer's
+   * ref too, so effects run again (Fast Refresh) start the queue afresh
+   * instead of waiting on a timer that was cleared.
+   */
+  const clearBanners = useCallback(() => {
+    if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+    bannerTimer.current = null;
+    bannerQueue.current = [];
+    bannerShown.current = null;
+    setBanner(null);
+  }, []);
+  useEffect(() => clearBanners, [clearBanners]);
 
   // Lunges: a counter is the remount key for the motion; the motion name is set
   // in the same batch; the acting flag drives the sprite's attack/hurt clips.
@@ -243,6 +295,7 @@ export function useBattleFx() {
     later,
     float,
     showBanner,
+    clearBanners,
     lungeEnemy,
     perform,
     hitEnemy,

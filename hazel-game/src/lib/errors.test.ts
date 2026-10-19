@@ -1,6 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { authErrorMessage, errorMessage, friendlyMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE } from './errors';
-import { MIN_PASSWORD_LENGTH } from '../content/family';
+import {
+  authErrorMessage,
+  authRetryAfter,
+  errorMessage,
+  friendlyMessage,
+  isExpiredLink,
+  NETWORK_MESSAGE,
+  OFFLINE_MESSAGE,
+  SEND_FAILED_MESSAGE,
+  TROUBLE_MESSAGE,
+} from './errors';
 
 describe('errorMessage', () => {
   it('returns a string unchanged', () => {
@@ -70,11 +79,13 @@ describe('authErrorMessage (#130 S6)', () => {
     ['email not confirmed', { code: 'email_not_confirmed', message: 'Email not confirmed' }, /confirm your email first/],
     ['already registered', { code: 'user_already_exists', message: 'User already registered' }, /already an account with that email/],
     ['…email_exists', { code: 'email_exists', message: 'Email address already exists' }, /already an account/],
-    ['weak password', { code: 'weak_password', message: 'Password should be at least 6 characters.' }, new RegExp(`too easy to guess.*at least ${MIN_PASSWORD_LENGTH} characters`)],
-    ['…no code', { message: 'Password is too weak' }, /too easy to guess/],
+    ['weak password: too short', { code: 'weak_password', message: 'Password should be at least 8 characters.', reasons: ['length'] }, /^That password is too short\. Use at least 8 characters\.$/],
+    ['…no code', { message: 'Password should be at least 10 characters.' }, /at least 10 characters/],
     ['the same password again', { code: 'same_password', message: 'New password should be different from the old password.' }, /password you have now/],
     ['rate limited, with a wait', { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 39 seconds.', status: 429 }, /wait 39 seconds/],
     ['rate limited, no wait given', { message: 'Too many requests' }, /Too many tries.*wait a minute/],
+    ['the hourly email cap: an hour, not a minute', { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 }, /about an hour \(and check spam for the last one\)/],
+    ['…an older server, no code', { message: 'Email rate limit exceeded', status: 429 }, /about an hour/],
     ['…by status alone', { message: 'Request rate limit reached', status: 429 }, /Too many tries/],
     ['a bad email address', { code: 'email_address_invalid', message: 'Email address "x@y" is invalid' }, /doesn't look right/],
     ['an expired link', { code: 'otp_expired', message: 'Token has expired or is invalid' }, /link has run out/],
@@ -93,8 +104,122 @@ describe('authErrorMessage (#130 S6)', () => {
   });
 
   it('anything else in its own words, without the code or details', () => {
-    expect(authErrorMessage({ code: 'unexpected_failure', message: 'Database error saving new user', details: 'trigger' })).toBe(
-      'Database error saving new user',
+    expect(authErrorMessage({ code: 'email_provider_disabled', message: 'Email logins are disabled', details: 'config', status: 400 })).toBe(
+      'Email logins are disabled',
     );
+  });
+});
+
+describe('authErrorMessage — a refused password says what to change (#130 S6 review)', () => {
+  const SETS = "abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789, !@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+  const chars = (sets = SETS) => ({ code: 'weak_password', message: `Password should contain at least one character of each: ${sets}.`, reasons: ['characters'] });
+
+  it('kinds of character: only the ones the password is missing', () => {
+    expect(authErrorMessage(chars(), { password: 'dragonfire1' })).toBe('That password needs a capital letter and a symbol (like ! or ?).');
+    expect(authErrorMessage(chars('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789'), { password: 'dragonfire' })).toBe(
+      'That password needs a number.',
+    );
+  });
+
+  it('…every kind it asks for, when the password isn’t known', () => {
+    expect(authErrorMessage(chars())).toBe('That password needs a small letter, a capital letter, a number and a symbol (like ! or ?).');
+  });
+
+  it('a password from a data leak: choose another — not a rule it already meets', () => {
+    const msg = authErrorMessage(
+      { code: 'weak_password', message: 'Password is known to be weak and easy to guess, please choose a different one.', reasons: ['pwned'] },
+      { password: 'dragonfire11' },
+    );
+    expect(msg).toBe('That password has shown up in a data leak. Choose a different one.');
+  });
+
+  it('two rules at once, in one line', () => {
+    const err = {
+      code: 'weak_password',
+      message: 'Password should be at least 8 characters. Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789.',
+      reasons: ['length', 'characters'],
+    };
+    expect(authErrorMessage(err, { password: 'dragon' })).toBe('That password is too easy to guess. Use at least 8 characters, with a capital letter and a number.');
+  });
+
+  it('a rule it doesn’t know: the server’s own words, tidied', () => {
+    expect(authErrorMessage({ code: 'weak_password', message: 'password must not contain your name', reasons: [] })).toBe(
+      'Password must not contain your name.',
+    );
+  });
+});
+
+describe('authErrorMessage — only points at what the screen has (#130 S6 review)', () => {
+  const wrong = { code: 'invalid_credentials', message: 'Invalid login credentials', status: 400 };
+  const taken = { code: 'user_already_exists', message: 'User already registered', status: 422 };
+
+  it('the 👪 Grown-ups gate has no email field, and its link is "Forgot it?"', () => {
+    const msg = authErrorMessage(wrong, { where: 'gate' });
+    expect(msg).toBe('That password isn\'t right. Try again, or tap "Forgot it?" below.');
+    expect(msg).not.toMatch(/email|Forgot password/);
+  });
+
+  it('sign-up hides "Forgot password?": it says to sign in', () => {
+    const msg = authErrorMessage(taken, { where: 'sign-up' });
+    expect(msg).toMatch(/already an account with that email\. Tap "Sign in" below instead/);
+    expect(msg).not.toMatch(/Forgot password/);
+  });
+
+  it('the reset page names its own way back', () => {
+    expect(authErrorMessage({ code: 'otp_expired', message: 'Email link is invalid or has expired' }, { where: 'reset' })).toBe(
+      'That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.',
+    );
+  });
+});
+
+describe('authErrorMessage — the server’s own trouble isn’t the grown-up’s connection (#130 S6 review)', () => {
+  it('a 502/503/504 (supabase-js: AuthRetryableFetchError with that status) says to try again in a few minutes', () => {
+    expect(authErrorMessage({ name: 'AuthRetryableFetchError', message: 'upstream connect error', status: 503 })).toBe(TROUBLE_MESSAGE);
+    expect(friendlyMessage({ name: 'AuthRetryableFetchError', message: '{}', status: 504 })).toBe(TROUBLE_MESSAGE);
+  });
+
+  it('…while a fetch that never got an answer still says to check the connection', () => {
+    expect(authErrorMessage({ name: 'AuthRetryableFetchError', message: 'Failed to fetch', status: 0 })).toBe(NETWORK_MESSAGE);
+  });
+
+  it('an unexpected failure on Supabase’s side, in plain words', () => {
+    expect(authErrorMessage({ code: 'unexpected_failure', message: 'Database error saving new user', status: 500 })).toBe(TROUBLE_MESSAGE);
+    expect(authErrorMessage({ message: 'Internal Server Error', status: 500 })).toBe(TROUBLE_MESSAGE);
+  });
+
+  it('an email that couldn’t be sent says just that', () => {
+    expect(authErrorMessage({ code: 'unexpected_failure', message: 'Error sending confirmation email', status: 500 })).toBe(SEND_FAILED_MESSAGE);
+    expect(authErrorMessage({ message: 'Error sending recovery email', status: 500 })).toBe(SEND_FAILED_MESSAGE);
+    expect(authErrorMessage({ code: 'email_address_not_authorized', message: 'Email address "a@b.co" cannot be used as it is not authorized', status: 400 })).toBe(
+      SEND_FAILED_MESSAGE,
+    );
+  });
+});
+
+describe('isExpiredLink: a link that ran out, not any "expired"', () => {
+  it('the email link’s own errors', () => {
+    expect(isExpiredLink({ code: 'otp_expired', message: 'Token has expired or is invalid' })).toBe(true);
+    expect(isExpiredLink({ message: 'Email link is invalid or has expired' })).toBe(true);
+    // The reset link's recovery session gone (supabase-js turns session_not_found into this).
+    expect(isExpiredLink({ name: 'AuthSessionMissingError', message: 'Auth session missing!', status: 400 })).toBe(true);
+  });
+
+  it('a JWT that has expired is not a link that ran out', () => {
+    const jwt = { code: 'bad_jwt', message: 'invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired', status: 403 };
+    expect(isExpiredLink(jwt)).toBe(false);
+    expect(authErrorMessage(jwt)).not.toMatch(/run out/);
+  });
+});
+
+describe('authRetryAfter: how long the resend button counts down after a refusal', () => {
+  it('the wait the server named', () => {
+    expect(authRetryAfter({ code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 12 seconds.', status: 429 })).toBe(12);
+  });
+  it('a minute for a request limit', () => {
+    expect(authRetryAfter({ code: 'over_request_rate_limit', message: 'Request rate limit reached', status: 429 })).toBe(60);
+  });
+  it('none for the hourly email cap (a countdown would promise falsely), or anything else', () => {
+    expect(authRetryAfter({ code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 })).toBeNull();
+    expect(authRetryAfter({ code: 'invalid_credentials', message: 'Invalid login credentials' })).toBeNull();
   });
 });

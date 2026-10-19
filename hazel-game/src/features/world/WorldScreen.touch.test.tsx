@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { WorldCanvasCallbacks } from './WorldCanvas';
 import type { FogDef } from '../../content/zones';
 
 // The canvas is KaPlay — stand in a div that keeps the callbacks the screen hands it.
-const canvas: { callbacks?: WorldCanvasCallbacks } = {};
+const canvas: { callbacks?: WorldCanvasCallbacks; skipRef?: { current: boolean } } = {};
 vi.mock('./WorldCanvas', () => ({
-  default: (props: { callbacks: WorldCanvasCallbacks }) => {
+  default: (props: { callbacks: WorldCanvasCallbacks; skipRef?: { current: boolean } }) => {
     canvas.callbacks = props.callbacks;
+    canvas.skipRef = props.skipRef;
     return <div data-testid="canvas" />;
   },
 }));
@@ -68,7 +69,7 @@ describe('the help line under the map speaks to touch players too (#130 S4, #110
     expect(keys.className).toContain('touch:hidden');
     expect(keys).toHaveTextContent('Walk: arrow keys / WASD');
     expect(touch.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'touch:inline']));
-    expect(touch).toHaveTextContent('Walk: the arrow pad · ✋ or a tap to talk, open and use');
+    expect(touch).toHaveTextContent('Walk: the arrow pad · tap ✋ or tap someone to talk, open and use');
     expect(touch.textContent).not.toMatch(/WASD|arrow keys/);
     // The pad itself is shown by the same screen.
     expect(screen.getByTestId('touch-pad').className).toContain('touch:flex');
@@ -81,7 +82,7 @@ describe('the help line under the map speaks to touch players too (#130 S4, #110
     unmount();
     start('dawnreach', 'ember', { [story.FLIGHT_FLAG]: true });
     render(<WorldScreen />);
-    expect(helpLines().touch).toHaveTextContent('Fly: the arrow pad · Land: 🛬, ✋ or a tap');
+    expect(helpLines().touch).toHaveTextContent('Fly: the arrow pad · Land: tap 🛬, ✋ or the map');
     expect(helpLines().keys).toHaveTextContent('Land: Space, F or 🛬');
   });
 });
@@ -119,5 +120,46 @@ describe('the HUD’s buttons keep their 44 px taps when they wrap (bench … hu
     expect(menu.parentElement).toBe(group);
     expect(group.className).toContain('gap-y-4');
     for (const b of [fly, menu]) expect(b.className).toContain('after:-inset-y-2');
+  });
+});
+
+describe('a fog reveal says how to skip it, in words a phone can read (#159 r1)', () => {
+  it('while it plays, a 44 px "⏩ Tap to skip" (or "Press any key") button takes the help line\'s place — and is heard', () => {
+    start('dawnreach');
+    render(<WorldScreen />);
+    expect(screen.queryByTestId('reveal-skip')).toBeNull();
+    act(() => canvas.callbacks!.onReveal!(true));
+    const skip = screen.getByTestId('reveal-skip');
+    expect(skip.tagName).toBe('BUTTON');
+    expect(skip.className).toContain('min-h-11');
+    const [keys, touch] = Array.from(skip.querySelectorAll('span'));
+    expect(keys).toHaveTextContent('⏩ Press any key to skip');
+    expect(keys.className).toContain('touch:hidden');
+    expect(touch).toHaveTextContent('⏩ Tap to skip');
+    expect(touch.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'touch:inline']));
+    expect(screen.queryByTestId('world-help')).toBeNull();
+    // Said in the toast's live region, so a screen reader hears it too.
+    expect(within(screen.getByTestId('world-toast')).getByText('The fog is lifting. Tap to skip.')).toBeInTheDocument();
+    // A press of it (even a screen reader's, which taps nothing) asks the canvas to skip.
+    expect(canvas.skipRef!.current).toBe(false);
+    fireEvent.click(skip);
+    expect(canvas.skipRef!.current).toBe(true);
+    act(() => canvas.callbacks!.onReveal!(false));
+    expect(screen.queryByTestId('reveal-skip')).toBeNull();
+    expect(screen.getByTestId('world-help')).toBeInTheDocument();
+  });
+});
+
+describe('a sideways phone keeps the map and its buttons on screen (#159 r1)', () => {
+  const SHORT = '[@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]';
+  it('the HUD row spans the page there, like the top bar, and the help line steps aside for the pad', () => {
+    start('dawnreach', 'ember', { [story.FLIGHT_FLAG]: true });
+    render(<WorldScreen />);
+    const hud = screen.getByRole('heading', { level: 1 }).closest('div')!.parentElement!;
+    expect(hud.className).toContain(`${SHORT}:w-[calc(100vw-2rem)]`);
+    expect(screen.getByTestId('world-help').className).toContain(`${SHORT}:hidden`);
+    // The Land button and 📜 Menu are in that row.
+    expect(within(hud).getByRole('button', { name: 'Land' })).toBeInTheDocument();
+    expect(within(hud).getByRole('button', { name: '📜 Menu' })).toBeInTheDocument();
   });
 });

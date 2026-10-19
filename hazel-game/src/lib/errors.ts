@@ -1,5 +1,4 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
-import { MIN_PASSWORD_LENGTH } from '../content/family';
 
 /**
  * Best-effort human-readable message from any error value — `Error`, a
@@ -70,68 +69,204 @@ function ownWords(err: unknown): string {
 
 export const OFFLINE_MESSAGE = "You're offline. Check your internet connection, then try again.";
 export const NETWORK_MESSAGE = "We couldn't reach Hazel Quest. Check your internet connection, then try again.";
+/** The service answered, but with its own trouble (a 5xx): nothing the grown-up's connection can fix. */
+export const TROUBLE_MESSAGE = 'Hazel Quest is having trouble right now — please try again in a few minutes.';
+/** Supabase couldn't send an email (its mail server refused, or isn't set up for this address). */
+export const SEND_FAILED_MESSAGE = "We couldn't send the email just now. Please try again in a few minutes.";
 
-/** The connection failed — offline, or a fetch that never reached the server. */
+/** The error's `code`, when it has one (a Supabase error does). */
+function codeOf(err: unknown): string {
+  const code = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).code : undefined;
+  return typeof code === 'string' ? code : '';
+}
+
+/** The error's `status`, when it has a number for one. */
+function statusOf(err: unknown): number {
+  const status = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).status : undefined;
+  return typeof status === 'number' ? status : 0;
+}
+
+/**
+ * The connection failed — offline, or a fetch that never reached the server —
+ * or the service is down: supabase-js turns a 502/503/504 into an
+ * `AuthRetryableFetchError` carrying that status (and a fetch that never got
+ * an answer into one with status 0), and "check your internet" would be wrong.
+ */
 function networkTrouble(err: unknown): string | null {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return OFFLINE_MESSAGE;
   const o = (typeof err === 'object' && err !== null ? err : {}) as Record<string, unknown>;
-  const words = ownWords(err);
-  if (o.name === 'AuthRetryableFetchError' || /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(words)) {
-    return NETWORK_MESSAGE;
-  }
+  if (o.name === 'AuthRetryableFetchError') return statusOf(err) >= 500 ? TROUBLE_MESSAGE : NETWORK_MESSAGE;
+  if (/failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(ownWords(err))) return NETWORK_MESSAGE;
   return null;
 }
 
 /**
- * A message for a kid's or grown-up's screen (#130 S6): the connection's
- * trouble in plain words, else the error's own words — never its `[code]`,
- * details or hint, which go to the console (`errorMessage`).
+ * A message for a kid's or grown-up's screen (#130 S6): the connection's or
+ * the server's trouble in plain words, else the error's own words — never its
+ * `[code]`, details or hint, which go to the console (`errorMessage`).
  */
 export function friendlyMessage(err: unknown): string {
-  return networkTrouble(err) ?? ownWords(err);
+  return networkTrouble(err) ?? (statusOf(err) >= 500 ? TROUBLE_MESSAGE : ownWords(err));
+}
+
+/**
+ * Where an auth error is shown, so its words only point at what that screen
+ * has: the 👪 Grown-ups gate has no email field and its link reads "Forgot
+ * it?"; sign-up hides "Forgot password?"; the reset page's way back is its own
+ * button. `password` is what was typed, so a password rule can name what it's
+ * missing.
+ */
+export interface AuthErrorContext {
+  where?: 'sign-in' | 'sign-up' | 'gate' | 'reset';
+  password?: string;
+}
+
+const RATE_LIMIT_CODES = ['over_email_send_rate_limit', 'over_request_rate_limit', 'over_sms_send_rate_limit'];
+
+/** Too many requests: which limit, and how long it said to wait. Null when it isn't one. */
+function rateLimit(err: unknown): { secs: number | null; emailCap: boolean } | null {
+  const code = codeOf(err);
+  const words = ownWords(err);
+  if (!(RATE_LIMIT_CODES.includes(code) || /rate limit|too many requests|only request this after/i.test(words) || statusOf(err) === 429)) return null;
+  const secs = words.match(/after (\d+) seconds?/i)?.[1];
+  // No wait in it: the project's hourly email cap ("email rate limit exceeded";
+  // Supabase's own mail server sends a few an hour), not one address's minute.
+  return { secs: secs ? Number(secs) : null, emailCap: !secs && (code === 'over_email_send_rate_limit' || /email rate limit/i.test(words)) };
+}
+
+/**
+ * How many seconds before asking again can work, when an auth error is a rate
+ * limit with a wait in it: the "after N seconds" it named, or a minute for a
+ * request limit. Null for anything else — including the hourly email cap,
+ * which a countdown would only promise falsely (#146 review).
+ */
+export function authRetryAfter(err: unknown): number | null {
+  const limit = rateLimit(err);
+  if (!limit || limit.emailCap) return null;
+  return limit.secs ?? 60;
+}
+
+/** The link in an email ran out (or was used already): ask for a new one. */
+export function isExpiredLink(err: unknown): boolean {
+  // Not any "expired": a JWT's "token is expired" isn't a link that ran out.
+  // A reset link's recovery session gone (`session_not_found`, which
+  // supabase-js reports as "Auth session missing!") is, on the reset page.
+  return (
+    ['otp_expired', 'flow_state_expired', 'session_not_found', 'session_expired'].includes(codeOf(err)) ||
+    /email link is invalid or has expired|token has expired or is invalid|auth session missing/i.test(ownWords(err))
+  );
+}
+
+/** "a, b and c". */
+function andList(items: string[]): string {
+  return items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
+/**
+ * The character kinds a password rule asks for ("Password should contain at
+ * least one character of each: abc…z, ABC…Z, 0123456789, !@#…"), as words —
+ * only the ones `password` is missing, when it's known.
+ */
+function missingKinds(words: string, password?: string): string[] {
+  const list = words.match(/at least one character of each:\s*(.*)$/i)?.[1];
+  if (!list) return [];
+  // Up to the next sentence (a leaked-password line can follow), less the full stop.
+  const sets = list.split(/\.\s+(?=[A-Z])/)[0].replace(/\.$/, '').split(', ').filter(Boolean);
+  const kinds = sets.map((set) => ({
+    set,
+    kind: /[a-z]/.test(set) && /[A-Z]/.test(set)
+      ? 'a letter'
+      : /[a-z]/.test(set)
+        ? 'a small letter'
+        : /[A-Z]/.test(set)
+          ? 'a capital letter'
+          : /[0-9]/.test(set)
+            ? 'a number'
+            : 'a symbol (like ! or ?)',
+  }));
+  const missing = password === undefined ? kinds : kinds.filter(({ set }) => ![...set].some((ch) => password.includes(ch)));
+  return (missing.length > 0 ? missing : kinds).map((k) => k.kind);
+}
+
+/**
+ * Why the server refused a password, in words that say what to change
+ * (#130 S6 review): the form already holds to `MIN_PASSWORD_LENGTH`, so this
+ * only comes back when the project's rule is stricter — a longer minimum,
+ * kinds of character, or a password known from a data leak.
+ */
+function weakPasswordMessage(err: unknown, password?: string): string {
+  const o = (typeof err === 'object' && err !== null ? err : {}) as Record<string, unknown>;
+  const words = ownWords(err);
+  const reasons = Array.isArray(o.reasons) ? o.reasons : [];
+  const length = words.match(/at least (\d+) characters/i)?.[1];
+  const needs = andList(missingKinds(words, password));
+  const pwned = reasons.includes('pwned') || /known to be weak|pwned|data leak|breach/i.test(words);
+  const rule = length && needs ? `Use at least ${length} characters, with ${needs}.` : length ? `Use at least ${length} characters.` : needs ? `It needs ${needs}.` : '';
+  if (pwned) return ['That password has shown up in a data leak. Choose a different one.', rule].filter(Boolean).join(' ');
+  if (length && needs) return `That password is too easy to guess. ${rule}`;
+  if (length) return `That password is too short. ${rule}`;
+  if (needs) return `That password needs ${needs}.`;
+  // A rule we don't know (a custom password check): its own words, tidied.
+  const own = words.trim().replace(/^\w/, (c) => c.toUpperCase());
+  return own ? (/[.!?]$/.test(own) ? own : `${own}.`) : 'That password is too easy to guess. Choose a different one.';
 }
 
 /**
  * What a Supabase sign-in, sign-up, reset or new password error means, in
- * words a grown-up can act on (#130 S6). Matched by the error's `code` first,
- * then its words (older servers send no code); anything else falls back to
- * `friendlyMessage`. Log `errorMessage(err)` beside it.
+ * words a grown-up can act on (#130 S6), pointing only at what `where` has on
+ * screen. Matched by the error's `code` first, then its words (older servers
+ * send no code); anything else falls back to `friendlyMessage`. Log
+ * `errorMessage(err)` beside it.
  */
-export function authErrorMessage(err: unknown): string {
+export function authErrorMessage(err: unknown, { where = 'sign-in', password }: AuthErrorContext = {}): string {
   const net = networkTrouble(err);
   if (net) return net;
-  const o = (typeof err === 'object' && err !== null ? err : {}) as Record<string, unknown>;
-  const code = typeof o.code === 'string' ? o.code : '';
+  const code = codeOf(err);
   const words = ownWords(err);
   const is = (codes: string[], pattern: RegExp) => codes.includes(code) || pattern.test(words);
 
   if (is(['invalid_credentials'], /invalid login credentials/i)) {
-    return "That email and password don't match. Check them and try again, or tap \"Forgot password?\".";
+    return where === 'gate'
+      ? 'That password isn\'t right. Try again, or tap "Forgot it?" below.'
+      : "That email and password don't match. Check them and try again, or tap \"Forgot password?\".";
   }
   if (is(['email_not_confirmed'], /email not confirmed/i)) {
     return 'Please confirm your email first: tap the link we sent you. Can\'t find it? Look in your spam or junk folder.';
   }
   if (is(['user_already_exists', 'email_exists'], /already (been )?registered|already exists/i)) {
-    return 'There\'s already an account with that email. Sign in instead, or tap "Forgot password?".';
+    return where === 'sign-up'
+      ? 'There\'s already an account with that email. Tap "Sign in" below instead.'
+      : 'There\'s already an account with that email. Sign in instead, or tap "Forgot password?".';
   }
   if (is(['same_password'], /should be different from the old/i)) {
     return "That's the password you have now. Choose a new one.";
   }
-  if (is(['weak_password'], /password should|password is too weak|weak password/i)) {
-    return `That password is too easy to guess. Use at least ${MIN_PASSWORD_LENGTH} characters, with letters and numbers.`;
+  if (is(['weak_password'], /password should|password is too weak|weak password|known to be weak/i)) {
+    return weakPasswordMessage(err, password);
   }
-  if (is(['over_email_send_rate_limit', 'over_request_rate_limit', 'over_sms_send_rate_limit'], /rate limit|too many requests|only request this after/i) || o.status === 429) {
-    const secs = words.match(/after (\d+) seconds?/i)?.[1];
-    return secs ? `Too many tries for now. Please wait ${secs} seconds, then try again.` : 'Too many tries for now. Please wait a minute, then try again.';
+  const limit = rateLimit(err);
+  if (limit) {
+    if (limit.secs) return `Too many tries for now. Please wait ${limit.secs} seconds, then try again.`;
+    if (limit.emailCap) return "We've sent a lot of emails just now. Please try again in about an hour (and check spam for the last one).";
+    return 'Too many tries for now. Please wait a minute, then try again.';
   }
   if (is(['email_address_invalid'], /invalid format|email address.*invalid|valid email/i)) {
     return "That email address doesn't look right. Check it and try again.";
   }
-  if (is(['session_not_found', 'session_expired', 'otp_expired', 'flow_state_expired'], /session missing|expired/i)) {
-    return 'That link has run out. Go back to sign in and ask for a new one.';
+  if (isExpiredLink(err)) {
+    return where === 'reset'
+      ? 'That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.'
+      : 'That link has run out. Go back to sign in and ask for a new one.';
   }
   if (is(['signup_disabled'], /signups not allowed/i)) {
     return 'New accounts are paused right now. Please try again later.';
   }
+  // The mail server refused ("Error sending confirmation email", or an address
+  // Supabase's own mail server won't send to).
+  if (is(['email_address_not_authorized'], /error sending .*email|cannot be used as it is not authorized/i)) {
+    return SEND_FAILED_MESSAGE;
+  }
+  // Supabase's own failure ("Database error saving new user"): not the grown-up's to fix.
+  if (code === 'unexpected_failure' || statusOf(err) >= 500) return TROUBLE_MESSAGE;
   return friendlyMessage(err);
 }

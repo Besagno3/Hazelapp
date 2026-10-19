@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { authErrorMessage, errorMessage } from '../../lib/errors';
+import { authErrorMessage, authRetryAfter, errorMessage, type AuthErrorContext } from '../../lib/errors';
 import PasswordInput from '../../components/PasswordInput';
 import PrivacyNotice from '../family/PrivacyNotice';
 import { CONSENT_VERSION, MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -20,9 +20,9 @@ function notConfirmed(err: { code?: string; message?: string }): boolean {
 const RESEND_COOLDOWN_S = 60;
 
 /** The friendly words on screen; the whole error in the console, for whoever fixes it (#130 S6). */
-function shown(where: string, err: unknown): string {
-  console.warn(`${where} failed:`, errorMessage(err));
-  return authErrorMessage(err);
+function shown(what: string, err: unknown, context?: AuthErrorContext): string {
+  console.warn(`${what} failed:`, errorMessage(err));
+  return authErrorMessage(err, context);
 }
 
 /**
@@ -46,15 +46,16 @@ export default function AuthPage() {
   const inboxHeading = useRef<HTMLHeadingElement>(null);
   const emailField = useRef<HTMLInputElement>(null);
   const wasSent = useRef(false);
-  // "Send the link again" (#146): when the last link went out (sign-up counts),
-  // the clock that counts the wait down, and what the last try said.
-  const [linkSentAt, setLinkSentAt] = useState<number | null>(null);
+  // "Send the link again" (#146): when asking again can work (a minute after
+  // the last link went out — sign-up counts — or when a refusal said), the
+  // clock that counts the wait down, and what the last try said.
+  const [resendAt, setResendAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [resending, setResending] = useState(false);
   const [resendNote, setResendNote] = useState<{ ok: boolean; text: string } | null>(null);
   // Signing in said the email isn't confirmed yet: offer the link again for it.
   const [unconfirmed, setUnconfirmed] = useState<string | null>(null);
-  const waitLeft = linkSentAt === null ? 0 : Math.max(0, Math.ceil((linkSentAt + RESEND_COOLDOWN_S * 1000 - now) / 1000));
+  const waitLeft = resendAt === null ? 0 : Math.max(0, Math.ceil((resendAt - now) / 1000));
 
   useEffect(() => {
     if (waitLeft <= 0) return;
@@ -74,11 +75,16 @@ export default function AuthPage() {
     wasSent.current = sentTo !== null;
   }, [sentTo]);
 
+  /** Count down `secs` before "Send the link again" can be pressed. */
+  function waitBeforeResend(secs: number) {
+    const at = Date.now();
+    setResendAt(at + secs * 1000);
+    setNow(at);
+  }
+
   /** A confirmation link just went out to `to`: start the wait. */
   function linkSent(to: string) {
-    const at = Date.now();
-    setLinkSentAt(at);
-    setNow(at);
+    waitBeforeResend(RESEND_COOLDOWN_S);
     setSentTo(to);
   }
 
@@ -93,6 +99,10 @@ export default function AuthPage() {
       const text = shown('Sending the link again', authError);
       if (sentTo) setResendNote({ ok: false, text });
       else setError(text);
+      // "Please wait 12 seconds": the button counts those down, instead of
+      // inviting a tap the server would refuse again.
+      const retry = authRetryAfter(authError);
+      if (retry !== null) waitBeforeResend(retry);
       return;
     }
     setError(null);
@@ -140,7 +150,7 @@ export default function AuthPage() {
       });
       setLoading(false);
       if (authError) {
-        setError(shown('Sign-up', authError));
+        setError(shown('Sign-up', authError, { where: 'sign-up', password }));
         return;
       }
       // No session means email confirmation is required before sign-in.
@@ -160,7 +170,7 @@ export default function AuthPage() {
           setUnconfirmed(email);
           setError(`Please confirm your email first: tap the link we sent to ${email}. Can't find it? Look in your spam or junk folder.`);
         } else {
-          setError(shown('Sign-in', authError));
+          setError(shown('Sign-in', authError, { where: 'sign-in' }));
         }
         return;
       }
@@ -187,6 +197,9 @@ export default function AuthPage() {
               then sign in.
             </p>
             <p className="mt-2 text-sm text-gray-600">Can't find it? Look in your spam or junk folder.</p>
+            {/* Signing up again with a confirmed address sends nothing, and says
+                nothing (Supabase won't tell who has an account). */}
+            <p className="mt-2 text-sm text-gray-600">Already have an account? Go back and sign in, or reset your password.</p>
             <ResendButton waitLeft={waitLeft} busy={resending} onClick={() => void resendLink(sentTo)} className="mt-4" />
             {/* Always there, so a screen reader hears how the resend went. */}
             <div role="status" className="mt-2 empty:mt-0 text-sm">
@@ -319,15 +332,25 @@ export default function AuthPage() {
   );
 }
 
-/** "Send the link again", counting down while Supabase would still refuse (#146). */
+/**
+ * "Send the link again", counting down while Supabase would still refuse
+ * (#146). `aria-disabled`, not `disabled`, while it waits: a disabled button
+ * under the keyboard's focus drops it to the page, and the countdown couldn't
+ * be reached to hear how long is left. The wait is read in words ("60s" can
+ * be read as "sixties").
+ */
 function ResendButton({ waitLeft, busy, onClick, className }: { waitLeft: number; busy: boolean; onClick: () => void; className?: string }) {
+  const waiting = busy || waitLeft > 0;
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={busy || waitLeft > 0}
+      onClick={() => {
+        if (!waiting) onClick();
+      }}
+      aria-disabled={waiting}
+      aria-label={!busy && waitLeft > 0 ? `Send the link again in ${waitLeft} ${waitLeft === 1 ? 'second' : 'seconds'}` : undefined}
       className={cn(
-        'w-full min-h-[44px] rounded-lg border-2 border-purple-600 py-2 font-semibold text-purple-700 transition hover:bg-purple-50 disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent',
+        'w-full min-h-[44px] rounded-lg border-2 border-purple-600 py-2 font-semibold text-purple-700 transition hover:bg-purple-50 aria-disabled:cursor-default aria-disabled:border-gray-300 aria-disabled:text-gray-500 aria-disabled:hover:bg-transparent',
         className,
       )}
     >

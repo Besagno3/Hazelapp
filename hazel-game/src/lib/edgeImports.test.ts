@@ -7,9 +7,36 @@ const sources = import.meta.glob('../../supabase/**/*.ts', { query: '?raw', impo
   string
 >;
 
-/** Every remote import in a file: `npm:` / `jsr:` / URL specifiers, static or dynamic. */
+/**
+ * The code without its comments (strings kept whole, so a URL's `//` stays).
+ * A quote or apostrophe string ends at its line's end at the latest, so a
+ * stray `'` (in a regex, say) can't swallow the rest of the file.
+ */
+function stripComments(text: string): string {
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "'" || c === '"' || c === '`') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== c && (c === '`' || text[j] !== '\n')) j += text[j] === '\\' ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j;
+    } else if (c === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++;
+      out += '\n';
+    } else if (c === '/' && text[i + 1] === '*') {
+      const end = text.indexOf('*/', i + 2);
+      i = end < 0 ? text.length : end + 1;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+/** Every remote import in a file: `npm:` / `jsr:` / URL specifiers — static, side-effect only, or dynamic; not in comments. */
 function remoteImports(text: string): string[] {
-  const found = text.matchAll(/(?:from\s+|import\s*\(\s*)['"]((?:npm:|jsr:|https?:\/\/)[^'"]+)['"]/g);
+  const found = stripComments(text).matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)['"]((?:npm:|jsr:|https?:\/\/)[^'"]+)['"]/g);
   return [...found].map((m) => m[1]);
 }
 
@@ -75,5 +102,18 @@ describe('the edge function and scripts pin their imports (#131d)', () => {
       'npm:x@1.0.0',
       'jsr:@std/y@2.0.0',
     ]);
+  });
+
+  it('counts a side-effect import, and not one in a comment', () => {
+    const text = [
+      "import 'npm:polyfill';",
+      "import'jsr:@std/dotenv@0.225.0/load';",
+      "// import old from 'npm:left-pad';",
+      "/* import gone from 'npm:gone';",
+      "   still a comment */",
+      "const url = 'https://example.com/a'; // not an import",
+      "export { x } from 'npm:x@1.0.0';",
+    ].join('\n');
+    expect(remoteImports(text)).toEqual(['npm:polyfill', 'jsr:@std/dotenv@0.225.0/load', 'npm:x@1.0.0']);
   });
 });
