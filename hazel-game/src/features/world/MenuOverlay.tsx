@@ -10,7 +10,7 @@ import { COMPANIONS, COMPANION_IDS, companionLook, companionsInParty } from '../
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_BADGES, QUEST_ITEMS } from '../../content/quests';
 import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
-import { TYPING_BADGES, TYPING_LESSONS, typingLessonsCleared } from '../../content/typing';
+import { TYPING_BADGES, TYPING_LESSONS, pagesCopied, typingLessonsCleared } from '../../content/typing';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
@@ -287,7 +287,8 @@ export default function MenuOverlay({
             <span className={save.typingAnchor ? 'text-emerald-300 font-bold' : 'text-white/70'}>{save.typingAnchor ? 'On' : 'Off'}</span>
           </button>
           <p className="text-[11px] text-white/50 mt-2">
-            Lessons: {typingLessonsCleared(save.flags)} of {TYPING_LESSONS.length} cleared · Librarian Sage teaches them at the Lumina Library.
+            Lessons: {typingLessonsCleared(save.flags)} of {TYPING_LESSONS.length} cleared · pages copied: {pagesCopied(save.flags)} · Librarian Sage teaches at
+            the Lumina Library.
           </p>
         </div>
 

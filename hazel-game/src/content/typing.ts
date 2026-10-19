@@ -10,7 +10,10 @@
  * still right when the right letter comes out. The labels drawn on the
  * on-screen keyboard are QWERTY's (ISSUES #159: other layouts).
  */
+import { FUN_FACTS } from '../lib/funFacts';
+import type { LibraryEntry, Topic } from '../types';
 import { CONSUMABLES, type ConsumableId } from './items';
+import { ALL_TOPICS, topicInfo } from './topics';
 
 export type Hand = 'left' | 'right';
 export type Finger = 'pinky' | 'ring' | 'middle' | 'index' | 'thumb';
@@ -427,4 +430,112 @@ export function bonusWords(reward: TypingBonusReward): string {
   if (reward.kind === 'xp') return `⭐ ${reward.amount} XP`;
   const item = CONSUMABLES[reward.id];
   return `${item.emoji} a ${item.name}`;
+}
+
+// --- The scriptorium (#159, item 5) -------------------------------------------
+
+/** XP for copying a page the first time. */
+export const SCRIPTORIUM_XP = 15;
+/** How many pages the desk offers at once. */
+export const SCRIPTORIUM_PAGES = 6;
+/** At most this many of them from the Library's shelf (missed questions). */
+export const SCRIPTORIUM_SHELF_PAGES = 3;
+/** A page's lines are wrapped to this many characters. */
+export const PAGE_LINE_MAX = 40;
+/** The lesson a scribe must clear before copying pages (a page has capitals in it). */
+export const SCRIPTORIUM_OPENS_AFTER = 'capitals';
+
+export interface ScriptoriumPage {
+  /** A missed question's id, or `fact:<topic>:<n>`. */
+  id: string;
+  source: 'shelf' | 'fact';
+  topic: Topic;
+  /** The question's text (a shelf page) or the topic's name (a fact). */
+  title: string;
+  /** The passage, wrapped into lines a kid types one at a time. */
+  lines: readonly string[];
+}
+
+/** The flag set once a page has been copied (it pays once, then leaves the desk). */
+export function pageFlag(pageId: string): string {
+  return `page:${pageId}`;
+}
+
+/** The scriptorium opens once the capitals lesson is cleared. */
+export function scriptoriumOpen(flags: Record<string, boolean>): boolean {
+  return flags[typingLessonFlag(SCRIPTORIUM_OPENS_AFTER)] === true;
+}
+
+/** How many pages this player has copied. */
+export function pagesCopied(flags: Record<string, boolean>): number {
+  return Object.keys(flags).filter((f) => f.startsWith('page:') && flags[f]).length;
+}
+
+/**
+ * A passage as a keyboard can type it: curly quotes and dashes become the
+ * plain keys, an ellipsis three dots, spaces are single. Null when a character
+ * has no key on the map (an accent, a degree sign) — that page is left out.
+ */
+export function scribeText(raw: string): string | null {
+  const text = raw
+    .replace(/[\u2018\u2019\u02bc]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/\u2026/g, '...')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return null;
+  for (const ch of text) if (ch !== ' ' && !charKey(ch)) return null;
+  return text;
+}
+
+/** A passage wrapped into lines of at most `max` characters, words kept whole. */
+export function pageLines(text: string, max = PAGE_LINE_MAX): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (!line) line = word;
+    else if (line.length + 1 + word.length <= max) line += ` ${word}`;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * The pages on the desk: first the explanations of questions on the Library's
+ * shelf (learning by writing — up to `SCRIPTORIUM_SHELF_PAGES`), then the fun
+ * facts, one topic after another, until `SCRIPTORIUM_PAGES`. A page copied
+ * before is skipped, and so is any the keyboard can't type.
+ */
+export function scriptoriumPages(library: readonly LibraryEntry[], flags: Record<string, boolean>): ScriptoriumPage[] {
+  const pages: ScriptoriumPage[] = [];
+  for (const entry of library) {
+    if (pages.length >= SCRIPTORIUM_SHELF_PAGES) break;
+    const q = entry.question;
+    if (flags[pageFlag(q.id)]) continue;
+    const text = q.explanation ? scribeText(q.explanation) : null;
+    if (!text) continue;
+    pages.push({ id: q.id, source: 'shelf', topic: q.topic, title: q.text, lines: pageLines(text) });
+  }
+  for (let i = 0; pages.length < SCRIPTORIUM_PAGES; i++) {
+    let any = false;
+    for (const topic of ALL_TOPICS) {
+      if (pages.length >= SCRIPTORIUM_PAGES) break;
+      const fact = FUN_FACTS[topic][i];
+      if (fact === undefined) continue;
+      any = true;
+      const id = `fact:${topic}:${i}`;
+      if (flags[pageFlag(id)]) continue;
+      const text = scribeText(fact.replace(/^Did you know\? /, ''));
+      if (!text) continue;
+      const info = topicInfo(topic);
+      pages.push({ id, source: 'fact', topic, title: `${info.emoji} ${info.label}`, lines: pageLines(text) });
+    }
+    if (!any) break;
+  }
+  return pages;
 }

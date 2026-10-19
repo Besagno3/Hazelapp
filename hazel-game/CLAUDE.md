@@ -575,6 +575,13 @@ zod, react-query. Add the package in the same change that first uses it.
   turn: the critter's name (`enemyWord`) within `NAME_RACE_MS`. Won, a free
   blow at `FIRST_STRIKE_SHARE` then the hero's turn (`heroStrike`'s `then`);
   lost, the critter darts in first (`enemyTurn`), as a swift one does.
+  **The scriptorium (item 5):** 📚 Library → 📜 The Scriptorium
+  (`features/typing/Scriptorium.tsx`): pages to copy out line by line
+  (`LineRun`, shared with the lessons) — the explanations of the shelf's
+  missed questions first, then the fun facts (`scriptoriumPages`,
+  `scribeText` makes a passage typeable or drops it, `pageLines` wraps it);
+  `SCRIPTORIUM_XP` once a page (`page:<id>` flags, `pagesCopied`); open once
+  the capitals lesson is cleared (`scriptoriumOpen`).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -997,6 +1004,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing V: the scriptorium (#159)
+Pages to copy out, in the Library.
+- **📜 The Scriptorium** (📚 Library, under the lessons): a scribe's desk
+  with up to six pages — first the "here's why" of questions on the kid's
+  shelf (the question named above the line: learning by writing), then the
+  loading screen's fun facts, one a topic. Each line is typed over the
+  keyboard and hands as in a lesson; a page copied pays 15 XP once, shows
+  stars for accuracy, and leaves the desk, which refills.
+- A page is made typeable (`scribeText`: curly quotes and dashes to their
+  plain keys) or left out (an accent, a degree sign); every fun fact passes.
+- Opens once the capitals lesson (12) is cleared — a page has big letters.
+  The Library's button and the 📜 Menu count the pages copied.
+- Tests: +9 (`content/typing.test`, new `Scriptorium.test`,
+  `ServiceOverlay.test`); 1640 green, lint + tsc clean.
 
 ### 2026-10-19 — Touch typing IV: the name race (#159)
 The owner: name the critter for first strike, but random, so some critters

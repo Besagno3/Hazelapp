@@ -102,7 +102,7 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
  * phone or tablet the glass keyboard sends no physical key, so this screen
  * stays — with a word about why.
  */
-function KeyboardGate({ onBack }: { onBack: () => void }) {
+export function KeyboardGate({ onBack, title = 'Typing lessons' }: { onBack: () => void; title?: string }) {
   const seen = useKeyboardStore((s) => s.seen);
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true);
   useEffect(() => {
@@ -117,11 +117,11 @@ function KeyboardGate({ onBack }: { onBack: () => void }) {
       <div className="text-5xl mb-2" aria-hidden="true">
         ⌨️
       </div>
-      <h2 className="text-xl font-extrabold mb-2">Typing lessons</h2>
+      <h2 className="text-xl font-extrabold mb-2">{title}</h2>
       <p className="text-sm text-white/80 mb-2">Press any key on your keyboard to begin.</p>
       <p className="text-xs text-white/60 mb-5">
         {touch
-          ? "These lessons need a real keyboard — the one on a phone or tablet's screen can't teach your fingers. Plug one in, or play on a computer!"
+          ? "This needs a real keyboard — the one on a phone or tablet's screen can't teach your fingers. Plug one in, or play on a computer!"
           : 'Touch typing is learned on a real keyboard, with all ten fingers.'}
       </p>
       <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">

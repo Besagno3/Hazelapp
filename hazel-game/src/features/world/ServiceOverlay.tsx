@@ -10,7 +10,8 @@ import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
 import NameFinale from './NameFinale';
 import TypingLessons from '../typing/TypingLessons';
-import { TYPING_LESSONS, typingLessonsCleared } from '../../content/typing';
+import Scriptorium from '../typing/Scriptorium';
+import { SCRIPTORIUM_XP, TYPING_LESSONS, pagesCopied, scriptoriumOpen, typingLessonsCleared } from '../../content/typing';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
@@ -175,8 +176,12 @@ function Library() {
   const [solved, setSolved] = useState(false);
   // Librarian Sage's typing lessons (#159) live in the Library too.
   const [typing, setTyping] = useState(false);
+  // ...and the scriptorium's desk (#159 item 5), once the capitals lesson is cleared.
+  const [desk, setDesk] = useState(false);
   if (typing) return <TypingLessons onBack={() => setTyping(false)} />;
+  if (desk) return <Scriptorium onBack={() => setDesk(false)} />;
   const typed = typingLessonsCleared(flags);
+  const copied = pagesCopied(flags);
 
   function finish() {
     if (active && solved) {
@@ -227,6 +232,22 @@ function Library() {
           <span className="block text-xs text-white/70">
             Learn to type like a scribe — ten fingers, eyes on the page.
             {typed > 0 ? ` ${typed} of ${TYPING_LESSONS.length} cleared.` : ''}
+          </span>
+        </span>
+      </button>
+      <button
+        onClick={() => setDesk(true)}
+        className="w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11"
+      >
+        <span className="text-2xl" aria-hidden="true">
+          📜
+        </span>
+        <span className="flex-1">
+          <span className="font-bold text-amber-200">The Scriptorium</span>
+          <span className="block text-xs text-white/70">
+            {scriptoriumOpen(flags)
+              ? `Copy out a page — why a question went wrong, or a true fact — for +${SCRIPTORIUM_XP} XP.${copied > 0 ? ` ${copied} copied.` : ''}`
+              : 'Copy out whole pages, once you can type capitals.'}
           </span>
         </span>
       </button>

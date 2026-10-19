@@ -18,7 +18,19 @@ import {
   typingLessonsCleared,
   typingStars,
   typingUnlocked,
+  PAGE_LINE_MAX,
+  SCRIPTORIUM_PAGES,
+  SCRIPTORIUM_SHELF_PAGES,
+  pageFlag,
+  pageLines,
+  pagesCopied,
+  scribeText,
+  scriptoriumOpen,
+  scriptoriumPages,
 } from './typing';
+import { FUN_FACTS } from '../lib/funFacts';
+import { ALL_TOPICS } from './topics';
+import type { LibraryEntry } from '../types';
 
 describe('the keyboard map (#159)', () => {
   it('every letter, digit and the punctuation the lessons use has a key, a hand and a finger', () => {
@@ -147,5 +159,63 @@ describe('the battle words (#159)', () => {
     expect(rollTypingBonus('Kira', 'Count Bat', { offer: 0.1, who: 0.4, reward: 0.3 })).toEqual({ word: 'Ember', who: 'ember', reward: { kind: 'xp', amount: 20 } });
     expect(rollTypingBonus('Kira', 'The Ringkeeper', { offer: 0.2, who: 0.9, reward: 0.6 })).toEqual({ word: 'Ringkeeper', who: 'enemy', reward: { kind: 'item', id: 'potion' } });
     expect(rollTypingBonus('Kira', 'Count Bat', { offer: 0.2, who: 1, reward: 0.99 })).toEqual({ word: 'Count Bat', who: 'enemy', reward: { kind: 'item', id: 'hint' } });
+  });
+});
+
+describe('the scriptorium (#159 item 5)', () => {
+  const missed = (id: string, explanation?: string): LibraryEntry => ({
+    question: { id, topic: 'math', level: 2, text: `Question ${id}?`, options: ['a', 'b', 'c', 'd'], correctIndex: 0, explanation },
+    picked: 1,
+  });
+
+  it('a page is typed with plain keys: curly quotes and dashes become theirs, an accent leaves it out', () => {
+    expect(scribeText('Van Gogh painted \u201cThe Starry Night\u201d \u2014 it\u2019s true\u2026')).toBe('Van Gogh painted "The Starry Night" - it\'s true...');
+    expect(scribeText('  two   spaces  ')).toBe('two spaces');
+    expect(scribeText('A caf\u00e9 au lait')).toBeNull();
+    expect(scribeText('About 20\u00b0C')).toBeNull();
+    expect(scribeText('')).toBeNull();
+  });
+
+  it('lines keep words whole and fit the width', () => {
+    const text = 'Add up every number from 1 to 100 and you get exactly 5,050. It is a true fact.';
+    const lines = pageLines(text);
+    expect(lines.length).toBeGreaterThan(1);
+    for (const line of lines) expect(line.length).toBeLessThanOrEqual(PAGE_LINE_MAX);
+    expect(lines.join(' ')).toBe(text);
+    expect(pageLines('short')).toEqual(['short']);
+    expect(pageLines('a b c', 3)).toEqual(['a b', 'c']);
+  });
+
+  it('every fun fact makes a page the keyboard can type', () => {
+    for (const topic of ALL_TOPICS) for (const fact of FUN_FACTS[topic]) expect(scribeText(fact), fact).not.toBeNull();
+  });
+
+  it("the desk: the shelf's explanations first (up to three, skipping what has no page), then one fact a topic, never a page copied before", () => {
+    const library = [missed('q1', 'Because one.'), missed('q2'), missed('q3', 'A caf\u00e9.'), missed('q4', 'Because four.'), missed('q5', 'Because five.'), missed('q6', 'Because six.')];
+    const pages = scriptoriumPages(library, {});
+    expect(pages).toHaveLength(SCRIPTORIUM_PAGES);
+    expect(pages.slice(0, SCRIPTORIUM_SHELF_PAGES).map((p) => p.id)).toEqual(['q1', 'q4', 'q5']);
+    expect(pages[0]).toMatchObject({ source: 'shelf', topic: 'math', title: 'Question q1?', lines: ['Because one.'] });
+    const facts = pages.slice(SCRIPTORIUM_SHELF_PAGES);
+    expect(facts.map((p) => p.id)).toEqual(ALL_TOPICS.slice(0, facts.length).map((t) => `fact:${t}:0`));
+    expect(facts[0].source).toBe('fact');
+    expect(facts[0].lines.join(' ')).not.toMatch(/^Did you know/);
+    // Copied pages leave the desk; the facts go on round the topics.
+    const copied = { [pageFlag('q1')]: true, [pageFlag(`fact:${ALL_TOPICS[0]}:0`)]: true };
+    const again = scriptoriumPages(library, copied);
+    expect(again.map((p) => p.id)).not.toContain('q1');
+    expect(again.map((p) => p.id)).not.toContain(`fact:${ALL_TOPICS[0]}:0`);
+    expect(again).toHaveLength(SCRIPTORIUM_PAGES);
+    expect(pagesCopied(copied)).toBe(2);
+    // With no shelf, the facts alone; with every fact copied, an empty desk.
+    expect(scriptoriumPages([], {}).every((p) => p.source === 'fact')).toBe(true);
+    const all: Record<string, boolean> = {};
+    for (const topic of ALL_TOPICS) FUN_FACTS[topic].forEach((_, i) => (all[pageFlag(`fact:${topic}:${i}`)] = true));
+    expect(scriptoriumPages([], all)).toEqual([]);
+  });
+
+  it('opens once the capitals lesson is cleared', () => {
+    expect(scriptoriumOpen({})).toBe(false);
+    expect(scriptoriumOpen({ [typingLessonFlag('capitals')]: true })).toBe(true);
   });
 });

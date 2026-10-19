@@ -58,3 +58,15 @@ describe('the Library — starter questions pay no XP (#153)', () => {
     expect(useSaveStore.getState().save!.library.map((e) => e.question.id)).toEqual(['q-bank']);
   });
 });
+
+describe('the Library — the scriptorium (#159 item 5)', () => {
+  it('a desk button under the lessons, open only after the capitals lesson, counting pages copied', () => {
+    render(<ServiceOverlay service="library" npcId={null} />);
+    const desk = screen.getByText('The Scriptorium').closest('button')!;
+    expect(desk).toHaveTextContent('once you can type capitals');
+    fireEvent.click(desk);
+    expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('📚 Back to the shelf'));
+    expect(screen.getByText('📚 The Library')).toBeInTheDocument();
+  });
+});

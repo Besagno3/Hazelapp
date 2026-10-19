@@ -132,8 +132,8 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   );
 }
 
-/** One line of a lesson, with the keyboard and hands under it. */
-function LineRun({ text, holdRule, onDone }: { text: string; holdRule: boolean; onDone: (p: TypingProgress) => void }) {
+/** One line of a lesson (or a scriptorium page), with the keyboard and hands under it. */
+export function LineRun({ text, holdRule, onDone }: { text: string; holdRule: boolean; onDone: (p: TypingProgress) => void }) {
   const run = useTypingRun({ text, holdRule, onDone });
   const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '') : null;
   return (
