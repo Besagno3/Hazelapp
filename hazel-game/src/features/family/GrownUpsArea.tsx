@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { authErrorMessage, errorMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage, friendlyMessage } from '../../lib/errors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
 import PasswordInput from '../../components/PasswordInput';
+import { useRetryWait, waitWords } from '../auth/useRetryWait';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 import PinPad from './PinPad';
@@ -16,6 +17,11 @@ import type { Kid } from '../../types';
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
+/** The gate's text links: 44 px tall, so a finger finds them. */
+const linkClass = 'w-full min-h-11 text-center text-sm hover:underline';
+/** A main button that waits with `aria-disabled` (a disabled one drops the keyboard's focus). */
+const primaryClass =
+  'bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600';
 
 /**
  * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
@@ -40,9 +46,14 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  // A refused reset link ("Please wait 37 seconds") counts its wait down, as sign-in's mail buttons do.
+  const resetWait = useRetryWait();
+  const resetWaiting = !sendingReset && resetWait.left > 0;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Open is aria-disabled while it checks: a tap or Enter then stops here.
+    if (loading) return;
     setError(null);
     setNotice(null);
     setLoading(true);
@@ -60,8 +71,8 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
   }
 
   async function sendReset() {
-    // One link at a time: a second tap while it sends would only be refused.
-    if (sendingReset) return;
+    // One link at a time, and none while a refusal's wait runs: the server would only refuse it.
+    if (sendingReset || resetWait.left > 0) return;
     setSendingReset(true);
     setError(null);
     setNotice(null);
@@ -71,12 +82,13 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
     setSendingReset(false);
     if (authError) {
       console.warn('Grown-ups reset link failed:', errorMessage(authError));
-      setError(authErrorMessage(authError, { where: 'gate' }));
+      setError(authErrorMessage(authError, { where: 'forgot' }));
+      resetWait.refused(authError);
     } else setNotice(`A reset link is on its way to ${email}.`);
   }
 
   const back = (
-    <button onClick={close} className="mt-3 w-full text-center text-sm text-purple-600 hover:underline">
+    <button onClick={close} className={`mt-1 ${linkClass} text-purple-600`}>
       ← Back to Who's playing
     </button>
   );
@@ -91,7 +103,7 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
             return right;
           }}
         />
-        <button onClick={() => setUsePassword(true)} className="w-full text-center text-sm text-gray-500 hover:underline">
+        <button onClick={() => setUsePassword(true)} className={`${linkClass} text-gray-500`}>
           Use my password instead
         </button>
         {back}
@@ -116,25 +128,26 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
             {error && <p className="text-red-700">{error}</p>}
             {notice && <p className="text-green-700">{notice}</p>}
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
-          >
+          <button type="submit" aria-disabled={loading} className={`w-full min-h-[44px] ${primaryClass}`}>
             {loading ? 'Checking…' : 'Open'}
           </button>
         </div>
       </form>
-      {/* aria-disabled while it sends: a disabled button would drop the keyboard's focus. */}
+      {/* aria-disabled while it sends or waits: a disabled button would drop the keyboard's focus. */}
       <button
         onClick={() => void sendReset()}
-        aria-disabled={sendingReset}
-        className="mt-3 w-full text-center text-sm text-gray-500 hover:underline aria-disabled:cursor-default aria-disabled:no-underline"
+        aria-disabled={sendingReset || resetWaiting}
+        aria-label={resetWaiting ? `Email me a reset link ${waitWords(resetWait.left).said}` : undefined}
+        className={`mt-1 ${linkClass} text-gray-500 aria-disabled:cursor-default aria-disabled:no-underline`}
       >
-        {sendingReset ? 'Sending a reset link…' : 'Forgot it? Email me a reset link'}
+        {sendingReset
+          ? 'Sending a reset link…'
+          : resetWaiting
+            ? `Email me a reset link ${waitWords(resetWait.left).shown}`
+            : 'Forgot it? Email me a reset link'}
       </button>
       {hasParentPin && (
-        <button onClick={() => setUsePassword(false)} className="mt-3 w-full text-center text-sm text-gray-500 hover:underline">
+        <button onClick={() => setUsePassword(false)} className={`${linkClass} text-gray-500`}>
           Use my grown-up PIN instead
         </button>
       )}
@@ -276,6 +289,7 @@ function ParentPin() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setError(null);
     if (!isPin(pin)) return setError(`A PIN is ${PIN_LENGTH} numbers.`);
     setSaving(true);
@@ -285,7 +299,8 @@ function ParentPin() {
       setPin('');
       setNotice('Grown-up PIN saved.');
     } catch (err) {
-      setError(errorMessage(err));
+      console.warn('Saving the grown-up PIN failed:', errorMessage(err));
+      setError(friendlyMessage(err));
     } finally {
       setSaving(false);
     }
@@ -312,11 +327,7 @@ function ParentPin() {
           />
           {error && <p className="text-red-500">{error}</p>}
           <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
-            >
+            <button type="submit" aria-disabled={saving} className={`flex-1 ${primaryClass}`}>
               {saving ? 'Saving…' : 'Save PIN'}
             </button>
             <button type="button" onClick={() => setEditing(false)} className="px-3 text-gray-500 hover:underline">
@@ -344,13 +355,15 @@ function RemoveKid({ kid, onDone }: { kid: Kid; onDone: () => void }) {
   const name = kid.name ?? 'this player';
 
   async function handleRemove() {
+    if (busy) return;
     setError(null);
     setBusy(true);
     try {
       await removeKid(kid.id);
       onDone();
     } catch (err) {
-      setError(errorMessage(err));
+      console.warn('Removing a player failed:', errorMessage(err));
+      setError(friendlyMessage(err));
       setBusy(false);
     }
   }
@@ -363,8 +376,8 @@ function RemoveKid({ kid, onDone }: { kid: Kid; onDone: () => void }) {
       {error && <p className="mt-3 text-red-500 text-sm">{error}</p>}
       <button
         onClick={() => void handleRemove()}
-        disabled={busy}
-        className="mt-5 w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+        aria-disabled={busy}
+        className="mt-5 w-full bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-red-600"
       >
         {busy ? 'Removing…' : `Remove ${name} for good`}
       </button>

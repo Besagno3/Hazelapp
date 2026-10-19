@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
@@ -88,6 +88,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [choiceUp]);
+  // "⛵ Row her home" goes with its click: focus goes on to the way out (Bye!),
+  // before the box can take it — the box's description is his new line, which
+  // the live region says already, so it isn't read twice (#159 r2).
+  const onwardRef = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (fetched) onwardRef.current?.focus({ preventScroll: true });
+  }, [fetched]);
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
@@ -247,6 +254,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           {!choosing && picked === null && (
           <button
+            ref={onwardRef}
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"

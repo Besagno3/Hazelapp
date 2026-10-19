@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useInertOutside } from '../hooks/useInertOutside';
 import { cn } from '../lib/utils';
-
-/** The layers up now, oldest first: the last one is on top (the level-up over the Menu). */
-const layers: HTMLElement[] = [];
+import { layers, refocusTopLayer } from '../lib/modalLayers';
 
 /**
  * The full-screen layer every world overlay sits in (#75 item 14b review): a
@@ -20,7 +18,10 @@ const layers: HTMLElement[] = [];
  * while this is the top layer; an overlay with nothing to cancel (a question,
  * a story beat) passes none, and Escape does nothing. Closed by Escape, the
  * keys are the world's again: focus isn't put back on 📜 Menu, whose next
- * Space (the world's talk key) would open it again — only on a layer below.
+ * Space (the world's talk key) would open it again — only on a layer below,
+ * or else on the world's stage (`data-keys-home`, which owns no keys). Where
+ * it was has gone or turned off (the Library's "+15 XP" button, under a
+ * level-up), the layer now on top takes focus (`refocusTopLayer`, #159 r2).
  */
 export default function ModalLayer({
   label,
@@ -93,10 +94,12 @@ export default function ModalLayer({
   }, []);
   useEffect(
     () => () => {
-      if (!(before instanceof HTMLElement) || !before.isConnected || before === document.body) return;
-      // Closed by Escape: the world gets the keys, unless that was in a layer below.
-      if (escaped.current && !before.closest('[role="dialog"]')) return;
-      before.focus({ preventScroll: true });
+      // Runs after this layer has left the stack and let go of `inert`.
+      if (before instanceof HTMLElement && before.isConnected && before !== document.body) {
+        // Closed by Escape: the world gets the keys, unless that was in a layer below.
+        if (!escaped.current || before.closest('[role="dialog"]')) before.focus({ preventScroll: true });
+      }
+      refocusTopLayer();
     },
     [before],
   );

@@ -5,7 +5,7 @@ import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, hasVisited, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER } from '../content/questFlags';
-import { BOAT_HOME, BOAT_QUEST_ID, MARLOW, atDock, hasBoat } from '../content/boat';
+import { BOAT_HOME, BOAT_QUEST_ID, MARLOW, atDock, boatWalkable, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
@@ -372,7 +372,8 @@ function actTwoObjective(flags: Record<string, boolean>): Objective | null {
     return {
       kind: 'sail',
       title: 'Sail the Silver Shallows',
-      why: "Marlow's boat waits at his dock, just east of Starfall Coast. Climb in and sail east, off the edge of the sea!",
+      // Not where the boat is: the way below says that, from the Biscuit's own place (#159 r2).
+      why: "Marlow's boat, the Biscuit, is mended! Out east lie the Silver Shallows — islands nobody has seen since the fog.",
       zoneId: 'silver-shallows',
       at: MARLOWS_DOCK,
     };
@@ -657,13 +658,15 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
 /**
  * Where each Act I Fiend's gate is in its town (#83e): the gate in front of
  * it, and where that is on the map — said once you're there, like Chorus
- * Isle's (`wayfinding.test` checks each gate really guards its Fiend).
+ * Isle's (`wayfinding.test` checks each gate really guards its Fiend). Each
+ * is told from the same spot, "where you came in" (#159 r2: not "the way in"
+ * in one town and "the way out" in the next).
  */
 export const ACT_ONE_FIEND_GATES: Partial<Record<ZoneId, { gate: { x: number; y: number }; where: string }>> = {
-  numbria: { gate: { x: 11, y: 6 }, where: 'at the far west end of the road' },
-  verdara: { gate: { x: 10, y: 7 }, where: 'at the top of town, straight up the path from the way in' },
-  gearfall: { gate: { x: 10, y: 6 }, where: 'in the top-left corner of town, near the way out' },
-  chromaria: { gate: { x: 11, y: 7 }, where: 'in the top-left corner of town, near the way out' },
+  numbria: { gate: { x: 11, y: 6 }, where: 'at the far west end of the road, across town from where you came in' },
+  verdara: { gate: { x: 10, y: 7 }, where: 'at the top of town, straight up the path from where you came in' },
+  gearfall: { gate: { x: 10, y: 6 }, where: 'in the top-left corner of town, a few steps east of where you came in' },
+  chromaria: { gate: { x: 11, y: 7 }, where: 'in the top-left corner of town, just below where you came in' },
 };
 
 /** The Act I 🚩's "where in town": the Fiend's gate — until it's open, when the way in needs no telling. */
@@ -825,17 +828,43 @@ export function sentence(steps: string[]): string {
 const UNDERGROUND: ReadonlySet<ZoneId> = new Set(REGIONS.find((r) => r.id === 'lumina-that-was')?.zones ?? []);
 
 /**
+ * Where a hero in `here` (at tile `at`) stands once out on map `to`: that
+ * tile, on `to` itself, or else where the way out onto it lands them.
+ */
+function arrivalOn(zones: Record<ZoneId, ZoneDef>, here: ZoneId, at: { x: number; y: number } | undefined, to: ZoneId): { x: number; y: number } | null {
+  if (here === to) return at ?? zones[here].spawn;
+  const route = routeTo(zones, here, to) ?? [];
+  const last = route.length ? route[route.length - 1].exit : null;
+  return last ? { x: last.spawnX, y: last.spawnY } : null;
+}
+
+/** Where the way to a goal across the sea starts (`seaWayStart`). */
+export type SeaWayStart = 'aboard' | 'boat' | 'marlow' | 'dock';
+
+/**
  * Where the way to a goal across the sea starts (#117p r1) — the words begin
  * there, and the menu map's 🚩 marks it: `'aboard'`, sailing on the dock's own
- * map already (no dock to go to); `'marlow'`, with the Biscuit left away from
- * his dock (on another map, or down the coast: `boatAway`'s rule), so Old
- * Marlow rows her home first; else `'dock'`. Null for a goal that doesn't
- * start at the dock.
+ * map already (no dock to go to); `'boat'`, with the Biscuit moored away from
+ * the dock but on the hero's own map, a walk away (`boatWalkable`, #159 r2:
+ * walk to her and sail); `'marlow'`, with her away and not a walk away (on
+ * another map, or out in open water), so Old Marlow rows her home first; else
+ * `'dock'`. Null for a goal that doesn't start at the dock. `at` is the
+ * hero's tile in `here`, if known.
  */
-export function seaWayStart(goal: Objective, here: ZoneId, aboard: boolean, boat: BoatSpot | null): 'aboard' | 'marlow' | 'dock' | null {
+export function seaWayStart(
+  goal: Objective,
+  here: ZoneId,
+  aboard: boolean,
+  boat: BoatSpot | null,
+  at?: { x: number; y: number },
+  flags: Record<string, boolean> | null = null,
+  zones: Record<ZoneId, ZoneDef> = ZONES,
+): SeaWayStart | null {
   if (!goal.at) return null;
   if (aboard) return here === goal.at.zoneId ? 'aboard' : 'dock';
-  return boat && !atDock(boat) ? 'marlow' : 'dock';
+  if (!boat || atDock(boat)) return 'dock';
+  const on = overworldOf(zones, here).id === boat.zoneId ? arrivalOn(zones, here, at, boat.zoneId) : null;
+  return on && boatWalkable(boat, on, flags) ? 'boat' : 'marlow';
 }
 
 /**
@@ -866,7 +895,7 @@ export function goalDirections(
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
     const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
-    const start = seaWayStart(goal, here, aboard, boat);
+    const start = seaWayStart(goal, here, aboard, boat, at, flags, zones);
     // Already sailing on the dock's own map (#114r): no dock to go to — just sail
     // on, to the place the map's edge names (r1: not "off the edge of the sea").
     // (Never on Ember here: every voyage from the dock comes before she flies.)
@@ -875,9 +904,7 @@ export function goalDirections(
     /** From a zone (and a tile in it) to the end of the dock, and off. */
     const toDock = (from: ZoneId, fromAt: { x: number; y: number } | undefined, name: string): string[] => {
       const steps = routeSteps(zones, from, dock.zoneId, fromAt, flags, aboard) ?? [];
-      const route = routeTo(zones, from, dock.zoneId) ?? [];
-      const last = route.length ? route[route.length - 1].exit : null;
-      const on = from === dock.zoneId ? (fromAt ?? zones[from].spawn) : last ? { x: last.spawnX, y: last.spawnY } : null;
+      const on = arrivalOn(zones, from, fromAt, dock.zoneId);
       // Already on the dock (or right by it): just climb in.
       if (from === dock.zoneId && on && Math.max(Math.abs(dock.x - on.x), Math.abs(dock.y - on.y)) <= 1) {
         return [`climb into Marlow's boat at the end of the dock and ${sail}`];
@@ -885,6 +912,17 @@ export function goalDirections(
       const dir = on ? compass(dock.x - on.x, dock.y - on.y) : null;
       return [...steps, `${dir ? `go ${dir} ` : 'go '}to ${name} and ${sail}`];
     };
+    // The Biscuit moored down the coast of the hero's own map, a walk away
+    // (#159 r2): walk to her — the ⛵ the 🚩 marks — and sail from there.
+    if (start === 'boat' && boat) {
+      const steps = routeSteps(zones, here, boat.zoneId, at, flags) ?? [];
+      const on = arrivalOn(zones, here, at, boat.zoneId);
+      if (here === boat.zoneId && on && Math.max(Math.abs(boat.x - on.x), Math.abs(boat.y - on.y)) <= 1) {
+        return sentence([`climb into the Biscuit and ${sail}`]);
+      }
+      const dir = on ? compass(boat.x - on.x, boat.y - on.y) : null;
+      return sentence([...steps, `walk ${dir ? `${dir} ` : ''}to the Biscuit (⛵ on your map) and ${sail}`]);
+    }
     // The boat left away from the dock (on another map after a Return from the
     // Shallows, #117p, or down the coast — `boatAway`'s rule, r1): the dock is
     // empty, so the way starts with Old Marlow, who rows her home — then from

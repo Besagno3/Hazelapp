@@ -182,6 +182,20 @@ export function atDock({ zoneId, x, y }: BoatSpot): boolean {
 }
 
 /**
+ * Can a hero on foot at `from`, on the map the boat is moored on, walk up and
+ * climb into it (beside it, corners too) — gates and fog as they stand — and
+ * does it float on water that reaches Marlow's dock, so the dock's "sail
+ * east" is its way out too? Then a boat left down Dawnreach's coast is a
+ * walk away, and the way needs no Old Marlow (#159 r2).
+ */
+export function boatWalkable(boat: BoatSpot, from: { x: number; y: number }, flags: Record<string, boolean> | null): boolean {
+  if (boat.zoneId !== BOAT_HOME.zoneId) return false;
+  const z = ZONES[boat.zoneId];
+  if (!boardableFrom(reach(z, { from, flags, gates: 'flags' }), boat)) return false;
+  return reach(z, { from: boat, aboard: true, flags }).has(`${BOAT_HOME.x},${BOAT_HOME.y}`);
+}
+
+/**
  * Old Marlow's offer when the boat is away (`boatAway`) — say, at an island
  * the hero flew home from with Return: a line after his own, and a button to
  * take him up on it. He only rows her home if asked (`fetchBoatHome`).

@@ -329,6 +329,9 @@ export default function BattleArena() {
   const speedRun = useRef(0);
   const speedBoost = useRef(0);
   const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
+  // Set as the fight is won or lost: a late async result (the speed boost's
+  // harder pool) bails, as it does once the arena has gone.
+  const fightOver = useRef(false);
   const [boostShown, setBoostShown] = useState(0);
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
@@ -932,15 +935,17 @@ export default function BattleArena() {
     if (to === from) return; // already at the top level
     speedBoost.current += 1;
     const wanted = speedBoost.current;
+    // No chime with no banner: once the fight is over the banners are shut.
     const announce = (text: string) => {
-      sfx('streak');
-      showBanner(text, 3200, '⚡');
+      if (showBanner(text, 3200, '⚡')) sfx('streak');
     };
     fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, 'battle')
       .then((all) => {
-        // Gone, or a newer boost superseded this one (an older, easier pool
-        // arriving late must never replace a harder one).
-        if (!fx.live.current || speedBoost.current !== wanted) return;
+        // Gone, the fight over (no ⚡ badge or "harder questions" for a fight
+        // that has ended — the level still saved at its end), or a newer boost
+        // superseded this one (an older, easier pool arriving late must never
+        // replace a harder one).
+        if (!fx.live.current || fightOver.current || speedBoost.current !== wanted) return;
         // Only the bank's harder questions (#153 review round 2): starter
         // questions fill in when the service can't help, and they're no
         // harder than what's being asked — keep the current pool then.
@@ -955,7 +960,7 @@ export default function BattleArena() {
       })
       .catch(() => {
         // Keep asking from the current pool — the level still saves at the end.
-        if (fx.live.current && speedBoost.current === wanted) {
+        if (fx.live.current && !fightOver.current && speedBoost.current === wanted) {
           announce(`So quick! Your level goes up to ${to} after this battle`);
         }
       });
@@ -1017,7 +1022,9 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
-    // The fight is over: a banner still waiting must not cycle over the result.
+    // The fight is over: a banner still waiting must not cycle over the result,
+    // and none asked for late may show there.
+    fightOver.current = true;
     fx.clearBanners();
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
   }
@@ -1049,6 +1056,7 @@ export default function BattleArena() {
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
+    fightOver.current = true;
     fx.clearBanners();
     setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }

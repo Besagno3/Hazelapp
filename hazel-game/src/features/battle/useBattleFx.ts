@@ -132,6 +132,10 @@ export function useBattleFx() {
   // front of the queue for the rest of its time. Warnings default to ⚠️;
   // other callers bring their own emoji.
   const [banner, setBanner] = useState<string | null>(null);
+  // False once the fight is over (`clearBanners`): a banner asked for after
+  // that — a harder pool arriving late with "So quick!" — never shows over
+  // the result. Open again with the next fight (the arena mounts per fight).
+  const bannersOpen = useRef(true);
   const bannerShown = useRef<Banner | null>(null);
   const bannerQueue = useRef<Banner[]>([]);
   const bannerTimer = useRef<number | null>(null);
@@ -150,15 +154,17 @@ export function useBattleFx() {
     },
     [nextBanner],
   );
+  /** Show (or queue) a banner. False when the fight is over and banners are shut (nothing shows). */
   const showBanner = useCallback(
-    (text: string, ttl = 2500, icon = '⚠️', { answers, kind }: BannerOptions = {}) => {
+    (text: string, ttl = 2500, icon = '⚠️', { answers, kind }: BannerOptions = {}): boolean => {
+      if (!bannersOpen.current) return false;
       const line = `${icon} ${text}`;
       const shown = bannerShown.current;
       if (answers) {
         bannerQueue.current = bannerQueue.current.filter((b) => !b.text.includes(answers));
         if (shown?.text.includes(answers)) {
           cutIn({ text: line, ttl });
-          return;
+          return true;
         }
       }
       if (kind) {
@@ -169,28 +175,35 @@ export function useBattleFx() {
           bannerQueue.current.unshift({ text: shown.text, ttl: Math.max(BANNER_REREAD_MS, left) });
         }
         cutIn({ text: line, ttl, kind });
-        return;
+        return true;
       }
-      if (shown?.text === line || bannerQueue.current.some((b) => b.text === line)) return;
+      if (shown?.text === line || bannerQueue.current.some((b) => b.text === line)) return true;
       bannerQueue.current.push({ text: line, ttl });
       if (bannerTimer.current === null) nextBanner();
+      return true;
     },
     [nextBanner, cutIn],
   );
   /**
-   * No banner on screen or waiting: the fight is over (nothing queued may
-   * cycle over the result panel), or the arena is going. Resets the timer's
-   * ref too, so effects run again (Fast Refresh) start the queue afresh
-   * instead of waiting on a timer that was cleared.
+   * No banner on screen or waiting, and none from now on: the fight is over
+   * (nothing queued may cycle over the result panel, and nothing asked for
+   * late — "So quick!" once its harder pool lands — may show there), or the
+   * arena is going. Resets the timer's ref too; the effect below opens the
+   * banners again when effects run again (Fast Refresh), so the queue starts
+   * afresh instead of waiting on a timer that was cleared.
    */
   const clearBanners = useCallback(() => {
+    bannersOpen.current = false;
     if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
     bannerTimer.current = null;
     bannerQueue.current = [];
     bannerShown.current = null;
     setBanner(null);
   }, []);
-  useEffect(() => clearBanners, [clearBanners]);
+  useEffect(() => {
+    bannersOpen.current = true;
+    return clearBanners;
+  }, [clearBanners]);
 
   // Lunges: a counter is the remount key for the motion; the motion name is set
   // in the same batch; the acting flag drives the sprite's attack/hurt clips.

@@ -126,3 +126,35 @@ describe('waking up at the inn', () => {
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a story told over an open overlay (#159 r2)', () => {
+  it('once it is done, the overlay takes focus back — its button went with the story', async () => {
+    const { useState } = await import('react');
+    const { default: ModalLayer } = await import('./ModalLayer');
+    function TalkWithStory() {
+      const [story, setStory] = useState(true);
+      return (
+        <>
+          <div>
+            <ModalLayer label="Talk" className="fixed inset-0" onEscape={() => {}}>
+              <p>Hello!</p>
+            </ModalLayer>
+          </div>
+          {story && (
+            <div>
+              <StoryPanels panels={[WORDS[0]]} doneLabel="Done" onDone={() => setStory(false)} />
+            </div>
+          )}
+        </>
+      );
+    }
+    vi.useFakeTimers();
+    render(<TalkWithStory />);
+    const done = screen.getByRole('button', { name: 'Done' });
+    expect(document.activeElement).toBe(done);
+    act(() => vi.advanceTimersByTime(WORDS_FADE_MS));
+    fireEvent.click(done);
+    expect(screen.queryByRole('button', { name: 'Done' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Talk' }));
+  });
+});

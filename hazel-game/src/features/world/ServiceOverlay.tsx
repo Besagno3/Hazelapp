@@ -180,13 +180,15 @@ function Library() {
   const [active, setActive] = useState<LibraryEntry | null>(null);
   const [solved, setSolved] = useState(false);
 
+  // Beaten: off the shelf and paid at once, as a gate or a trial pays — so
+  // Leave or Escape before "Continue" never loses it (#159 r2).
+  function beaten(id: string) {
+    update((s) => ({ ...s, library: s.library.filter((e) => e.question.id !== id) }));
+    // A starter question beaten again leaves the shelf, but pays no XP (#153).
+    if (!isStarterId(id)) void addXp(LIBRARY_XP);
+  }
+
   function finish() {
-    if (active && solved) {
-      const id = active.question.id;
-      update((s) => ({ ...s, library: s.library.filter((e) => e.question.id !== id) }));
-      // A starter question beaten again leaves the shelf, but pays no XP (#153).
-      if (!isStarterId(id)) void addXp(LIBRARY_XP);
-    }
     setActive(null);
     setSolved(false);
   }
@@ -199,7 +201,9 @@ function Library() {
           question={active.question}
           onAnswered={(correct) => {
             setSolved(correct);
-            if (correct) confetti({ particleCount: 60, spread: 55, origin: { y: 0.6 } });
+            if (!correct) return;
+            beaten(active.question.id);
+            confetti({ particleCount: 60, spread: 55, origin: { y: 0.6 } });
           }}
           continueLabel={
             solved

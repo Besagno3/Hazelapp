@@ -92,21 +92,24 @@ describe('a fog bank’s line can be read while the camera is on it (#113)', () 
     start('dawnreach');
     render(<WorldScreen />);
     const toast = screen.getByTestId('world-toast');
+    // The live region sits in the row that's placed on screen.
+    const row = screen.getByTestId('world-toast-row');
+    expect(row.contains(toast)).toBe(true);
     // Walking about: up top on a phone or a touch screen, clear of the d-pad.
-    expect(toast.className).toContain('top-24');
-    expect(toast.className).toContain('touch:top-24');
+    expect(row.className).toContain('top-24');
+    expect(row.className).toContain('touch:top-24');
 
     const bank = ZONES.dawnreach.fogs!.find((f) => f.id === 'shrine-fog') as FogDef;
     act(() => canvas.callbacks!.onReveal!(true));
     act(() => canvas.callbacks!.onFogLift!(bank));
     expect(within(toast).getByText(bank.lifted)).toBeInTheDocument();
-    expect(toast.className).toContain('bottom-8');
-    expect(toast.className).toContain('touch-wide:top-3');
-    expect(toast.className).not.toMatch(/\btop-24\b/);
-    expect(toast.className).not.toContain('touch:top-24');
+    expect(row.className).toContain('bottom-8');
+    expect(row.className).toContain('touch-wide:top-3');
+    expect(row.className).not.toMatch(/\btop-24\b/);
+    expect(row.className).not.toContain('touch:top-24');
 
     act(() => canvas.callbacks!.onReveal!(false));
-    expect(toast.className).toContain('touch:top-24');
+    expect(row.className).toContain('touch:top-24');
   });
 });
 
@@ -124,20 +127,19 @@ describe('the HUD’s buttons keep their 44 px taps when they wrap (bench … hu
 });
 
 describe('a fog reveal says how to skip it, in words a phone can read (#159 r1)', () => {
-  it('while it plays, a 44 px "⏩ Tap to skip" (or "Press any key") button takes the help line\'s place — and is heard', () => {
+  it('while it plays, on a touch screen a "⏩ Tap to skip" button covers the help line, in the same room — and it is heard', () => {
     start('dawnreach');
     render(<WorldScreen />);
     expect(screen.queryByTestId('reveal-skip')).toBeNull();
+    const help = screen.getByTestId('world-help');
     act(() => canvas.callbacks!.onReveal!(true));
     const skip = screen.getByTestId('reveal-skip');
     expect(skip.tagName).toBe('BUTTON');
-    expect(skip.className).toContain('min-h-11');
-    const [keys, touch] = Array.from(skip.querySelectorAll('span'));
-    expect(keys).toHaveTextContent('⏩ Press any key to skip');
-    expect(keys.className).toContain('touch:hidden');
-    expect(touch).toHaveTextContent('⏩ Tap to skip');
-    expect(touch.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'touch:inline']));
-    expect(screen.queryByTestId('world-help')).toBeNull();
+    expect(skip).toHaveTextContent('⏩ Tap to skip');
+    // Only on a touch screen (the pad's `touch:` screen); a keyboard computer gets its own, by the fog's line.
+    expect(skip.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'touch:inline-flex']));
+    // A 44 px tap: 32 px tall, reaching 6 px past its top and bottom.
+    expect(skip.className.split(' ')).toEqual(expect.arrayContaining(['h-8', 'after:-inset-y-1.5']));
     // Said in the toast's live region, so a screen reader hears it too.
     expect(within(screen.getByTestId('world-toast')).getByText('The fog is lifting. Tap to skip.')).toBeInTheDocument();
     // A press of it (even a screen reader's, which taps nothing) asks the canvas to skip.
@@ -146,7 +148,43 @@ describe('a fog reveal says how to skip it, in words a phone can read (#159 r1)'
     expect(canvas.skipRef!.current).toBe(true);
     act(() => canvas.callbacks!.onReveal!(false));
     expect(screen.queryByTestId('reveal-skip')).toBeNull();
-    expect(screen.getByTestId('world-help')).toBeInTheDocument();
+    expect(screen.getByTestId('world-help')).toBe(help);
+  });
+
+  it('the swap never moves the d-pad: the help line keeps its room (hidden, not gone), at least the button\'s 32 px on a touch screen (#159 r2)', () => {
+    start('dawnreach');
+    render(<WorldScreen />);
+    const help = screen.getByTestId('world-help');
+    expect(help.className.split(' ')).toContain('touch:min-h-8');
+    act(() => canvas.callbacks!.onReveal!(true));
+    const skip = screen.getByTestId('reveal-skip');
+    // Still there, holding its height, but not seen or read; the button sits in the same grid cell.
+    expect(screen.getByTestId('world-help')).toBe(help);
+    expect(help.className.split(' ')).toContain('invisible');
+    expect(skip.parentElement).toBe(help.parentElement);
+    expect(help.parentElement!.className.split(' ')).toEqual(expect.arrayContaining(['grid', '[&>*]:col-start-1', '[&>*]:row-start-1']));
+  });
+
+  it('on a keyboard computer, "⏩ Press any key to skip" sits beside the fog\'s line, not under it (#159 r2)', () => {
+    start('dawnreach');
+    render(<WorldScreen />);
+    expect(screen.queryByTestId('reveal-skip-keys')).toBeNull();
+    const bank = ZONES.dawnreach.fogs!.find((f) => f.id === 'shrine-fog') as FogDef;
+    act(() => canvas.callbacks!.onReveal!(true));
+    act(() => canvas.callbacks!.onFogLift!(bank));
+    const keys = screen.getByTestId('reveal-skip-keys');
+    expect(keys).toHaveTextContent('⏩ Press any key to skip');
+    expect(keys.className.split(' ')).toEqual(expect.arrayContaining(['touch:hidden', 'pointer-events-auto', 'min-h-11']));
+    // In the toast's row, beside its line — not inside the live region (it would be read twice).
+    const row = screen.getByTestId('world-toast-row');
+    expect(keys.parentElement).toBe(row);
+    expect(screen.getByTestId('world-toast').contains(keys)).toBe(false);
+    expect(row.className.split(' ')).toEqual(expect.arrayContaining(['flex', 'items-center']));
+    expect(within(screen.getByTestId('world-toast')).getByText('The fog is lifting. Press any key to skip.')).toBeInTheDocument();
+    fireEvent.click(keys);
+    expect(canvas.skipRef!.current).toBe(true);
+    act(() => canvas.callbacks!.onReveal!(false));
+    expect(screen.queryByTestId('reveal-skip-keys')).toBeNull();
   });
 });
 
@@ -161,5 +199,15 @@ describe('a sideways phone keeps the map and its buttons on screen (#159 r1)', (
     // The Land button and 📜 Menu are in that row.
     expect(within(hud).getByRole('button', { name: 'Land' })).toBeInTheDocument();
     expect(within(hud).getByRole('button', { name: '📜 Menu' })).toBeInTheDocument();
+  });
+});
+
+describe('a short phone held upright keeps the whole pad on screen (#159 r2)', () => {
+  const SHORT_UPRIGHT = '[@media(pointer:coarse)_and_(orientation:portrait)_and_(max-height:600px)]';
+  it('a little less room above the pad and under the page there (320×568: ▼ was 2 px off, the page scrolled 18 px)', () => {
+    start('dawnreach', 'foot', { [story.FLIGHT_FLAG]: true });
+    render(<WorldScreen />);
+    expect(screen.getByTestId('touch-pad').className.split(' ')).toEqual(expect.arrayContaining(['mt-3', `${SHORT_UPRIGHT}:mt-1`]));
+    expect(screen.getByTestId('world-topbar').parentElement!.className.split(' ')).toEqual(expect.arrayContaining(['p-4', `${SHORT_UPRIGHT}:pb-1`]));
   });
 });

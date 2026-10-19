@@ -182,6 +182,30 @@ describe('Eldergrove on the menu map (#75 item 14f)', () => {
     expect(screen.getAllByText('🚩', { exact: false }).filter((s) => s.tagName === 'SPAN' && s.textContent === '🚩')).toHaveLength(1);
   });
 
+  it('the Biscuit moored down Dawnreach\'s coast, a walk away: the 🚩 sits on the ⛵ and the words walk you to her — no Old Marlow (#159 r2)', () => {
+    const downTheCoast = { zoneId: 'dawnreach' as const, x: 64, y: 4 };
+    const { container } = render(<WorldMapPanel zoneId="dawnreach" pos={px(60, 30)} flags={afterHill} boat={downTheCoast} />);
+    expect(
+      screen.getByText('Walk north to the Biscuit (⛵ on your map) and sail east to the Silver Shallows, then go south-east to Eldergrove.'),
+    ).toBeInTheDocument();
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Next: Win the Memoria Key, flagged at the Biscuit\./);
+    // One 🚩, drawn on the boat's own cell — not on Starfall Coast or the empty dock.
+    const flags = Array.from(container.querySelectorAll('span[aria-hidden]')).filter((s) => s.textContent === '🚩');
+    expect(flags).toHaveLength(1);
+    const cols = 80;
+    const rows = 60;
+    expect((flags[0] as HTMLElement).style.left).toBe(`${((64 + 0.5) / cols) * 100}%`);
+    expect((flags[0] as HTMLElement).style.top).toBe(`${((4 + 0.5) / rows) * 100}%`);
+    expect(screen.getByText('Starfall Coast').closest('li')).not.toHaveTextContent('🚩');
+    expect(screen.queryByText(/Old Marlow/)).toBeNull();
+  });
+
+  it('…but left out in open water off Dawnreach, nobody can walk to her: the 🚩 goes back to Old Marlow\'s shore (#159 r2)', () => {
+    const { container } = render(<WorldMapPanel zoneId="dawnreach" pos={px(60, 30)} flags={afterHill} boat={{ zoneId: 'dawnreach', x: 76, y: 40 }} />);
+    expect(screen.getByText(/ask Old Marlow to row the Biscuit home/)).toBeInTheDocument();
+    expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/flagged at Starfall Coast\./);
+  });
+
   it('sailing off Dawnreach already, no 🚩 is left on the empty dock: the words name the edge the map names (r1)', () => {
     const { container } = render(<WorldMapPanel zoneId="dawnreach" pos={px(72, 30)} flags={afterHill} aboard />);
     expect(screen.getByText('Sail east to the Silver Shallows, then go south-east to Eldergrove.')).toBeInTheDocument();

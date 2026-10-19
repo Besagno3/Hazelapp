@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { authErrorMessage, authRetryAfter, errorMessage, type AuthErrorContext } from '../../lib/errors';
+import { authErrorMessage, errorMessage, type AuthErrorContext } from '../../lib/errors';
 import PasswordInput from '../../components/PasswordInput';
 import PrivacyNotice from '../family/PrivacyNotice';
 import { CONSENT_VERSION, MIN_PASSWORD_LENGTH } from '../../content/family';
 import { dropSignupParam, hasSignupParam } from '../../lib/signupLink';
 import { cn } from '../../lib/utils';
+import { useRetryWait, waitWords } from './useRetryWait';
+import { useLiveMessage } from './useLiveMessage';
+import { dropLinkError, linkErrorFrom } from './linkError';
 
 /** Supabase refused a sign-in because the email link hasn't been tapped yet. */
 function notConfirmed(err: { code?: string; message?: string }): boolean {
@@ -38,7 +41,11 @@ export default function AuthPage() {
   const [isSignUp, setIsSignUp] = useState(() => hasSignupParam());
   // "Forgot password?" mode: email only, sends a reset link (#88).
   const [isForgot, setIsForgot] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // An email link that came back with an error (run out, used already) says
+  // why, once — the address loses it as the page opens (#159 review round 2).
+  const [linkError] = useState(() => linkErrorFrom(window.location));
+  // Keyed per message, so the same words said twice are read out twice.
+  const [error, setError] = useLiveMessage(linkError ? authErrorMessage(linkError, { where: 'link' }) : null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // The address a confirmation link went to: "Check your inbox" replaces the form.
@@ -46,26 +53,29 @@ export default function AuthPage() {
   const inboxHeading = useRef<HTMLHeadingElement>(null);
   const emailField = useRef<HTMLInputElement>(null);
   const wasSent = useRef(false);
-  // "Send the link again" (#146): when asking again can work (a minute after
-  // the last link went out — sign-up counts — or when a refusal said), the
-  // clock that counts the wait down, and what the last try said.
-  const [resendAt, setResendAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  // "Send the link again" (#146): the wait before asking again can work (a
+  // minute after the last link went out — sign-up counts — or what a refusal
+  // said), and what the last try said. "Send reset link" counts down a
+  // refusal's wait the same way.
+  const resendWait = useRetryWait();
+  const resetWait = useRetryWait();
   const [resending, setResending] = useState(false);
   const [resendNote, setResendNote] = useState<{ ok: boolean; text: string } | null>(null);
   // Signing in said the email isn't confirmed yet: offer the link again for it.
   const [unconfirmed, setUnconfirmed] = useState<string | null>(null);
-  const waitLeft = resendAt === null ? 0 : Math.max(0, Math.ceil((resendAt - now) / 1000));
-
-  useEffect(() => {
-    if (waitLeft <= 0) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(t);
-  }, [waitLeft]);
+  const waitLeft = resendWait.left;
+  const resetWaiting = isForgot && resetWait.left > 0;
 
   // ?signup is read once: drop it from the address, so signing out later
   // (or a reload) opens Sign in as usual.
   useEffect(() => dropSignupParam(), []);
+
+  // The link's error is on screen now: off the address, the whole of it in the console.
+  useEffect(() => {
+    if (!linkError) return;
+    console.warn('Email link failed:', errorMessage(linkError));
+    dropLinkError();
+  }, [linkError]);
 
   // The form goes away under the focused button, so focus follows: to the
   // inbox heading, and back to the email field on the way out.
@@ -75,16 +85,9 @@ export default function AuthPage() {
     wasSent.current = sentTo !== null;
   }, [sentTo]);
 
-  /** Count down `secs` before "Send the link again" can be pressed. */
-  function waitBeforeResend(secs: number) {
-    const at = Date.now();
-    setResendAt(at + secs * 1000);
-    setNow(at);
-  }
-
   /** A confirmation link just went out to `to`: start the wait. */
   function linkSent(to: string) {
-    waitBeforeResend(RESEND_COOLDOWN_S);
+    resendWait.wait(RESEND_COOLDOWN_S);
     setSentTo(to);
   }
 
@@ -96,13 +99,12 @@ export default function AuthPage() {
     const { error: authError } = await supabase.auth.resend({ type: 'signup', email: to });
     setResending(false);
     if (authError) {
-      const text = shown('Sending the link again', authError);
+      const text = shown('Sending the link again', authError, { where: 'resend' });
       if (sentTo) setResendNote({ ok: false, text });
       else setError(text);
       // "Please wait 12 seconds": the button counts those down, instead of
       // inviting a tap the server would refuse again.
-      const retry = authRetryAfter(authError);
-      if (retry !== null) waitBeforeResend(retry);
+      resendWait.refused(authError);
       return;
     }
     setError(null);
@@ -113,6 +115,9 @@ export default function AuthPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The button is aria-disabled, not disabled (that would drop the
+    // keyboard's focus), so a tap or Enter while it waits stops here.
+    if (loading || resetWaiting) return;
     setError(null);
     setNotice(null);
     setUnconfirmed(null);
@@ -126,7 +131,9 @@ export default function AuthPage() {
       });
       setLoading(false);
       if (authError) {
-        setError(shown('Reset link', authError));
+        setError(shown('Reset link', authError, { where: 'forgot' }));
+        // A refusal's wait counts down on the button, as the resend's does.
+        resetWait.refused(authError);
         return;
       }
       // Same message whether or not the account exists (no account probing).
@@ -283,18 +290,33 @@ export default function AuthPage() {
               <div>
                 {/* Always there, so a screen reader hears each message as it appears. */}
                 <div role="status" className="mb-3 empty:mb-0 space-y-1 text-sm">
-                  {error && <p className="text-red-700">{error}</p>}
+                  {error && (
+                    <p key={error.key} className="text-red-700">
+                      {error.text}
+                    </p>
+                  )}
                   {notice && <p className="text-green-700">{notice}</p>}
                 </div>
                 {unconfirmed && unconfirmed === email && (
                   <ResendButton waitLeft={waitLeft} busy={resending} onClick={() => void resendLink(unconfirmed)} className="mb-3" />
                 )}
+                {/* aria-disabled while it works or waits: a disabled button under
+                    the keyboard's focus drops it to the page. */}
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition disabled:opacity-50"
+                  aria-disabled={loading || resetWaiting}
+                  aria-label={!loading && resetWaiting ? `Send reset link ${waitWords(resetWait.left).said}` : undefined}
+                  className="w-full min-h-[44px] bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
                 >
-                  {loading ? 'Loading…' : isForgot ? 'Send reset link' : isSignUp ? 'Create family account' : 'Sign In'}
+                  {loading
+                    ? 'Loading…'
+                    : isForgot
+                      ? resetWaiting
+                        ? `Send reset link ${waitWords(resetWait.left).shown}`
+                        : 'Send reset link'
+                      : isSignUp
+                        ? 'Create family account'
+                        : 'Sign In'}
                 </button>
               </div>
             </form>
@@ -348,13 +370,13 @@ function ResendButton({ waitLeft, busy, onClick, className }: { waitLeft: number
         if (!waiting) onClick();
       }}
       aria-disabled={waiting}
-      aria-label={!busy && waitLeft > 0 ? `Send the link again in ${waitLeft} ${waitLeft === 1 ? 'second' : 'seconds'}` : undefined}
+      aria-label={!busy && waitLeft > 0 ? `Send the link again ${waitWords(waitLeft).said}` : undefined}
       className={cn(
         'w-full min-h-[44px] rounded-lg border-2 border-purple-600 py-2 font-semibold text-purple-700 transition hover:bg-purple-50 aria-disabled:cursor-default aria-disabled:border-gray-300 aria-disabled:text-gray-500 aria-disabled:hover:bg-transparent',
         className,
       )}
     >
-      {busy ? 'Sending…' : waitLeft > 0 ? `Send the link again in ${waitLeft}s` : '📨 Send the link again'}
+      {busy ? 'Sending…' : waitLeft > 0 ? `Send the link again ${waitWords(waitLeft).shown}` : '📨 Send the link again'}
     </button>
   );
 }

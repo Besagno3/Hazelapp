@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 
@@ -46,6 +46,10 @@ beforeEach(() => {
     setParentPin,
     reviewRequested: false,
   });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 async function unlock() {
@@ -96,8 +100,60 @@ describe('GrownUpsArea (#124)', () => {
     expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
     await act(async () => send({ error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } }));
     expect(screen.getByRole('status')).toHaveTextContent(/try again in about an hour/);
+    // Nothing was sent, so nothing to look for in spam (#159 review round 2).
+    expect(screen.getByRole('status')).not.toHaveTextContent(/spam/);
     expect(link).toHaveFocus();
     expect(link).toHaveTextContent('Forgot it? Email me a reset link');
+  });
+
+  it('a refused reset link counts down the wait it named (#159 review round 2)', async () => {
+    vi.useFakeTimers();
+    auth.resetPasswordForEmail.mockResolvedValue({
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 37 seconds.', status: 429 },
+    });
+    render(<GrownUpsArea />);
+    const link = screen.getByRole('button', { name: /Forgot it/ });
+    link.focus();
+    fireEvent.click(link);
+    await act(async () => {});
+    expect(screen.getByRole('status')).toHaveTextContent('Too many tries for now. Please wait 37 seconds, then try again.');
+    expect(link).toHaveAccessibleName('Email me a reset link in 37 seconds');
+    expect(link).toHaveTextContent('Email me a reset link in 37s');
+    expect(link).toHaveAttribute('aria-disabled', 'true');
+    expect(link).toHaveFocus();
+    fireEvent.click(link);
+    await act(async () => {});
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledOnce();
+    act(() => {
+      vi.advanceTimersByTime(37_000);
+    });
+    expect(link).toHaveAccessibleName('Forgot it? Email me a reset link');
+    expect(link).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('Open waits with aria-disabled, keeping focus; the gate\'s links are 44 px tap targets (#159 review round 2)', async () => {
+    let answer: (v: { error: unknown }) => void = () => {};
+    auth.signInWithPassword.mockReturnValue(new Promise((r) => (answer = r)));
+    render(<GrownUpsArea />);
+    for (const name of [/Forgot it/, /Back to Who/]) expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'guess' } });
+    const open = screen.getByRole('button', { name: 'Open' });
+    open.focus();
+    fireEvent.click(open);
+    expect(open).toHaveTextContent('Checking…');
+    expect(open).toHaveAttribute('aria-disabled', 'true');
+    expect(open).not.toBeDisabled();
+    expect(open).toHaveFocus();
+    fireEvent.click(open);
+    expect(auth.signInWithPassword).toHaveBeenCalledOnce();
+    await act(async () => answer({ error: { code: 'invalid_credentials', message: 'Invalid login credentials' } }));
+    expect(open).toHaveTextContent('Open');
+  });
+
+  it('with a grown-up PIN, its links are 44 px tap targets too', () => {
+    useFamilyStore.setState({ hasParentPin: true });
+    render(<GrownUpsArea />);
+    for (const name of ['Use my password instead', /Back to Who/]) expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
   });
 
   it('with a grown-up PIN: the PIN opens it, a wrong one does not, and the password still works', async () => {
@@ -151,6 +207,19 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByRole('textbox', { name: 'Nickname' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByText('Sam')).toBeInTheDocument();
+  });
+
+  it('a PIN that won\'t save says so in plain words — the code and details go to the console', async () => {
+    setParentPin.mockRejectedValueOnce({ message: 'Could not save the PIN', code: '42501', details: 'permission denied' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Set a PIN' }));
+    fireEvent.change(screen.getByLabelText('Grown-up PIN'), { target: { value: '9090' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
+    expect(await screen.findByText('Could not save the PIN')).toBeInTheDocument();
+    expect(screen.queryByText(/42501|permission denied/)).toBeNull();
+    expect(warn).toHaveBeenCalledWith('Saving the grown-up PIN failed:', 'Could not save the PIN [42501] — permission denied');
+    warn.mockRestore();
   });
 
   it('sets a grown-up PIN (4 numbers only)', async () => {

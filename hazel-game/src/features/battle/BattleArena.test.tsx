@@ -686,6 +686,10 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
     expect(screen.getByText(/It's super effective!/).closest('button')).toHaveTextContent(/tap to continue/);
     // …and the damage number shows it without words, for a kid who doesn't read the box.
     expect(screen.getByText(/^-\d+!!$/)).toHaveClass('text-4xl', 'text-yellow-300');
+    // A dark (indigo-950) rim round the gold, with the glow outside it: an edge on a pale sky too (#159 review round 2).
+    const big = screen.getByText(/^-\d+!!$/).className;
+    expect(big).toMatch(/\[text-shadow:[^\]]*-2px_-2px_0_#1e1b4b[^\]]*rgba\(251,191,36/);
+    expect(big).not.toMatch(/drop-shadow-\[0_0_6px_rgba\(251,191,36/);
   });
 
   it('an ordinary hit floats a plain number', () => {
@@ -698,6 +702,8 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
       vi.advanceTimersByTime(600);
     });
     expect(screen.getByText(/^-\d+$/)).toHaveClass('text-2xl');
+    // Every float has the dark rim, so it reads on any backdrop.
+    expect(screen.getByText(/^-\d+$/).className).toMatch(/\[text-shadow:[^\]]*#1e1b4b/);
     expect(screen.queryByText(/^-\d+!!$/)).toBeNull();
   });
 
@@ -833,6 +839,45 @@ describe('starter questions never move the saved skill level (#153 review round 
     expect(answered).toBe(3);
     // One bank answer of three: too few to judge — the level holds (it was +2).
     expect(setSkillLevel).not.toHaveBeenCalled();
+  });
+
+  it('a harder pool that lands after the win says nothing over the result — no "So quick!", no ⚡ (#159 review round 2)', async () => {
+    vi.useFakeTimers();
+    let land: (qs: Question[]) => void = () => {};
+    fetchQuestionsMock.mockImplementation((...args: unknown[]) =>
+      args[4] === 'battle' ? new Promise((r) => (land = r)) : new Promise(() => {}),
+    );
+    // Tough enough to last the five quick answers the speed trigger needs.
+    useBattleStore.getState().start({ ...enemy, maxHp: 5000 }, 60, 100);
+    answerRight(5);
+    expect(fetchQuestionsMock.mock.calls.filter((c) => c[4] === 'battle')).toHaveLength(1);
+    // Read on (and block) back to the commands, then finish it with one more right Attack.
+    for (let i = 0; i < 12 && !screen.queryByText('Attack'); i++) {
+      if (screen.queryByText('4')) {
+        fireEvent.click(screen.getByText('4'));
+        fireEvent.click(screen.getByText('▶ Go!'));
+      } else fireEvent.click(screen.getByText(/tap to continue/));
+    }
+    act(() => {
+      useBattleStore.setState({ enemyHp: 1 });
+    });
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    for (let i = 0; i < 8 && !screen.queryByText('Victory!'); i++) {
+      const next = screen.queryByText(/tap to continue/);
+      if (next) fireEvent.click(next);
+    }
+    expect(screen.getByText('Victory!')).toBeInTheDocument();
+    // The harder questions arrive (a thin bank asks Claude: 15–30 s).
+    await act(async () => land([{ ...q, id: 'bank-harder-1', text: 'What is 3 + 3?', options: ['6', '5', '7', '8'] }]));
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
+    expect(screen.queryByText(/So quick!/)).toBeNull();
+    expect(screen.queryByText(/just got harder/)).toBeNull();
+    expect(screen.queryByText(/⚡\s*\+1/)).toBeNull();
+    expect(screen.getByText('Victory!')).toBeInTheDocument();
   });
 
   it('a speed boost the service can only fill with starter questions keeps the bank’s pool (review round 2)', async () => {

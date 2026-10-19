@@ -119,13 +119,16 @@ describe("Old Marlow rows the boat home (#75 item 14)", () => {
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
-  it('once ⛵ Row her home has gone from under focus, Escape still says Bye (#110o r1)', async () => {
+  it('once ⛵ Row her home has gone from under focus, focus goes on to Bye! — and Escape still says Bye (#110o r1, #159 r2)', async () => {
     await marlowWithBoatAt({ zoneId: 'silver-shallows', x: 3, y: 22 });
     while (screen.queryByText('▼ Next')) fireEvent.click(screen.getByText('▼ Next'));
     const row = screen.getByText('⛵ Row her home');
     row.focus();
     fireEvent.click(row);
-    expect(document.activeElement).toBe(document.body);
+    // Not the box (its description, his new line, is said by the live region already): the way out.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Bye!' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Bye!' }));
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });

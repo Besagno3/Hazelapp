@@ -18,8 +18,20 @@ function motionProps(k: Keyframes | null, reduceMotion: boolean) {
 }
 
 /**
+ * A dark rim (indigo-950) round every float's letters, so a number reads on a
+ * pale sky as well as on dark trees — its own colour alone measured 1.0–3.7:1
+ * against the backdrops (#159 review round 2). A `big` one gets a thicker rim
+ * with its gold glow outside it.
+ */
+const FLOAT_EDGE =
+  '[text-shadow:-1px_-1px_0_#1e1b4b,1px_-1px_0_#1e1b4b,-1px_1px_0_#1e1b4b,1px_1px_0_#1e1b4b,0_2px_0_#1e1b4b]';
+const BIG_FLOAT_EDGE =
+  '[text-shadow:-2px_-2px_0_#1e1b4b,0_-2px_0_#1e1b4b,2px_-2px_0_#1e1b4b,-2px_0_0_#1e1b4b,2px_0_0_#1e1b4b,-2px_2px_0_#1e1b4b,0_3px_0_#1e1b4b,2px_2px_0_#1e1b4b,0_0_10px_rgba(251,191,36,0.85)]';
+
+/**
  * Damage / heal numbers drifting up over one side of the stage (fade in place
- * under reduced motion); a `big` one (super effective) is larger and glows.
+ * under reduced motion), each with a dark rim; a `big` one (super effective)
+ * is larger and glows gold.
  */
 function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxSide; reduceMotion: boolean }) {
   return (
@@ -35,7 +47,7 @@ function Floats({ floats, side, reduceMotion }: { floats: FloatText[]; side: FxS
             // Centred through Motion's own `x`: its transform replaces a Tailwind
             // translate class, which left every float hanging off to the right.
             style={{ x: '-50%' }}
-            className={`absolute -top-6 left-1/2 whitespace-nowrap font-extrabold ${f.big ? 'text-4xl drop-shadow-[0_0_6px_rgba(251,191,36,0.9)]' : 'text-2xl'} ${f.color}`}
+            className={`absolute -top-6 left-1/2 whitespace-nowrap font-extrabold ${f.big ? `text-4xl ${BIG_FLOAT_EDGE}` : `text-2xl ${FLOAT_EDGE}`} ${f.color}`}
           >
             {f.text}
           </motion.span>

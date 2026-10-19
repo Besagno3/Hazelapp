@@ -128,12 +128,15 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     msgShownAt.current = performance.now();
   }, [phase, spire]);
 
-  // Back from "Leave the Spire?" (Keep climbing, or Escape) the keyboard keeps
-  // its place: focus returns to 🚪 Leave the Spire in the HUD (#75 item 14b review).
+  // Back from "Leave the Spire?" with Keep climbing the keyboard keeps its
+  // place: focus returns to 🚪 Leave the Spire in the HUD (#75 item 14b review).
+  // Escape gives the keys back to the climb, as Escape does everywhere
+  // (#159 r2): focus stays on the page, so the next Space breaks the seal the
+  // hero faces instead of asking "Leave the Spire?" again.
   const leaveButton = useRef<HTMLButtonElement>(null);
   const refocusLeave = useRef(false);
-  function keepClimbing() {
-    refocusLeave.current = true;
+  function keepClimbing(refocus = true) {
+    refocusLeave.current = refocus;
     setPhase({ kind: 'explore' });
   }
   useEffect(() => {
@@ -375,11 +378,20 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   // went unheard). Its words change only when walking resumes on a new status
   // — written in an effect, so after the closing panel's layer has let go of
   // the page's `inert` (its clean-up runs first) and the change can be heard.
+  // Words to hear, not the line's emoji and slash ("crystal ball, Seals 1
+  // slash 3", #159 r2): "Seals: 1 of 3".
+  const said = !floor
+    ? ''
+    : floor.isBoss
+      ? 'Walk up to Umbra.'
+      : broken.length >= wardTotal
+        ? 'The stairs are free!'
+        : `Seals: ${broken.length} of ${wardTotal}`;
   const sayRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const el = sayRef.current;
-    if (el && phase.kind === 'explore' && status && el.textContent !== status) el.textContent = status;
-  }, [phase.kind, status, hudSlot]);
+    if (el && phase.kind === 'explore' && said && el.textContent !== said) el.textContent = said;
+  }, [phase.kind, said, hudSlot]);
 
   if (!save) return null;
 
@@ -543,7 +555,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             onKeyDown={(e) => {
               if (e.key !== 'Escape') return;
               e.stopPropagation();
-              keepClimbing();
+              keepClimbing(false);
             }}
           >
             <p id="spire-leave-q" className="font-extrabold text-lg">
@@ -555,7 +567,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 autoFocus
-                onClick={keepClimbing}
+                onClick={() => keepClimbing()}
                 className="flex-1 min-h-11 bg-violet-500 hover:bg-violet-400 rounded-xl px-4 py-2 font-bold"
               >
                 🗼 Keep climbing

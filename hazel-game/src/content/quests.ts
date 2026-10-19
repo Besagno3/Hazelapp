@@ -1937,7 +1937,7 @@ export const QUESTS: QuestDef[] = [
     complete: [
       'A leaf-silk sail, my old star-compass, and a rudder that steers itself! Rivet and I fitted the lot this morning.',
       "Look at her bob! The Biscuit is the finest boat in Lumina — and she's yours to sail. I'm too old for islands, but you're not.",
-      "She's tied up at my dock, just east of here. Climb in, and sail off the east edge of the sea to reach the Silver Shallows!",
+      "She's tied up at my dock, just east of here. Climb in and sail east to reach the Silver Shallows!",
       '✨ Reward: Marlow\'s boat, the Biscuit — and 50 coins!',
     ],
     reward: { coins: 50 },

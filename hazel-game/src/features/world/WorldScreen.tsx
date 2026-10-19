@@ -216,6 +216,9 @@ export default function WorldScreen() {
   const flightRef = useRef<'fly' | 'land' | null>(null);
   /** "⏩ Tap to skip" pressed while a fog reveal plays (#159 r1): the canvas skips it. */
   const skipRef = useRef(false);
+  const skipReveal = () => {
+    skipRef.current = true;
+  };
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
   /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
@@ -574,7 +577,8 @@ export default function WorldScreen() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3">
+    // On a short phone held upright, a thinner bottom edge: with the HUD's 🐉 the pad's ▼ went 2 px off a 320×568 screen (#159 r2).
+    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3 [@media(pointer:coarse)_and_(orientation:portrait)_and_(max-height:600px)]:pb-1">
       {/* Top bar (#75 item 14b, #102i): the level, the streak and Switch sit
           here, in the page — not floating over the place name, and under every
           overlay. The page's full width (not the stage's, which is narrow on a
@@ -589,8 +593,16 @@ export default function WorldScreen() {
       </div>
       {/* Responsive stage: as wide as the viewport allows while keeping the
           11:7 zone fully on screen (cap leaves room for top bar + footer). */}
+      {/* Where focus goes when an overlay closes by Escape, or its button went
+          with it (`data-keys-home`, #159 r2): a region that owns no keys, so
+          Space stays the world's, a screen reader says where it is, and Tab
+          goes on into the HUD. */}
       <div
-        className="flex flex-col items-center"
+        data-keys-home
+        role="region"
+        aria-label="The world"
+        tabIndex={-1}
+        className="flex flex-col items-center outline-none"
         style={{ width: 'min(96vw, calc((100dvh - 220px) * 11 / 7))' }}
       >
       {/* HUD */}
@@ -845,27 +857,33 @@ export default function WorldScreen() {
       {/* The keyboard's words, or on a touch screen the pad's (#130 S4, #110m) —
           the same `touch:` screen that shows the d-pad at any width. Not on a
           sideways phone, where it fell below the screen's edge (the pad's ✋
-          and 🐉 say it there, #159 r1). While a fog reveal plays, the way to
-          skip it in its place, clear of the map and the pad on every screen:
-          big enough to read and tap, and reached by Tab (#159 r1: the canvas's
-          own pill was 3 px text on a phone). */}
-      {revealing ? (
-        <button
-          data-testid="reveal-skip"
-          onClick={() => {
-            skipRef.current = true;
-          }}
-          className="mt-2 min-h-11 rounded-full bg-black/60 px-4 text-sm font-semibold text-white"
+          and 🐉 say it there, #159 r1). While a fog reveal plays, on a touch
+          screen the way to skip it in its place, clear of the map and the pad:
+          big enough to read and tap (#159 r1: the canvas's own pill was 3 px
+          text on a phone). Both share one grid cell and the line keeps its
+          room while hidden — at least the button's height on a touch screen —
+          so the swap never moves the pad under a thumb (#159 r2). On a
+          keyboard computer the skip button sits beside the fog's line, below. */}
+      <div className="mt-2 grid place-items-center [&>*]:col-start-1 [&>*]:row-start-1">
+        <p
+          className={`text-white/50 text-xs touch:min-h-8 [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:hidden ${revealing ? 'invisible' : ''}`}
+          data-testid="world-help"
         >
-          <span className="touch:hidden">⏩ Press any key to skip</span>
-          <span className="hidden touch:inline">⏩ Tap to skip</span>
-        </button>
-      ) : (
-        <p className="text-white/50 text-xs mt-2 [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:hidden" data-testid="world-help">
           <span className="touch:hidden">{helpLine({ ...help, touch: false })}</span>
           <span className="hidden touch:inline">{helpLine({ ...help, touch: true })}</span>
         </p>
-      )}
+        {revealing && (
+          <button
+            data-testid="reveal-skip"
+            onClick={skipReveal}
+            // 32 px tall, like the two-line help line it covers; the ::after
+            // reaches 6 px above and below for a 44 px tap.
+            className="hidden touch:inline-flex items-center h-8 rounded-full bg-black/60 px-4 text-sm font-semibold text-white relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+          >
+            ⏩ Tap to skip
+          </button>
+        )}
+      </div>
       </div>
       <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />
 
@@ -877,13 +895,12 @@ export default function WorldScreen() {
           it, or on a sideways phone (where the map runs nearly to the bottom)
           at the very top, over the top bar. */}
       <div
-        role="status"
-        aria-live="polite"
-        data-testid="world-toast"
-        className={`fixed inset-x-0 z-50 flex justify-center px-4 pointer-events-none ${
+        data-testid="world-toast-row"
+        className={`fixed inset-x-0 z-50 flex items-center justify-center gap-2 px-4 pointer-events-none ${
           revealing ? 'bottom-8 touch-wide:top-3 touch-wide:bottom-auto' : 'top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto'
         }`}
       >
+      <div role="status" aria-live="polite" data-testid="world-toast" className="flex min-w-0 justify-center">
         {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
         <span className="sr-only">{flightNote}</span>
         {/* …and so is the way to skip a fog reveal (#159 r1). */}
@@ -902,6 +919,18 @@ export default function WorldScreen() {
             {toast}
           </motion.div>
         )}
+      </div>
+      {/* A keyboard computer's way to skip a fog reveal: beside its line, not
+          under it (#159 r2: the line covered it for most of every reveal). */}
+      {revealing && (
+        <button
+          data-testid="reveal-skip-keys"
+          onClick={skipReveal}
+          className="touch:hidden pointer-events-auto shrink-0 min-h-11 rounded-full bg-black/70 px-4 text-sm font-semibold text-white shadow-xl"
+        >
+          ⏩ Press any key to skip
+        </button>
+      )}
       </div>
 
       {/* Secret found */}

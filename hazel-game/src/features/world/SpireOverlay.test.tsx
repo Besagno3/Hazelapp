@@ -101,6 +101,25 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
     expect(sendFlow).not.toHaveBeenCalled();
     slot.remove();
   });
+
+  it('Keep climbing puts focus back on 🚪 Leave the Spire; Escape gives the keys back to the climb (#159 r2)', async () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    render(<SpireOverlay hudSlot={slot} />);
+    await readUntil('🚪 Leave the Spire');
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
+    fireEvent.click(screen.getByRole('button', { name: '🗼 Keep climbing' }));
+    expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: '🗼 Keep climbing' }), { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    // Not on 🚪 Leave, whose next Space would ask again: on the page, so Space breaks the seal faced.
+    expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    expect(useSpireStore.getState().exploring).toBe(true);
+    slot.remove();
+  });
 });
 
 describe('the seals line is one live region for the whole climb (#110n)', () => {
@@ -121,13 +140,15 @@ describe('the seals line is one live region for the whole climb (#110n)', () => 
     await readUntil('🚪 Leave the Spire');
     const total = floorWards(SPIRE_FLOORS[0].theme).length;
     const live = slot.querySelector('[role=status]')!;
-    expect(live.textContent).toBe(`🔮 Seals 0/${total}`);
+    // Heard as words, not "crystal ball … slash" (#159 r2); the line on screen is unchanged.
+    expect(live.textContent).toBe(`Seals: 0 of ${total}`);
+    expect(slot.textContent).toContain(`🔮 Seals 0/${total}`);
 
     act(() => useSpireStore.getState().bump({ kind: 'ward', id: floorWards(SPIRE_FLOORS[0].theme)[0].id }));
     fireEvent.click(await screen.findByRole('button', { name: 'a' }));
     // The question panel is up: the same region is still there, still on the old count.
     expect(live.isConnected).toBe(true);
-    expect(live.textContent).toBe(`🔮 Seals 0/${total}`);
+    expect(live.textContent).toBe(`Seals: 0 of ${total}`);
     // Escape on a question does nothing — it never skips or answers one (#110o).
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.getByRole('button', { name: '🔮 Break the seal' })).toBeInTheDocument();
@@ -137,7 +158,7 @@ describe('the seals line is one live region for the whole climb (#110n)', () => 
     await readUntil('🚪 Leave the Spire');
     // Not a new region (a new one isn't read out): the same one, with the new count.
     expect(slot.querySelector('[role=status]')).toBe(live);
-    expect(live.textContent).toBe(`🔮 Seals 1/${total}`);
+    expect(live.textContent).toBe(`Seals: 1 of ${total}`);
     expect(slot.querySelectorAll('[role=status]')).toHaveLength(1);
     slot.remove();
   });

@@ -156,7 +156,7 @@ describe('the callout banner queues (#97c)', () => {
     expect(result.current.banner).toBeNull();
   });
 
-  it('the fight over, nothing on screen or waiting — and the next banner shows at once', () => {
+  it('the fight over, nothing on screen or waiting — and nothing asked for late shows (#159 review round 2)', () => {
     const { result } = renderHook(() => useBattleFx());
     act(() => {
       result.current.showBanner('One', 1000);
@@ -167,9 +167,28 @@ describe('the callout banner queues (#97c)', () => {
     expect(vi.getTimerCount()).toBe(0);
     wait(3000);
     expect(result.current.banner).toBeNull();
-    // The timer's ref was reset with it: a new banner isn't stuck waiting on a cleared timer.
-    act(() => result.current.showBanner('Three', 1000));
+    // A harder pool landing after the win: its "So quick!" is refused, so it can't sit over the result.
+    let taken = true;
+    act(() => {
+      taken = result.current.showBanner('So quick! The questions just got harder', 3200, '⚡');
+      result.current.showBanner('Pip tags in', 1800, '🧒', { kind: 'swap' });
+    });
+    expect(taken).toBe(false);
+    expect(result.current.banner).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('effects run again (StrictMode, Fast Refresh) open the banners afresh: the next one shows at once', () => {
+    // StrictMode mounts, cleans up (which shuts the banners and resets the timer's ref) and mounts again.
+    const { result } = renderHook(() => useBattleFx(), { reactStrictMode: true });
+    let taken = false;
+    act(() => {
+      taken = result.current.showBanner('Three', 1000);
+    });
+    expect(taken).toBe(true);
     expect(result.current.banner).toBe('⚠️ Three');
+    wait(1000);
+    expect(result.current.banner).toBeNull();
   });
 
   it('nothing is left running once the arena closes', () => {

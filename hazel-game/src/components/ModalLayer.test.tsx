@@ -164,6 +164,33 @@ describe('closing a ModalLayer gives the keys back (#110o r1)', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
+  it("closed by Escape on a page with a keys home (the world's stage), focus goes there — still not 📜 Menu (#159 r2)", () => {
+    function Stage() {
+      const [open, setOpen] = useState(false);
+      return (
+        <div data-keys-home tabIndex={-1} role="region" aria-label="The world">
+          <button onClick={() => setOpen(true)}>📜 Menu</button>
+          {open && (
+            <ModalLayer label="Menu" className="fixed inset-0" onEscape={() => setOpen(false)}>
+              <button onClick={() => setOpen(false)}>Back to the world</button>
+            </ModalLayer>
+          )}
+        </div>
+      );
+    }
+    render(<Stage />);
+    const menu = screen.getByRole('button', { name: '📜 Menu' });
+    menu.focus();
+    fireEvent.click(menu);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Menu' }), { key: 'Escape' });
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: 'The world' }));
+    // Closed with its own button, 📜 Menu as ever.
+    menu.focus();
+    fireEvent.click(menu);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the world' }));
+    expect(document.activeElement).toBe(menu);
+  });
+
   it('closed by Escape over another layer, focus goes back into that layer', () => {
     function Stack() {
       const [top, setTop] = useState(false);
@@ -184,5 +211,50 @@ describe('closing a ModalLayer gives the keys back (#110o r1)', () => {
     fireEvent.click(spells);
     fireEvent.keyDown(screen.getByRole('button', { name: 'Cast' }), { key: 'Escape' });
     expect(document.activeElement).toBe(spells);
+  });
+});
+
+describe('a layer closing over another, its opener gone (#159 r2)', () => {
+  /** The Library's "+15 XP" button pays and goes; the level-up it brings comes up beside the Library. */
+  function LibraryAndLevelUp() {
+    const [paid, setPaid] = useState(false);
+    const [levelUp, setLevelUp] = useState(false);
+    return (
+      <>
+        <div>
+          <ModalLayer label="Library" className="fixed inset-0" onEscape={() => {}}>
+            {!paid && (
+              <button
+                onClick={() => {
+                  setPaid(true);
+                  setLevelUp(true);
+                }}
+              >
+                🌟 +15 XP — beaten!
+              </button>
+            )}
+          </ModalLayer>
+        </div>
+        {levelUp && (
+          <div>
+            <ModalLayer label="Level up!" className="fixed inset-0">
+              <button onClick={() => setLevelUp(false)}>❤️ Vitality</button>
+            </ModalLayer>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  it('the level-up closes and the Library, still open below, takes focus — not the page behind it', () => {
+    render(<LibraryAndLevelUp />);
+    const pay = screen.getByRole('button', { name: '🌟 +15 XP — beaten!' });
+    pay.focus();
+    fireEvent.click(pay);
+    const pick = screen.getByRole('button', { name: '❤️ Vitality' });
+    pick.focus();
+    fireEvent.click(pick);
+    expect(screen.queryByRole('dialog', { name: 'Level up!' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Library' }));
   });
 });

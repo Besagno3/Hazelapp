@@ -80,6 +80,12 @@ function codeOf(err: unknown): string {
   return typeof code === 'string' ? code : '';
 }
 
+/** The error's `name` (an auth-js error class: `AuthApiError`, `AuthUnknownError`…). */
+function nameOf(err: unknown): string {
+  const name = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).name : undefined;
+  return typeof name === 'string' ? name : '';
+}
+
 /** The error's `status`, when it has a number for one. */
 function statusOf(err: unknown): number {
   const status = typeof err === 'object' && err !== null ? (err as Record<string, unknown>).status : undefined;
@@ -91,12 +97,18 @@ function statusOf(err: unknown): number {
  * or the service is down: supabase-js turns a 502/503/504 into an
  * `AuthRetryableFetchError` carrying that status (and a fetch that never got
  * an answer into one with status 0), and "check your internet" would be wrong.
+ * Any other failed answer that isn't JSON — Cloudflare's 520/522/524 page, a
+ * proxy's HTML 500 — becomes an `AuthUnknownError` holding the JSON parser's
+ * words ("Unexpected token '<'…"): the service's trouble too.
  */
 function networkTrouble(err: unknown): string | null {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return OFFLINE_MESSAGE;
-  const o = (typeof err === 'object' && err !== null ? err : {}) as Record<string, unknown>;
-  if (o.name === 'AuthRetryableFetchError') return statusOf(err) >= 500 ? TROUBLE_MESSAGE : NETWORK_MESSAGE;
-  if (/failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(ownWords(err))) return NETWORK_MESSAGE;
+  const name = nameOf(err);
+  if (name === 'AuthRetryableFetchError') return statusOf(err) >= 500 ? TROUBLE_MESSAGE : NETWORK_MESSAGE;
+  const words = ownWords(err);
+  if (/failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(words)) return NETWORK_MESSAGE;
+  // (Chrome's, Firefox's and Safari's parser words.)
+  if (name === 'AuthUnknownError' || /is not valid JSON|in JSON at position|unexpected end of JSON|JSON\.parse:|JSON Parse error/i.test(words)) return TROUBLE_MESSAGE;
   return null;
 }
 
@@ -110,16 +122,39 @@ export function friendlyMessage(err: unknown): string {
 }
 
 /**
- * Where an auth error is shown, so its words only point at what that screen
- * has: the 👪 Grown-ups gate has no email field and its link reads "Forgot
- * it?"; sign-up hides "Forgot password?"; the reset page's way back is its own
- * button. `password` is what was typed, so a password rule can name what it's
- * missing.
+ * Where an auth error is shown — the screen, or the part of it that asked —
+ * so its words only point at what's there, and an error nobody mapped still
+ * says what didn't happen: the 👪 Grown-ups gate has no email field and its
+ * link reads "Forgot it?"; sign-up hides "Forgot password?"; the reset page's
+ * way back is its own button. `forgot` asks for a reset link (sign-in's
+ * Forgot password, the gate's "Forgot it?"), `resend` sends a confirmation
+ * link again, `link` is an email link that came back with an error.
+ * `password` is what was typed, so a password rule can name what it's missing.
  */
+export type AuthWhere = 'sign-in' | 'sign-up' | 'gate' | 'reset' | 'forgot' | 'resend' | 'link';
 export interface AuthErrorContext {
-  where?: 'sign-in' | 'sign-up' | 'gate' | 'reset';
+  where?: AuthWhere;
   password?: string;
 }
+
+/** The sign-in itself ran out: words for any screen but the reset page (where it's the link that did). */
+export const SIGNED_OUT_MESSAGE = 'Your sign-in ran out — please sign in again.';
+
+/**
+ * An error no mapping knows, by what was being done (#130 S6 review round 2):
+ * the server's own words are often jargon ("invalid JWT: unable to parse…"),
+ * and a bare "something went wrong" says nothing. The raw error goes to the
+ * console (`errorMessage`).
+ */
+const NOT_DONE: Record<AuthWhere, string> = {
+  'sign-in': "We couldn't sign you in just now. Please try again in a few minutes.",
+  'sign-up': "We couldn't make your account just now. Please try again in a few minutes.",
+  gate: "We couldn't check your password just now. Please try again in a few minutes.",
+  reset: "We couldn't save your new password just now. Please try again in a few minutes.",
+  forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
+  resend: "We couldn't send the link again just now. Please try again in a few minutes.",
+  link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".',
+};
 
 const RATE_LIMIT_CODES = ['over_email_send_rate_limit', 'over_request_rate_limit', 'over_sms_send_rate_limit'];
 
@@ -131,7 +166,15 @@ function rateLimit(err: unknown): { secs: number | null; emailCap: boolean } | n
   const secs = words.match(/after (\d+) seconds?/i)?.[1];
   // No wait in it: the project's hourly email cap ("email rate limit exceeded";
   // Supabase's own mail server sends a few an hour), not one address's minute.
-  return { secs: secs ? Number(secs) : null, emailCap: !secs && (code === 'over_email_send_rate_limit' || /email rate limit/i.test(words)) };
+  // GoTrue rounds the wait down, so its last second reads "after 0 seconds":
+  // at least 1, so the words and the countdown agree.
+  if (secs !== undefined) return { secs: Math.max(1, Number(secs)), emailCap: false };
+  return { secs: null, emailCap: code === 'over_email_send_rate_limit' || /email rate limit/i.test(words) };
+}
+
+/** "1 second", "12 seconds". */
+function seconds(n: number): string {
+  return `${n} ${n === 1 ? 'second' : 'seconds'}`;
 }
 
 /**
@@ -146,14 +189,31 @@ export function authRetryAfter(err: unknown): number | null {
   return limit.secs ?? 60;
 }
 
-/** The link in an email ran out (or was used already): ask for a new one. */
-export function isExpiredLink(err: unknown): boolean {
-  // Not any "expired": a JWT's "token is expired" isn't a link that ran out.
-  // A reset link's recovery session gone (`session_not_found`, which
-  // supabase-js reports as "Auth session missing!") is, on the reset page.
+/**
+ * The sign-in itself is gone: an access token that ran out or doesn't check
+ * (`bad_jwt`), a refresh token used up or unknown, the session ended
+ * (`session_not_found`, which supabase-js reports as "Auth session
+ * missing!"). Not a wrong password, and not an email link.
+ */
+export function sessionRanOut(err: unknown): boolean {
   return (
-    ['otp_expired', 'flow_state_expired', 'session_not_found', 'session_expired'].includes(codeOf(err)) ||
-    /email link is invalid or has expired|token has expired or is invalid|auth session missing/i.test(ownWords(err))
+    ['bad_jwt', 'no_authorization', 'refresh_token_not_found', 'refresh_token_already_used', 'session_not_found', 'session_expired'].includes(codeOf(err)) ||
+    ['AuthSessionMissingError', 'AuthInvalidJwtError'].includes(nameOf(err)) ||
+    /invalid jwt|jwt expired|token is expired|invalid refresh token|refresh token not found|auth session missing|session expired/i.test(ownWords(err))
+  );
+}
+
+/**
+ * The link in an email ran out (or was used already): ask for a new one. On
+ * the reset page (`where: 'reset'`) the session the reset link signed in with
+ * running out is that too.
+ */
+export function isExpiredLink(err: unknown, { where }: AuthErrorContext = {}): boolean {
+  // Not any "expired": a JWT's "token is expired" isn't a link that ran out.
+  return (
+    ['otp_expired', 'flow_state_expired'].includes(codeOf(err)) ||
+    /email link is invalid or has expired|token has expired or is invalid/i.test(ownWords(err)) ||
+    (where === 'reset' && sessionRanOut(err))
   );
 }
 
@@ -215,7 +275,7 @@ function weakPasswordMessage(err: unknown, password?: string): string {
  * What a Supabase sign-in, sign-up, reset or new password error means, in
  * words a grown-up can act on (#130 S6), pointing only at what `where` has on
  * screen. Matched by the error's `code` first, then its words (older servers
- * send no code); anything else falls back to `friendlyMessage`. Log
+ * send no code); anything else says what couldn't be done (`NOT_DONE`). Log
  * `errorMessage(err)` beside it.
  */
 export function authErrorMessage(err: unknown, { where = 'sign-in', password }: AuthErrorContext = {}): string {
@@ -246,18 +306,24 @@ export function authErrorMessage(err: unknown, { where = 'sign-in', password }: 
   }
   const limit = rateLimit(err);
   if (limit) {
-    if (limit.secs) return `Too many tries for now. Please wait ${limit.secs} seconds, then try again.`;
-    if (limit.emailCap) return "We've sent a lot of emails just now. Please try again in about an hour (and check spam for the last one).";
+    if (limit.secs !== null) return `Too many tries for now. Please wait ${seconds(limit.secs)}, then try again.`;
+    // Only a resend has sent a link before; sign-up and a reset link's first ask have sent nothing.
+    if (limit.emailCap) {
+      return where === 'resend'
+        ? "We've sent a lot of emails just now. Please try again in about an hour (and check spam for the last one)."
+        : "We can't send more emails right now. Please try again in about an hour.";
+    }
     return 'Too many tries for now. Please wait a minute, then try again.';
   }
   if (is(['email_address_invalid'], /invalid format|email address.*invalid|valid email/i)) {
     return "That email address doesn't look right. Check it and try again.";
   }
-  if (isExpiredLink(err)) {
+  if (isExpiredLink(err, { where })) {
     return where === 'reset'
       ? 'That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.'
-      : 'That link has run out. Go back to sign in and ask for a new one.';
+      : 'That email link has run out. Sign in to get a new one, or tap "Forgot password?".';
   }
+  if (sessionRanOut(err)) return SIGNED_OUT_MESSAGE;
   if (is(['signup_disabled'], /signups not allowed/i)) {
     return 'New accounts are paused right now. Please try again later.';
   }
@@ -268,5 +334,5 @@ export function authErrorMessage(err: unknown, { where = 'sign-in', password }: 
   }
   // Supabase's own failure ("Database error saving new user"): not the grown-up's to fix.
   if (code === 'unexpected_failure' || statusOf(err) >= 500) return TROUBLE_MESSAGE;
-  return friendlyMessage(err);
+  return NOT_DONE[where];
 }

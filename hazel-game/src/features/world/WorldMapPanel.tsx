@@ -66,26 +66,32 @@ export default function WorldMapPanel({
   const emojiOf = (p: (typeof places)[number]) => placeEmoji(world, p, flags);
   const anyHidden = places.some((p) => emojiOf(p) === HIDDEN_PLACE_EMOJI);
   const goal = nextObjective(flags);
+  // On the overworld, directions start from the hero's own tile.
+  const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
+  const boatHere = boat && boat.zoneId === world.id ? boat : null;
   // A goal across the sea flags where its way starts, as the words below do
-  // (`seaWayStart`, #117p r1): Marlow's dock on its own map — or Old Marlow's
-  // place, with the Biscuit left away from the dock; none while sailing off it,
+  // (`seaWayStart`, #117p r1): Marlow's dock on its own map — or the ⛵ itself,
+  // moored down this map's coast a walk away (#159 r2) — or Old Marlow's
+  // place, with the Biscuit away and out of reach; none while sailing off it,
   // where the sea's edge label shows the way. Out on the goal's own sea, its
   // place (Eldergrove, #75 item 14f).
-  const start = seaWayStart(goal, zoneId, aboard, boat);
+  const start = seaWayStart(goal, zoneId, aboard, boat, heroTile, flags);
   const startsHere = !!goal.at && goal.at.zoneId === world.id;
   const marlow = start === 'marlow' ? npcHome(ZONES, MARLOW) : null;
   const marlowPlace = marlow && overworldOf(ZONES, marlow.zoneId).id === world.id ? whereOnMap(ZONES, world, marlow.zoneId, null) : null;
   const flagAtStart = startsHere && start === 'dock';
+  const flagAtBoat = start === 'boat' && boatHere ? boatHere : null;
   const flagAt = marlowPlace
     ? marlowPlace
-    : flagAtStart
-      ? { x: goal.at!.x, y: goal.at!.y, exact: true, place: undefined }
-      : startsHere
-        ? null
-        : goal.zoneId && goal.zoneId !== world.id
-          ? whereOnMap(ZONES, world, goal.zoneId, null)
-          : null;
-  const boatHere = boat && boat.zoneId === world.id ? boat : null;
+    : flagAtBoat
+      ? { x: flagAtBoat.x, y: flagAtBoat.y, exact: true, place: undefined }
+      : flagAtStart
+        ? { x: goal.at!.x, y: goal.at!.y, exact: true, place: undefined }
+        : startsHere
+          ? null
+          : goal.zoneId && goal.zoneId !== world.id
+            ? whereOnMap(ZONES, world, goal.zoneId, null)
+            : null;
   // Moored on another map (after a Return, say): the legend says where —
   // out at sea, or home at Marlow's dock (15c review: from Taleshore it's usually home).
   const boatElsewhere = boat && boat.zoneId !== world.id ? boat : null;
@@ -99,8 +105,6 @@ export default function WorldMapPanel({
   const seaWays = (world.seaLinks ?? []).filter((l) => (flownOnly(l.to) ? canFly(flags) : hasBoat(flags)));
   // Everything drawn on the map that a sea-edge label keeps clear of — the ⭐ above all.
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
-  // On the overworld, directions start from the hero's own tile.
-  const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
   // With the boat left on another map (after a Return), the way starts with Old Marlow (#117p).
   const how = goalDirections(ZONES, goal, zoneId, heroTile, flags, aboard, boat);
   // Star and flag on the same place: the star steps aside so both show.
@@ -127,7 +131,7 @@ export default function WorldMapPanel({
     ? `You're sailing ${world.name.startsWith('The ') ? `the ${world.name.slice(4)}` : `off ${world.name}`} in the Biscuit`
     : mapCaption(here, floorTitle(ZONES, zoneId) ?? ZONES[zoneId].name, world.name);
   const nextLabel = goal.zoneId ? `Next: ${goal.title}.` : goal.why;
-  const flagName = flagAtStart ? goal.at!.name : (flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : ''));
+  const flagName = flagAtBoat ? 'the Biscuit' : flagAtStart ? goal.at!.name : (flagAt?.place ?? (goal.zoneId ? ZONES[goal.zoneId].name : ''));
   const boatLine = boatElsewhere
     ? elsewhereHome
       ? `⛵ The Biscuit is waiting at Marlow's dock, on ${mid(ZONES[boatElsewhere.zoneId].name)}.`

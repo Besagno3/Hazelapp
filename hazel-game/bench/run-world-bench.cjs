@@ -13,7 +13,11 @@
  *                                                      desktop sizes: nothing in the world HUD
  *                                                      overlaps, overlays cover the top bar (#102i);
  *                                                      flying with Calm on, 🛬 Land / 🐉 Fly, the
- *                                                      timer and 📜 Menu fit and each tap lands (#136e)
+ *                                                      timer and 📜 Menu fit and each tap lands (#136e);
+ *                                                      and by touch on sideways phones (740×360,
+ *                                                      568×320), walking and flying with Calm: the
+ *                                                      map whole on screen, nothing over the d-pad,
+ *                                                      44 px taps, "Switch player" (#159 r2)
  *   node bench/run-world-bench.cjs battle [outDir]     the real app (Supabase stubbed): a battle at
  *                                                      five sizes — its top bar covers nothing, the
  *                                                      enemy's "!!!" shows, the commands fit (#75 item 14f),
@@ -263,8 +267,9 @@ const HUD_USER = 'u-hud';
  * and answers Supabase for them: consent given, the kid's profile, `save` as
  * their saved game, canned questions; every write succeeds.
  */
-async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]' } = {}) {
-  const page = await browser.newPage({ viewport, reducedMotion });
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]', touch = false } = {}) {
+  // `touch`: a phone's coarse pointer — the d-pad and the sideways-phone layout only show with it.
+  const page = await browser.newPage({ viewport, reducedMotion, hasTouch: touch, isMobile: touch });
   const session = {
     access_token: 'stub',
     refresh_token: 'stub',
@@ -433,6 +438,96 @@ function faceTaps(names) {
       return hit === b ? [] : [`a tap on the ${edge} edge of "${name}" lands on ${hit ? `"${hit.textContent.trim().slice(0, 14)}"` : 'nothing'}`];
     });
   });
+}
+
+/**
+ * In the page, by touch: the d-pad (its arrows and ✋) — each one's size, and
+ * every HUD piece, top-bar item or the map that runs over one — and whether the
+ * map is whole on screen (not cut at any edge), the page scrolls sideways, and
+ * the top bar's Switch is named "Switch player" and 44 px tall (#159 r2).
+ */
+function padLayout() {
+  const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && getComputedStyle(el).display !== 'none';
+  const pad = document.querySelector('[aria-label="movement pad"]');
+  const use = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('✋'));
+  const padButtons = shown(pad) ? [...pad.querySelectorAll('button'), ...(use ? [use] : [])] : [];
+  const label = (el) => (el.getAttribute('aria-label') || el.textContent || el.tagName).trim().slice(0, 16);
+  const pieces = [];
+  const bar = document.querySelector('[data-testid=world-topbar]');
+  for (const el of bar.querySelectorAll(':scope > div > *, :scope > button, :scope > span > button')) pieces.push(['top bar', el]);
+  const h1 = document.querySelector('h1');
+  pieces.push(['place name', h1], ['crystals line', h1.nextElementSibling]);
+  for (const el of h1.parentElement.nextElementSibling.children) {
+    if (el.tagName === 'DIV') for (const c of el.children) pieces.push(['HUD', c]);
+    else pieces.push(['HUD', el]);
+  }
+  const canvas = document.querySelector('canvas');
+  if (canvas) pieces.push(['map', canvas]);
+  const hits = [];
+  for (const [where, el] of pieces.filter(([, el]) => shown(el))) {
+    const a = el.getBoundingClientRect();
+    for (const b of padButtons) {
+      const r = b.getBoundingClientRect();
+      const w = Math.min(a.right, r.right) - Math.max(a.left, r.left);
+      const h = Math.min(a.bottom, r.bottom) - Math.max(a.top, r.top);
+      if (w > 1 && h > 1) hits.push(`${where} "${label(el)}" over the pad's ${label(b)}`);
+    }
+  }
+  const c = canvas?.getBoundingClientRect();
+  const cut = c
+    ? [['top', -c.top], ['left', -c.left], ['right', c.right - innerWidth], ['bottom', c.bottom - innerHeight]]
+        .filter(([, px]) => px > 0.5)
+        .map(([edge, px]) => `${Math.round(px)}px off the ${edge}`)
+    : ['no map'];
+  const sw = [...bar.querySelectorAll('button')].find((b) => /^switch/i.test((b.getAttribute('aria-label') || b.textContent).trim()));
+  return {
+    pad: padButtons.length,
+    small: padButtons.filter((b) => b.getBoundingClientRect().width < 44 || b.getBoundingClientRect().height < 44).map(label),
+    hits,
+    cut,
+    map: c ? `${Math.round(c.width)}×${Math.round(c.height)} @ ${Math.round(c.left)},${Math.round(c.top)}` : 'no map',
+    hscroll: document.documentElement.scrollWidth > innerWidth + 1,
+    switchName: sw ? sw.getAttribute('aria-label') || sw.textContent.trim() : null,
+    switchHeight: sw ? Math.round(sw.getBoundingClientRect().height) : 0,
+  };
+}
+
+/**
+ * A sideways phone by touch (#159 r2): on Dawnreach walking, or flying on
+ * Ember with Calm cast (its timer in the HUD row), the map is whole on screen,
+ * nothing in the HUD or the top bar runs over the d-pad, the pad's buttons are
+ * 44 px, 📜 Menu and 🐉 Fly / 🛬 Land take a tap 20 px off their middle, the
+ * top bar's Switch reads "Switch player", and nothing scrolls sideways.
+ */
+async function touchHud(browser, viewport, save, profile, outDir, size, mode) {
+  const page = await stubbedApp(browser, viewport, save, profile, { touch: true });
+  const problems = [];
+  if (mode === 'flying') {
+    await page.getByRole('button', { name: '📜 Menu' }).click();
+    await page.waitForTimeout(400);
+    await page.getByRole('dialog', { name: 'Menu' }).getByRole('button', { name: 'Cast', exact: true }).click();
+    await page.waitForTimeout(800);
+    await page.waitForFunction(() => !document.body.innerText.includes('Critters will let you pass'), null, { timeout: 12000 }).catch(() => {});
+  }
+  const pad = await page.evaluate(padLayout);
+  const layout = await page.evaluate(hudLayout);
+  await page.screenshot({ path: path.join(outDir, `hud-${size}-touch-${mode}.png`) });
+  if (!pad.pad) problems.push('no d-pad (is touch on?)');
+  for (const h of pad.hits) problems.push(`overlap: ${h}`);
+  for (const c of pad.cut) problems.push(`the map is cut: ${c}`);
+  for (const o of layout.overlaps) problems.push(`overlap: ${o}`);
+  if (pad.hscroll) problems.push('scrolls sideways');
+  if (pad.small.length) problems.push(`pad buttons under 44 px: ${pad.small.join(', ')}`);
+  if (pad.switchName !== 'Switch player') problems.push(`the top bar's Switch is named ${JSON.stringify(pad.switchName)}, not "Switch player"`);
+  if (pad.switchHeight < 44) problems.push(`the top bar's Switch is ${pad.switchHeight}px tall`);
+  for (const name of ['📜 Menu', mode === 'flying' ? '🛬 Land' : '🐉 Fly']) {
+    const tap = await page.evaluate(tapsLand, name);
+    if (tap) problems.push(tap);
+  }
+  if (mode === 'flying' && !(await page.evaluate(flightRow)).calm) problems.push('no 🕊️ Calm timer in the HUD');
+  const errors = [...page.errors];
+  await page.close();
+  return { problems, errors, look: `${mode}: map ${pad.map}, ${pad.pad} pad buttons, top bar ${layout.barHeight}px` };
 }
 
 /** Tab `n` times, noting where focus lands each time. */
@@ -749,17 +844,31 @@ async function hud(browser, outDir) {
     if (inSpire) {
       const leaveTap = await sp.evaluate(tapsLand, 'Leave the Spire');
       if (leaveTap) problems.push(leaveTap);
-      // "Leave the Spire?": the top bar out of reach; Escape keeps climbing, focus back on Leave.
+      // "Leave the Spire?": the top bar out of reach; 🗼 Keep climbing puts focus back on Leave.
       await sp.getByRole('button', { name: '🚪 Leave the Spire' }).click();
       await sp.waitForTimeout(300);
       await sp.screenshot({ path: path.join(outDir, `hud-${size}-spire-leave.png`) });
       const underAsk = (await tabs(sp, 4)).filter((f) => f.startsWith('top bar'));
       if (underAsk.length) problems.push(`Tab reached the top bar under "Leave the Spire?": ${underAsk.join(', ')}`);
+      await sp.getByRole('button', { name: '🗼 Keep climbing' }).click();
+      await sp.waitForTimeout(300);
+      const kept = await sp.evaluate(focusLabel);
+      if (await sp.locator('[role=alertdialog]').count()) problems.push('Keep climbing left "Leave the Spire?" open');
+      else if (!kept.includes('Leave the Spire')) problems.push(`after Keep climbing focus is on ${kept}`);
+      // Escape hands the keys back to the climb (#159 r2): focus off 🚪 Leave (on the world's
+      // stage), so the next Space acts in the world instead of asking "Leave the Spire?" again.
+      await sp.getByRole('button', { name: '🚪 Leave the Spire' }).click();
+      await sp.waitForTimeout(300);
       await sp.keyboard.press('Escape');
       await sp.waitForTimeout(300);
       const after = await sp.evaluate(focusLabel);
       if (await sp.locator('[role=alertdialog]').count()) problems.push('Escape left "Leave the Spire?" open');
-      else if (!after.includes('Leave the Spire')) problems.push(`after Escape focus is on ${after}`);
+      else if (after.includes('Leave the Spire') || after.startsWith('top bar')) problems.push(`after Escape focus is on ${after}`);
+      else {
+        await sp.keyboard.press('Space');
+        await sp.waitForTimeout(300);
+        if (await sp.locator('[role=alertdialog]').count()) problems.push('Space after Escape asked "Leave the Spire?" again');
+      }
     }
     errors.push(...sp.errors);
     await sp.close();
@@ -779,6 +888,20 @@ async function hud(browser, outDir) {
     for (const e of errors) console.log(`    page error: ${e}`);
     for (const p of problems) console.log(`    ${p}`);
   }
+  // A sideways phone by touch (#159 r2): the `(pointer: coarse) and
+  // (orientation: landscape) and (max-height: 500px)` layout only shows with
+  // a coarse pointer, which the checks above don't have.
+  const walkSave = { ...flyingSave, vehicle: 'foot' };
+  const touchSizes = [[740, 360], [568, 320]];
+  for (const [width, height] of touchSizes) {
+    const size = `${width}×${height}`;
+    const runs = [];
+    for (const mode of ['walking', 'flying']) runs.push(await touchHud(browser, { width, height }, mode === 'walking' ? walkSave : flyingSave, profile, outDir, size, mode));
+    const issues = runs.flatMap((r) => [...r.problems, ...r.errors.map((e) => `page error: ${e}`)]);
+    if (issues.length) bad += 1;
+    console.log(`${issues.length ? '✗' : '✓'} ${size} touch  ${runs.map((r) => r.look).join('; ')}`);
+    for (const p of issues) console.log(`    ${p}`);
+  }
   // Reduced motion: panels appear without scaling in (they may still fade).
   const still = await stubbedApp(browser, { width: 375, height: 667 }, depths, profile, { reducedMotion: 'reduce' });
   const firstFrame = await still.evaluate(async () => {
@@ -791,7 +914,8 @@ async function hud(browser, outDir) {
   const steady = firstFrame === 'none' || firstFrame === 'matrix(1, 0, 0, 1, 0, 0)';
   console.log(`${steady ? '✓' : '✗'} reduced motion: the Menu's first frame has transform ${firstFrame}`);
   if (!steady) bad += 1;
-  console.log(`\n${sizes.length + 1 - bad}/${sizes.length + 1} checks clean. Screenshots in ${outDir}.`);
+  const checks = sizes.length + touchSizes.length + 1;
+  console.log(`\n${checks - bad}/${checks} checks clean. Screenshots in ${outDir}.`);
   if (bad) process.exitCode = 1;
 }
 

@@ -62,6 +62,142 @@ describe('AuthPage — forgot password', () => {
     // The raw error goes to the console for whoever fixes it.
     expect(console.warn).toHaveBeenCalledWith('Reset link failed:', 'Too many requests');
   });
+
+  it('a refused reset link counts down the wait it named, like "Send the link again" (#159 review round 2)', async () => {
+    vi.useFakeTimers();
+    auth.resetPasswordForEmail.mockResolvedValue({
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 37 seconds.', status: 429 },
+    });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('Forgot password?'));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'kid@example.com' } });
+    const send = screen.getByRole('button', { name: 'Send reset link' });
+    send.focus();
+    fireEvent.click(send);
+    await act(async () => {});
+    expect(screen.getByText('Too many tries for now. Please wait 37 seconds, then try again.')).toBeInTheDocument();
+    // The button and the words agree, read in words; it keeps the keyboard's focus.
+    expect(send).toHaveAccessibleName('Send reset link in 37 seconds');
+    expect(send).toHaveTextContent('Send reset link in 37s');
+    expect(send).toHaveAttribute('aria-disabled', 'true');
+    expect(send).not.toBeDisabled();
+    expect(send).toHaveFocus();
+    fireEvent.click(send);
+    await act(async () => {});
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledOnce();
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(send).toHaveAccessibleName('Send reset link in 27 seconds');
+    act(() => {
+      vi.advanceTimersByTime(27_000);
+    });
+    expect(send).toHaveAccessibleName('Send reset link');
+    expect(send).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  it('the hourly email cap on Forgot password says try later — not "check spam", nothing was sent (#159 review round 2)', async () => {
+    auth.resetPasswordForEmail.mockResolvedValue({ error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('Forgot password?'));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'kid@example.com' } });
+    fireEvent.click(screen.getByText('Send reset link'));
+    await screen.findByText("We can't send more emails right now. Please try again in about an hour.");
+    expect(screen.queryByText(/spam/)).toBeNull();
+    // No countdown promising a minute either.
+    expect(screen.getByRole('button', { name: 'Send reset link' })).toHaveAttribute('aria-disabled', 'false');
+  });
+});
+
+describe('AuthPage — an email link that came back with an error (#159 review round 2)', () => {
+  function at(address: string, test: () => void) {
+    window.history.replaceState(null, '', address);
+    try {
+      test();
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  }
+
+  it('a link that ran out says so on the sign-in page, and leaves the address', () => {
+    at('/play/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('status')).toHaveTextContent('That email link has run out. Sign in to get a new one, or tap "Forgot password?".');
+      expect(screen.getByText('Forgot password?')).toBeInTheDocument();
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/');
+      expect(console.warn).toHaveBeenCalledWith('Email link failed:', 'Email link is invalid or has expired [otp_expired]');
+    });
+  });
+
+  it('…a PKCE link\'s error in the query too, keeping the rest of the address', () => {
+    at('/play/?keep=1&error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired#top', () => {
+      render(<AuthPage />);
+      expect(screen.getByText(/That email link has run out/)).toBeInTheDocument();
+      expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/?keep=1#top');
+    });
+  });
+
+  it('another link error says the link didn\'t work, in plain words', () => {
+    at('/play/#error=server_error&error_code=bad_code_verifier&error_description=code+challenge+does+not+match', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('status')).toHaveTextContent('That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".');
+      expect(screen.queryByText(/code challenge/)).toBeNull();
+    });
+  });
+
+  it('an ordinary address says nothing', () => {
+    at('/play/#top', () => {
+      render(<AuthPage />);
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+  });
+});
+
+describe('AuthPage — buttons wait without dropping the keyboard (#159 review round 2)', () => {
+  it('Sign In says Loading… while it works — aria-disabled, never disabled, still focused, and a second tap does nothing', async () => {
+    let answer: (v: { error: unknown }) => void = () => {};
+    auth.signInWithPassword.mockReturnValue(new Promise((r) => (answer = r)));
+    render(<AuthPage />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    const button = screen.getByRole('button', { name: 'Sign In' });
+    button.focus();
+    fireEvent.click(button);
+    expect(button).toHaveTextContent('Loading…');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveFocus();
+    fireEvent.click(button);
+    expect(auth.signInWithPassword).toHaveBeenCalledOnce();
+    await act(async () => answer({ error: { code: 'invalid_credentials', message: 'Invalid login credentials' } }));
+    expect(button).toHaveTextContent('Sign In');
+    expect(button).toHaveFocus();
+  });
+
+  it('the same message twice is read out twice: each is a new line in the live region', () => {
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    fireEvent.click(screen.getByText('Create family account'));
+    const first = screen.getByText(/tick the box/);
+    fireEvent.click(screen.getByText('Create family account'));
+    const second = screen.getByText(/tick the box/);
+    expect(second).not.toBe(first);
+    expect(first).not.toBeInTheDocument();
+  });
+
+  it('the hourly email cap on sign-up doesn\'t send them to their spam: nothing was sent', async () => {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    await screen.findByText("We can't send more emails right now. Please try again in about an hour.");
+    expect(screen.queryByText(/spam/)).toBeNull();
+  });
 });
 
 describe('AuthPage — a grown-up signs up (#124)', () => {
@@ -442,5 +578,57 @@ describe('ResetPasswordPage', () => {
     await screen.findByText('That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.');
     fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
     expect(auth.signOut).toHaveBeenCalled();
+  });
+
+  it('…and "Back to sign in" is the big button then: the dead Save and the fields go, focus moves to it (#159 review round 2)', async () => {
+    auth.updateUser.mockResolvedValue({ error: { name: 'AuthSessionMissingError', message: 'Auth session missing!', status: 400 } });
+    render(<ResetPasswordPage />);
+    const save = screen.getByRole('button', { name: 'Save new password' });
+    save.focus();
+    fill('dragonfire', 'dragonfire');
+    const back = await screen.findByRole('button', { name: 'Back to sign in' });
+    expect(back).toHaveClass('bg-purple-600');
+    expect(back).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Save new password' })).toBeNull();
+    expect(screen.queryByPlaceholderText('New password')).toBeNull();
+    // One way on, not two.
+    expect(screen.getAllByRole('button', { name: /sign/i })).toHaveLength(1);
+    expect(screen.getByRole('status')).toHaveTextContent(/That link has run out/);
+  });
+
+  it('a dead sign-in (refresh token or JWT) reads as the link running out here, not raw English (#159 review round 2)', async () => {
+    auth.updateUser.mockResolvedValue({ error: { code: 'refresh_token_not_found', message: 'Invalid Refresh Token: Refresh Token Not Found', status: 400 } });
+    render(<ResetPasswordPage />);
+    fill('dragonfire', 'dragonfire');
+    await screen.findByText('That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.');
+    expect(screen.queryByText(/Refresh Token/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Back to sign in' })).toBeInTheDocument();
+  });
+
+  it('Save waits with aria-disabled, keeping focus, and saves once (#159 review round 2)', async () => {
+    let answer: (v: { error: unknown }) => void = () => {};
+    auth.updateUser.mockReturnValue(new Promise((r) => (answer = r)));
+    render(<ResetPasswordPage />);
+    const save = screen.getByRole('button', { name: 'Save new password' });
+    save.focus();
+    fill('dragonfire', 'dragonfire');
+    expect(save).toHaveTextContent('Saving…');
+    expect(save).toHaveAttribute('aria-disabled', 'true');
+    expect(save).not.toBeDisabled();
+    expect(save).toHaveFocus();
+    fireEvent.click(save);
+    expect(auth.updateUser).toHaveBeenCalledOnce();
+    await act(async () => answer({ error: { code: 'same_password', message: 'New password should be different from the old password.' } }));
+    expect(save).toHaveTextContent('Save new password');
+  });
+
+  it('the same message twice is read out twice: a new line each time', () => {
+    render(<ResetPasswordPage />);
+    fill('abcdefg', 'abcdefh');
+    const first = screen.getByText("The two passwords don't match.");
+    fireEvent.click(screen.getByText('Save new password'));
+    const second = screen.getByText("The two passwords don't match.");
+    expect(second).not.toBe(first);
+    expect(first).not.toBeInTheDocument();
   });
 });

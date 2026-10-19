@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
@@ -59,6 +59,21 @@ export default function QuizRound() {
   useEffect(() => {
     if (shownId) markSeen(shownId);
   }, [shownId]);
+
+  // On a sideways phone (740×360) or a small one (320×568) the 💡 explanation
+  // and Next fall below the fold once an answer is picked: bring Next into
+  // view, as QuestionCard does ('nearest' = no scroll when it already fits).
+  const nextButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (selected === null) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Wait a frame so the explanation + button have laid out.
+    const raf = requestAnimationFrame(() => {
+      const btn = nextButton.current;
+      if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
 
   if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
   // The top bar stays through the wait (15–30 s on a thin bank, #163) and a
@@ -193,6 +208,7 @@ export default function QuizRound() {
 
               {selected !== null && (
                 <motion.button
+                  ref={nextButton}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   onClick={goNext}

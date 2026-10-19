@@ -56,6 +56,34 @@ describe('the Library — starter questions pay no XP (#153)', () => {
     expect(addXp).toHaveBeenCalledWith(LIBRARY_XP);
   });
 
+  it('paid on the right answer: Leave or Escape before "Continue" keeps the XP, and the question is off the shelf (#159 r2)', () => {
+    for (const way of ['Escape', 'Leave'] as const) {
+      addXp.mockClear();
+      sendFlow.mockClear();
+      useSaveStore.setState({ save: { ...useSaveStore.getState().save!, library: [{ question: missed('q-bank', 'A bank question?'), picked: 1 }] } });
+      const { unmount } = render(<ServiceOverlay service="library" npcId={null} />);
+      fireEvent.click(screen.getByText('A bank question?'));
+      fireEvent.click(screen.getByText('Right'));
+      expect(addXp, way).toHaveBeenCalledWith(LIBRARY_XP);
+      expect(useSaveStore.getState().save!.library, way).toEqual([]);
+      if (way === 'Escape') fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+      else fireEvent.click(screen.getByRole('button', { name: 'Leave' }));
+      expect(sendFlow, way).toHaveBeenCalledWith({ type: 'CLOSE' });
+      unmount();
+      // Paid once: nothing more on leaving.
+      expect(addXp, way).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it('a wrong answer pays nothing and keeps the question on the shelf', () => {
+    render(<ServiceOverlay service="library" npcId={null} />);
+    fireEvent.click(screen.getByText('A bank question?'));
+    fireEvent.click(screen.getByText('Wrong A'));
+    fireEvent.click(screen.getByText('Back to the shelf'));
+    expect(addXp).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.library.map((e) => e.question.id)).toEqual(['q-bank', 'starter-math-easy-1']);
+  });
+
   it('a starter question beaten again leaves the shelf, with no XP and no promise of any', () => {
     render(<ServiceOverlay service="library" npcId={null} />);
     beat('A starter question?', '🌟 Beaten!');

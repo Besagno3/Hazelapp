@@ -17,6 +17,9 @@ import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
 import ModalLayer from '../../components/ModalLayer';
 
+/** "Walk away" / "Later" — and Escape while either is offered. */
+const walkAway = () => sendFlow({ type: 'CLOSE' });
+
 /**
  * "Questions along the path" (#37): a gatekeeper's challenge, a question-
  * locked treasure chest or a riddle step's tale-stone (#75 item 15e). One
@@ -126,6 +129,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     <ModalLayer
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
+      // Escape is "Walk away" or "Later" while one is offered (#159 r2) — never
+      // over a question still to answer, which has nothing to cancel.
+      onEscape={error || (question && missed) ? walkAway : undefined}
       label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       <div className="min-h-full flex flex-col items-center justify-center">
         <motion.h2
@@ -153,7 +159,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                 Try again
               </button>
               <button
-                onClick={() => sendFlow({ type: 'CLOSE' })}
+                onClick={walkAway}
                 className="bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm"
               >
                 Walk away
@@ -196,7 +202,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         )}
         {question && missed && (
           <button
-            onClick={() => sendFlow({ type: 'CLOSE' })}
+            onClick={walkAway}
             className="mt-3 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-lg px-4 py-2 text-sm"
           >
             Later

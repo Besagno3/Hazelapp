@@ -1944,8 +1944,9 @@ describe("nobody you talk to stands in a critter's patch (#114aa)", () => {
           const stepClear = within(z, e, critterReach + TILE, gates);
           for (const p of z.npcs) {
             const near = questPeople.has(p.defId) ? stepClear : touch;
-            // A quest person who strolls (`npcWanders`) is a step clear wherever the stroll takes them.
-            const stroll = questPeople.has(p.defId) && npcWanders(NPC_DEFS[p.defId])
+            // Anyone who strolls (`npcWanders`) is clear wherever the stroll takes them — a
+            // quest person by a step, a villager out of reach (Sandy, Smudge: #159 r2).
+            const stroll = npcWanders(NPC_DEFS[p.defId])
               ? reach(z, { from: p, exits: 'stop', flags: null, blocked: (x, y) => Math.hypot(x - p.x, y - p.y) > WANDER_TUNING.npc.leashTiles })
               : new Set([`${p.x},${p.y}`]);
             for (const c of stroll) {
@@ -1985,6 +1986,54 @@ describe("nobody you talk to stands in a critter's patch (#114aa)", () => {
       for (const e of wanderers(z)) {
         const touch = within(z, e, critterReach, 'open');
         for (const c of spots) expect(touch.has(c), `${z.id}: ${e.defId} (${e.x},${e.y}) reaches ${c}`).toBe(false);
+      }
+    }
+  });
+
+  /** Each save crystal ('S') on a map, with the ground beside it a hero saves from. */
+  const crystals = (z: ZoneDef) =>
+    z.map.flatMap((row, y) =>
+      [...row].flatMap((ch, x) =>
+        ch === 'S' ? [{ x, y, beside: [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter((c) => isWalkable(z, c.x, c.y)) }] : [],
+      ),
+    );
+
+  it('no critter wanders up beside a save crystal: saving is never a fight (#159 r2)', () => {
+    let seen = 0;
+    for (const z of allZones) {
+      for (const s of crystals(z)) {
+        seen++;
+        for (const e of wanderers(z)) {
+          for (const gates of ['closed', 'open'] as const) {
+            const touch = within(z, e, critterReach, gates);
+            for (const c of s.beside) expect(touch.has(`${c.x},${c.y}`), `${z.id} (gates ${gates}): ${e.defId} (${e.x},${e.y}) reaches ${c.x},${c.y} beside the save crystal`).toBe(false);
+          }
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(20);
+  });
+
+  it("from the spawn and wherever you arrive, a walk to every save crystal stays out of every critter's reach (#159 r2)", () => {
+    // Every way into a map: its spawn, and where each exit into it lands.
+    const arrivals = (z: ZoneDef) => [z.spawn, ...allZones.flatMap((o) => o.exits.filter((e) => e.to === z.id).map((e) => ({ x: e.spawnX, y: e.spawnY })))];
+    for (const z of allZones) {
+      for (const s of crystals(z)) {
+        for (const gates of ['closed', 'open'] as const) {
+          const patches = wanderers(z).map((e) => ({ e, touch: within(z, e, critterReach, gates) }));
+          for (const from of arrivals(z)) {
+            const anyWay = reach(z, { from, exits: 'stop', flags: null, gates });
+            // A crystal you can't walk to from here at all (behind stairs, a gate, the sea) needs no safe walk.
+            if (!s.beside.some((c) => anyWay.has(`${c.x},${c.y}`))) continue;
+            // A critter whose patch you start in rests there and lets you pass (`standDown`); the rest are awake.
+            const awake = patches.filter((p) => !p.touch.has(`${from.x},${from.y}`));
+            const safe = reach(z, { from, exits: 'stop', flags: null, gates, blocked: (x, y) => awake.some((p) => p.touch.has(`${x},${y}`)) });
+            expect(
+              s.beside.some((c) => safe.has(`${c.x},${c.y}`)),
+              `${z.id} (gates ${gates}): from ${from.x},${from.y} to the save crystal at ${s.x},${s.y}`,
+            ).toBe(true);
+          }
+        }
       }
     }
   });
