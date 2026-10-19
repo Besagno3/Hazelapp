@@ -539,3 +539,42 @@ export function scriptoriumPages(library: readonly LibraryEntry[], flags: Record
   }
   return pages;
 }
+
+// --- The song that breaks the hush (#159, item 6) ------------------------------
+
+/**
+ * A boss whose power move can be broken by a song: while it winds up, the kid
+ * types a line of the song (one per wind-up, round and round) against the
+ * clock. In time, the move fizzles to a plain blow; too slow, it comes as ever
+ * (Guard still blocks it — never a penalty). The Hush Fiend's is the first
+ * Sage's lullaby, the one "she used to sing to us" (the Crystal of Voices).
+ */
+export interface BossSong {
+  /** The lines, lowercase letters and spaces only (the hold asks for a bump key, never a Shift). */
+  lines: readonly string[];
+  /** The prompt over the bar. */
+  prompt: string;
+  /** Said when a line is typed in time, and when the clock runs out. */
+  done: string;
+  late: string;
+  /** The message after a broken move. */
+  broken: (name: string, move: string) => string;
+}
+
+/** How long a song line gives, in ms — a whole line, so longer than a burst. */
+export const SONG_MS = 20_000;
+
+export const BOSS_SONGS: Record<string, BossSong> = {
+  'hush-fiend': {
+    lines: ['hush now little ones and hear', 'every name is a song i keep', 'sing it back and i am near', 'no voice is lost that is sung'],
+    prompt: "🎵 Sing the first Sage's song — break the hush!",
+    done: '🎶 Your song rings out — the hush breaks!',
+    late: 'The shush swallows your song... next time!',
+    broken: (name, move) => `🎶 The whole island hums along! ${name} claps its mittens over its ears — its ${move} fizzles. Next turn it can only swipe at you.`,
+  },
+};
+
+/** The song that breaks this boss's power move, if it has one. */
+export function songFor(enemyId: string): BossSong | null {
+  return BOSS_SONGS[enemyId] ?? null;
+}

@@ -27,6 +27,8 @@ import {
   scribeText,
   scriptoriumOpen,
   scriptoriumPages,
+  BOSS_SONGS,
+  songFor,
 } from './typing';
 import { FUN_FACTS } from '../lib/funFacts';
 import { ALL_TOPICS } from './topics';
@@ -217,5 +219,21 @@ describe('the scriptorium (#159 item 5)', () => {
   it('opens once the capitals lesson is cleared', () => {
     expect(scriptoriumOpen({})).toBe(false);
     expect(scriptoriumOpen({ [typingLessonFlag('capitals')]: true })).toBe(true);
+  });
+});
+
+describe('the song that breaks the hush (#159 item 6)', () => {
+  it("the Hush Fiend has one; its lines are short, lowercase letters and spaces only, so the hold never wants a Shift", () => {
+    expect(songFor('hush-fiend')).toBe(BOSS_SONGS['hush-fiend']);
+    expect(songFor('count-bat')).toBeNull();
+    for (const song of Object.values(BOSS_SONGS)) {
+      expect(song.lines.length).toBeGreaterThan(0);
+      for (const line of song.lines) {
+        expect(line).toMatch(/^[a-z ]+$/);
+        expect(line.length).toBeLessThanOrEqual(32);
+        for (const ch of line) expect(charKey(ch)).not.toBeNull();
+      }
+      expect(song.broken('The Hush Fiend', 'Great Shush')).toMatch(/Great Shush/);
+    }
   });
 });

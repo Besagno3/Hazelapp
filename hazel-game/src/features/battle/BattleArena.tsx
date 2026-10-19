@@ -86,7 +86,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { FIRST_STRIKE_SHARE, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, enemyWord, nameRaceDue, rollTypingBonus, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { FIRST_STRIKE_SHARE, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_MS, burstWord, enemyWord, nameRaceDue, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -123,6 +123,8 @@ type Turn =
   | { kind: 'message'; text: string; next: () => void }
   /** The name race (#159 item 4): type the critter's name before it moves. */
   | { kind: 'race'; word: string }
+  /** A boss winding up its power move, and a line of the song that breaks it (#159 item 6). */
+  | { kind: 'song'; line: string; move: string }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
   | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
@@ -320,6 +322,8 @@ export default function BattleArena() {
   const peek = useRef(0);
   // What the enemy does on its NEXT turn (see lib/battleTurn nextIntent).
   const [intent, setIntent] = useState<EnemyIntent>('attack');
+  // Which line of a boss's song the next wind-up asks for (#159 item 6).
+  const songLineNo = useRef(0);
   const enemyTurnNo = useRef(0);
   // Speed trigger (lib/battleTurn speedStep): quick correct answers in a row
   // raise this battle's question level. Refs, not state — the next question is
@@ -879,13 +883,37 @@ export default function BattleArena() {
       sfx('charge');
       showBanner(`${enemy!.name} is gathering power for ${powerMove}!`, 2800, '💢');
       advanceIntent('charge');
-      say(
-        `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`,
-        () => setTurn({ kind: 'command' }),
-      );
+      // A boss with a song (#159 item 6): sing a line of it, with a keyboard, to break the move.
+      const song = scribe ? songFor(enemy!.id) : null;
+      if (song) {
+        setTurn({ kind: 'song', line: song.lines[songLineNo.current++ % song.lines.length], move: powerMove });
+        return;
+      }
+      say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
     }
     ask({ kind: 'enemy-question', question: nextQuestion() });
+  }
+
+  /** The warning as a power move is wound up: what's coming, and that Guard blocks it. */
+  function windUpText() {
+    return `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`;
+  }
+
+  /**
+   * The song line's clock ran out, or the line was typed in time (#159 item 6):
+   * in time, the wound-up move drops back to a plain blow (`nextIntent`'s
+   * "a charge is always followed by its power blow" has this one exception).
+   */
+  function songDone(ok: boolean) {
+    if (!ok) {
+      say(windUpText(), () => setTurn({ kind: 'command' }));
+      return;
+    }
+    sfx('streak');
+    setIntent('attack');
+    float('🎶', 'hero', 'text-amber-200');
+    say(songFor(enemy!.id)!.broken(enemy!.name, powerMove), () => setTurn({ kind: 'command' }));
   }
 
   /**
@@ -1300,6 +1328,27 @@ export default function BattleArena() {
               // A beat to read the result, then the blow or the critter's move.
               onResult={(ok) => later(() => raceDone(ok), 700)}
             />
+          </div>
+        )}
+
+        {turn.kind === 'song' && (
+          <div className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-4 shadow-2xl" data-testid="hush-song">
+            <p className="text-center font-bold text-sm uppercase tracking-widest text-indigo-900">💢 {turn.move} is coming — sing!</p>
+            <TypeBurst
+              key={turn.line}
+              word={turn.line}
+              holdRule={save.typingAnchor}
+              durationMs={SONG_MS}
+              label={songFor(enemy.id)!.prompt}
+              doneText={songFor(enemy.id)!.done}
+              lateText={songFor(enemy.id)!.late}
+              onEvent={(e) => {
+                if (e === 'typed' || e === 'done') float('🎵', 'hero', 'text-amber-200');
+              }}
+              // A beat to read the result, then what the boss does next.
+              onResult={(ok) => later(() => songDone(ok), 700)}
+            />
+            <p className="text-xs text-center text-gray-500 mt-2">Too slow? 🛡️ Guard (or a Rainbow Ward) still blocks it completely.</p>
           </div>
         )}
 

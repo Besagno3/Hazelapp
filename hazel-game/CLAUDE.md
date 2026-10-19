@@ -582,6 +582,12 @@ zod, react-query. Add the package in the same change that first uses it.
   `scribeText` makes a passage typeable or drops it, `pageLines` wraps it);
   `SCRIPTORIUM_XP` once a page (`page:<id>` flags, `pagesCopied`); open once
   the capitals lesson is cleared (`scriptoriumOpen`).
+  **The song that breaks the hush (item 6):** a boss in `BOSS_SONGS`
+  (`songFor`; the Hush Fiend) winds up its power move into a `song` turn
+  instead of the plain warning, with a keyboard and lesson 1: a line of the
+  song (one per wind-up, round and round) within `SONG_MS`. In time, the
+  move drops to a plain blow (`songDone` → `setIntent('attack')`); too slow,
+  the warning as ever — Guard still blocks it.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1004,6 +1010,18 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing VI: the song that breaks the hush (#159)
+The Crystal of Voices gets its typing boss.
+- **The Hush Fiend's wind-up is a song:** every third turn it gathers power
+  for its Great Shush; with a keyboard and lesson 1 the warning becomes a
+  box in the command menu's place — a line of the first Sage's lullaby
+  ("hush now little ones and hear", four lines, one per wind-up) against a
+  20 s bar. Sung in time, "the hush breaks": the Great Shush fizzles and its
+  next blow is a plain one. Too slow, the usual warning — and Guard still
+  blocks it, so the song is never a penalty. Each key floats 🎵.
+- Any boss gets a song by adding it to `BOSS_SONGS`.
+- Tests: +4 (`BattleArena.test`, `content/typing.test`); 1644 green, lint + tsc clean.
 
 ### 2026-10-19 — Touch typing V: the scriptorium (#159)
 Pages to copy out, in the Library.

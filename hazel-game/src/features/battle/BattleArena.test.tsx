@@ -1058,3 +1058,111 @@ describe('the name race as a battle opens (#159 item 4)', () => {
     expect(screen.queryByTestId('name-race')).toBeNull();
   });
 });
+
+// --- The song that breaks the hush (#159 item 6) ------------------------------------
+const { BOSS_SONGS, SONG_MS } = await import('../../content/typing');
+const { enemyAttack } = await import('../../lib/battleMath');
+const { POWER_MULTIPLIER } = await import('../../lib/battleTurn');
+
+describe('the song that breaks the hush (#159 item 6)', () => {
+  const hush = { ...enemy, id: 'hush-fiend', instanceId: 'hf', name: 'The Hush Fiend', isBoss: true, role: 'fiend', topic: 'words', level: 1, maxHp: 500 } as BattleEnemy;
+  const song = BOSS_SONGS['hush-fiend'];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  /** One round with nothing right (so no scribe burst): Guard, wrong; its blow, wrong. */
+  function roundOfWrongs() {
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+  }
+
+  /** The Fiend's monologue tapped through, two rounds, then the Guard that meets its third turn: the wind-up. */
+  function toTheWindUp() {
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(hush, 100, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 8 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    roundOfWrongs();
+    roundOfWrongs();
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+  }
+
+  it("the Hush Fiend's wind-up offers a line of the song; sung in time, the Great Shush fizzles to a plain blow", () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    expect(box).toHaveTextContent(/Great Shush is coming/);
+    expect(screen.getByLabelText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
+    expect(screen.queryByText(/gathering power…/)).toBeNull();
+    vi.useFakeTimers();
+    for (const ch of song.lines[0]) {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(box).toHaveTextContent(/the hush breaks/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/Great Shush fizzles/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // Its next blow is a plain one, not ×2.
+    const before = useBattleStore.getState().playerHp;
+    roundOfWrongs();
+    expect(before - useBattleStore.getState().playerHp).toBe(enemyAttack(hush.level, true, 0));
+  });
+
+  it('too slow: the usual warning, and the Great Shush lands ×2 (Guard would still block it)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    vi.useFakeTimers();
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    act(() => {
+      vi.advanceTimersByTime(SONG_MS + 100);
+    });
+    expect(box).toHaveTextContent(/swallows your song/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const before = useBattleStore.getState().playerHp;
+    roundOfWrongs();
+    expect(before - useBattleStore.getState().playerHp).toBe(enemyAttack(hush.level, true, 0) * POWER_MULTIPLIER);
+  });
+
+  it('without a keyboard, or against a boss with no song, the wind-up is the plain warning', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    toTheWindUp();
+    expect(screen.queryByTestId('hush-song')).toBeNull();
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+    cleanup();
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...hush, id: 'null-fiend', instanceId: 'nf', name: 'The Null Fiend', topic: 'math' } as BattleEnemy, 100, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 8 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    roundOfWrongs();
+    roundOfWrongs();
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.queryByTestId('hush-song')).toBeNull();
+    expect(screen.getByText(/Zero Crush is coming next turn/)).toBeInTheDocument();
+  });
+});
