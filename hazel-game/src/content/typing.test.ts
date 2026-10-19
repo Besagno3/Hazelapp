@@ -34,8 +34,14 @@ import {
   isPangram,
   pangramChest,
   pangramFor,
+  PEN_PALS,
+  penPalFor,
+  penPalReadLine,
+  penPalReply,
+  penPalReplyFlag,
 } from './typing';
 import { ZONES, pathTargetId } from './zones';
+import { QUESTS } from './quests';
 import { FUN_FACTS } from '../lib/funFacts';
 import { ALL_TOPICS } from './topics';
 import type { LibraryEntry } from '../types';
@@ -268,5 +274,33 @@ describe('pangram chests (#159 item 8)', () => {
     }
     // More than one sentence is in use across the world.
     expect(new Set(locked.map(pangramFor)).size).toBeGreaterThan(1);
+  });
+});
+
+describe('pen-pal replies (#159 item 9)', () => {
+  it("each pen pal hangs off a real quest's bring step; its lines type on the key map", () => {
+    for (const pal of PEN_PALS) {
+      const quest = QUESTS.find((q) => q.id === pal.questId)!;
+      expect(quest, pal.questId).toBeDefined();
+      const step = quest.steps.find((st) => st.id === pal.stepId)!;
+      expect(step?.trade, pal.stepId).toBeDefined();
+      expect(penPalFor(pal.stepId)).toBe(pal);
+      for (const line of pal.replies) {
+        expect(scribeText(line)).toBe(line);
+        expect(line.length).toBeLessThanOrEqual(44);
+      }
+      expect(pal.read(pal.replies[0])).toContain(pal.replies[0]);
+    }
+    expect(penPalFor('no-such-step')).toBeNull();
+  });
+
+  it('the line written is remembered by its number and read back at the end', () => {
+    const pal = PEN_PALS[0];
+    expect(penPalReply(pal.questId, {})).toBeNull();
+    expect(penPalReadLine(pal.questId, {})).toBeNull();
+    const flags = { [penPalReplyFlag(pal.questId, 1)]: true };
+    expect(penPalReply(pal.questId, flags)).toBe(pal.replies[1]);
+    expect(penPalReadLine(pal.questId, flags)).toBe(pal.read(pal.replies[1]));
+    expect(penPalReadLine('no-such-quest', flags)).toBeNull();
   });
 });

@@ -13,6 +13,7 @@
 import { FUN_FACTS } from '../lib/funFacts';
 import type { LibraryEntry, Topic } from '../types';
 import { CONSUMABLES, type ConsumableId } from './items';
+import { SHUSH_QUEST } from './questFlags';
 import { ALL_TOPICS, topicInfo } from './topics';
 
 export type Hand = 'left' | 'right';
@@ -624,4 +625,64 @@ export function pangramFor(chestId: string): string {
 export function isPangram(text: string): boolean {
   const letters = new Set(text.toLowerCase().replace(/[^a-z]/g, ''));
   return letters.size === 26;
+}
+
+// --- Pen-pal replies (#159, item 9) --------------------------------------------
+
+/**
+ * A letter quest where the kid can add a line in their own hand: at the bring
+ * step, with a keyboard and the capitals lesson, the recipient offers it —
+ * pick one of a few lines and type it; the giver reads it back at the end.
+ * The line is one of `replies` (kept as a flag by its number — never free
+ * text, which has no place in a save), so nothing a kid types leaves the
+ * browser. Shush's Pen-Pal Papers (#75 item 15f) is the first.
+ */
+export interface PenPal {
+  questId: string;
+  /** The bring step whose recipient offers the reply. */
+  stepId: string;
+  /** Who reads it at the end. */
+  to: string;
+  replies: readonly string[];
+  /** The recipient's offer, what they say once it's written, and how the giver reads it back. */
+  offer: string;
+  written: string;
+  read: (reply: string) => string;
+}
+
+export const PEN_PALS: readonly PenPal[] = [
+  {
+    questId: SHUSH_QUEST,
+    stepId: 'shush-deliver',
+    to: 'Shush',
+    replies: ['The cliffs are singing again!', 'Ember says hello to the Quiet Quarter.', 'Five kittens! Please send a drawing.'],
+    offer: "Shush would love a line in YOUR hand too. Pick one and type it, and I'll tuck it in with mine!",
+    written: "There — your line is in the envelope, in your own hand. Shush will read it twice, I'm sure of it.",
+    read: (reply) => `And a line in YOUR hand! "${reply}" Shush reads it twice, and smiles the quietest smile.`,
+  },
+];
+
+/** The pen-pal moment at this bring step, if the quest has one. */
+export function penPalFor(stepId: string): PenPal | null {
+  return PEN_PALS.find((p) => p.stepId === stepId) ?? null;
+}
+
+/** The flag that remembers which line was written (by its number). */
+export function penPalReplyFlag(questId: string, index: number): string {
+  return `penpal:${questId}:${index}`;
+}
+
+/** The line the kid wrote for this quest, if any. */
+export function penPalReply(questId: string, flags: Record<string, boolean>): string | null {
+  const pal = PEN_PALS.find((p) => p.questId === questId);
+  if (!pal) return null;
+  const i = pal.replies.findIndex((_, n) => flags[penPalReplyFlag(questId, n)] === true);
+  return i < 0 ? null : pal.replies[i];
+}
+
+/** What the giver says about the kid's line as the quest ends — null when none was written. */
+export function penPalReadLine(questId: string, flags: Record<string, boolean>): string | null {
+  const reply = penPalReply(questId, flags);
+  const pal = PEN_PALS.find((p) => p.questId === questId);
+  return reply && pal ? pal.read(reply) : null;
 }

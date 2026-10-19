@@ -599,6 +599,12 @@ zod, react-query. Add the package in the same change that first uses it.
   the capitals lesson, `PathQuestionOverlay` offers its pangram
   (`pangramFor`, from `PANGRAMS`) above the riddle; typed, the chest opens
   with `PANGRAM_BONUS_COINS` on top. The riddle stays on offer.
+  **Pen-pal replies (item 9):** a letter quest in `PEN_PALS` (Shush's) lets
+  the kid add a line in their own hand at its bring step: `DialogueOverlay`
+  offers it (a keyboard and the capitals lesson), one of a few lines picked
+  and typed; kept by its number (`penPalReplyFlag`, never free text) and
+  read back by the giver at the end (`penPalReadLine`). `QuestConversation`
+  carries its `questId` and `step` for it.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1021,6 +1027,19 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing IX: pen-pal replies (#159)
+A line in the kid's own hand, in Shush's letter.
+- **At Librarian Sage**, handing over Shush's letter with a keyboard and
+  the capitals lesson: ✍️ Add a line of my own — pick one of three lines
+  ("The cliffs are singing again!" …) and type it over the keyboard and
+  hands; the letter goes with it. **Back at Shush**, the line is read out
+  before the reward: "And a line in YOUR hand! …"
+- The line is kept by its number, never as text, so nothing a kid types
+  reaches the save or the server. Any letter quest gets one through
+  `PEN_PALS`.
+- Tests: +5 (`content/typing.test`, `DialogueOverlay.test`); 1663 green, lint + tsc
+  clean.
 
 ### 2026-10-19 — Touch typing VIII: pangram chests (#159)
 A rare chest opened by typing a sentence.

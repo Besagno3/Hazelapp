@@ -2025,6 +2025,9 @@ export interface QuestConversation {
   riddle?: string;
   /** A completion that ends on a choice (#75 item 16b): one button per option, then `finish` and its flag. */
   choice?: QuestChoice[];
+  /** The quest, and (for a step) the step — a pen-pal reply (#159 item 9) hangs off them. */
+  questId?: string;
+  step?: string;
 }
 
 /**
@@ -2110,6 +2113,7 @@ function completeConversation(quest: QuestDef): QuestConversation {
     lines: quest.complete,
     badge: quest.title,
     finishKind: 'complete',
+    questId: quest.id,
     choice: quest.choice,
     finish: (s) => {
       const { coins, potion = 0, hint = 0, items = {} } = quest.reward;
@@ -2166,6 +2170,8 @@ function stepConversation(npcId: string, save: SaveData): QuestConversation | nu
         lines: step.npc.lines,
         badge: q.title,
         finishKind: 'step',
+        questId: q.id,
+        step: step.id,
         finish: (s) => ({
           ...s,
           questItems: trade ? tradeItems(s.questItems, trade) : s.questItems,

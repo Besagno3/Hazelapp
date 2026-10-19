@@ -8,6 +8,10 @@ import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
+import { useKeyboardStore } from '../../store/keyboardStore';
+import { penPalFor, penPalReadLine, penPalReplyFlag, scriptoriumOpen, type PenPal } from '../../content/typing';
+import { LineRun } from '../typing/TypingLesson';
+import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
 import type { ServiceType } from '../../types';
@@ -46,7 +50,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }>(() => {
     const save = useSaveStore.getState().save;
     const quest = save ? questConversation(npcId, save) : null;
-    if (quest) return { lines: quest.lines, quest, fetchOffer: null };
+    if (quest) {
+      // A letter the kid added a line to (#159 item 9): the giver reads it back before the reward.
+      const read = quest.finishKind === 'complete' && quest.questId && save ? penPalReadLine(quest.questId, save.flags) : null;
+      const lines = read && quest.lines.length > 1 ? [...quest.lines.slice(0, -1), read, quest.lines[quest.lines.length - 1]] : quest.lines;
+      return { lines, quest, fetchOffer: null };
+    }
     const flags = save?.flags ?? {};
     // Guides end on "where to next?"; signposts read out the way (#75 item 6).
     const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];
@@ -60,6 +69,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // A choice made (#75 item 16b): what's said after it, before the box closes.
   const [picked, setPicked] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
+  // A pen-pal reply (#159 item 9): offered at a letter's bring step with a keyboard
+  // and the capitals lesson; the line picked, then typed, then its thanks.
+  const keyboard = useKeyboardStore((s) => s.present);
+  const holdRule = useSaveStore((s) => s.save?.typingAnchor ?? true);
+  const penPal: PenPal | null = quest?.finishKind === 'step' && quest.step ? penPalFor(quest.step) : null;
+  const canWrite = !!penPal && keyboard && scriptoriumOpen(flagsNow ?? {});
+  const [writing, setWriting] = useState<'pick' | number | 'done' | null>(null);
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
@@ -158,6 +174,72 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     setFetched(true);
   }
 
+  /** The reply typed: the step finishes as it would, remembering which line was written. */
+  function replyWritten(index: number) {
+    applyLineFlag();
+    const finish = quest?.finish;
+    const flag = penPalReplyFlag(penPal!.questId, index);
+    update((s) => {
+      const done = finish ? finish(s) : s;
+      return { ...done, flags: { ...done.flags, [flag]: true } };
+    });
+    sfx('chest');
+    setWriting('done');
+  }
+
+  if (penPal && writing !== null) {
+    const pal = penPal;
+    return (
+      <ModalLayer label={npcName(npc, flagsNow)} focusKey={`write-${String(writing)}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+        <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl" data-testid="pen-pal">
+          <div className="flex items-center gap-2 mb-2">
+            <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
+            <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
+            <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">✍️ To {pal.to}</span>
+          </div>
+          {writing === 'pick' && (
+            <>
+              <p className="leading-relaxed mb-3">{pal.offer}</p>
+              <div className="flex flex-col gap-2">
+                {pal.replies.map((line, i) => (
+                  <button
+                    key={line}
+                    onClick={() => setWriting(i)}
+                    className="text-left bg-white/10 hover:bg-white/20 rounded-lg px-4 py-2.5 min-h-11 text-sm font-semibold"
+                  >
+                    ✍️ {line}
+                  </button>
+                ))}
+                <button onClick={() => setWriting(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11 self-end">
+                  Maybe not
+                </button>
+              </div>
+            </>
+          )}
+          {typeof writing === 'number' && (
+            <>
+              <p className="text-xs text-white/70 mb-2">Type your line, every mark of it:</p>
+              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} />
+              <button onClick={() => setWriting('pick')} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
+                Pick another line
+              </button>
+            </>
+          )}
+          {writing === 'done' && (
+            <>
+              <p className="leading-relaxed mb-3">{pal.written}</p>
+              <div className="flex justify-end">
+                <button autoFocus onClick={() => sendFlow({ type: 'CLOSE' })} className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11">
+                  ✨ Got it!
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </ModalLayer>
+    );
+  }
+
   return (
     <ModalLayer label={npcName(npc, flagsNow)} focusKey={`${index}-${picked ? 1 : 0}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
       <motion.div
@@ -185,6 +267,18 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
+            </button>
+          )}
+          {/* Not focused: Enter reads on as ever; the pen is a choice (#159 item 9). */}
+          {isLast && canWrite && (
+            <button
+              onClick={() => {
+                applyLineFlag();
+                setWriting('pick');
+              }}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+            >
+              ✍️ Add a line of my own
             </button>
           )}
           {isLast && fetchOffer && !fetched && (
