@@ -191,7 +191,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     const pal = penPal;
     return (
       <ModalLayer label={npcName(npc, flagsNow)} focusKey={`write-${String(writing)}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
-        <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl" data-testid="pen-pal">
+        <div className="w-full max-w-xl max-h-[calc(100dvh-4rem)] overflow-y-auto bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl" data-testid="pen-pal">
           <div className="flex items-center gap-2 mb-2">
             <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
             <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
@@ -218,7 +218,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           )}
           {typeof writing === 'number' && (
             <>
-              <p className="text-xs text-white/70 mb-2">Type your line, every mark of it:</p>
+              <p className="text-xs text-white/70 mb-2">Type your line, every letter and dot:</p>
               <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} />
               <button onClick={() => setWriting('pick')} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">
                 Pick another line
@@ -272,10 +272,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {/* Not focused: Enter reads on as ever; the pen is a choice (#159 item 9). */}
           {isLast && canWrite && (
             <button
-              onClick={() => {
-                applyLineFlag();
-                setWriting('pick');
-              }}
+              onClick={() => setWriting('pick')}
               className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
             >
               ✍️ Add a line of my own

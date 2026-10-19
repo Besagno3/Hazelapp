@@ -745,12 +745,18 @@ describe('starter questions never move the saved skill level (#153 review round 
 const { useKeyboardStore } = await import('../../store/keyboardStore');
 const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, anchorsFor, charKey, typingLessonFlag } = await import('../../content/typing');
 
-/** A keyboard seen and the first lesson cleared — the burst's two conditions. */
-function unlockTyping(hold = false) {
+/**
+ * A keyboard seen and the first lesson cleared — the burst's two conditions.
+ * `lessons` clears that many lessons (the name race wants every letter's).
+ */
+function unlockTyping(hold = false, lessons = 1) {
   useKeyboardStore.getState().seen();
   const save = useSaveStore.getState().save!;
-  useSaveStore.setState({ save: { ...save, typingAnchor: hold, flags: { ...save.flags, [typingLessonFlag(TYPING_LESSONS[0].id)]: true } } });
+  const cleared = Object.fromEntries(TYPING_LESSONS.slice(0, lessons).map((l) => [typingLessonFlag(l.id), true]));
+  useSaveStore.setState({ save: { ...save, typingAnchor: hold, flags: { ...save.flags, ...cleared } } });
 }
+/** Lessons through the one that completes the letters (`NAME_RACE_OPENS_AFTER`). */
+const ALL_LETTERS = TYPING_LESSONS.findIndex((l) => l.id === 'bottom-cxz') + 1;
 
 /** Type the burst's word (read off the card: the arena picks it at random). */
 function typeBurstWord() {
@@ -834,10 +840,58 @@ describe('✍️ scribe bursts (#159 item 2)', () => {
     act(() => {
       vi.advanceTimersByTime(BURST_MS + 100);
     });
-    expect(screen.getByTestId('type-burst')).toHaveTextContent(/ink dried/);
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Time's up/);
     fireEvent.click(screen.getByText('▶ Go!'));
     expect(screen.queryByText(/the word was true/)).toBeNull();
     expect(screen.getByText(/strikes true/)).toBeInTheDocument();
+  });
+
+  it('▶ Go! before the word is typed: the plain move, nothing late, and the next burst starts fresh (review round 1)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    // Talon: no Battle Cry focus and no Lionheart, so the two Attacks compare plainly.
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a3' } });
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 100, 100, heroOpening('balanced'));
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    const plain = 200 - useBattleStore.getState().enemyHp;
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 500);
+    });
+    // A wrong defend answer breaks the streak, so the next Attack's number is plain again.
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // A fresh burst on the next right Attack answer, typed through: the power applies to this one only.
+    const before = useBattleStore.getState().enemyHp;
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    typeBurstWord();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
+    expect(before - useBattleStore.getState().enemyHp).toBe(Math.round(plain * SCRIBE_ATTACK_MULT));
+  });
+
+  it('with the defend countdown off, the burst has no clock and the word still counts (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    render(<BattleArena />);
+    attackAndAnswer();
+    const burst = screen.getByTestId('type-burst');
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(burst).toHaveTextContent(/No clock/);
+    typeBurstWord();
+    expect(burst).toHaveTextContent(/Done!/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
   });
 
   it(`a block followed by its word adds ${SCRIBE_BLOCK_CHARGE} ◆ at once`, () => {
@@ -985,11 +1039,11 @@ describe('the name race as a battle opens (#159 item 4)', () => {
   it('one critter in three: name it in time and the hero strikes first, then takes their turn', () => {
     // 0.3: the race is on (< 1/3); the enemy's first intent is an attack (≥ its charge chance).
     vi.spyOn(Math, 'random').mockReturnValue(0.3);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     render(<BattleArena />);
     expect(screen.queryByText('Attack')).toBeNull();
     const race = screen.getByTestId('name-race');
-    expect(race).toHaveTextContent(/Name the critter for first strike/);
+    expect(race).toHaveTextContent(/Name it first to strike first/);
     expect(screen.getByLabelText('Type: count bat')).toBeInTheDocument();
     vi.useFakeTimers();
     for (const ch of 'count bat') {
@@ -1011,7 +1065,7 @@ describe('the name race as a battle opens (#159 item 4)', () => {
 
   it('too slow, and the critter darts in first: its turn, a defend question', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.3);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     vi.useFakeTimers();
     render(<BattleArena />);
     const race = screen.getByTestId('name-race');
@@ -1029,9 +1083,44 @@ describe('the name race as a battle opens (#159 item 4)', () => {
     expect(useBattleStore.getState().enemyHp).toBe(200);
   });
 
+  it('won against a shielded critter: the free blow shatters its shield, and the hero still takes their turn (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...enemy, id: 'relic-golem', instanceId: 'rg', name: 'Relic Golem', behavior: 'shielded' } as BattleEnemy, 60, 100);
+    render(<BattleArena />);
+    // The shielded callout line first, then the race.
+    for (let i = 0; i < 4 && !screen.queryByTestId('name-race'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByTestId('name-race')).toBeInTheDocument();
+    vi.useFakeTimers();
+    for (const ch of 'relic golem') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/SHATTERS/)).toBeInTheDocument();
+    expect(useBattleStore.getState().enemyShielded).toBe(false);
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    expect(screen.queryByText(/answer to block/)).toBeNull();
+  });
+
+  it('no race for a player whose defend countdown is off (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
   it('no race on the other two in three, without a keyboard, before lesson 1, or against a boss', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
-    unlockTyping();
+    unlockTyping(false, ALL_LETTERS);
     render(<BattleArena />);
     expect(screen.queryByTestId('name-race')).toBeNull();
     expect(screen.getByText('Attack')).toBeInTheDocument();
@@ -1051,7 +1140,14 @@ describe('the name race as a battle opens (#159 item 4)', () => {
     render(<BattleArena />);
     expect(screen.queryByTestId('name-race')).toBeNull();
     cleanup();
+    // Lesson 1 alone is not enough either: the race waits for every letter's lesson (review round 1).
     unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    unlockTyping(false, ALL_LETTERS);
     useBattleStore.getState().reset();
     useBattleStore.getState().start({ ...enemy, id: 'null-fiend', name: 'The Null Fiend', isBoss: true, role: 'fiend' }, 60, 100);
     render(<BattleArena />);
@@ -1107,6 +1203,8 @@ describe('the song that breaks the hush (#159 item 6)', () => {
     expect(box).toHaveTextContent(/Great Shush is coming/);
     expect(screen.getByLabelText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
     expect(screen.queryByText(/gathering power…/)).toBeNull();
+    // A kid who can't type the line can let it come (review round 1) — the button is there with the clock on.
+    expect(screen.getByText(/Let it come/)).toBeInTheDocument();
     vi.useFakeTimers();
     for (const ch of song.lines[0]) {
       const code = charKey(ch)!.key.code;
@@ -1143,6 +1241,18 @@ describe('the song that breaks the hush (#159 item 6)', () => {
     const before = useBattleStore.getState().playerHp;
     roundOfWrongs();
     expect(before - useBattleStore.getState().playerHp).toBe(enemyAttack(hush.level, true, 0) * POWER_MULTIPLIER);
+  });
+
+  it('with the defend countdown off: no clock on the song, and "Let it come" brings the plain warning (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(box).toHaveTextContent(/No clock/);
+    fireEvent.click(screen.getByText(/Let it come/));
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
   });
 
   it('without a keyboard, or against a boss with no song, the wind-up is the plain warning', () => {

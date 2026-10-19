@@ -165,7 +165,13 @@ export function pressLeaf(state: LeavesState, press: TypingPress): { next: Leave
   }
   if (press.holdRule) {
     const anchors = anchorsFor(leaf.ch);
-    if (anchors.length > 0 && !anchors.some((a) => press.held.has(a))) return { next: state, event: 'hold', leaf };
+    if (anchors.length > 0 && !anchors.some((a) => press.held.has(a))) {
+      // f and j always fall, so a bare F or J is most often the other hand going
+      // home for the lowest leaf (review round 1) — anchoring, not a wrong-hand nudge.
+      const lowest = lowestLeaf(state);
+      if (lowest && lowest.id !== leaf.id && anchorsFor(lowest.ch).includes(press.code)) return { next: state, event: 'none', leaf: null };
+      return { next: state, event: 'hold', leaf };
+    }
   }
   return { next: { ...state, leaves: state.leaves.filter((l) => l.id !== leaf.id), caught: state.caught + 1 }, event: 'caught', leaf };
 }

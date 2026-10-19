@@ -286,7 +286,7 @@ export default function MenuOverlay({
             </span>
             <span className={save.typingAnchor ? 'text-emerald-300 font-bold' : 'text-white/70'}>{save.typingAnchor ? 'On' : 'Off'}</span>
           </button>
-          <p className="text-[11px] text-white/50 mt-2">
+          <p className="text-xs text-white/70 mt-2">
             Lessons: {typingLessonsCleared(save.flags)} of {TYPING_LESSONS.length} cleared · pages copied: {pagesCopied(save.flags)} · Librarian Sage teaches at
             the Lumina Library.
           </p>

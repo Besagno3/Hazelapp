@@ -12,6 +12,18 @@ import {
 import { useKeyboardStore } from '../../store/keyboardStore';
 
 /**
+ * A focused button, link or field owns its own keys (the world's rule,
+ * `ownsKeys` in lib/interact.ts, less the dialog itself — a modal layer holds
+ * focus when nothing in it does). A typing run leaves Space to it unless the
+ * line wants a space next; Enter is never taken.
+ */
+export function onControl(target: EventTarget | null): boolean {
+  const el = target as Element | null;
+  if (!el || typeof el.closest !== 'function') return false;
+  return el.closest('button, a[href], input, textarea, select, summary, [role="button"]') !== null;
+}
+
+/**
  * Types one line against the real keyboard (#159): listens on `window` while
  * `active`, keeps the set of keys held down (for the home-row hold), and
  * steps `lib/typing`'s rules on every press. Space and the characters are
@@ -36,7 +48,7 @@ export function useTypingRun({
 }) {
   const [progress, setProgress] = useState<TypingProgress>(() => startTyping(text));
   const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
-  const [last, setLast] = useState<{ event: TypingEvent; code: string; seq: number } | null>(null);
+  const [last, setLast] = useState<{ event: TypingEvent; code: string; seq: number; capsLock: boolean } | null>(null);
   const heldRef = useRef<Set<string>>(new Set());
   // The listeners read the latest progress and callbacks through refs, kept
   // current in an effect (never written during render).
@@ -57,13 +69,18 @@ export function useTypingRun({
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (!fromPhysicalKeyboard(e)) return;
-      useKeyboardStore.getState().seen();
+      if (!useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
       if (!e.repeat) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
       }
-      // Space scrolls the page, "/" and "'" open a find bar in some browsers.
-      if (e.key === ' ' || [...e.key].length === 1) e.preventDefault();
+      // Space scrolls the page, "/" and "'" open a find bar in some browsers —
+      // but Space on a focused button is the button's (review round 1), unless
+      // the line wants a space right now.
+      if (e.key === ' ') {
+        if (onControl(e.target) && progressRef.current.text[progressRef.current.index] !== ' ') return;
+        e.preventDefault();
+      } else if ([...e.key].length === 1) e.preventDefault();
       // A held key repeating is one press (the anchor key, mostly).
       if (e.repeat) return;
       const { next, event } = stepTyping(progressRef.current, {
@@ -75,7 +92,7 @@ export function useTypingRun({
       if (event === 'none') return;
       progressRef.current = next;
       setProgress(next);
-      setLast({ event, code: e.code, seq: ++seq.current });
+      setLast({ event, code: e.code, seq: ++seq.current, capsLock: e.getModifierState?.('CapsLock') === true });
       if (event === 'typed' || event === 'done') sfx('select');
       cb.current.onEvent?.(event, next);
       if (event === 'done') cb.current.onDone?.(next);

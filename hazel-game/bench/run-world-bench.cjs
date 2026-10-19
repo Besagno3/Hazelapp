@@ -254,8 +254,10 @@ const HUD_USER = 'u-hud';
  * and answers Supabase for them: consent given, the kid's profile, `save` as
  * their saved game, canned questions; every write succeeds.
  */
-async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]' } = {}) {
+async function stubbedApp(browser, viewport, save, profile, { reducedMotion, ready = '[data-testid=world-topbar]', init } = {}) {
   const page = await browser.newPage({ viewport, reducedMotion });
+  // A script the caller wants run before the app's own (the typing bench pins the dice).
+  if (init) await page.addInitScript(init);
   const session = {
     access_token: 'stub',
     refresh_token: 'stub',
@@ -1033,12 +1035,381 @@ async function fly(browser, outDir) {
   if (bad) process.exitCode = 1;
 }
 
+
+// --- Touch typing (#159): every typing screen in the real app, at laptop and small-window sizes ----
+
+const LESSON_IDS = ['home-fj', 'home-dk', 'home-sl', 'home-a', 'top-ei', 'top-ru', 'top-to', 'home-gh', 'top-corners', 'bottom-vnmb', 'bottom-cxz', 'capitals', 'sentences'];
+
+/** A save's base: Act I done, Act II open, the lessons cleared through `lessons`. */
+function typingSave(over, lessons) {
+  const crystals = ['math', 'science', 'engineering', 'creativity'];
+  const flags = {
+    'intro-seen': true, 'dawnreach-seen': true, 'ember-hatched': true, 'ember-hatch-seen': true, 'spire-awake-seen': true, 'save:v2': true,
+    'ending-seen': true, 'spire-cleared': true, 'spire-victory-seen': true, 'act2-seen': true,
+    ...Object.fromEntries(crystals.flatMap((t) => [[`crystal-${t}-restored`, true], [`crystal-${t}-scene-seen`, true]])),
+    ...Object.fromEntries(LESSON_IDS.slice(0, lessons).map((id) => [`typing:${id}`, true])),
+    ...(over.flags ?? {}),
+  };
+  return {
+    version: 3, avatarId: 'a1', hp: null, coins: 120, items: { potion: 2, hint: 1, elixir: 0, spark: 0, ward: 0, clover: 0, tea: 0, snack: 0, coil: 0, mirror: 0, knot: 0 },
+    badges: [], sages: ['math'], openedChests: [], kills: {}, questItems: [], passedRounds: 6, worldUnlocked: true,
+    library: [], companionId: 'ember', defendTimer: true, lastRest: null, boat: null, vehicle: 'foot', typingAnchor: true,
+    ...over, flags,
+  };
+}
+
+const TYPING_PROFILE = { id: HUD_USER, birth_year: 2016, birth_month: 3, skill_levels: {}, xp: 1250, power_ups: { attack: 4, defense: 4, vitality: 2, scholar: 2 }, current_streak: 3, longest_streak: 12, last_played_on: new Date().toISOString().slice(0, 10) };
+
+/** In the page: does it scroll sideways, and is the named button fully on screen (or in a box that scrolls to it)? */
+function typingLayout(name) {
+  const sideways = document.documentElement.scrollWidth > window.innerWidth + 1;
+  // The open dialog's buttons (the HUD's 📜 Menu has a 44 px tap target drawn by a pseudo-element, HUD_TAP).
+  const scope = document.querySelector('[role=dialog]') ?? document;
+  const buttons = Array.from(scope.querySelectorAll('button'));
+  const btn = name.startsWith('[') ? document.querySelector(name) : (buttons.find((b) => (b.textContent ?? '').includes(name)) ?? null);
+  let onScreen = null;
+  if (btn) {
+    const r = btn.getBoundingClientRect();
+    onScreen = r.top >= 0 && r.bottom <= window.innerHeight;
+    if (!onScreen) {
+      // Inside a scrolling box, it's reachable: say so.
+      let el = btn.parentElement;
+      while (el && el !== document.body) {
+        const st = getComputedStyle(el);
+        if (/(auto|scroll)/.test(st.overflowY) && el.scrollHeight > el.clientHeight) { onScreen = 'scrolls'; break; }
+        el = el.parentElement;
+      }
+    }
+  }
+  const small = buttons.filter((b) => b.offsetParent !== null && b.getBoundingClientRect().height > 0 && b.getBoundingClientRect().height < 44).map((b) => (b.textContent ?? '').trim().slice(0, 24));
+  return { sideways, onScreen, small };
+}
+
+async function typing(browser, outDir) {
+  fs.mkdirSync(outDir, { recursive: true });
+  const parts = new Set((process.env.TYPING_PARTS ?? 'library,penpal,pangram,burst,song,race').split(','));
+  const checks = [];
+  const note = (ok, what, detail = '') => {
+    checks.push(ok);
+    console.log(`${ok ? '✓' : '✗'} ${what}${detail ? `  (${detail})` : ''}`);
+  };
+  const shot = (page, name) => page.screenshot({ path: path.join(outDir, `${name}.png`) });
+  /** Press the named button (its text starts with `name`). */
+  const press = async (page, name) => {
+    await page.getByRole('button', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) }).first().click();
+    await page.waitForTimeout(350);
+  };
+  const layoutCheck = async (page, screen, button) => {
+    const l = await page.evaluate(typingLayout, button);
+    note(!l.sideways && l.onScreen !== false && l.onScreen !== null, `${screen}: no sideways scroll, "${button}" reachable`, `${l.onScreen === 'scrolls' ? 'in a scrolling box; ' : ''}${l.small.length ? `under 44 px: ${l.small.join(', ')}` : 'every button ≥ 44 px'}`);
+  };
+  const typeText = async (page, text) => {
+    for (const ch of text) await page.keyboard.type(ch, { delay: 30 });
+  };
+  /** Read on through opening lines / monologues to the command menu. */
+  const toCommands = async (page, name) => {
+    for (let i = 0; i < 10 && !(await page.getByRole('button', { name: /Attack/ }).count()); i++) {
+      await page.getByText(/tap to continue/).first().click().catch(() => {});
+      await page.waitForTimeout(600);
+    }
+    if (!(await page.getByRole('button', { name: /Attack/ }).count())) {
+      const seen = await page.evaluate(() => Array.from(document.querySelectorAll('button')).map((b) => (b.textContent ?? '').trim().slice(0, 30)));
+      await shot(page, `${name}-no-commands`);
+      throw new Error(`${name}: the command menu never came; buttons on screen: ${seen.join(' | ')}`);
+    }
+  };
+  /** The right answer to the stub's "What is i + 2?" */
+  const answerRight = async (page) => {
+    const text = await page.getByText(/What is \d+ \+ 2\?/).first().textContent();
+    const i = Number(/What is (\d+) \+ 2/.exec(text)[1]);
+    await page.getByRole('button', { name: new RegExp(`(^|\\s)${i + 2}$`) }).first().click();
+    await page.waitForTimeout(300);
+  };
+
+  // --- The Library: lessons, the scriptorium, Falling Leaves ---------------------
+  const shelf = parts.has('library') ? [
+    { question: { id: 'q-why', topic: 'science', level: 3, text: 'Why does ice float?', options: ['It is lighter than water', 'It is colder', 'It is blue', 'It is round'], correctIndex: 0, explanation: 'Ice is lighter than the same amount of water, so it floats on top.' }, picked: 2 },
+    { question: { id: 'q-moon', topic: 'space', level: 3, text: 'Why does the Moon shine?', options: ['It reflects sunlight', 'It burns', 'It glows', 'Stars light it'], correctIndex: 0, explanation: "The Moon makes no light of its own. It reflects the Sun's light back to us." }, picked: 1 },
+  ] : [];
+  for (const [width, height] of parts.has('library') ? [[1024, 768], [800, 600], [1280, 800]] : []) {
+    const size = `${width}×${height}`;
+    const save = typingSave({ zoneId: 'lumina-village', pos: { x: 71 * 32 + 16, y: 5 * 32 + 16 }, library: shelf }, 12);
+    const page = await stubbedApp(browser, { width, height }, save, TYPING_PROFILE);
+    await page.keyboard.press('KeyZ'); // a physical keyboard, seen
+    await page.keyboard.press('Space'); // talk to Librarian Sage
+    await page.waitForTimeout(600);
+    for (let i = 0; i < 10 && !(await page.getByRole('button', { name: '📚 Library' }).count()); i++) {
+      await page.getByRole('button', { name: '▼ Next' }).click().catch(() => {});
+      await page.waitForTimeout(250);
+    }
+    if (!(await page.getByRole('button', { name: '📚 Library' }).count())) {
+      note(false, `${size} Library: the Librarian never offered the Library`);
+      await shot(page, `library-${size}-fail`);
+      await page.close();
+      continue;
+    }
+    await press(page, '📚 Library');
+    await shot(page, `library-${size}`);
+    await layoutCheck(page, `${size} Library panel`, 'Falling Leaves');
+    // Lessons.
+    await press(page, 'Typing lessons');
+    await shot(page, `lessons-${size}`);
+    await layoutCheck(page, `${size} lessons list`, '📚 Back to the shelf');
+    await page.getByRole('button', { name: /^1\. / }).click();
+    await page.waitForTimeout(300);
+    await shot(page, `lesson-intro-${size}`);
+    await press(page, '⌨️ Start typing');
+    await page.waitForTimeout(300);
+    await shot(page, `lesson-line-${size}`);
+    await layoutCheck(page, `${size} lesson line`, 'Stop for now');
+    await page.keyboard.press('KeyF'); // without J: the nudge
+    await page.waitForTimeout(200);
+    await shot(page, `lesson-nudge-${size}`);
+    await page.keyboard.down('KeyJ');
+    await page.keyboard.press('KeyF');
+    await page.keyboard.up('KeyJ');
+    await page.waitForTimeout(200);
+    await shot(page, `lesson-typed-${size}`);
+    await press(page, 'Stop for now');
+    await press(page, '📚 Back to the shelf');
+    // The scriptorium.
+    await press(page, 'The Scriptorium');
+    await shot(page, `scriptorium-${size}`);
+    await layoutCheck(page, `${size} scriptorium list`, '📚 Back to the shelf');
+    await page.getByRole('button', { name: /From your shelf/ }).first().click();
+    await page.waitForTimeout(300);
+    await shot(page, `scriptorium-page-${size}`);
+    await layoutCheck(page, `${size} scriptorium page`, 'Stop for now');
+    await press(page, 'Stop for now');
+    await press(page, '📚 Back to the shelf');
+    // Falling Leaves.
+    await press(page, 'Falling Leaves');
+    await shot(page, `leaves-intro-${size}`);
+    await press(page, '🍂 Play');
+    await page.waitForTimeout(4600);
+    await shot(page, `leaves-playing-${size}`);
+    await layoutCheck(page, `${size} leaves playing`, 'Stop for now');
+    const leaf = await page.locator('[data-testid=leaf]').first().textContent().catch(() => null);
+    if (leaf) {
+      // Caught the touch-typing way: the other hand's bump key down, then the letter (either anchor satisfies a right-hand letter; a left-hand one wants J).
+      await page.keyboard.down('KeyJ');
+      await page.keyboard.down('KeyF');
+      await page.keyboard.type(leaf);
+      await page.keyboard.up('KeyF');
+      await page.keyboard.up('KeyJ');
+      await page.waitForTimeout(200);
+    }
+    await press(page, 'Stop for now');
+    await shot(page, `leaves-over-${size}`);
+    note(page.errors.length === 0, `${size} Library screens: no page errors`, page.errors.join(' | '));
+    await page.close();
+  }
+
+  // --- A pen-pal reply at Librarian Sage -------------------------------------------
+  if (parts.has('penpal')) {
+    const save = typingSave({ zoneId: 'lumina-village', pos: { x: 71 * 32 + 16, y: 5 * 32 + 16 }, questItems: ['shush-letter'], flags: { 'quest:shush-letters:offered': true } }, 12);
+    const page = await stubbedApp(browser, { width: 1024, height: 768 }, save, TYPING_PROFILE);
+    await page.keyboard.press('KeyZ');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(600);
+    for (let i = 0; i < 6 && !(await page.getByRole('button', { name: /Add a line of my own/ }).count()); i++) {
+      await page.getByRole('button', { name: '▼ Next' }).click().catch(() => {});
+      await page.waitForTimeout(250);
+    }
+    const offered = await page.getByRole('button', { name: /Add a line of my own/ }).count();
+    note(offered > 0, 'pen-pal: Librarian Sage offers a line of your own on the last line');
+    if (offered) {
+      await shot(page, 'penpal-offer-1024×768');
+      await press(page, '✍️ Add a line of my own');
+      await shot(page, 'penpal-pick-1024×768');
+      await page.getByRole('button', { name: /^✍️ / }).first().click();
+      await page.waitForTimeout(300);
+      await shot(page, 'penpal-typing-1024×768');
+      await layoutCheck(page, 'pen-pal typing', 'Pick another line');
+    }
+    note(page.errors.length === 0, 'pen-pal: no page errors', page.errors.join(' | '));
+    await page.close();
+  }
+
+  // --- A scribe's lock on a pangram chest (Numbria's chest at 3,2) -----------------
+  for (const [width, height] of parts.has('pangram') ? [[1024, 768], [800, 600]] : []) {
+    const size = `${width}×${height}`;
+    const save = typingSave({ zoneId: 'numbria', pos: { x: 3 * 32 + 16, y: 3 * 32 + 16 } }, 12);
+    const page = await stubbedApp(browser, { width, height }, save, TYPING_PROFILE);
+    await page.keyboard.press('KeyZ');
+    await page.keyboard.press('ArrowUp'); // face the chest
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1500);
+    const lock = await page.locator('[data-testid=scribe-lock]').count();
+    note(lock > 0, `${size} pangram chest: the scribe's lock shows`);
+    await shot(page, `pangram-offer-${size}`);
+    if (lock) {
+      await press(page, 'Type the sentence'); // the lock unfolds on asking (review round 1)
+      await shot(page, `pangram-${size}`);
+      await layoutCheck(page, `${size} pangram lock`, '[data-testid=scribe-lock]');
+      const sentence = (await page.locator('[data-testid=scribe-lock] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+      // The hold is on: the other hand's bump key or Shift for each character.
+      await page.evaluate(() => {});
+      await page.close();
+      // A second visit with the hold off, to type it through.
+      const page2 = await stubbedApp(browser, { width, height }, { ...save, typingAnchor: false }, TYPING_PROFILE);
+      await page2.keyboard.press('KeyZ');
+      await page2.keyboard.press('ArrowUp');
+      await page2.waitForTimeout(300);
+      await page2.keyboard.press('Space');
+      await page2.waitForTimeout(1500);
+      await press(page2, 'Type the sentence');
+      await typeText(page2, sentence.slice(0, 12));
+      await shot(page2, `pangram-typing-${size}`);
+      await typeText(page2, sentence.slice(12));
+      await page2.waitForTimeout(500);
+      await shot(page2, `pangram-open-${size}`);
+      note((await page2.locator('[data-testid=scribe-lock-open]').count()) > 0, `${size} pangram chest: the sentence typed springs it open`);
+      note(page2.errors.length === 0, `${size} pangram chest: no page errors`, page2.errors.join(' | '));
+      await page2.close();
+    } else {
+      await page.close();
+    }
+  }
+
+  // --- In battle: the scribe burst (Eldergrove's Ringkeeper) -------------------------
+  for (const [width, height] of parts.has('burst') ? [[1024, 768], [800, 600]] : []) {
+    const size = `${width}×${height}`;
+    const save = typingSave({ zoneId: 'eldergrove', pos: { x: 28 * 32 + 16, y: 23 * 32 + 16 }, typingAnchor: false }, 1);
+    const page = await stubbedApp(browser, { width, height }, save, TYPING_PROFILE, { ready: '[data-testid=world-topbar], [data-testid=battle-topbar]' });
+    await page.keyboard.press('KeyZ');
+    for (let i = 0; i < 10 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
+      await page.keyboard.down('ArrowLeft');
+      await page.waitForTimeout(300);
+      await page.keyboard.up('ArrowLeft');
+      await page.waitForTimeout(250);
+    }
+    if (!(await page.locator('[data-testid=battle-topbar]').count())) {
+      note(false, `${size} burst: no battle started`);
+      await page.close();
+      continue;
+    }
+    await page.waitForTimeout(1200);
+    await toCommands(page, `burst-${size}`);
+    await press(page, 'Attack');
+    await answerRight(page);
+    const burst = await page.locator('[data-testid=type-burst]').count();
+    note(burst > 0, `${size} burst: a right Attack answer shows the scribe burst`);
+    await shot(page, `burst-${size}`);
+    if (burst) {
+      await layoutCheck(page, `${size} burst`, '▶ Go!');
+      const word = (await page.locator('[data-testid=type-burst] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+      await typeText(page, word);
+      await page.waitForTimeout(300);
+      await shot(page, `burst-done-${size}`);
+      await press(page, '▶ Go!');
+      await page.waitForTimeout(400);
+      await shot(page, `burst-hit-${size}`);
+      note((await page.getByText(/the word was true/).count()) > 0, `${size} burst: the word typed in time says so`);
+    }
+    note(page.errors.length === 0, `${size} burst: no page errors`, page.errors.join(' | '));
+    await page.close();
+  }
+
+  // --- The Hush Fiend's wind-up: a line of the song (Chorus Isle) --------------------
+  if (parts.has('song')) {
+    const save = typingSave({ zoneId: 'chorus-isle', pos: { x: 21 * 32 + 16, y: 7 * 32 + 16 }, typingAnchor: false }, 1);
+    const page = await stubbedApp(browser, { width: 1024, height: 768 }, save, TYPING_PROFILE, { ready: '[data-testid=world-topbar], [data-testid=battle-topbar]' });
+    await page.keyboard.press('KeyZ');
+    for (let i = 0; i < 8 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
+      await page.keyboard.down('ArrowUp');
+      await page.waitForTimeout(250);
+      await page.keyboard.up('ArrowUp');
+      await page.waitForTimeout(250);
+    }
+    if (!(await page.locator('[data-testid=battle-topbar]').count())) {
+      note(false, 'song: no battle with the Hush Fiend started');
+      await shot(page, 'song-fail');
+    } else {
+      await page.waitForTimeout(1200);
+      await toCommands(page, 'song');
+      // Three rounds of Guard, every answer right (its blows blocked), to its wind-up.
+      let song = 0;
+      for (let round = 0; round < 3 && !song; round++) {
+        await press(page, 'Guard');
+        await answerRight(page);
+        await press(page, '▶ Go!');
+        await page.getByText(/tap to continue/).first().click();
+        await page.waitForTimeout(500);
+        song = await page.locator('[data-testid=hush-song]').count();
+        if (song) break;
+        await answerRight(page);
+        await press(page, '▶ Go!');
+        await page.getByText(/tap to continue/).first().click();
+        await page.waitForTimeout(500);
+      }
+      note(song > 0, 'song: the third turn winds up the Great Shush into the song box');
+      await shot(page, 'song-1024×768');
+      if (song) {
+        await layoutCheck(page, 'song box', '[data-testid=hush-song]');
+        const line = (await page.locator('[data-testid=hush-song] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+        await typeText(page, line.slice(0, 8));
+        await shot(page, 'song-typing-1024×768');
+        await typeText(page, line.slice(8));
+        await page.waitForTimeout(1000);
+        await shot(page, 'song-broken-1024×768');
+        note((await page.getByText(/fizzles/).count()) > 0, 'song: the line typed in time breaks the hush');
+      }
+    }
+    note(page.errors.length === 0, 'song: no page errors', page.errors.join(' | '));
+    await page.close();
+  }
+
+  // --- The name race (Numbria's Count Bat; the dice pinned to 0.3) ------------------
+  if (parts.has('race')) {
+    // The race waits for every letter's lesson (11), review round 1.
+    const save = typingSave({ zoneId: 'numbria', pos: { x: 14 * 32 + 16, y: 12 * 32 + 16 }, typingAnchor: false }, 11);
+    const page = await stubbedApp(browser, { width: 1024, height: 768 }, save, TYPING_PROFILE, {
+      ready: '[data-testid=world-topbar], [data-testid=battle-topbar]',
+      init: () => {
+        Math.random = () => 0.3;
+      },
+    });
+    await page.keyboard.press('KeyZ');
+    for (let i = 0; i < 12 && !(await page.locator('[data-testid=battle-topbar]').count()); i++) {
+      await page.keyboard.down('ArrowUp');
+      await page.waitForTimeout(220);
+      await page.keyboard.up('ArrowUp');
+      await page.waitForTimeout(250);
+    }
+    if (!(await page.locator('[data-testid=battle-topbar]').count())) {
+      note(false, 'race: no battle started');
+      await shot(page, 'race-fail');
+    } else {
+      await page.waitForTimeout(1500);
+      const race = await page.locator('[data-testid=name-race]').count();
+      note(race > 0, 'race: the battle opens on the name race');
+      await shot(page, 'race-1024×768');
+      if (race) {
+        await layoutCheck(page, 'race box', '[data-testid=name-race]');
+        const word = (await page.locator('[data-testid=name-race] [aria-label^="Type: "]').getAttribute('aria-label')).slice('Type: '.length);
+        await typeText(page, word);
+        await page.waitForTimeout(1200);
+        await shot(page, 'race-won-1024×768');
+        note((await page.getByText(/names it first/).count()) > 0, 'race: named in time, the hero strikes first');
+      }
+    }
+    note(page.errors.length === 0, 'race: no page errors', page.errors.join(' | '));
+    await page.close();
+  }
+
+  const bad = checks.filter((ok) => !ok).length;
+  console.log(`\n${checks.length - bad}/${checks.length} typing checks passed. Screenshots in ${outDir}.`);
+  if (bad) process.exitCode = 1;
+}
+
 (async () => {
   const [mode = 'fps', ...args] = process.argv.slice(2);
   const browser = await chromium.launch({ args: ['--enable-unsafe-swiftshader'] });
   let vite = null;
   try {
-    if (mode === 'hud' || mode === 'battle') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
+    if (mode === 'hud' || mode === 'battle' || mode === 'typing') vite = await startVite({ VITE_SUPABASE_URL: STUB, VITE_SUPABASE_ANON_KEY: 'stub-anon-key' });
     else if (mode !== 'diff') vite = await startVite();
     if (mode === 'fps') await fps(browser, Number(args[0] ?? 160), Number(args[1] ?? 112));
     else if (mode === 'shots') await shots(browser, args[0] ?? 'bench-shots');
@@ -1049,6 +1420,7 @@ async function fly(browser, outDir) {
     else if (mode === 'sea') await sea(browser, args[0] ?? 'bench-sea');
     else if (mode === 'use') await use(browser, args[0] ?? 'bench-use');
     else if (mode === 'fly') await fly(browser, args[0] ?? 'bench-fly');
+    else if (mode === 'typing') await typing(browser, args[0] ?? 'bench-typing');
     else throw new Error(`unknown mode ${mode}`);
   } finally {
     await browser.close();

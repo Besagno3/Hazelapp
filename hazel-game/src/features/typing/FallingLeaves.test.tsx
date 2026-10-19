@@ -62,6 +62,8 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     tick(LEAVES_TUNING.spawnMs);
     expect(leaves()).toHaveLength(1);
     expect(['f', 'j']).toContain(leaves()[0].textContent);
+    // The leaf that counts wears the ring (review round 1).
+    expect(leaves()[0]).toHaveAttribute('data-lowest', 'true');
     // A key with no leaf: a nudge, nothing caught.
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
     expect(screen.getByRole('status')).toHaveTextContent(/No leaf says "a"/);

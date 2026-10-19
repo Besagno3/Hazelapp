@@ -38,9 +38,18 @@ describe('TypeBurst (#159 item 2)', () => {
       vi.advanceTimersByTime(BURST_MS + 200);
     });
     expect(onResult).toHaveBeenCalledWith(false);
-    expect(screen.getByRole('status')).toHaveTextContent(/ink dried/);
+    expect(screen.getByRole('status')).toHaveTextContent(/Time's up/);
     type('bat');
     expect(onResult).toHaveBeenCalledTimes(1);
+  });
+
+  it('untimed (the defend countdown off): no timer, "No clock", and the word still settles with true (review round 1)', () => {
+    const onResult = vi.fn();
+    render(<TypeBurst word="ember" holdRule={false} timed={false} onResult={onResult} />);
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(screen.getByText(/No clock/)).toBeInTheDocument();
+    type('ember');
+    expect(onResult).toHaveBeenCalledWith(true);
   });
 
   it('with the home-row hold on, a letter without the other hand is a nudge; wrong keys are misses', () => {

@@ -1,5 +1,6 @@
 import { KEYBOARD_ROWS, KEY_BY_CODE, type Finger, type Hand } from '../../content/typing';
 import { cn } from '../../lib/utils';
+import { keyHint } from './hints';
 
 /**
  * The on-screen keyboard and the two hands under it (#159): the key to press
@@ -11,7 +12,8 @@ import { cn } from '../../lib/utils';
 const UNIT = 20;
 const GAP = 2;
 const ROW_H = UNIT + GAP;
-const WIDTH = KEYBOARD_ROWS[0].reduce((w, key) => w + key.width * UNIT + GAP, 0);
+const rowWidth = (row: readonly { width: number }[]) => row.reduce((w, key) => w + key.width * UNIT + GAP, 0);
+const WIDTH = Math.max(...KEYBOARD_ROWS.map(rowWidth));
 const KEYS_H = KEYBOARD_ROWS.length * ROW_H;
 
 export function KeyboardDiagram({
@@ -40,16 +42,11 @@ export function KeyboardDiagram({
       viewBox={`0 0 ${WIDTH} ${KEYS_H + handsH}`}
       className="w-full h-auto select-none"
       role="img"
-      aria-label={
-        targetKey
-          ? `Press ${describe(targetKey.code)} with your ${targetKey.hand} ${targetKey.finger}${
-              anchorKeys.length ? `, holding ${anchorKeys.map((a) => describe(a.code)).join(' or ')} with your other hand` : ''
-            }`
-          : 'The keyboard'
-      }
+      aria-label={targetKey ? keyHint(targetKey.code, anchors) : 'The keyboard'}
     >
       {KEYBOARD_ROWS.map((row, r) => {
-        let x = 0;
+        // Rows are centred under one another, so the space bar sits under the thumbs (review round 1).
+        let x = (WIDTH - rowWidth(row)) / 2;
         return row.map((key) => {
           const w = key.width * UNIT;
           const at = x;
@@ -69,11 +66,12 @@ export function KeyboardDiagram({
                   isWrong
                     ? 'fill-red-400'
                     : isTarget
-                      ? 'fill-amber-300 animate-pulse'
+                      ? 'fill-amber-300 motion-safe:animate-pulse'
                       : isAnchor
                         ? anchorHeld
-                          ? 'fill-sky-300'
-                          : 'fill-sky-400 animate-pulse'
+                          // Held: pressed in, with a rim — not told from "not yet" by motion alone (review round 1).
+                          ? 'fill-sky-200 stroke-white stroke-[1.5]'
+                          : 'fill-sky-400 motion-safe:animate-pulse'
                         : isHeld
                           ? 'fill-white/60'
                           : 'fill-white/15',
@@ -119,16 +117,6 @@ export function KeyboardDiagram({
       )}
     </svg>
   );
-}
-
-/** "the F key", "the space bar", "the right Shift". */
-function describe(code: string): string {
-  const key = KEY_BY_CODE[code];
-  if (!key) return code;
-  if (code === 'Space') return 'the space bar';
-  if (code === 'ShiftLeft') return 'the left Shift';
-  if (code === 'ShiftRight') return 'the right Shift';
-  return `the ${key.label} key`;
 }
 
 const FINGERS: readonly Finger[] = ['pinky', 'ring', 'middle', 'index'];

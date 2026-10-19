@@ -86,7 +86,8 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
-import { FIRST_STRIKE_SHARE, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_MS, burstWord, enemyWord, nameRaceDue, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { FIRST_STRIKE_SHARE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_MS, burstWord, enemyWord, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { LITTLE_HANDS_AGE } from '../typing/TypingLessons';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
@@ -324,6 +325,18 @@ export default function BattleArena() {
   const [intent, setIntent] = useState<EnemyIntent>('attack');
   // Which line of a boss's song the next wind-up asks for (#159 item 6).
   const songLineNo = useRef(0);
+  // The race / song card where the command menu sits: brought into view as it opens
+  // (review round 1: at 1024×768 its keyboard ran off the bottom of the window).
+  const typingCardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (turn.kind !== 'race' && turn.kind !== 'song') return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const raf = requestAnimationFrame(() => {
+      const el = typingCardRef.current;
+      if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [turn.kind]);
   const enemyTurnNo = useRef(0);
   // Speed trigger (lib/battleTurn speedStep): quick correct answers in a row
   // raise this battle's question level. Refs, not state — the next question is
@@ -407,7 +420,9 @@ export default function BattleArena() {
     // defend question as ever, comes before the hero's first command.
     const swift = enemy.behavior === 'swift';
     // The name race (#159 item 4): one regular critter in three, with a keyboard and lesson 1.
-    const race = nameRaceDue(enemy, useKeyboardStore.getState().present && typingUnlocked(save?.flags ?? {}));
+    // No race for a player whose defend countdown is off (📜 → ⚔️ Battle): a race is a clock;
+    // and none before every letter's lesson is cleared (`nameRaceOpen`).
+    const race = nameRaceDue(enemy, useKeyboardStore.getState().present && nameRaceOpen(save?.flags ?? {}) && save?.defendTimer !== false);
     if (lines.length === 0 && !swift && !race) return;
     const chain = lines.reduceRight<() => void>(
       (next, line) => () => {
@@ -827,7 +842,8 @@ export default function BattleArena() {
       say(
         `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!` +
           (r.refunded > 0 ? ' The spell-light flows back to you — charge refunded!' : ''),
-        enemyTurn,
+        // What follows the blow (the name race's free strike hands the hero their turn, #159 item 4).
+        then,
       );
       return;
     }
@@ -1312,14 +1328,14 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'race' && (
-          <div className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-4 shadow-2xl" data-testid="name-race">
-            <p className="text-center font-bold text-sm uppercase tracking-widest text-indigo-900">⚡ Name it before it moves!</p>
+          <div ref={typingCardRef} className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-3 shadow-2xl" data-testid="name-race">
             <TypeBurst
               key={turn.word}
               word={turn.word}
               holdRule={save.typingAnchor}
-              durationMs={NAME_RACE_MS}
-              label="⚡ Quick! Name the critter for first strike!"
+              durationMs={age < LITTLE_HANDS_AGE ? NAME_RACE_LITTLE_MS : NAME_RACE_MS}
+              timed
+              label="⚡ Name it first to strike first!"
               doneText="⚡ First strike is yours!"
               lateText="Too slow — it darts in first!"
               onEvent={(e) => {
@@ -1332,14 +1348,14 @@ export default function BattleArena() {
         )}
 
         {turn.kind === 'song' && (
-          <div className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-4 shadow-2xl" data-testid="hush-song">
-            <p className="text-center font-bold text-sm uppercase tracking-widest text-indigo-900">💢 {turn.move} is coming — sing!</p>
+          <div ref={typingCardRef} className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-3 shadow-2xl" data-testid="hush-song">
             <TypeBurst
               key={turn.line}
               word={turn.line}
               holdRule={save.typingAnchor}
               durationMs={SONG_MS}
-              label={songFor(enemy.id)!.prompt}
+              timed={save.defendTimer}
+              label={`💢 ${turn.move} is coming — ${songFor(enemy.id)!.prompt}`}
               doneText={songFor(enemy.id)!.done}
               lateText={songFor(enemy.id)!.late}
               onEvent={(e) => {
@@ -1348,7 +1364,13 @@ export default function BattleArena() {
               // A beat to read the result, then what the boss does next.
               onResult={(ok) => later(() => songDone(ok), 700)}
             />
-            <p className="text-xs text-center text-gray-500 mt-2">Too slow? 🛡️ Guard (or a Rainbow Ward) still blocks it completely.</p>
+            {/* A kid who can't type the line needn't wait the clock out (review round 1): let the move come — Guard still blocks it. */}
+            <button
+              onClick={() => songDone(false)}
+              className="mt-2 w-full min-h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg py-2 text-sm"
+            >
+              Let it come — I'll Guard it
+            </button>
           </div>
         )}
 
@@ -1463,6 +1485,7 @@ export default function BattleArena() {
               afterAnswer={
                 scribeBurst && scribeBurst.key === qKey ? (
                   <TypeBurst
+                  timed={save.defendTimer}
                     word={scribeBurst.word}
                     holdRule={save.typingAnchor}
                     // Every right key sparks on the hero: each press does something at once.

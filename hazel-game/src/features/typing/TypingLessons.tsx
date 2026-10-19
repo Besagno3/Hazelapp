@@ -35,6 +35,8 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
 
   const cleared = typingLessonsCleared(flags);
   const little = playerAge(profile) < LITTLE_HANDS_AGE;
+  // The lesson to do next: the first open one not yet cleared (review round 1: it sat below twelve ✅ rows).
+  const next = TYPING_LESSONS.find((l) => flags[typingLessonFlag(l.id)] !== true && typingLessonOpen(l.id, flags));
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">⌨️ Typing lessons</h2>
@@ -45,6 +47,21 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
         {cleared} of {TYPING_LESSONS.length} lessons cleared
         {cleared === TYPING_LESSONS.length ? ' — a true scribe! ✍️' : ''}
       </p>
+      {next && (
+        <button
+          autoFocus
+          onClick={() => setActiveId(next.id)}
+          className="w-full text-left flex items-center gap-3 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-xl p-3 mb-3 text-sm font-bold transition min-h-11"
+        >
+          <span className="text-xl w-7 text-center" aria-hidden="true">
+            ▶
+          </span>
+          <span className="flex-1">
+            {cleared === 0 ? 'Start: ' : 'Continue: '}
+            {TYPING_LESSONS.indexOf(next) + 1}. {next.title}
+          </span>
+        </button>
+      )}
       {little && (
         <p className="text-xs text-white/70 bg-white/10 rounded-lg px-3 py-2 mb-3">
           🖐️ Little hands? Go slow, and it's fine to turn the home-row hold off below until your fingers can reach.
@@ -58,9 +75,9 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
             <button
               key={lesson.id}
               onClick={() => open && setActiveId(lesson.id)}
-              disabled={!open}
+              // Locked rows stay in the Tab order and readable (aria-disabled, as QuestionCard's crossed-out options).
               aria-disabled={!open}
-              className="w-full text-left flex items-center gap-3 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-50 rounded-xl p-3 text-sm transition min-h-11"
+              className="w-full text-left flex items-center gap-3 bg-white/10 hover:bg-white/20 aria-disabled:hover:bg-white/10 aria-disabled:opacity-70 aria-disabled:cursor-not-allowed rounded-xl p-3 text-sm transition min-h-11"
             >
               <span className="text-xl w-7 text-center" aria-hidden="true">
                 {done ? '✅' : open ? lesson.emoji : '🔒'}

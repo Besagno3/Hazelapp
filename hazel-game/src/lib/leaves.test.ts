@@ -77,6 +77,20 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     expect(leavesAccuracy(startLeaves())).toBe(1);
   });
 
+  it("with the hold on, a bare F or J while the lowest leaf wants it held is anchoring, not a wrong-hand nudge (review round 1)", () => {
+    const s = untilSpawn();
+    const f = { ...s.leaves[0], id: 1, ch: 'f', code: 'KeyF', y: 0.2 };
+    const k = { ...s.leaves[0], id: 2, ch: 'k', code: 'KeyK', y: 0.6 };
+    const both = { ...s, leaves: [f, k] };
+    // k is lowest and wants F held: F alone is the anchor going down.
+    expect(pressLeaf(both, press('f', 'KeyF', [], true)).event).toBe('none');
+    // F with J held really types f: the f leaf is caught.
+    expect(pressLeaf(both, press('f', 'KeyF', ['KeyJ'], true)).event).toBe('caught');
+    // With the f leaf lowest, F alone is a wrong-hand f: the nudge.
+    const fLow = { ...s, leaves: [{ ...f, y: 0.8 }, { ...k, y: 0.1 }] };
+    expect(pressLeaf(fLow, press('f', 'KeyF', [], true)).event).toBe('hold');
+  });
+
   it('the round ends on the third leaf on the ground, or when the clock runs out; nothing moves after', () => {
     let s = startLeaves();
     for (let i = 0; i < 3; i++) {

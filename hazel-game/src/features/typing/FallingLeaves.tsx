@@ -1,14 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import { TYPING_LESSONS, anchorsFor, typingUnlocked } from '../../content/typing';
 import { LEAF_MILESTONES, LEAVES_TUNING, LEAVES_XP, leafPool, leavesAccuracy, leavesFlag, lowestLeaf, newMilestones, pressLeaf, startLeaves, stepLeaves, type LeavesState } from '../../lib/leaves';
 import { fromPhysicalKeyboard, nudgeText } from '../../lib/typing';
 import { sfx } from '../../lib/audio';
+import { cn } from '../../lib/utils';
 import { useKeyboardStore } from '../../store/keyboardStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
+import { keyHint } from './hints';
 import { KeyboardGate } from './TypingLessons';
+import { onControl } from './useTypingRun';
 
 /**
  * 🍂 Falling Leaves (#159, item 7), in the Library: letters drift down on
@@ -31,8 +34,8 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   const [reached, setReached] = useState<number[]>([]);
   const stateRef = useRef(state);
   const heldRef = useRef<Set<string>>(new Set());
-  // The letters that can fall; the clock's effect reads them through a ref.
-  const pool = leafPool(flags);
+  // The letters that can fall (by the lessons cleared); the clock's effect reads them through a ref.
+  const pool = useMemo(() => leafPool(flags), [flags]);
   const poolRef = useRef(pool);
   useEffect(() => {
     poolRef.current = pool;
@@ -60,7 +63,11 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
       }
-      if (e.key === ' ' || [...e.key].length === 1) e.preventDefault();
+      // No leaf ever says "space": a focused button keeps its Space (review round 1).
+      if (e.key === ' ') {
+        if (onControl(e.target)) return;
+        e.preventDefault();
+      } else if ([...e.key].length === 1) e.preventDefault();
       if (e.repeat) return;
       const { next, event, leaf } = pressLeaf(stateRef.current, { code: e.code, key: e.key, held: heldRef.current, holdRule });
       if (event === 'none') return;
@@ -93,6 +100,8 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', release);
+      // A key still down as the round ends would stay "held" into the next (review round 1).
+      release();
     };
   }, [phase, holdRule]);
 
@@ -147,7 +156,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         <h2 className="text-xl font-extrabold mb-2">{done ? 'The leaves have settled!' : 'Falling Leaves'}</h2>
         {done ? (
           <>
-            <p className="text-sm text-white/80 mb-1">
+            <p className="text-sm text-white/80 mb-1" role="status">
               You caught <span className="font-bold text-amber-300">{state.caught}</span> {state.caught === 1 ? 'leaf' : 'leaves'}, and {accuracy}% of your keys were right.
               {accuracy === 100 && state.caught > 0 ? ' Not one wrong key!' : ''}
             </p>
@@ -164,8 +173,8 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         ) : (
           <>
             <p className="text-sm text-white/80 mb-1">
-              "Letters drift down on leaves. Press each one with the right finger before its leaf lands — three on the ground and the wind
-              drops."
+              "Letters drift down on leaves. Press each one with the right finger before its leaf lands — the lowest leaf has a white ring. Three
+              on the ground and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
               Leaves today: <span className="font-mono text-white/80">{letters}</span> (the keys your lessons have taught).
@@ -207,8 +216,15 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           <span
             key={leaf.id}
             data-testid="leaf"
+            data-lowest={leaf.id === lowest?.id || undefined}
             aria-hidden="true"
-            className="absolute -translate-x-1/2 -translate-y-1/2 text-base font-mono font-extrabold text-amber-950 bg-amber-300 rounded-full w-9 h-9 grid place-items-center shadow-lg"
+            className={cn(
+              'absolute -translate-x-1/2 -translate-y-1/2 font-mono font-extrabold text-amber-950 bg-amber-300 rounded-full w-9 h-9 grid place-items-center shadow-lg',
+              // Punctuation is tiny: draw it big (review round 1).
+              /[a-z]/.test(leaf.ch) ? 'text-base' : 'text-2xl leading-none',
+              // The leaf that counts — the lowest — wears a white ring, so the kid needn't look down at the keyboard to tell.
+              leaf.id === lowest?.id && 'ring-4 ring-white scale-110 z-10',
+            )}
             style={{ left: `${leaf.x}%`, top: `${leaf.y * 100}%`, transform: `translate(-50%, -50%) rotate(${(leaf.id % 2 ? 1 : -1) * leaf.y * 40}deg)` }}
           >
             {leaf.ch}
@@ -216,9 +232,9 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         ))}
         <div className="absolute inset-x-0 bottom-0 h-1 bg-amber-200/60" />
       </div>
-      {/* Always mounted, so a screen reader hears each nudge. */}
-      <p role="status" className={nudge ? 'text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]' : 'sr-only'}>
-        {nudge ?? ''}
+      {/* Always mounted and this tall (a nudge never shoves the keyboard); a screen reader hears each nudge, else the lowest leaf's key. */}
+      <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
+        {nudge ?? <span className="sr-only">{lowest ? `Lowest leaf: ${lowest.ch}. ${keyHint(lowest.code, holdRule ? anchorsFor(lowest.ch) : [])}` : ''}</span>}
       </p>
       <KeyboardDiagram compact target={lowest?.code ?? null} anchors={lowest && holdRule ? anchorsFor(lowest.ch) : []} held={held} />
       <button onClick={() => setPhase('over')} className="mt-3 w-full min-h-11 bg-white/10 hover:bg-white/20 font-semibold rounded-lg py-2 text-sm">

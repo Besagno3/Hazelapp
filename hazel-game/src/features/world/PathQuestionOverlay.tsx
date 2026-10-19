@@ -45,14 +45,18 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   // A scribe's lock (#159 item 8): a pangram chest, with a keyboard and the
   // capitals lesson, can be opened by typing its sentence instead — for a bonus.
   const keyboard = useKeyboardStore((s) => s.present);
-  const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {});
   const [lockOpened, setLockOpened] = useState(false);
+  // The lock unfolds only when asked (review round 1: open, it buried the riddle at 800×600).
+  const [lockShown, setLockShown] = useState(false);
+  // Gone once the riddle has opened the chest (review round 1: the lock stayed, and paid its bonus on an open chest).
+  const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {}) && !solved;
   function openByLock() {
     sfx('chest');
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     update((s) => {
       const opened = openChest(s, target.id);
-      return { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
+      // The bonus rides a real opening only (an already-open chest returns the save unchanged).
+      return opened === s ? s : { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
     });
     setLockOpened(true);
   }
@@ -123,7 +127,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       ? '🚧 The Gatekeeper blocks the path!'
       : target.kind === 'riddle'
         ? riddleWords(target.id).title
-        : '🎁 The chest asks a riddle!';
+        : lockOpened
+          ? '📜 The lock springs open!'
+          : '🎁 The chest asks a riddle!';
   const successText =
     target.kind === 'gate'
       ? 'The gate swings open!'
@@ -151,13 +157,30 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         </motion.h2>
 
         {scribeLock && !lockOpened && (
-          <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-amber-300/80 rounded-xl p-4 text-white shadow-2xl mb-4" data-testid="scribe-lock">
-            <p className="font-bold text-amber-300 text-sm">📜 A scribe's lock!</p>
-            <p className="text-xs text-white/80 mb-2">
-              Type its sentence — every letter of the alphabet is in it — and it springs open with a scribe's bonus of 🪙 {PANGRAM_BONUS_COINS}. Or
-              answer the riddle below, as ever.
-            </p>
-            <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} />
+          <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-amber-300/80 rounded-xl p-3 text-white shadow-2xl mb-4" data-testid="scribe-lock">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="flex-1 min-w-[12rem] text-sm">
+                <span className="font-bold text-amber-300">📜 A scribe's lock!</span>{' '}
+                <span className="text-white/80">
+                  {lockShown
+                    ? `Type its sentence — every letter of the alphabet is in it — for a bonus of 🪙 ${PANGRAM_BONUS_COINS}. The riddle below still works too.`
+                    : `Type its sentence for a bonus of 🪙 ${PANGRAM_BONUS_COINS}, or answer the riddle as ever.`}
+                </span>
+              </p>
+              {!lockShown && (
+                <button
+                  onClick={() => setLockShown(true)}
+                  className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2 text-sm min-h-11"
+                >
+                  ✍️ Type the sentence
+                </button>
+              )}
+            </div>
+            {lockShown && (
+              <div className="mt-2">
+                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} />
+              </div>
+            )}
           </div>
         )}
 

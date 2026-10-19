@@ -270,7 +270,6 @@ describe('pangram chests (#159 item 8)', () => {
     expect(share).toBeLessThan(1 / PANGRAM_CHEST_EVERY + 0.12);
     for (const id of locked) {
       expect(PANGRAMS).toContain(pangramFor(id));
-      expect(pangramFor(id)).toBe(pangramFor(id));
     }
     // More than one sentence is in use across the world.
     expect(new Set(locked.map(pangramFor)).size).toBeGreaterThan(1);

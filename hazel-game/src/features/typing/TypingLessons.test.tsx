@@ -33,7 +33,7 @@ function typeLine(line: string, hold = true) {
 }
 
 const flags = () => useSaveStore.getState().save!.flags;
-const openLessons = () => screen.getAllByRole('button').filter((b) => /\d+\. /.test(b.textContent ?? ''));
+const openLessons = () => screen.getAllByRole('button').filter((b) => /\d+\. /.test(b.textContent ?? '') && !/^(Start|Continue): /.test(b.textContent?.replace(/^▶/, '') ?? ''));
 
 describe('TypingLessons (#159)', () => {
   it('asks for a real keyboard first: a glass keyboard changes nothing, a physical key opens the lessons', () => {
@@ -47,8 +47,10 @@ describe('TypingLessons (#159)', () => {
     // Only the first lesson is open.
     const buttons = openLessons();
     expect(buttons).toHaveLength(TYPING_LESSONS.length);
-    expect(buttons[0]).toBeEnabled();
-    expect(buttons.slice(1).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    expect(buttons[0]).toHaveAttribute('aria-disabled', 'false');
+    // Locked rows stay in the Tab order, readable, and say so (review round 1).
+    expect(buttons.slice(1).every((b) => b.getAttribute('aria-disabled') === 'true' && !(b as HTMLButtonElement).disabled)).toBe(true);
+    expect(screen.getByRole('button', { name: /Start: 1\. / })).toBeInTheDocument();
   });
 
   it('lesson 1: the hold nudges without the other hand, counts with it; cleared, it sets its flag, pays XP once and opens lesson 2', () => {
@@ -80,7 +82,7 @@ describe('TypingLessons (#159)', () => {
     expect(screen.getByText(`1 of ${TYPING_LESSONS.length} lessons cleared`)).toBeInTheDocument();
     const buttons = openLessons();
     expect(buttons[1]).toBeEnabled();
-    expect(buttons[2]).toBeDisabled();
+    expect(buttons[2]).toHaveAttribute('aria-disabled', 'true');
 
     // Played again, it pays nothing more.
     addXp.mockClear();
@@ -151,5 +153,46 @@ describe('TypingLessons (#159)', () => {
     render(<TypingLessons onBack={onBack} />);
     fireEvent.click(screen.getByText('📚 Back to the shelf'));
     expect(onBack).toHaveBeenCalled();
+  });
+});
+
+describe('round 1 review fixes (#159)', () => {
+  it("Space on a focused button is the button's while a line is up — unless the line wants a space next", () => {
+    useKeyboardStore.getState().seen();
+    render(<TypingLessons onBack={() => {}} />);
+    fireEvent.click(openLessons()[0]);
+    fireEvent.click(screen.getByText('⌨️ Start typing'));
+    const stop = screen.getByText('Stop for now');
+    stop.focus();
+    // "f" is next: Space on the button is left alone (not prevented).
+    expect(fireEvent.keyDown(stop, { key: ' ', code: 'Space' })).toBe(true);
+    const line = TYPING_LESSONS[0].lines[0];
+    for (const ch of line.slice(0, line.indexOf(' '))) pressChar(ch);
+    // Now a space is wanted: the line takes it, even from a focused button.
+    expect(fireEvent.keyDown(stop, { key: ' ', code: 'Space' })).toBe(false);
+  });
+
+  it('a wrapped line keeps its words whole: each word is one no-wrap group', () => {
+    useKeyboardStore.getState().seen();
+    const all: Record<string, boolean> = {};
+    for (const l of TYPING_LESSONS) all[typingLessonFlag(l.id)] = true;
+    useSaveStore.setState({ save: { ...defaultSave(), flags: all } });
+    render(<TypingLessons onBack={() => {}} />);
+    const last = TYPING_LESSONS[TYPING_LESSONS.length - 1];
+    fireEvent.click(openLessons()[TYPING_LESSONS.length - 1]);
+    fireEvent.click(screen.getByText('⌨️ Start typing'));
+    const p = screen.getByLabelText(`Type: ${last.lines[0]}`);
+    const groups = Array.from(p.querySelectorAll(':scope > span.whitespace-nowrap'));
+    expect(groups.map((g) => g.textContent)).toEqual(last.lines[0].split(/( )/).filter((w) => w !== ''));
+  });
+
+  it('the lessons list opens on a Continue button for the next lesson, focused', () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: { [typingLessonFlag(TYPING_LESSONS[0].id)]: true, [typingLessonFlag(TYPING_LESSONS[1].id)]: true } } });
+    render(<TypingLessons onBack={() => {}} />);
+    const next = screen.getByRole('button', { name: /Continue: 3\. / });
+    expect(document.activeElement).toBe(next);
+    fireEvent.click(next);
+    expect(screen.getByText(TYPING_LESSONS[2].title)).toBeInTheDocument();
   });
 });

@@ -119,3 +119,12 @@ describe('stepTyping (#159) — the rules of typing a line', () => {
     expect(fromPhysicalKeyboard({ code: 'Unidentified', key: 'Unidentified' })).toBe(false);
   });
 });
+
+describe('the caps nudge (review round 1)', () => {
+  it('says Caps Lock when it is on, and to let go of Shift when it is not', () => {
+    expect(nudgeText('caps', [], 'a')).toMatch(/Caps Lock is on/);
+    expect(nudgeText('caps', [], 'a', true)).toMatch(/Caps Lock is on/);
+    expect(nudgeText('caps', [], 'a', false)).toMatch(/let go of Shift/);
+    expect(nudgeText('caps', [], 'A', false)).toMatch(/is a capital/);
+  });
+});

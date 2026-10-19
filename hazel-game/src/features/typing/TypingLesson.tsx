@@ -13,6 +13,7 @@ import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
+import { keyHint, wrongKey } from './hints';
 import { TypingLine } from './TypingLine';
 import { useTypingRun } from './useTypingRun';
 
@@ -66,19 +67,19 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
         </p>
-        <p className="text-sm text-white/80 mb-1">
-          {Math.round(result.accuracy * 100)}% of your keys were right.
+        <p className="text-sm text-white/80 mb-1" role="status">
+          Lesson cleared! {stars} of 3 stars. {Math.round(result.accuracy * 100)}% of your keys were right.
           {stars === 3 ? ' A true scribe!' : stars === 2 ? ' Nearly perfect!' : ' Every key you practise gets easier.'}
         </p>
         {result.paid && <p className="text-sm text-yellow-200 font-semibold">⭐ +{TYPING_LESSON_XP} XP</p>}
         {result.badge && <p className="text-sm text-amber-300 font-semibold">✍️ You earned the Scribe's Quill badge! Find it on your 📜 Menu.</p>}
         <div className="flex flex-wrap justify-center gap-3 mt-4">
           {onNext && (
-            <button onClick={onNext} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
+            <button autoFocus onClick={onNext} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
               ➡️ Next lesson
             </button>
           )}
-          <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
+          <button autoFocus={!onNext} onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
             📚 Back to the lessons
           </button>
         </div>
@@ -135,17 +136,18 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
 /** One line of a lesson (or a scriptorium page), with the keyboard and hands under it. */
 export function LineRun({ text, holdRule, onDone }: { text: string; holdRule: boolean; onDone: (p: TypingProgress) => void }) {
   const run = useTypingRun({ text, holdRule, onDone });
-  const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '') : null;
+  const nudge = run.last ? nudgeText(run.last.event, run.anchors, text[run.progress.index] ?? '', run.last.capsLock) : null;
   return (
     <div>
       <div className="bg-white/10 rounded-xl px-3 py-4 mb-2">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} />
       </div>
-      {/* Always mounted, so a screen reader hears each nudge as it appears. */}
-      <p role="status" className={nudge ? 'text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]' : 'sr-only'}>
-        {nudge ?? ''}
+      {/* Always mounted and always this tall, so a nudge never shoves the keyboard (review round 1); a
+          screen reader hears each nudge, and between nudges the next key. */}
+      <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
+        {nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>}
       </p>
-      <KeyboardDiagram target={run.target} anchors={run.anchors} held={run.held} wrong={run.last?.event === 'wrong' ? run.last.code : null} />
+      <KeyboardDiagram target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />
     </div>
   );
 }

@@ -181,6 +181,9 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     render(<PathQuestionOverlay target={lockedChest} />);
     const lock = screen.getByTestId('scribe-lock');
     const sentence = pangramFor(lockedChest.id);
+    // An offer first (review round 1: unfolded, the lock buried the riddle); the sentence on asking.
+    expect(screen.queryByLabelText(`Type: ${sentence}`)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
     expect(screen.getByLabelText(`Type: ${sentence}`)).toBeInTheDocument();
     // The riddle is still there to answer instead.
     expect(await screen.findByText('Right')).toBeInTheDocument();
@@ -192,11 +195,24 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     expect(lock).not.toBeInTheDocument();
     expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
     expect(screen.queryByText('Right')).toBeNull();
+    expect(screen.getByRole('heading', { name: /The lock springs open/ })).toBeInTheDocument();
     const save = useSaveStore.getState().save!;
     expect(save.openedChests).toEqual([lockedChest.id]);
     expect(save.coins).toBe(CHEST_COINS + PANGRAM_BONUS_COINS);
     expect(addXp).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Onward!' })).toBeInTheDocument();
+  });
+
+  it('the riddle answered right takes the lock with it: no second opening, no bonus (review round 1)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.getByTestId('scribe-lock')).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Right'));
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    const save = useSaveStore.getState().save!;
+    expect(save.openedChests).toEqual([lockedChest.id]);
+    expect(save.coins).toBe(CHEST_COINS);
   });
 
   it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {

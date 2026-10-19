@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { BURST_MS } from '../../content/typing';
 import { nudgeText, type TypingEvent, type TypingProgress } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
+import { keyHint, wrongKey } from '../typing/hints';
 import { TypingLine } from '../typing/TypingLine';
 import { useTypingRun } from '../typing/useTypingRun';
 import { DefendTimer } from './DefendTimer';
@@ -18,15 +19,18 @@ export function TypeBurst({
   word,
   holdRule,
   durationMs = BURST_MS,
+  timed = true,
   onResult,
   onEvent,
   label = "✍️ Scribe's power — type it!",
   doneText = "✍️ Done! The scribe's power is yours.",
-  lateText = 'The ink dried — next time!',
+  lateText = "Time's up — next time!",
 }: {
   word: string;
   holdRule: boolean;
   durationMs?: number;
+  /** Off for a player whose defend countdown is off (📜 → ⚔️ Battle): no clock, the word waits (the arena decides what ends it). */
+  timed?: boolean;
   /** The prompt over the bar, and what's said when the word is typed in time or the clock runs out. */
   label?: string;
   doneText?: string;
@@ -45,23 +49,30 @@ export function TypeBurst({
     onResult(done);
   };
   const run = useTypingRun({ text: word, holdRule, active: state === 'typing', onEvent, onDone: () => settle(true) });
-  const nudge = state === 'typing' && run.last ? nudgeText(run.last.event, run.anchors, word[run.progress.index] ?? '') : null;
+  const nudge = state === 'typing' && run.last ? nudgeText(run.last.event, run.anchors, word[run.progress.index] ?? '', run.last.capsLock) : null;
   return (
     <div className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3" data-testid="type-burst">
-      <DefendTimer
-        durationMs={durationMs}
-        stopped={state !== 'typing'}
-        onExpire={() => settle(false)}
-        label={label}
-        what="to type"
-      />
+      {timed ? (
+        <DefendTimer
+          durationMs={durationMs}
+          stopped={state !== 'typing'}
+          onExpire={() => settle(false)}
+          label={label}
+          what="to type"
+        />
+      ) : (
+        <p className="mb-2 flex items-center justify-between gap-2 text-white font-bold text-sm uppercase tracking-widest">
+          <span className="min-w-0">{label}</span>
+          <span className="shrink-0 normal-case tracking-normal text-xs font-semibold text-white/70">No clock — take your time</span>
+        </p>
+      )}
       <div className="py-2">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? '')}
+        {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>)}
       </p>
-      {state === 'typing' && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={run.last?.event === 'wrong' ? run.last.code : null} />}
+      {state === 'typing' && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
     </div>
   );
 }

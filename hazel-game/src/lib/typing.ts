@@ -117,14 +117,16 @@ export function typingAccuracy(p: Pick<TypingProgress, 'hits' | 'misses'>): numb
 }
 
 /** What to say for a nudge, in a kid's words. */
-export function nudgeText(event: TypingEvent, anchors: string[], target: string): string | null {
+export function nudgeText(event: TypingEvent, anchors: string[], target: string, capsLock = true): string | null {
   if (event === 'hold') {
     const a = anchors[0];
     if (a === 'ShiftLeft' || a === 'ShiftRight') return `🖐️ Hold the ${a === 'ShiftLeft' ? 'LEFT' : 'RIGHT'} Shift with your other hand for a capital ${target}.`;
     return `🖐️ Other hand home! Hold ${a === 'KeyF' ? 'F' : 'J'} with your ${a === 'KeyF' ? 'left' : 'right'} pointer while you type.`;
   }
   if (event === 'caps') {
-    return target === target.toLowerCase() ? '🔠 Caps Lock is on! Turn it off and try again.' : `🔠 ${target} is a capital: hold Shift with your other hand.`;
+    if (target !== target.toLowerCase()) return `🔠 ${target} is a capital: hold Shift with your other hand.`;
+    // A small letter came out big: Caps Lock, or a Shift held by habit (`capsLock` tells them apart when known).
+    return capsLock ? '🔠 Caps Lock is on! Turn it off and try again.' : `🔡 Just a small ${target} here — let go of Shift.`;
   }
   if (event === 'wrong') return '💫 Not that one. Look at the glowing key!';
   return null;

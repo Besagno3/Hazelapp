@@ -376,8 +376,19 @@ export function enemyWord(enemyName: string): string {
  * first move). Never a boss, nor a swift critter (it strikes first anyway).
  */
 export const NAME_RACE_CHANCE = 1 / 3;
-/** How long the race gives, in ms — shorter than a burst: it's a race. */
+/** How long the race gives, in ms — shorter than a burst: it's a race. Little hands get longer. */
 export const NAME_RACE_MS = 6_000;
+export const NAME_RACE_LITTLE_MS = 9_000;
+/**
+ * The race asks for a whole name, so it waits for the lesson that completes
+ * the letters (review round 1: on F and J alone it read as a punishment).
+ */
+export const NAME_RACE_OPENS_AFTER = 'bottom-cxz';
+
+/** Whether this player can be raced: every letter's lesson cleared. */
+export function nameRaceOpen(flags: Record<string, boolean>): boolean {
+  return flags[typingLessonFlag(NAME_RACE_OPENS_AFTER)] === true;
+}
 /** The free first strike's power, as a share of a landed Attack's. */
 export const FIRST_STRIKE_SHARE = 0.5;
 
@@ -568,9 +579,9 @@ export const SONG_MS = 20_000;
 export const BOSS_SONGS: Record<string, BossSong> = {
   'hush-fiend': {
     lines: ['hush now little ones and hear', 'every name is a song i keep', 'sing it back and i am near', 'no voice is lost that is sung'],
-    prompt: "🎵 Sing the first Sage's song — break the hush!",
+    prompt: "sing the first Sage's song to break the hush!",
     done: '🎶 Your song rings out — the hush breaks!',
-    late: 'The shush swallows your song... next time!',
+    late: 'Too slow — the shush swallows your song. Next time!',
     broken: (name, move) => `🎶 The whole island hums along! ${name} claps its mittens over its ears — its ${move} fizzles. Next turn it can only swipe at you.`,
   },
 };

@@ -556,6 +556,9 @@ zod, react-query. Add the package in the same change that first uses it.
   names no code); the lessons ask for one first. New lessons go in
   `TYPING_LESSONS` — `typing.test` checks a drill uses only keys taught by
   then.
+  `useTypingRun` leaves Space to a focused button unless the line wants a
+  space next (`onControl`); `hints.ts` says the next key in words for a screen
+  reader (`keyHint`) and which key to flash (`wrongKey`).
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -571,8 +574,10 @@ zod, react-query. Add the package in the same change that first uses it.
   written, no clock, for coins, XP, a potion or a feather (`claimBonus` in
   the arena pays it once, at the last key).
   **As a battle opens (item 4):** one regular critter in three (`nameRaceDue`,
-  `NAME_RACE_CHANCE`; never a boss or a swift critter) starts on a `race`
-  turn: the critter's name (`enemyWord`) within `NAME_RACE_MS`. Won, a free
+  `NAME_RACE_CHANCE`; never a boss or a swift critter), once every letter's
+  lesson is cleared (`nameRaceOpen`) and only with the defend countdown on,
+  starts on a `race` turn: the critter's name (`enemyWord`) within
+  `NAME_RACE_MS` (`NAME_RACE_LITTLE_MS` under `LITTLE_HANDS_AGE`). Won, a free
   blow at `FIRST_STRIKE_SHARE` then the hero's turn (`heroStrike`'s `then`);
   lost, the critter darts in first (`enemyTurn`), as a swift one does.
   **The scriptorium (item 5):** 📚 Library → 📜 The Scriptorium
@@ -1027,6 +1032,30 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing review round 1: Space, screen readers, cards that fit (#159)
+The owner asked for three rounds of code and UX review with every finding
+fixed. Round 1: a fresh code reviewer (3 medium, 5 low) and a fresh UX
+reviewer (4 high, 9 medium, 9 low) over 53 screenshots of the real app from
+the new `bench … typing` mode (TC-1501). All fixed but two kept:
+- **Code:** the scribe's lock stayed up after the riddle opened the chest
+  and paid its bonus again; a race won against a shielded critter still gave
+  it the first move; the bursts, race and song ran clocks for a player whose
+  defend countdown is off (now no race, no clock); Falling Leaves misread a
+  bare bump key as a wrong-hand nudge and kept a key held into the next
+  round; the caps nudge couldn't tell Caps Lock from a held Shift.
+- **UX:** Space on a focused button was swallowed while a line was up; a
+  screen reader heard neither the line, the next key nor a result; the song
+  and race cards ran off the bottom at 1024×768 with no way out of the 20 s
+  song; words split mid-word when a line wrapped; the keyboard jumped on a
+  nudge; the scribe's lock buried the riddle (now an offer first); pulses
+  under reduced motion; the next lesson below twelve ✅ rows (a ▶ Continue
+  button); the leaf that counts unmarked; the space bar bottom-left; the
+  race on F and J alone (now after every letter's lesson, 9 s for little
+  hands); plainer words throughout.
+- `features/typing/hints.ts` (`keyHint`, `wrongKey`), `onControl` in
+  `useTypingRun`, `TypeBurst`'s `timed`, `nameRaceOpen`.
+- Tests: +12 (TC-1499, TC-1500); lint + tsc clean.
 
 ### 2026-10-19 — Touch typing IX: pen-pal replies (#159)
 A line in the kid's own hand, in Shush's letter.

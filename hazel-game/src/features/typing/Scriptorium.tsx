@@ -78,7 +78,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
           📜
         </div>
         <h2 className="text-xl font-extrabold mb-2">The Scriptorium</h2>
-        <p className="text-sm text-white/80 mb-1">"A scribe copies whole pages here — big letters, little letters, every mark."</p>
+        <p className="text-sm text-white/80 mb-1">"A scribe copies whole pages here — big letters, little letters, every dot and comma."</p>
         <p className="text-xs text-white/60 mb-5">
           Clear the typing lessons up to {at}. {gate.title} first ({typingLessonsCleared(flags)} of {at} so far).
         </p>
@@ -102,8 +102,8 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
         </p>
-        <p className="text-sm text-white/80 mb-1">
-          {Math.round(result.accuracy * 100)}% of your keys were right.
+        <p className="text-sm text-white/80 mb-1" role="status">
+          Page copied! {stars} of 3 stars. {Math.round(result.accuracy * 100)}% of your keys were right.
           {stars === 3 ? ' A true scribe!' : stars === 2 ? ' Nearly perfect!' : ' Every page you copy gets easier.'}
         </p>
         {result.paid ? (
@@ -113,11 +113,11 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         )}
         <div className="flex flex-wrap justify-center gap-3 mt-4">
           {next && (
-            <button onClick={() => open(next)} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
+            <button autoFocus onClick={() => open(next)} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
               ➡️ Next page
             </button>
           )}
-          <button onClick={() => setActive(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
+          <button autoFocus={!next} onClick={() => setActive(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
             📜 Back to the pages
           </button>
         </div>
@@ -140,7 +140,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
               The question that stumped you: <span className="text-white/90">{active.title}</span> Copy out why — a scribe remembers what they write.
             </>
           ) : (
-            'A true fact. Copy it out, every mark.'
+            'A true fact. Copy it out, every letter and dot.'
           )}
         </p>
         <LineRun key={line} text={active.lines[line]} holdRule={holdRule} onDone={lineDone} />
@@ -154,7 +154,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   return (
     <div>
       <h2 className="text-xl font-extrabold mb-1">📜 The Scriptorium</h2>
-      <p className="text-sm text-white/80 mb-1">"Copy a page, every mark of it, and it's yours for good. That's how the old books were kept."</p>
+      <p className="text-sm text-white/80 mb-1">"Copy a page, every letter and dot, and it's yours for good. That's how the old books were kept."</p>
       <p className="text-xs text-amber-300 font-semibold mb-3">
         {copied === 0 ? 'No pages copied yet' : `${copied} ${copied === 1 ? 'page' : 'pages'} copied`} · +{SCRIPTORIUM_XP} XP a page
       </p>

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { bonusWords, type TypingBonus as Bonus } from '../../content/typing';
 import { nudgeText } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
+import { keyHint, wrongKey } from '../typing/hints';
 import { TypingLine } from '../typing/TypingLine';
 import { useTypingRun } from '../typing/useTypingRun';
 
@@ -23,9 +24,19 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
     },
   });
   const whose = bonus.who === 'hero' ? 'your name' : bonus.who === 'ember' ? "Ember's name" : "the foe's name";
-  const nudge = !claimed && run.last ? nudgeText(run.last.event, run.anchors, bonus.word[run.progress.index] ?? '') : null;
+  const nudge = !claimed && run.last ? nudgeText(run.last.event, run.anchors, bonus.word[run.progress.index] ?? '', run.last.capsLock) : null;
+  // Under the spoils, the scroll can sit below the fold: bring it into view once (review round 1).
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const raf = requestAnimationFrame(() => {
+      const el = box.current;
+      if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
   return (
-    <div className="mt-4 rounded-xl border-2 border-amber-300/70 bg-white/10 p-3 text-left" data-testid="typing-bonus">
+    <div ref={box} className="mt-4 rounded-xl border-2 border-amber-300/70 bg-white/10 p-3 text-left" data-testid="typing-bonus">
       <p className="font-bold text-amber-300 text-sm">📜 A bonus scroll!</p>
       <p className="text-xs text-white/80 mb-2">
         {claimed ? `Claimed: ${bonusWords(bonus.reward)}! A scribe's reward.` : `Type ${whose} to claim ${bonusWords(bonus.reward)}:`}
@@ -34,9 +45,9 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
       <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {claimed ? '✍️ Claimed!' : (nudge ?? '')}
+        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{keyHint(run.target, run.anchors)}</span>)}
       </p>
-      {!claimed && <KeyboardDiagram target={run.target} anchors={run.anchors} held={run.held} wrong={run.last?.event === 'wrong' ? run.last.code : null} />}
+      {!claimed && <KeyboardDiagram compact target={run.target} anchors={run.anchors} held={run.held} wrong={wrongKey(run.last)} />}
     </div>
   );
 }
