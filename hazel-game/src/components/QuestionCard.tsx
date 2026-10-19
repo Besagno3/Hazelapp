@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import { markSeen } from '../lib/seen';
@@ -29,6 +29,7 @@ export default function QuestionCard({
   secondChance = false,
   onSecondChance,
   focusContinue = false,
+  afterAnswer,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -60,6 +61,8 @@ export default function QuestionCard({
   secondChance?: boolean;
   /** Fires when the second try is spent (the parent unties the knot). */
   onSecondChance?: () => void;
+  /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #159). */
+  afterAnswer?: ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -189,6 +192,8 @@ export default function QuestionCard({
         </button>
       )}
       {selected === null && hints === 0 && hintNote && <p className="mt-2 text-sm font-semibold text-gray-600">{hintNote}</p>}
+
+      {selected !== null && afterAnswer}
 
       {selected !== null && selected !== question.correctIndex && (
         <motion.p

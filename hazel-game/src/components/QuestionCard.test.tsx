@@ -109,3 +109,13 @@ describe('QuestionCard — any question can be reported (B10)', () => {
     expect(screen.getByRole('button', { name: 'Not OK for kids' })).toBeInTheDocument();
   });
 });
+
+describe('QuestionCard — a slot under the options once answered (#159)', () => {
+  const question: Question = { id: 'q-slot', topic: 'math', level: 1, text: '1 + 1?', options: ['2', '3', '4', '5'], correctIndex: 0 };
+  it('shows afterAnswer only once an answer is picked', () => {
+    render(<QuestionCard question={question} onAnswered={() => {}} onContinue={() => {}} afterAnswer={<p>a scribe burst</p>} />);
+    expect(screen.queryByText('a scribe burst')).toBeNull();
+    fireEvent.click(screen.getByText('2'));
+    expect(screen.getByText('a scribe burst')).toBeInTheDocument();
+  });
+});

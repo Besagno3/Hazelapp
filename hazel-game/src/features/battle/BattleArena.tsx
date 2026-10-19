@@ -86,12 +86,15 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
+import { SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, burstWord, typingUnlocked } from '../../content/typing';
+import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
 import { CommandMenu, CompanionMenu, ItemMenu, SpellMenu, SwapMenu } from './BattleMenus';
 import { BattleResult } from './BattleResult';
 import { DefendTimer } from './DefendTimer';
+import { TypeBurst } from './TypeBurst';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
 import { IMPACT_MS, useBattleFx } from './useBattleFx';
 
@@ -333,6 +336,12 @@ export default function BattleArena() {
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
   /** The question whose defend timer a Forget-Me-Knot's second try paused (#75 item 14e). */
   const [pausedKey, setPausedKey] = useState<string | null>(null);
+  // A ✍️ scribe burst (#159): the word to type after a right Attack or block
+  // answer, on the card it belongs to. Typed in time, an Attack's burst sets
+  // `scribeRef` for the strike that follows; a block's adds ◆ at once.
+  const [scribeBurst, setScribeBurst] = useState<{ key: string; mode: 'attack' | 'block'; word: string } | null>(null);
+  const scribeRef = useRef(false);
+  const keyboard = useKeyboardStore((s) => s.present);
   // Displayed HP while a blow is still in the air (null = show the store's).
   // Cosmetic only: the store already holds the real numbers.
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
@@ -428,6 +437,8 @@ export default function BattleArena() {
   const viewEnemyHp = shownHp?.e ?? enemyHp;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const powerMove = powerMoveName(enemy.id);
+  // Scribe bursts need a real keyboard and the first typing lesson (#159).
+  const scribe = keyboard && typingUnlocked(save.flags);
   const charging = intent === 'power';
   const nextQuestion = () => {
     // A long battle goes round its questions again; each ask gets a fresh
@@ -445,6 +456,7 @@ export default function BattleArena() {
   /** Pose a question turn, spending Pip's peek on it if one is waiting. */
   const ask = (t: QuestionTurn) => {
     setTurn({ ...t, hide: peek.current, seq: ++askSeq.current });
+    scribeRef.current = false;
     helped.current = peek.current > 0;
     peek.current = 0;
     askedAt.current = nowMs();
@@ -590,6 +602,27 @@ export default function BattleArena() {
 
   // --- Turn resolution --------------------------------------------------------
 
+  /**
+   * A ✍️ scribe burst ended (#159): typed in time, the move it follows is
+   * powered up — an Attack hits `SCRIBE_ATTACK_MULT`× (read by
+   * `resolvePlayerQuestion` when ▶ Go! resolves it), a block adds
+   * `SCRIBE_BLOCK_CHARGE` ◆ now (the store is the truth, #70). Too late:
+   * nothing — the answer already counted.
+   */
+  function scribeDone(mode: 'attack' | 'block', ok: boolean) {
+    if (!ok) return;
+    sfx('streak');
+    if (mode === 'attack') {
+      scribeRef.current = true;
+      float("✍️ Scribe's power!", 'hero', 'text-amber-300');
+      return;
+    }
+    const s = combatState();
+    const gained = Math.min(CHARGE_MAX, s.charge + SCRIBE_BLOCK_CHARGE) - s.charge;
+    applyCombat({ ...s, charge: s.charge + gained });
+    float(gained > 0 ? `✍️ +${gained}◆` : '✍️ Perfect block!', 'hero', 'text-amber-300');
+  }
+
   function resolvePlayerQuestion(mode: 'attack' | 'guard', wasCorrect: boolean) {
     if (mode === 'guard') {
       if (wasCorrect) {
@@ -609,11 +642,16 @@ export default function BattleArena() {
     // Focus Tea (#80) or Battle Cry: a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
     const focus = applyFocus(now, boost(Math.round(attackDamage(wasCorrect, style, powerUps) * heart)));
     applyCombat(focus.state);
+    // A ✍️ scribe burst typed in time (#159): the strike hits harder.
+    const scribed = scribeRef.current;
+    scribeRef.current = false;
+    const dmg = scribed ? Math.round(focus.dmg * SCRIBE_ATTACK_MULT) : focus.dmg;
     const text =
       (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') +
       (heart > 1 ? ' 🦁 Lionheart — hits harder when hurt!' : '') +
-      focus.note;
-    heroStrike(focus.dmg, text, 'text-red-300', { sound: 'attack' });
+      focus.note +
+      (scribed ? " ✍️ Scribe's power — the word was true!" : '');
+    heroStrike(dmg, text, 'text-red-300', { sound: 'attack' });
   }
 
   /**
@@ -1309,19 +1347,34 @@ export default function BattleArena() {
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
                 recordAnswer(correct, turn.question, picked);
+                // A ✍️ scribe burst (#159) after a right Attack or block answer.
+                if (correct && scribe && (turn.kind === 'enemy-question' || turn.mode === 'attack')) {
+                  setScribeBurst({ key: qKey, mode: turn.kind === 'enemy-question' ? 'block' : 'attack', word: burstWord(avatar.name, enemy.name) });
+                }
               }}
-              continueLabel="▶ Go!"
-              onContinue={(correct) =>
-                turn.kind === 'enemy-question'
-                  ? resolveEnemyQuestion(correct)
-                  : turn.mode === 'spell'
-                    ? resolveSpellQuestion(turn.spell, correct)
-                    : turn.mode === 'pair'
-                      ? resolvePair(turn.pair, correct)
-                      : turn.mode === 'companion'
-                        ? resolveCompanionStrike(correct)
-                        : resolvePlayerQuestion(turn.mode, correct)
+              afterAnswer={
+                scribeBurst && scribeBurst.key === qKey ? (
+                  <TypeBurst
+                    word={scribeBurst.word}
+                    holdRule={save.typingAnchor}
+                    // Every right key sparks on the hero: each press does something at once.
+                    onEvent={(e) => {
+                      if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
+                    }}
+                    onResult={(ok) => scribeDone(scribeBurst.mode, ok)}
+                  />
+                ) : undefined
               }
+              continueLabel="▶ Go!"
+              onContinue={(correct) => {
+                // ▶ Go! before the word is typed: no bonus, the move resolves as ever.
+                setScribeBurst(null);
+                if (turn.kind === 'enemy-question') resolveEnemyQuestion(correct);
+                else if (turn.mode === 'spell') resolveSpellQuestion(turn.spell, correct);
+                else if (turn.mode === 'pair') resolvePair(turn.pair, correct);
+                else if (turn.mode === 'companion') resolveCompanionStrike(correct);
+                else resolvePlayerQuestion(turn.mode, correct);
+              }}
             />
           </div>
         )}

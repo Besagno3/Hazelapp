@@ -23,12 +23,15 @@ export function DefendTimer({
   onExpire,
   label,
   paused = false,
+  what = 'to block',
 }: {
   durationMs: number;
   stopped: boolean;
   paused?: boolean;
   onExpire: () => void;
   label: ReactNode;
+  /** What the seconds are for, read aloud: "to block" (default), "to type" (a ✍️ scribe burst, #159). */
+  what?: string;
 }) {
   const [left, setLeft] = useState(durationMs);
   const expired = useRef(false);
@@ -68,7 +71,7 @@ export function DefendTimer({
     <div
       className="mb-2"
       role="timer"
-      aria-label={stopped ? 'Answered in time' : paused ? 'Timer paused — take your time' : `${secs} seconds left to block`}
+      aria-label={stopped ? 'Answered in time' : paused ? 'Timer paused — take your time' : `${secs} seconds left ${what}`}
     >
       <div className="flex items-center justify-between gap-2 text-white font-bold text-sm uppercase tracking-widest">
         <span className="min-w-0">{label}</span>

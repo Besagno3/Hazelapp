@@ -740,3 +740,127 @@ describe('starter questions never move the saved skill level (#153 review round 
     expect(screen.queryByText(/just got harder/)).toBeNull();
   });
 });
+
+// --- ✍️ Scribe bursts (#159 item 2) ----------------------------------------------
+const { useKeyboardStore } = await import('../../store/keyboardStore');
+const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, charKey, typingLessonFlag } = await import('../../content/typing');
+
+/** A keyboard seen and the first lesson cleared — the burst's two conditions. */
+function unlockTyping(hold = false) {
+  useKeyboardStore.getState().seen();
+  const save = useSaveStore.getState().save!;
+  useSaveStore.setState({ save: { ...save, typingAnchor: hold, flags: { ...save.flags, [typingLessonFlag(TYPING_LESSONS[0].id)]: true } } });
+}
+
+/** Type the burst's word (read off the card: the arena picks it at random). */
+function typeBurstWord() {
+  const word = screen.getByLabelText(/^Type: /).getAttribute('aria-label')!.slice('Type: '.length);
+  for (const ch of word) {
+    const code = charKey(ch)!.key.code;
+    fireEvent.keyDown(window, { code, key: ch });
+    fireEvent.keyUp(window, { code, key: ch });
+  }
+  return word;
+}
+
+function attackAndAnswer() {
+  fireEvent.click(screen.getByText('Attack'));
+  fireEvent.click(screen.getByText('4'));
+}
+
+describe('✍️ scribe bursts (#159 item 2)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('no burst without a keyboard, nor before the first lesson is cleared', () => {
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+    cleanup();
+    useKeyboardStore.getState().seen();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+  });
+
+  it(`after a right Attack answer the burst appears; its word typed in time, the hit is ×${SCRIBE_ATTACK_MULT} and says so`, () => {
+    // The same first Attack without a burst, for the baseline.
+    render(<BattleArena />);
+    attackAndAnswer();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    const plain = 200 - useBattleStore.getState().enemyHp;
+    expect(plain).toBeGreaterThan(0);
+    cleanup();
+
+    useBattleStore.getState().reset();
+    // Full HP: the enemy's blow below mustn't wake Valor's Lionheart and muddle the second Attack's number.
+    useBattleStore.getState().start(enemy, 100, 100);
+    unlockTyping();
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    const word = typeBurstWord();
+    expect(['valor', 'ember', 'count bat']).toContain(word);
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Done!/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
+    expect(200 - useBattleStore.getState().enemyHp).toBe(Math.round(plain * SCRIBE_ATTACK_MULT));
+    // The next Attack starts clean: no power carried over.
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const before = useBattleStore.getState().enemyHp;
+    attackAndAnswer();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    expect(before - useBattleStore.getState().enemyHp).toBeLessThan(Math.round(plain * SCRIBE_ATTACK_MULT));
+  });
+
+  it('▶ Go! before the word is typed, or the clock running out, gives no bonus', () => {
+    vi.useFakeTimers();
+    unlockTyping();
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 100);
+    });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/ink dried/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    expect(screen.getByText(/strikes true/)).toBeInTheDocument();
+  });
+
+  it(`a block followed by its word adds ${SCRIBE_BLOCK_CHARGE} ◆ at once`, () => {
+    unlockTyping();
+    render(<BattleArena />);
+    // Guard → wrong → the enemy attacks → a right defend answer.
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('4'));
+    const charge = useBattleStore.getState().charge;
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    typeBurstWord();
+    expect(useBattleStore.getState().charge).toBe(charge + SCRIBE_BLOCK_CHARGE);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/Count Bat attacks/)).toBeInTheDocument();
+    expect(useBattleStore.getState().charge).toBe(charge + SCRIBE_BLOCK_CHARGE);
+  });
+
+  it('with the home-row hold on, the burst asks for the other hand too', () => {
+    unlockTyping(true);
+    render(<BattleArena />);
+    attackAndAnswer();
+    const word = screen.getByLabelText(/^Type: /).getAttribute('aria-label')!.slice('Type: '.length);
+    const first = charKey(word[0])!.key.code;
+    fireEvent.keyDown(window, { code: first, key: word[0] });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Other hand home/);
+  });
+});

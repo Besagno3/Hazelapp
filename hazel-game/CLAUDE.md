@@ -556,6 +556,14 @@ zod, react-query. Add the package in the same change that first uses it.
   names no code); the lessons ask for one first. New lessons go in
   `TYPING_LESSONS` — `typing.test` checks a drill uses only keys taught by
   then.
+  **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
+  (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
+  scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
+  `afterAnswer` slot): `burstWord` (the hero's, Ember's or the foe's name,
+  lowercase) against `BURST_MS` on the defend timer's bar; typed in time, an
+  Attack hits `SCRIBE_ATTACK_MULT`× (`scribeRef`, read when ▶ Go! resolves
+  it) and a block adds `SCRIBE_BLOCK_CHARGE` ◆ at once; too late or ▶ Go!
+  first, nothing. Each right key sparks on the hero.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -978,6 +986,21 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — Touch typing II: ✍️ scribe bursts in battle (#159)
+Second of three: every keystroke does something, in a fight.
+- **After a right Attack or block answer** — with a real keyboard seen and
+  the first lesson cleared — a short word to type against a 10 s clock sits
+  under the answers (`TypeBurst`, in `QuestionCard`'s new `afterAnswer`
+  slot): the hero's name, Ember's or the foe's. Each right key ticks, lights
+  the next letter and sparks ✨ on the hero.
+- **Typed in time:** an Attack hits 1.25× ("✍️ Scribe's power — the word was
+  true!"); a block adds 1 ◆ the moment the word ends. ▶ Go! first or the
+  clock running out: the plain move — the answer already counted.
+- `DefendTimer` says what its seconds are for (`what`); the home-row hold
+  applies as set.
+- Tests: +9 (`TypeBurst.test`, `BattleArena.test`, `QuestionCard.test`);
+  lint + tsc clean.
 
 ### 2026-10-19 — Touch typing I: Librarian Sage's typing lessons (#159)
 The owner and their brother: kids don't type any more, so the game teaches
