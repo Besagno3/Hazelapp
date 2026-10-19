@@ -178,7 +178,9 @@ zod, react-query. Add the package in the same change that first uses it.
   ordered steps — chest / defeat / talk / secret, and since #75 item 13 *have*
   (carry an item, any of its forms) and *bring* (hand it to an NPC, who may
   hand back something new) steps; `openChest` pays a key-item chest's
-  `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests; each
+  `ZoneDef.keyChests` item and `zoneChestOpened` ignores those chests — a key
+  item always goes in a **new** chest, never an existing one (a save that
+  already opened it would never get the item, #106b); each
   quest item belongs to one quest; one person may give several quests in
   turn — `questFor(npcId, save)`, the one you've started first — and a step
   may go through a giver, #75 item 14c), `secrets.ts` (hidden secrets per
