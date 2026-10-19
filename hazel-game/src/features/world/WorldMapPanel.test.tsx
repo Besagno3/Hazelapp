@@ -5,6 +5,7 @@ import { BOAT_MENDED, BOAT_HOME } from '../../content/boat';
 import { actCrystals, crystalFlag } from '../../content/topics';
 import { ACT2_SEEN, FLIGHT_FLAG, SPIRE_CLEARED } from '../../content/story';
 import { TILE } from '../../content/zones';
+import { FLAG_PERCH, STAR_PERCH } from '../../lib/worldMap';
 
 // jsdom has no canvas: the map's squares are skipped, the markers still render.
 beforeAll(() => {
@@ -168,6 +169,30 @@ describe('Eldergrove on the menu map (#75 item 14f)', () => {
       <WorldMapPanel zoneId="silver-shallows" pos={px(30, 20)} flags={beforeHill} boat={{ zoneId: 'silver-shallows', x: 11, y: 23 }} />,
     );
     expect(container.querySelector('canvas')!.getAttribute('aria-label')).toMatch(/Next: Visit Remembrance Hill\. The boat: /);
+  });
+
+  it("after a Return, the Biscuit still out on the Shallows, the way starts with Old Marlow rowing her home (#117p)", () => {
+    render(<WorldMapPanel zoneId="lumina-village" pos={null} flags={afterHill} boat={{ zoneId: 'silver-shallows', x: 30, y: 20 }} />);
+    expect(
+      screen.getByText('Go east to Starfall Coast, then ask Old Marlow to row the Biscuit home to his dock, then sail east to the Silver Shallows, then go south-east to Eldergrove.'),
+    ).toBeInTheDocument();
+  });
+
+  it('inside Eldergrove the boat at its beach is drawn clear of the 🌳, ⭐ and 🚩 on the island (#117n)', () => {
+    const { unmount } = render(<WorldMapPanel zoneId="eldergrove" pos={px(20, 1)} flags={afterHill} boat={{ zoneId: 'silver-shallows', x: 12, y: 33 }} />);
+    const boat = screen.getByTestId('map-boat');
+    expect(boat).toHaveTextContent('⛵');
+    expect(parseFloat(boat.style.marginTop)).toBeLessThan(0); // nudged up, out to sea
+    // The ⭐ and 🚩 perch clear above the 🌳, as worldMap's pin geometry says.
+    const pins = Array.from(document.querySelectorAll('span[aria-hidden]')).filter((s) => s.textContent === '⭐' || s.textContent === '🚩');
+    expect(pins.map((p) => p.textContent).sort()).toEqual(['⭐', '🚩']);
+    expect(pins.find((p) => p.textContent === '⭐')!.className).toContain(`-translate-y-[${Math.round(STAR_PERCH * 100)}%]`);
+    expect(pins.find((p) => p.textContent === '🚩')!.className).toContain(`-translate-y-[${Math.round(FLAG_PERCH * 100)}%]`);
+    unmount();
+    // Out in open water, nothing near: right where she's moored.
+    render(<WorldMapPanel zoneId="eldergrove" pos={px(20, 1)} flags={afterHill} boat={{ zoneId: 'silver-shallows', x: 30, y: 25 }} />);
+    expect(parseFloat(screen.getByTestId('map-boat').style.marginTop || '0')).toBe(0);
+    expect(parseFloat(screen.getByTestId('map-boat').style.marginLeft || '0')).toBe(0);
   });
 
   it('inside Eldergrove the map is the Shallows, with you on its island', () => {

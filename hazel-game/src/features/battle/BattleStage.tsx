@@ -140,8 +140,8 @@ export function BattleStage({
 }: {
   fx: StageFx;
   /** Measured to fit dives to the screen (`useBattleFx` reads them in event handlers). */
-  heroRef: RefObject<HTMLDivElement | null>;
-  enemyRef: RefObject<HTMLDivElement | null>;
+  heroRef: RefObject<HTMLDivElement>;
+  enemyRef: RefObject<HTMLDivElement>;
   enemySprite: ResolvedSprite;
   heroSprite: ResolvedSprite;
   companionSprite: ResolvedSprite;
@@ -296,7 +296,7 @@ export function BattleStage({
             }}
             className="absolute bottom-[22%] pointer-events-none scale-x-[-1]"
           >
-            <SpriteSheet view={fireballSprite.def.battle} emoji="🔥" scale={f.big ? 3 : 2} />
+            <SpriteSheet view={fireballSprite.def?.battle ?? null} emoji="🔥" scale={f.big ? 3 : 2} />
           </motion.div>
         ))}
     </div>

@@ -99,6 +99,8 @@ import { IMPACT_MS, useBattleFx } from './useBattleFx';
 const COUNTER_DELAY_MS = 280;
 /** Super-hard questions warmed for spells and Pair Attacks. */
 const SPELL_POOL_COUNT = 4;
+/** A trickster's opening callout, after its name — which the lit candle's banner answers. */
+const TRICKSTER_CALLOUT = 'is too slippery for Hint Feathers!';
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
@@ -359,7 +361,7 @@ export default function BattleArena() {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
         // A Glimmer Candle in the bag gets you round it (#75 item 14g review).
-        trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
+        trickster: `${enemy.name} ${TRICKSTER_CALLOUT}${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
         // Swift (#75 item 14h, decision 14: no new timers) — it strikes first.
         swift: `${enemy.name} is swift — it strikes first! Get ready to block!`,
@@ -571,9 +573,10 @@ export default function BattleArena() {
     if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
     // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
-    const did = id === 'candle' ? (enemy.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
-    // "Light a candle!" is done: the banner says so instead of still asking.
-    if (id === 'candle' && enemy.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️');
+    const did = id === 'candle' ? (enemy?.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
+    // "Light a candle!" is done: the banner says so instead of still asking
+    // (it answers the trickster callout, so it doesn't wait behind it, #97c).
+    if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', TRICKSTER_CALLOUT);
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -711,6 +714,8 @@ export default function BattleArena() {
       return;
     }
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
+    // Said once, in the message box (#128): a float over the enemy said it
+    // again, on top of the damage number.
     const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
     const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
     const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
@@ -731,7 +736,6 @@ export default function BattleArena() {
       refundCharge: r.shieldRefund,
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
-      superEffective: weak,
       skipsTurn: r.skipsTurn,
     });
   }
@@ -753,9 +757,8 @@ export default function BattleArena() {
       choreo = HERO_STRIKE,
       sound,
       heal = 0,
-      superEffective = false,
       skipsTurn = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean },
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -769,7 +772,6 @@ export default function BattleArena() {
       }
       if (sound !== 'pair') sfx('impact');
       float(`-${r.dealt}`, 'enemy', floatColor);
-      if (superEffective) float('Super effective!', 'enemy', 'text-yellow-200');
     }, choreo.hitMs);
 
     if (r.outcome === 'shield-broken') {
@@ -1121,11 +1123,13 @@ export default function BattleArena() {
       {/* The level and streak in their own row above the status boxes, as in
           the world's top bar — floating, they covered the enemy's "!!!" on a
           phone (#75 item 14f review). Below 360 px wide or 500 px tall there's
-          no room for the row without pushing 🏃 Flee off the screen (measured,
-          `bench … battle`), so a fight there shows neither. */}
+          no room for the row without pushing the commands off the screen
+          (measured, `bench … battle`), so a fight there shows neither. Written
+          as raw @media: the `touch` screens (tailwind.config.js) are objects,
+          which turns Tailwind's `max-[…]:` / `min-[…]:` off (#158b). */}
       <div
         data-testid="battle-topbar"
-        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 [@media(max-width:359px)]:hidden [@media(max-height:500px)]:hidden"
       >
         <LevelBadge placement="inline" dense />
         <StreakBadge inline dense />
@@ -1182,8 +1186,9 @@ export default function BattleArena() {
         ghost={enemy.role === 'echo'}
       />
 
-      {/* Bottom box: commands / question / message / results */}
-      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6">
+      {/* Bottom box: commands / question / message / results (tighter on a
+          short screen, so a boss fight's commands fit 320×568, #158b) */}
+      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6 [@media(max-height:600px)]:pt-1 [@media(max-height:600px)]:pb-2">
         {turn.kind === 'command' && (
           <CommandMenu
             charge={charge}

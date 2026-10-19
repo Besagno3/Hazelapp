@@ -63,7 +63,9 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByText(/mum@example\.com/)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'guess' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(await screen.findByText('Invalid login credentials')).toBeInTheDocument();
+    // In plain words, not the raw error (#130 S6).
+    expect(await screen.findByText(/That email and password don't match/)).toBeInTheDocument();
+    expect(screen.queryByText('Invalid login credentials')).toBeNull();
     expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'guess' });
     expect(screen.queryByText('Sam')).not.toBeInTheDocument();
   });

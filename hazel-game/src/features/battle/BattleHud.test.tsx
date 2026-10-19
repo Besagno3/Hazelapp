@@ -9,7 +9,7 @@ import { AVATARS } from '../../content/avatars';
 import { atTier, shortName, spawnEnemy } from '../../content/enemies';
 import type { DangerTier } from '../../content/regions';
 
-function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'count-bat') {
+function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'count-bat', streak = 0) {
   const enemy = spawnEnemy(defId, 'numbria', 'a', 8, {}, tier);
   return render(
     <BattleHud
@@ -22,7 +22,7 @@ function hud(tier: DangerTier, powerMoveNext: string | null = null, defId = 'cou
       playerHp={100}
       playerMaxHp={100}
       charge={0}
-      streak={0}
+      streak={streak}
     />,
   );
 }
@@ -63,8 +63,18 @@ describe('BattleHud danger marks (#75 item 12)', () => {
 
   it('a power move coming next has its own row; the marks stay put', () => {
     hud(4, 'Mighty Blow');
-    expect(screen.getByText('💢 Mighty Blow next!')).toBeInTheDocument();
+    expect(screen.getByText('💢 Mighty Blow next!')).toHaveClass('sr-only', 'sm:not-sr-only');
+    // A phone shows it short, on one line (#158b).
+    expect(screen.getByText('💢 Big hit next!')).toHaveClass('sm:hidden');
+    expect(screen.getByText('💢 Big hit next!').parentElement).toHaveClass('truncate');
     expect(screen.getByText('!!!')).toBeInTheDocument();
+  });
+
+  it('an answer streak reads "🔥×5" on a phone, "🔥×5 streak" from sm up (#158b)', () => {
+    hud(1, null, 'count-bat', 5);
+    const streak = screen.getByTitle('Answers in a row');
+    expect(streak).toHaveTextContent('🔥×5 streak');
+    expect(screen.getByText('streak', { exact: false, selector: 'span.sr-only' })).toHaveClass('sm:not-sr-only');
   });
 
   it('once mercy has eased the fight, a 💛 stands where its marks were', () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { errorMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage } from '../../lib/errors';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -31,7 +31,9 @@ export default function ResetPasswordPage() {
     const { error: authError } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (authError) {
-      setError(errorMessage(authError));
+      // Friendly words on screen, the whole error in the console (#130 S6).
+      console.warn('Saving the new password failed:', errorMessage(authError));
+      setError(authErrorMessage(authError));
       return;
     }
     // Drop the recovery token from the address bar so a refresh can't replay it.

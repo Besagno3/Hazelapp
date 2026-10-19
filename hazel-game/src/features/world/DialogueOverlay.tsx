@@ -158,8 +158,19 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     setFetched(true);
   }
 
+  // Escape takes the box's own way out (#110o): "Later" on a choice or a
+  // riddle, 🎉 Thanks after a pick, Bye on the last line of a plain chat.
+  // Never ▼ Next (a talk is read to its end), a quest's offer or its reward.
+  const close = () => sendFlow({ type: 'CLOSE' });
+  const onEscape = choosing || picked !== null ? close : isLast && (!quest || quest.finishKind === 'riddle') ? advance : undefined;
+
   return (
-    <ModalLayer label={npcName(npc, flagsNow)} focusKey={`${index}-${picked ? 1 : 0}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+    <ModalLayer
+      label={npcName(npc, flagsNow)}
+      focusKey={`${index}-${picked ? 1 : 0}`}
+      onEscape={onEscape}
+      className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30"
+    >
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -174,8 +185,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             </span>
           )}
         </div>
-        {/* pre-line: a signpost reads one direction per line. */}
-        <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
+        {/* pre-line: a signpost reads one direction per line. A live region,
+            so a screen reader reads each new line on ▼ Next (#142), as
+            StoryPanels does; whole, not just the words that changed. */}
+        <p aria-live="polite" aria-atomic="true" className="leading-relaxed min-h-[3rem] whitespace-pre-line">
+          {text}
+        </p>
         <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button

@@ -7,6 +7,7 @@ import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
+import { xpBonusPerCorrect } from '../../lib/powerups';
 import { riddleWords, chestRewardText, chestWantedLine, openChest, riddleSolvedLine, solveRiddle } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
@@ -35,6 +36,8 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
+  // Scholar stacks add to every right answer, as in battles and quizzes (#102j).
+  const perCorrect = XP_PER_CORRECT + xpBonusPerCorrect(profile?.powerUps ?? {});
 
   const [solved, setSolved] = useState(false);
   // A tale-stone's question answered wrong (15e review): it offers another, right here.
@@ -85,7 +88,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
       // The way still opens on a starter question, but it pays no XP (#153).
-      if (question && !isStarterId(question.id)) void addXp(XP_PER_CORRECT);
+      if (question && !isStarterId(question.id)) void addXp(perCorrect);
       if (target.kind === 'gate') {
         sfx('gate');
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
@@ -98,7 +101,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         update((s) => openChest(s, target.id));
       }
     },
-    [addXp, question, target, update],
+    [addXp, perCorrect, question, target, update],
   );
 
   const title =

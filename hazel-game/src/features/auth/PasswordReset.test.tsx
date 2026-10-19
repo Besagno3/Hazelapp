@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 const auth = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
@@ -7,6 +7,7 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
   signInWithPassword: vi.fn(),
   signUp: vi.fn(),
+  resend: vi.fn(),
 }));
 vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
 
@@ -19,6 +20,11 @@ const { CONSENT_VERSION, MIN_PASSWORD_LENGTH } = await import('../../content/fam
 beforeEach(() => {
   vi.clearAllMocks();
   useAuthStore.setState({ passwordRecovery: false });
+  // The raw errors go to the console (#130 S6); keep the test output quiet.
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+});
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe('isRecoveryUrl', () => {
@@ -46,13 +52,15 @@ describe('AuthPage — forgot password', () => {
     });
   });
 
-  it('shows the error when the request fails (e.g. rate limited)', async () => {
-    auth.resetPasswordForEmail.mockResolvedValue({ error: { message: 'Too many requests' } });
+  it('says what went wrong in plain words when the request fails (e.g. rate limited, #130 S6)', async () => {
+    auth.resetPasswordForEmail.mockResolvedValue({ error: { message: 'Too many requests', status: 429 } });
     render(<AuthPage />);
     fireEvent.click(screen.getByText('Forgot password?'));
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'kid@example.com' } });
     fireEvent.click(screen.getByText('Send reset link'));
-    await screen.findByText('Too many requests');
+    await screen.findByText('Too many tries for now. Please wait a minute, then try again.');
+    // The raw error goes to the console for whoever fixes it.
+    expect(console.warn).toHaveBeenCalledWith('Reset link failed:', 'Too many requests');
   });
 });
 
@@ -151,10 +159,104 @@ describe('AuthPage — signing in before confirming', () => {
     await screen.findByText(/Please confirm your email first/);
   });
 
-  it('shows any other error as it is', async () => {
-    auth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
+  it('a wrong email or password says so in plain words, not the raw error (#130 S6)', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { code: 'invalid_credentials', message: 'Invalid login credentials', name: 'AuthApiError' } });
     signIn();
-    await screen.findByText('Invalid login credentials');
+    await screen.findByText(/That email and password don't match/);
+    expect(screen.queryByText('Invalid login credentials')).toBeNull();
+    // Only an unconfirmed email offers the link again.
+    expect(screen.queryByRole('button', { name: /Send the link again/ })).toBeNull();
+  });
+
+  it('offline, it says to check the connection', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { name: 'AuthRetryableFetchError', message: 'Failed to fetch', status: 0 } });
+    signIn();
+    await screen.findByText(/couldn't reach Hazel Quest\. Check your internet connection/);
+  });
+
+  it('offers the link again, and sends it (#146)', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { code: 'email_not_confirmed', message: 'Email not confirmed' } });
+    auth.resend.mockResolvedValue({ data: {}, error: null });
+    signIn();
+    fireEvent.click(await screen.findByRole('button', { name: '📨 Send the link again' }));
+    await screen.findByRole('heading', { name: 'Check your inbox' });
+    expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'mum@example.com' });
+    expect(screen.getByText(/Sent! A new link is on its way to mum@example\.com/)).toHaveClass('text-green-700');
+    // It just went: the button waits before another.
+    expect(screen.getByRole('button', { name: /Send the link again in \d+s/ })).toBeDisabled();
+  });
+
+  it('the offer goes with its message (Forgot password? clears both)', async () => {
+    auth.signInWithPassword.mockResolvedValue({ error: { code: 'email_not_confirmed', message: 'Email not confirmed' } });
+    signIn();
+    await screen.findByRole('button', { name: '📨 Send the link again' });
+    fireEvent.click(screen.getByText('Forgot password?'));
+    expect(screen.queryByText(/Please confirm your email first/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Send the link again/ })).toBeNull();
+  });
+});
+
+describe('AuthPage — send the link again (#146)', () => {
+  async function signUp() {
+    auth.signUp.mockResolvedValue({ data: { session: null }, error: null });
+    render(<AuthPage />);
+    fireEvent.click(screen.getByText('New here? Grown-ups sign up'));
+    fireEvent.change(screen.getByLabelText("Grown-up's email"), { target: { value: 'mum@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'dragonfire' } });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByText('Create family account'));
+    await act(async () => {});
+  }
+  const tick = (ms: number) =>
+    act(() => {
+      vi.advanceTimersByTime(ms);
+    });
+
+  it('waits a minute after sign-up, counting down, then sends a new link', async () => {
+    vi.useFakeTimers();
+    auth.resend.mockResolvedValue({ data: {}, error: null });
+    await signUp();
+    expect(screen.getByRole('heading', { name: 'Check your inbox' })).toBeInTheDocument();
+    // The sign-up email only just went: Supabase would refuse another yet.
+    const wait = screen.getByRole('button', { name: 'Send the link again in 60s' });
+    expect(wait).toBeDisabled();
+    tick(20_000);
+    expect(screen.getByRole('button', { name: 'Send the link again in 40s' })).toBeDisabled();
+    tick(40_000);
+    const again = screen.getByRole('button', { name: '📨 Send the link again' });
+    expect(again).toBeEnabled();
+    fireEvent.click(again);
+    await act(async () => {});
+    expect(auth.resend).toHaveBeenCalledOnce();
+    expect(auth.resend).toHaveBeenCalledWith({ type: 'signup', email: 'mum@example.com' });
+    // Said where screen readers hear it, and the wait starts again.
+    expect(screen.getAllByRole('status').some((r) => /Sent! A new link is on its way to mum@example\.com/.test(r.textContent ?? ''))).toBe(true);
+    expect(screen.getByRole('button', { name: 'Send the link again in 60s' })).toBeDisabled();
+  });
+
+  it("a refused resend says why in plain words, and doesn't start the wait over", async () => {
+    vi.useFakeTimers();
+    auth.resend.mockResolvedValue({
+      data: {},
+      error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 12 seconds.', status: 429 },
+    });
+    await signUp();
+    tick(60_000);
+    fireEvent.click(screen.getByRole('button', { name: '📨 Send the link again' }));
+    await act(async () => {});
+    expect(screen.getByText('Too many tries for now. Please wait 12 seconds, then try again.')).toHaveClass('text-red-700');
+    expect(screen.getByRole('button', { name: '📨 Send the link again' })).toBeEnabled();
+  });
+
+  it('going back to sign in clears the note', async () => {
+    vi.useFakeTimers();
+    auth.resend.mockResolvedValue({ data: {}, error: null });
+    await signUp();
+    tick(60_000);
+    fireEvent.click(screen.getByRole('button', { name: '📨 Send the link again' }));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    expect(screen.queryByText(/Sent! A new link/)).toBeNull();
   });
 });
 
@@ -229,12 +331,13 @@ describe('ResetPasswordPage', () => {
     expect(auth.updateUser).toHaveBeenCalledWith({ password: 'dragonfire' });
   });
 
-  it('stays in recovery mode and shows the error if saving fails', async () => {
-    auth.updateUser.mockResolvedValue({ error: { message: 'Password is too weak' } });
+  it('stays in recovery mode and says what went wrong in plain words if saving fails (#130 S6)', async () => {
+    auth.updateUser.mockResolvedValue({ error: { code: 'weak_password', message: 'Password is too weak' } });
     useAuthStore.setState({ passwordRecovery: true });
     render(<ResetPasswordPage />);
     fill('dragonfire', 'dragonfire');
-    await screen.findByText('Password is too weak');
+    await screen.findByText(/That password is too easy to guess/);
+    expect(screen.queryByText('Password is too weak')).toBeNull();
     expect(useAuthStore.getState().passwordRecovery).toBe(true);
   });
 });

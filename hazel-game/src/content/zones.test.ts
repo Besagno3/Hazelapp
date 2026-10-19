@@ -24,6 +24,7 @@ import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
 import { WANDER_TUNING } from '../lib/wander';
+import { idleReach } from '../lib/encounter';
 import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
 import { GENERATED_SPRITES } from './sprites.generated';
 import { HALL_DEDICATED } from './spells';
@@ -848,7 +849,7 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     expect(said({ ...memory, [HALL_DEDICATED]: true })).toContain('Five plaques shine now: Numbers, Nature, Gears, Wonder and Memory!');
     expect(said(act2).join(' ')).toMatch(/first Sage/);
     const call = visibleLines(mnem.lines, memory).at(-1);
-    expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
+    expect(typeof call === 'object' && call.setFlag).toBe(HALL_CALLED);
     // Once dedicated, no call — your name is in the Hall's heart.
     expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/Hall's heart/);
   });
@@ -1714,7 +1715,8 @@ describe('the Dream Root Door (#75 item 16a)', () => {
   });
 
   it("Aurora's welcome is always her first line, and it says hello for the 🚩 (16a code review round 3)", () => {
-    for (const flags of [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }]) {
+    const flagSets: Record<string, boolean>[] = [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }];
+    for (const flags of flagSets) {
       const first = visibleLines(NPC_DEFS['root-aurora'].lines, flags)[0];
       expect(typeof first === 'string' ? null : first.setFlag).toBe(MET_ROOT_AURORA);
     }
@@ -1915,5 +1917,44 @@ describe('no fog shuts a building door (16c review round 3)', () => {
         }),
       );
     }
+  });
+});
+
+describe("nobody you talk to stands in a critter's patch (#114aa)", () => {
+  // A critter wanders up to its leash from home and touches from a step past
+  // that (`idleReach`) — over open ground, so a wall or a shop keeps it out.
+  const leash = TILE * WANDER_TUNING.enemy.leashTiles;
+  /** Every quest-giver, and everyone a quest sends you to talk to. */
+  const questPeople = new Set(QUESTS.flatMap((q) => [q.giverNpcId, ...q.steps.flatMap((s) => (s.npc ? [s.npc.id] : []))]));
+  /** The cells a critter can reach from home: walking, never further than `px` from it. */
+  const within = (z: ZoneDef, home: { x: number; y: number }, px: number) =>
+    reach(z, { from: home, exits: 'stop', flags: null, blocked: (x, y) => Math.hypot(x - home.x, y - home.y) * TILE > px });
+
+  it('a quest person stands a step clear of every critter (the Starfall rule, zone-wide); anyone else out of its reach', () => {
+    for (const z of allZones) {
+      for (const e of z.enemies) {
+        const def = ENEMY_DEFS[e.defId];
+        // A boss holds its ground (anyone standing on its spot comes after it's beaten);
+        // a sea critter only ever meets a sailing hero.
+        if (def.isBoss || def.habitat === 'sea') continue;
+        const critterReach = idleReach({ isBoss: false }, leash);
+        const touch = within(z, e, critterReach);
+        const stepClear = within(z, e, critterReach + TILE);
+        for (const p of z.npcs) {
+          const near = questPeople.has(p.defId) ? stepClear : touch;
+          expect(near.has(`${p.x},${p.y}`), `${z.id}: ${e.defId} (${e.x},${e.y}) reaches ${p.defId} (${p.x},${p.y})`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("Chromaria's Off-Key Bird is well away from Doodle, the way in and the way out", () => {
+    const z = ZONES.chromaria;
+    const bird = z.enemies.find((e) => e.defId === 'off-key-bird')!;
+    const doodle = z.npcs.find((p) => p.defId === 'chromaria-villager')!;
+    expect(WALKABLE_CHARS.has(tileAt(z, bird.x, bird.y))).toBe(true);
+    expect(Math.hypot(bird.x - doodle.x, bird.y - doodle.y)).toBeGreaterThanOrEqual(4);
+    const reachTiles = idleReach({ isBoss: false }, leash) / TILE;
+    for (const c of [z.spawn, ...z.exits]) expect(Math.hypot(bird.x - c.x, bird.y - c.y), `${c.x},${c.y}`).toBeGreaterThan(reachTiles);
   });
 });

@@ -297,9 +297,12 @@ zod, react-query. Add the package in the same change that first uses it.
   streak in a row above the status boxes (no Switch player in battle, as before;
   40 px on a phone — `LevelBadge` / `StreakBadge` `dense`), hidden below
   360 px wide or 500 px tall, where there's no room for it without pushing
-  🏃 Flee off the screen (`bench … battle`, a boss fight). Other screens
-  keep the floating badges. Switch there asks "Switch?" first (same size;
-  the hint floats below it), and any other tap or key takes the question back.
+  the commands off the screen (`bench … battle`, a boss fight); 🏃 Flee sits
+  beside "Your move!", so the other six commands fill the grid (#158b). The
+  Training Grounds, quiz and hero pick use `ScreenTopBar` (the same row in
+  the page, #110h) — no screen floats badges any more. Switch asks
+  "Switch?" first (same size; the hint floats below it), and any other tap
+  or key takes the question back.
   **Overlays are modal** (#75 item 14b review): every world overlay (dialogue,
   services, path questions, key gates, menu, the Spire's panels) and the
   level-up sit in `components/ModalLayer` — `role="dialog"` + `aria-modal`,
@@ -869,19 +872,29 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
 
 ## Error handling
 
-- Use `errorMessage(err)` (`src/lib/errors.ts`) anywhere a caught error is
-  shown or logged — never a hardcoded "something went wrong".
+- Use `errorMessage(err)` (`src/lib/errors.ts`) for logs and diagnostics —
+  never a hardcoded "something went wrong". On a kid's or grown-up's screen
+  show `friendlyMessage(err)` — or `authErrorMessage(err)` for Supabase auth —
+  and log `errorMessage` beside it (#130 S6). Some older screens still show
+  `errorMessage`; move them over when touched.
 - For `supabase.functions.invoke` failures, use `resolveErrorMessage` (async)
   so the edge function's real `{error, detail}` body surfaces.
-- `ErrorBoundary` (`src/components/`) catches uncaught render errors.
+- `ErrorBoundary` (`src/components/`) catches uncaught render errors and
+  shows a friendly crash screen, the real error folded under "Details for
+  grown-ups".
 
 ## Conventions
 
-- TypeScript: `noUnusedLocals`/`noUnusedParameters` are on, but **`strict` is
-  not** (so no `strictNullChecks`) — ISSUES #111. Handle `null`/`undefined`
-  as if it were.
+- TypeScript: **`strict` is on** (both tsconfigs, since 2026-10-19 — ISSUES
+  #111), with `noUnusedLocals`/`noUnusedParameters`. A guard's narrowing
+  doesn't reach inner functions declared after it: copy the value into its
+  own non-null `const` (`WorldCanvas`'s scene effect does) rather than
+  sprinkling `!`.
 - Tailwind utility classes inline; use the `cn()` helper (`src/lib/utils.ts`)
-  for conditional class merging.
+  for conditional class merging. **Width / height breakpoints:** the `touch` /
+  `touch-wide` screens in `tailwind.config.js` are objects, and that turns
+  Tailwind's `min-[…]:` / `max-[…]:` (and `max-sm:` etc.) variants off — they
+  make no CSS. Write them as `[@media(max-width:359px)]:…` (#164).
 - Password fields use `PasswordInput` (`src/components/`, the 👁️ show /
   🙈 hide button, #123) — not a bare `<input type="password">`.
 - Game tuning constants: quiz gate in `src/lib/utils.ts` (`PASS_THRESHOLD`,
@@ -956,6 +969,47 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-19 — The issues audit's quick fixes: Scholar XP everywhere, critters off people, touch words, Escape, friendly errors, 320 px battles (#159)
+The audit (previous commit) found small fixes inside many open entries; this
+lands them, with tests (1587 → ~1700).
+- **World:** shrine trials, gates and chests pay the Scholar bonus (#102j). A
+  `zones.test` rule — no land critter's walking reach (leash + touch,
+  `idleReach`) touches anyone you talk to, a step to spare for quest people —
+  moved the Off-Key Bird off Doodle and ten more critters (#114aa). The 🚩 says
+  where an Act I Fiend's gate is (`ACT_ONE_FIEND_GATES`, #83e), just "sail on"
+  when you're already sailing (#114r), and to ask Old Marlow to row the Biscuit
+  home after a Return (`goalDirections`' `boat`, #117p). Index stops
+  introducing herself after her quest; a Sage's Learn panel shows that spell's
+  line (#128). Every secret found puts 🔍 Secret Seeker on the shelf, on load
+  for old saves (`withSecretsBadge` in `normalizeSave`, #80b).
+- **World screen:** touch players are told about the arrow pad and ✋
+  (`helpLine`, by the d-pad's own `touch:` screen, #130 S4 / #110m). A fog
+  line sits clear of the map while it lifts (`onReveal`, #113) and the camera
+  holds each bank until it can be read (`revealHoldS`, #100h). Escape does an
+  overlay's own way out (`ModalLayer` `onEscape`: key gate, dialogue, Spire,
+  Menu, services) and never answers or skips anything (#128, #110o).
+  Dialogue lines are read out (#142); the Spire's seals line is one live region
+  (#110n) and its lose panel says what the next climb changes
+  (`spireNextClimbLine`, #150). The menu map keeps ⭐ 🚩 ⛵ apart (`nudgeClear`,
+  #117n). HUD buttons keep 44 px taps when they wrap (`bench … hud` 6/6). The
+  sprite review's quick part: hot reload keeps KaPlay, `frameAt` / `cycleMs`
+  clamp, world faces fall back to the emoji (#49 A1, A4, B1, B3).
+- **Battle:** banners queue (`useBattleFx`, #97c); "Super effective" is said
+  once (#128). A boss fight fits 320×568 (#117q, #158b): the top bar's
+  `max-[359px]:hidden` had made no CSS (#164 — use `[@media(…)]`), 🏃 Flee sits
+  beside "Your move!", the HUD keeps to one line (`bench … battle` 5/5).
+- **Errors and sign-in:** `friendlyMessage` / `authErrorMessage` on screen,
+  `errorMessage` in the console; the crash screen folds the real error under
+  "Details for grown-ups" (#130 S6). "📨 Send the link again" after sign-up
+  and on an unconfirmed sign-in (`auth.resend`, 60 s wait, #146). The game
+  wears the public pages' Ember's-egg icon (#146). The Training Grounds, quiz
+  and hero pick have `ScreenTopBar` instead of floating badges (#110h).
+- **Strict-ready (#111):** the null-safety fixes `strict` asks for outside the
+  bench (`WorldCanvas`'s non-null `k`, `BattleStage`'s refs, a few tests); the
+  flag itself flips with the bench's fixes.
+Logged: #159 (this work, with the follow-ups), #163 (the quiz still waits for
+its round, split from #158), #164 (Tailwind's min/max variants).
 
 ### 2026-10-17 — #158 review fixes: an encounter flash, spells ready at once (#158a)
 `/saas-code-review` + `/saas-ux-review` of #158; the owner said fix all and

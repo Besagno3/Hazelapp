@@ -1834,8 +1834,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     // Her quest's offer comes first ("A Letter, Long Overdue"); these follow it.
+    // Once it's done she knows you already — no second hello (#128a).
     lines: [
-      "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!",
+      { text: "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!", unlessFlag: questDoneFlag({ id: 'archive-letter' }) },
+      { text: "Wick's note is filed under T, for Thank you. Now, where was I? Ah… Bh… CHOO! Filed under S.", ifFlag: questDoneFlag({ id: 'archive-letter' }) },
       { text: 'The Crystal of Memory shines! Every card in my catalog remembers its book again. A to Z!', ifFlag: 'crystal-history-restored' },
     ],
   },

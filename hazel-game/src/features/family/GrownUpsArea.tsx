@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { errorMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage } from '../../lib/errors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
@@ -50,7 +50,9 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (authError) {
-      setError(errorMessage(authError));
+      // Friendly words on screen, the whole error in the console (#130 S6).
+      console.warn('Grown-ups sign-in failed:', errorMessage(authError));
+      setError(authErrorMessage(authError));
       return;
     }
     onUnlock();
@@ -61,8 +63,10 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
     const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: window.location.origin + window.location.pathname,
     });
-    if (authError) setError(errorMessage(authError));
-    else setNotice(`A reset link is on its way to ${email}.`);
+    if (authError) {
+      console.warn('Grown-ups reset link failed:', errorMessage(authError));
+      setError(authErrorMessage(authError));
+    } else setNotice(`A reset link is on its way to ${email}.`);
   }
 
   const back = (

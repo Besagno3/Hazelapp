@@ -5,7 +5,7 @@ import { NPC_DEFS, type WorldNpcDef } from '../content/npcs';
 import { FIELD_SPELLS, FIELD_SPELL_IDS, RETURN_TOWNS, hasVisited, knowsFieldSpell, visitedFlag, type FieldSpell } from '../content/fieldSpells';
 import { QUESTS, handedOverFlag, questDoneFlag, questOfferedFlag, stepFlag } from '../content/quests';
 import { BELL_QUEST, BLANK_CHART_HELD, BLANK_CHART_QUEST, DOG_QUEST, GARDEN_QUEST, NAME_LEARNED, ROOT_HEART_REACHED, SAY_HER_NAME_QUEST, UMBRA_NAMED, MET_HALL_ASTER } from '../content/questFlags';
-import { BOAT_HOME, BOAT_QUEST_ID, hasBoat } from '../content/boat';
+import { BOAT_HOME, BOAT_QUEST_ID, MARLOW, hasBoat } from '../content/boat';
 import { flownLink, oppositeSide, seaEntryCell } from './travel';
 import { dungeonEntrance, dungeonFloor } from '../content/dungeons';
 import { actComplete, actCrystals, actRestored, crystalFlag, type CrystalTopicInfo } from '../content/topics';
@@ -13,6 +13,7 @@ import { bossFlag, keyFlag, keyForBoss, keyForZone, type GateKey } from '../cont
 import { ENEMY_DEFS } from '../content/enemies';
 import { ACT4_SEEN, MET_GALE, MET_ROOT_AURORA, SPIRE_CLEARED, canFly, emberStatus } from '../content/story';
 import { REGIONS, zoneTier, type DangerTier } from '../content/regions';
+import type { BoatSpot } from '../types';
 import { overworldOf } from './worldMap';
 
 /**
@@ -563,6 +564,7 @@ export function nextObjective(flags: Record<string, boolean>): Objective {
       zoneId: open.zoneId,
       crystal: open,
       key,
+      inside: fiendGateInside(open, flags),
     };
   }
   // Every crystal left is behind a gate (only Numbria's has none).
@@ -650,6 +652,26 @@ export function exitSide(z: ZoneDef, e: { x: number; y: number }): Compass | nul
   if (e.x === 0) return 'west';
   if (e.x === z.map[0].length - 1) return 'east';
   return null;
+}
+
+/**
+ * Where each Act I Fiend's gate is in its town (#83e): the gate in front of
+ * it, and where that is on the map — said once you're there, like Chorus
+ * Isle's (`wayfinding.test` checks each gate really guards its Fiend).
+ */
+export const ACT_ONE_FIEND_GATES: Partial<Record<ZoneId, { gate: { x: number; y: number }; where: string }>> = {
+  numbria: { gate: { x: 11, y: 6 }, where: 'at the far west end of the road' },
+  verdara: { gate: { x: 10, y: 7 }, where: 'at the top of town, straight up the path from the way in' },
+  gearfall: { gate: { x: 10, y: 6 }, where: 'in the top-left corner of town, near the way out' },
+  chromaria: { gate: { x: 11, y: 7 }, where: 'in the top-left corner of town, near the way out' },
+};
+
+/** The Act I 🚩's "where in town": the Fiend's gate — until it's open, when the way in needs no telling. */
+function fiendGateInside(crystal: CrystalTopicInfo, flags: Record<string, boolean>): string | undefined {
+  const spot = ACT_ONE_FIEND_GATES[crystal.zoneId];
+  const z = ZONES[crystal.zoneId];
+  if (!spot || !z || flags[gateFlag(gateIdAt(z.id, z.map, spot.gate.x, spot.gate.y))]) return undefined;
+  return `${capitalize(midSentence(crystal.fiendName))}'s gate is ${spot.where}.`;
 }
 
 /** The Nameless Hall's great door, open (16c review round 2). */
@@ -775,7 +797,7 @@ export function routeSteps(
       // Dungeon stairs (#75 item 10) lead down ('>') or up ('<') a floor.
       if (stairs === '>' || stairs === '<') {
         const way = stairs === '>' ? 'down' : 'up';
-        const run = stairsRun?.way === way ? stairsRun.floors + 1 : 1;
+        const run: number = stairsRun?.way === way ? stairsRun.floors + 1 : 1;
         if (run > 1) steps.pop();
         const floors = run > 1 ? ` ${FLOOR_COUNT[run] ?? run} floors` : '';
         steps.push(`take the stairs ${way}${floors} to ${placeName(dest)}`);
@@ -815,6 +837,8 @@ export function goalDirections(
   flags: Record<string, boolean> | null = null,
   /** Sailing the boat right now (15g review round 3). */
   aboard = false,
+  /** Where the boat is moored (`boatSpot`), when the caller knows (#117p). */
+  boat: BoatSpot | null = null,
 ): string {
   if (!goal.zoneId) return '';
   if (goal.zoneId === here) {
@@ -828,6 +852,16 @@ export function goalDirections(
     // Past the dock: just "sail east" to the sea itself, or on to a place out there.
     const beyond = routeSteps(zones, goal.at.zoneId, goal.zoneId, goal.at, flags) ?? [];
     const sail = beyond.length > 1 ? beyond.join(', then ') : 'sail east';
+    // Already sailing on the dock's own map (#114r): no dock to go to — just sail on.
+    // (Never on Ember here: every voyage from the dock comes before she flies.)
+    if (aboard && here === goal.at.zoneId) return beyond.length > 1 ? sentence(beyond) : 'Sail east, off the edge of the sea!';
+    // The boat left on another map (after a Return from the Shallows, #117p): the
+    // dock is empty, so the way starts with Old Marlow, who rows her home to it.
+    const marlow = !aboard && boat && boat.zoneId !== goal.at.zoneId ? npcHome(zones, MARLOW) : null;
+    if (marlow) {
+      const toMarlow = routeSteps(zones, here, marlow.zoneId, at, flags) ?? [];
+      return sentence([...toMarlow, `ask Old Marlow to row the Biscuit home to his dock, then ${sail}`]);
+    }
     const steps = routeSteps(zones, here, goal.at.zoneId, at, flags, aboard) ?? [];
     const route = routeTo(zones, here, goal.at.zoneId) ?? [];
     const last = route.length ? route[route.length - 1].exit : null;

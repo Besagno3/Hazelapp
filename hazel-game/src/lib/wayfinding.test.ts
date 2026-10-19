@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HALL_DEDICATED } from '../content/spells';
 import { MET_ELDER, ZONES, gateFlag, gateIdAt, type ZoneDef, type ZoneId } from '../content/zones';
+import { ENEMY_DEFS } from '../content/enemies';
 import { reach } from './reach';
 import { actFourJourney, advanceGoal } from './journey';
 import { overworldOf, whereOnMap } from './worldMap';
@@ -25,9 +26,10 @@ import {
   mentorTips,
   roadTier,
   shrineToVisit,
+  ACT_ONE_FIEND_GATES,
 } from './wayfinding';
 import { FIELD_SPELL_IDS, fieldSpellFlag, visitedFlag } from '../content/fieldSpells';
-import { BOAT_MENDED } from '../content/boat';
+import { BOAT_HOME, BOAT_MENDED } from '../content/boat';
 
 const dawn = ZONES.dawnreach;
 const ALL_ZONES = Object.keys(ZONES) as ZoneId[];
@@ -192,7 +194,7 @@ describe('nextObjective', () => {
     expect(goalDirections(ZONES, nextObjective(offered), 'chartmakers-rest')).toMatch(/^It's right here on Chartmaker's Rest!/);
     // On the isle, the way says where the gate is (round 2), and an island is "on".
     expect(goalDirections(ZONES, nextObjective(chorusBoth), 'chorus-isle')).toBe("It's right here on Chorus Isle! The Hush Fiend's gate is at the top of the road, past Old Cadence.");
-    expect(goalDirections(ZONES, nextObjective({}), 'numbria')).toBe("It's right here in Numbria!");
+    expect(goalDirections(ZONES, nextObjective({}), 'numbria')).toBe("It's right here in Numbria! The Null Fiend's gate is at the far west end of the road.");
     // Off Taleshore after the fog thins, the way home is still flown — the boat is at Marlow's dock (round 2).
     const home = routeSteps(ZONES, 'chorus-isle', 'remembrance-hill', undefined, voicesFreed)!;
     expect(home.filter((st) => st.startsWith('sail'))).toEqual([]);
@@ -241,6 +243,9 @@ describe('nextObjective', () => {
     // Already on the dock: just climb in (review fix).
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 70, y: 30 })).toBe("Climb into Marlow's boat at the end of the dock and sail east.");
     expect(goalDirections(ZONES, sail, 'dawnreach', { x: 60, y: 30 })).toBe("Go east to Marlow's dock and sail east.");
+    // Already sailing the Biscuit on Dawnreach: no dock to go to, just sail on (#114r).
+    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 71, y: 30 }, null, true)).toBe('Sail east, off the edge of the sea!');
+    expect(goalDirections(ZONES, sail, 'dawnreach', { x: 71, y: 30 }, null, true)).not.toMatch(/dock/);
   });
 
   it('after the Silver Shallows, the 🚩 leads back across the sea to Remembrance Hill (#75 item 14e)', () => {
@@ -272,6 +277,17 @@ describe('nextObjective', () => {
     expect(goalDirections(ZONES, g, 'dawnreach', { x: 70, y: 30 })).toBe(
       "Climb into Marlow's boat at the end of the dock and sail east to the Silver Shallows, then go south-east to Eldergrove.",
     );
+    // Back on Dawnreach by Return, the Biscuit still out on the Shallows: the dock is empty,
+    // so the way starts with Old Marlow, who rows her home (#117p).
+    const outThere = { zoneId: 'silver-shallows' as const, x: 30, y: 20 };
+    expect(goalDirections(ZONES, g, 'lumina-village', undefined, afterHill, false, outThere)).toBe(
+      "Go east to Starfall Coast, then ask Old Marlow to row the Biscuit home to his dock, then sail east to the Silver Shallows, then go south-east to Eldergrove.",
+    );
+    expect(goalDirections(ZONES, g, 'starfall-coast', undefined, afterHill, false, outThere)).toMatch(/^Ask Old Marlow to row the Biscuit home to his dock, then sail east/);
+    // …but with her home at the dock (or not known), the way is as ever.
+    expect(goalDirections(ZONES, g, 'remembrance-hill', undefined, afterHill, false, BOAT_HOME)).toMatch(/^Go north-east to Marlow's dock and sail east/);
+    // Sailing on Dawnreach already: the voyage from the dock, without the dock (#114r).
+    expect(goalDirections(ZONES, g, 'dawnreach', { x: 71, y: 30 }, afterHill, true)).toBe('Sail east to the Silver Shallows, then go south-east to Eldergrove.');
     expect(goalDirections(ZONES, g, 'silver-shallows', { x: 30, y: 20 })).toBe('Go south-west to Eldergrove.');
     expect(goalDirections(ZONES, g, 'eldergrove')).toBe("It's right here in Eldergrove!");
     // Act II's errands aren't a danger road: no arrival warnings or "gentler road" tips.
@@ -447,8 +463,33 @@ describe('routeSteps and goalDirections', () => {
     ]);
   });
   it("says so when you're already there, and nothing once the story's done", () => {
-    expect(goalDirections(ZONES, numbria, 'numbria')).toBe("It's right here in Numbria!");
+    expect(goalDirections(ZONES, numbria, 'numbria')).toMatch(/^It's right here in Numbria!/);
     expect(goalDirections(ZONES, nextObjective(hallOpened), 'numbria')).toBe('');
+  });
+  it("in an Act I crystal town, the 🚩 says where the Fiend's gate is — until it's open (#83e)", () => {
+    const fiendCell = (z: ZoneDef) => z.enemies.find((e) => ENEMY_DEFS[e.defId]?.role === 'fiend')!;
+    for (const t of actCrystals(1)) {
+      const z = ZONES[t.zoneId];
+      // Each crystal as the goal: the others restored, its key (if any) held.
+      const key = keyForZone(t.zoneId);
+      const flags: Record<string, boolean> = {
+        ...Object.fromEntries(actCrystals(1).filter((o) => o.id !== t.id).map((o) => [crystalFlag(o.id), true])),
+        ...(key ? { [keyFlag(key.id)]: true } : {}),
+      };
+      const goal = nextObjective(flags);
+      expect(goal).toMatchObject({ kind: 'crystal', zoneId: t.zoneId });
+      expect(goal.inside?.startsWith(`${t.fiendName}'s gate is `), `${t.zoneId}: ${goal.inside}`).toBe(true);
+      expect(goalDirections(ZONES, goal, t.zoneId)).toBe(`It's right here in ${placeName(z)}! ${goal.inside}`);
+      // The gate named is the one in front of the Fiend: shut, there's no way to it; open, there is.
+      const gate = ACT_ONE_FIEND_GATES[t.zoneId]!.gate;
+      const id = gateIdAt(z.id, z.map, gate.x, gate.y);
+      const fiend = fiendCell(z);
+      const near = (open: boolean) => reach(z, { flags: null, gates: (g) => open && g === id });
+      expect(near(false).has(`${fiend.x},${fiend.y}`), `${t.zoneId} shut`).toBe(false);
+      expect(near(true).has(`${fiend.x},${fiend.y}`), `${t.zoneId} open`).toBe(true);
+      // Once it's open, the way in needs no telling.
+      expect(nextObjective({ ...flags, [gateFlag(id)]: true }).inside).toBeUndefined();
+    }
   });
   it("on Ember, the way to the Dragon's Roost is flown, not sailed (#75 item 15b)", () => {
     const fly = nextObjective(storyDone);

@@ -61,7 +61,7 @@ function CommandButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${OPTION} py-2.5 ${highlight ? '!bg-amber-400/25 ring-2 ring-amber-300 animate-pulse' : ''}`}
+      className={`${OPTION} min-h-[44px] py-2.5 [@media(max-height:600px)]:py-1.5 ${highlight ? '!bg-amber-400/25 ring-2 ring-amber-300 animate-pulse' : ''}`}
     >
       <span className="text-lg mr-1.5">{emoji}</span>
       <span className="font-bold text-sm">{label}</span>
@@ -70,7 +70,13 @@ function CommandButton({
   );
 }
 
-/** The top-level command box: Attack / Spells / companion / Guard / Items / Swap / Flee. */
+/**
+ * The top-level command box: Attack / Spells / companion / Guard / Items /
+ * Swap in the grid, 🏃 Flee beside "Your move!" (#158b). Six commands fill
+ * the grid's rows (2 × 3 on a phone, 3 × 2 from `sm` up); a seventh row for
+ * Flee alone pushed a boss fight's Items, Swap and Flee below a 320×568
+ * screen. A short screen tightens the padding too (still ≥ 44 px a button).
+ */
 export function CommandMenu({
   charge,
   spellsLoaded,
@@ -111,17 +117,33 @@ export function CommandMenu({
   onFlee: () => void;
 }) {
   return (
-    <div className={PANEL}>
-      <p className={`${HEADER} mb-3`}>
-        {powerMove ? (
-          `💢 ${powerMove} is coming — Guard to block it!`
-        ) : (
-          <>
-            <span className="sm:hidden">Your move!</span>
-            <span className="hidden sm:inline">Your move — every command is a question!</span>
-          </>
-        )}
-      </p>
+    <div className={`${PANEL} [@media(max-height:600px)]:p-3`}>
+      <div className="mb-3 flex items-center justify-between gap-2 [@media(max-height:600px)]:mb-2">
+        <p className={HEADER}>
+          {powerMove ? (
+            <>
+              {/* The move's name is in the status box and on Guard: a phone says just what to do. */}
+              <span className="sm:hidden">💢 Guard to block it!</span>
+              <span className="hidden sm:inline">💢 {powerMove} is coming — Guard to block it!</span>
+            </>
+          ) : (
+            <>
+              <span className="sm:hidden">Your move!</span>
+              <span className="hidden sm:inline">Your move — every command is a question!</span>
+            </>
+          )}
+        </p>
+        {/* A boss can't be fled: the button stays, saying so. */}
+        <button
+          onClick={onFlee}
+          disabled={isBoss}
+          className={`${OPTION} shrink-0 min-h-[44px] py-1.5 whitespace-nowrap`}
+        >
+          <span className="text-lg mr-1.5">🏃</span>
+          <span className="font-bold text-sm">Flee</span>
+          {isBoss && <span className="ml-1.5 text-xs text-white/70">No escape!</span>}
+        </button>
+      </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <CommandButton emoji="⚔️" label="Attack" onClick={onAttack} />
         <CommandButton
@@ -167,13 +189,6 @@ export function CommandMenu({
           label="Swap"
           hint={canSwap ? 'Free — keeps your turn' : 'Friends can join you'}
           onClick={onSwap}
-        />
-        <CommandButton
-          emoji="🏃"
-          label="Flee"
-          disabled={isBoss}
-          hint={isBoss ? 'No escape!' : undefined}
-          onClick={onFlee}
         />
       </div>
     </div>

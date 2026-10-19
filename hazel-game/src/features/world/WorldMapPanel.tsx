@@ -5,6 +5,8 @@ import type { BoatSpot, ZoneId } from '../../types';
 import {
   ANY_CRYSTAL_EMOJI,
   FOG_COLOR,
+  boatNudge,
+  pinsBelow,
   HIDDEN_PLACE_EMOJI,
   edgeLabelSpot,
   seaEdgeLabel,
@@ -88,9 +90,16 @@ export default function WorldMapPanel({
   const marks = [...places, ...landmarks, ...(boatHere ? [boatHere] : []), ...(flagAt ? [flagAt] : [])];
   // On the overworld, directions start from the hero's own tile.
   const heroTile = zoneId === world.id && pos ? { x: Math.floor(pos.x / TILE), y: Math.floor(pos.y / TILE) } : undefined;
-  const how = goalDirections(ZONES, goal, zoneId, heroTile, flags, aboard);
+  // With the boat left on another map (after a Return), the way starts with Old Marlow (#117p).
+  const how = goalDirections(ZONES, goal, zoneId, heroTile, flags, aboard, boat);
   // Star and flag on the same place: the star steps aside so both show.
   const shared = !!here && !!flagAt && !here.exact && here.x === flagAt.x && here.y === flagAt.y;
+  const fogMarks = foggedBanks.filter((f) => fogMarker(f)).map((f) => fogMarkerAt(f, places));
+  // …and the boat never sits on them, a place or a landmark: on a phone, inside
+  // Eldergrove, ⭐ 🚩 ⛵ and 🌳 all landed on one small island (#117n).
+  const boatOff = boatHere
+    ? boatNudge(cols, boatHere, { icons: [...places, ...landmarks, ...fogMarks], here, shared, flag: flagAt })
+    : null;
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -174,13 +183,13 @@ export default function WorldMapPanel({
             {l.emoji}
           </span>
         ))}
-        {foggedBanks.filter((f) => fogMarker(f)).map((f) => (
+        {foggedBanks.filter((f) => fogMarker(f)).map((f, i) => (
           <span
             key={f.id}
             aria-hidden
             // The crystal that clears this bank (#75 item 7).
             className="absolute -translate-x-1/2 -translate-y-1/2 text-[11px] leading-none pointer-events-none select-none opacity-90"
-            style={at(fogMarkerAt(f, places).x, fogMarkerAt(f, places).y)}
+            style={at(fogMarks[i].x, fogMarks[i].y)}
           >
             {fogMarker(f)}
           </span>
@@ -188,9 +197,10 @@ export default function WorldMapPanel({
         {boatHere && (
           <span
             aria-hidden
-            // Marlow's boat, moored where it was left (#75 item 14).
+            // Marlow's boat, moored where it was left (#75 item 14), nudged off anything it would cover (#117n).
+            data-testid="map-boat"
             className="absolute -translate-x-1/2 -translate-y-1/2 text-[13px] leading-none pointer-events-none select-none drop-shadow"
-            style={at(boatHere.x, boatHere.y)}
+            style={{ ...at(boatHere.x, boatHere.y), marginLeft: boatOff?.dx ?? 0, marginTop: boatOff?.dy ?? 0 }}
           >
             ⛵
           </span>
@@ -198,9 +208,11 @@ export default function WorldMapPanel({
         {here && (
           <span
             aria-hidden
-            // Out on the map the star is you; inside a place it perches on
-            // top of that place's emoji like a pin, so both stay visible.
-            className={`absolute ${shared ? '-translate-x-full' : '-translate-x-1/2'} ${here.exact ? '-translate-y-1/2' : '-translate-y-[110%]'} text-base leading-none animate-pulse drop-shadow pointer-events-none`}
+            // Out on the map the star is you; inside a place it perches just
+            // above that place's emoji like a pin, so both stay visible
+            // (`STAR_PERCH`: clear of it, not on its top, #117n) — below it
+            // near the map's top, clear of the title (`pinsBelow`).
+            className={`absolute ${shared ? '-translate-x-full' : '-translate-x-1/2'} ${here.exact ? '-translate-y-1/2' : pinsBelow(cols, here.y) ? 'translate-y-[45%]' : '-translate-y-[145%]'} text-base leading-none animate-pulse drop-shadow pointer-events-none`}
             style={at(here.x, here.y)}
           >
             ⭐
@@ -209,8 +221,8 @@ export default function WorldMapPanel({
         {flagAt && (
           <span
             aria-hidden
-            // Planted on the place's top-right corner, like a pin in a map.
-            className="absolute -translate-x-[15%] -translate-y-[105%] text-[15px] leading-none drop-shadow pointer-events-none"
+            // Planted just above the place's top-right corner, like a pin in a map (`FLAG_PERCH`; below it near the top).
+            className={`absolute -translate-x-[15%] ${pinsBelow(cols, flagAt.y) ? 'translate-y-[45%]' : '-translate-y-[145%]'} text-[15px] leading-none drop-shadow pointer-events-none`}
             style={at(flagAt.x, flagAt.y)}
           >
             🚩

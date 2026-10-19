@@ -10,13 +10,17 @@ import { cn } from '../lib/utils';
  * "▼ next"), else to the layer itself, so a stray Enter never buys, answers
  * or picks anything. A new `focusKey` (the overlay's next step) pulls focus
  * back in if it was lost with a button that went away. When the layer closes,
- * focus goes back to where it was (📜 Menu, say).
+ * focus goes back to where it was (📜 Menu, say). Escape does what the
+ * overlay's own way out does (`onEscape` — its close, Back or Later, #128,
+ * #110o); an overlay with nothing to cancel (a question, a story beat) passes
+ * none, and Escape does nothing.
  */
 export default function ModalLayer({
   label,
   className,
   focusKey,
   onKeyDown,
+  onEscape,
   children,
 }: {
   label: string;
@@ -24,6 +28,8 @@ export default function ModalLayer({
   className: string;
   focusKey?: string | number;
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
+  /** What Escape does: exactly the overlay's own close / Back / Later — leave it out where there's none. */
+  onEscape?: () => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -49,7 +55,15 @@ export default function ModalLayer({
       aria-modal="true"
       aria-label={label}
       tabIndex={-1}
-      onKeyDown={onKeyDown}
+      onKeyDown={(e) => {
+        onKeyDown?.(e);
+        // A held Escape closes one layer, not the one behind it too; a panel
+        // inside that handles Escape itself ("Leave the Spire?") stops it first.
+        if (e.key !== 'Escape' || !onEscape || e.defaultPrevented || e.repeat) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onEscape();
+      }}
       className={cn(className, 'outline-none')}
     >
       {children}

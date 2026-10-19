@@ -516,6 +516,27 @@ describe('the Glimmer Candle (#75 item 14g)', () => {
     expect(screen.getByText(/Glimmer Candle — use a free hint/)).toBeInTheDocument();
   });
 
+  it("lit, its banner takes the place of \"Light a candle!\" at once — banners otherwise wait their turn (#97c)", () => {
+    vi.useFakeTimers();
+    try {
+      const save = useSaveStore.getState().save!;
+      useSaveStore.setState({ save: { ...save, items: { ...save.items, candle: 1, hint: 0 } } });
+      useBattleStore.getState().start({ ...enemy, behavior: 'trickster' } as BattleEnemy, 60, 100);
+      render(<BattleArena />);
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(screen.getByText(/Count Bat is too slippery for Hint Feathers! Light a 🕯️ Glimmer Candle!/)).toBeInTheDocument();
+      for (let i = 0; i < 4 && !screen.queryByText('Items'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+      fireEvent.click(screen.getByText('Items'));
+      fireEvent.click(screen.getByText('Glimmer Candle'));
+      expect(screen.getByText('🕯️ Your Glimmer Candle is lit!')).toBeInTheDocument();
+      expect(screen.queryByText(/too slippery for Hint Feathers/)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('after its free hint, Hint Feathers still work on the trickster', () => {
     const save = useSaveStore.getState().save!;
     useSaveStore.setState({ save: { ...save, items: { ...save.items, candle: 1, hint: 1 } } });
@@ -546,6 +567,7 @@ describe('the Glimmer Candle (#75 item 14g)', () => {
 describe('the Sunken Archive in battle (#75 item 14h)', () => {
   afterEach(() => {
     fetchQuestionsMock.mockImplementation(() => new Promise(() => {}));
+    vi.useRealTimers();
   });
 
   it('a swift critter strikes first: the fight opens with its blow, blocked by a defend question as ever', () => {
@@ -594,6 +616,26 @@ describe('the Sunken Archive in battle (#75 item 14h)', () => {
     expect(useBattleStore.getState().playerHp).toBe(60);
   });
 
+  it('a Sage spell on its own topic says "super effective" once, in the message (#128)', async () => {
+    vi.useFakeTimers();
+    spellPool.questions = [q, q, q, q];
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', sages: ['math'] } });
+    useBattleStore.getState().start(enemy, 60, 100);
+    useBattleStore.setState({ charge: 3 });
+    render(<BattleArena />);
+    await act(async () => {});
+    fireEvent.click(screen.getByText('Spells'));
+    fireEvent.click(screen.getByText(/Prime Burst/));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    // As the blow lands: the damage number floats, the words are in the message only.
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    expect(screen.getAllByText(/super effective/i)).toHaveLength(1);
+    expect(screen.getByText(/It's super effective!/).closest('button')).toHaveTextContent(/tap to continue/);
+  });
+
   it('rested at the Quiet Shelf Inn and beaten elsewhere: carried back there, not "Binder finds you" (review fix)', () => {
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1', zoneId: 'numbria', lastRest: 'sunken-archive' } });
     useBattleStore.getState().start(enemy, 1, 100);
@@ -631,6 +673,7 @@ describe('starter questions never move the saved skill level (#153 review round 
   afterEach(() => {
     useProfileStore.setState({ profile: null });
     fetchQuestionsMock.mockImplementation(() => new Promise(() => {}));
+    vi.useRealTimers();
   });
 
   /** Answer `n` questions right, quickly, through attacks and defends alike. */
@@ -728,6 +771,7 @@ describe('starter questions never move the saved skill level (#153 review round 
   });
 
   it('a speed boost the service can only fill with starter questions keeps the bank’s pool (review round 2)', async () => {
+    vi.useFakeTimers();
     fetchQuestionsMock.mockImplementation((...args: unknown[]) =>
       args[4] === 'battle'
         ? Promise.resolve([{ ...q, id: 'starter-math-middle-1', text: 'What is 3 + 3?', options: ['6', '5', '7', '8'] }])
@@ -735,6 +779,11 @@ describe('starter questions never move the saved skill level (#153 review round 
     );
     answerRight(5);
     await act(async () => {});
+    // Banners queue (#97c): a "gathering power" banner the critter may have
+    // rolled meanwhile has its time first.
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
     // No "harder questions" promise for starters: the level still goes up after the battle.
     expect(screen.getByText(/Your level goes up to 4 after this battle/)).toBeInTheDocument();
     expect(screen.queryByText(/just got harder/)).toBeNull();

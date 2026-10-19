@@ -26,6 +26,7 @@ const { defaultSave } = await import('../../lib/save');
 const { pathTargetId } = await import('../../content/zones');
 const { useProfileStore } = await import('../../store/profileStore');
 const { XP_PER_CORRECT } = await import('../../lib/level');
+const { xpBonusPerCorrect } = await import('../../lib/powerups');
 
 const moonstoneChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 8, 7), topic: 'history', zoneId: 'echo-mine' };
 const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 19, 2), topic: 'history', zoneId: 'echo-mine' };
@@ -58,6 +59,18 @@ describe('PathQuestionOverlay — starter questions pay no XP (#153)', () => {
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.openedChests).toEqual([plainChest.id]);
     expect(addXp).not.toHaveBeenCalled();
+  });
+});
+
+describe('PathQuestionOverlay — the Scholar bonus (#102j)', () => {
+  it('a Scholar hero gets the bonus on top of a right answer, as in battles and quizzes', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ profile: { birthYear: 2017, birthMonth: 1, powerUps: { scholar: 2 } } as never, addXp });
+    render(<PathQuestionOverlay target={plainChest} />);
+    fireEvent.click(await screen.findByText('Right'));
+    expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT + xpBonusPerCorrect({ scholar: 2 }));
+    expect(xpBonusPerCorrect({ scholar: 2 })).toBeGreaterThan(0);
+    useProfileStore.setState({ profile: null });
   });
 });
 

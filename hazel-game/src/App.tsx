@@ -16,9 +16,6 @@ import KidSetupPage from './features/family/KidSetupPage';
 import WhoIsPlaying from './features/family/WhoIsPlaying';
 import GrownUpsArea from './features/family/GrownUpsArea';
 import { familyScreen, useFamilyStore } from './store/familyStore';
-import SwitchPlayerButton from './features/auth/SwitchPlayerButton';
-import LevelBadge from './components/LevelBadge';
-import StreakBadge from './components/StreakBadge';
 import LevelUpModal from './components/LevelUpModal';
 import { ErrorScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
 import TopicSelect from './features/quiz/TopicSelect';
@@ -146,19 +143,11 @@ export default function App() {
 
   return (
     <>
-      {/* The world screen puts the badges and Switch player in its own top bar, so
-          they never cover the place name or an overlay (#75 item 14b, #102i);
-          the battle screen puts the badges in its own too, so they never cover
-          the enemy's "!!!" on a phone (#75 item 14f review). */}
-      {screen !== 'world' && screen !== 'battle' && (
-        <>
-          <LevelBadge />
-          <StreakBadge />
-        </>
-      )}
-      {/* Switch player floats top-right; hide it in battle where it overlaps
-          the hero status panel. */}
-      {screen !== 'battle' && screen !== 'world' && <SwitchPlayerButton />}
+      {/* Every game screen puts the level, the streak and Switch player in a
+          top bar of its own, in the page, so nothing floats over its content:
+          the world (#75 item 14b, #102i), the battle (badges only, #75 item
+          14f review), and the Training Grounds, quiz and hero pick
+          (`ScreenTopBar`, #110h). */}
       {screen === 'topics' && <TopicSelect />}
       {screen === 'quiz' && <QuizRound />}
       {screen === 'avatar' && <AvatarSelect />}

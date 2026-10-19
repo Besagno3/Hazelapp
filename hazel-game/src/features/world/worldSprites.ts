@@ -180,9 +180,43 @@ export interface WorldFaceOpts {
   z?: number;
 }
 
+/** A sprite object's sheet has failed to load (a 404, a bad file): it would draw nothing. */
+export function sheetFailed(k: KaplayCtx, key: string): boolean {
+  return !!k.getSprite(key)?.error;
+}
+
+/**
+ * Wait on a sprite object's sheet (sprite review B1, B3). Once it has loaded,
+ * `ready` runs — only if the object still exists: a quick zone change
+ * (`destroyAll`) can take it away while the sheet is still on its way, and
+ * KaPlay would otherwise play on the destroyed object. If the sheet fails to
+ * load, the emoji is drawn on the object instead, so the character never goes
+ * invisible. A sheet already loaded runs `ready` at once.
+ */
+export function whenSheetLoads(
+  k: KaplayCtx,
+  key: string,
+  obj: KaplayObj,
+  { ready, emoji, size }: { ready: () => void; emoji: string; size: number },
+): void {
+  const sheet = k.getSprite(key);
+  const fallBack = () => {
+    if (obj.exists()) obj.add([k.text(emoji, { size }), k.anchor('center')]);
+  };
+  if (!sheet) return ready(); // not registered yet: KaPlay holds the play until it is
+  if (sheet.error) return fallBack();
+  if (sheet.data) return ready();
+  // Still loading. (Only while loading: a loaded sheet would keep these for good.)
+  sheet.onLoad(() => {
+    if (obj.exists()) ready();
+  });
+  sheet.onError(fallBack);
+}
+
 /**
  * Add a character face to the world — either a real sprite (if the manifest
- * has a `world` view for `spriteId`) or an emoji text object.
+ * has a `world` view for `spriteId`) or an emoji text object. A sheet that
+ * has already failed to load gets the emoji (B1).
  *
  * Returns `isSprite: true` when a sprite was used, so callers know whether to
  * skip rendering the placeholder coloured-rect token behind it.
@@ -194,11 +228,12 @@ export function worldFace(
   const { spriteId, emoji, x, y, size = 22, z = 5 } = opts;
   const { def } = resolveSprite(spriteId, emoji);
 
-  if (def?.world && spriteId) {
+  if (def?.world && spriteId && !sheetFailed(k, worldKey(spriteId))) {
     const obj = k.add([k.sprite(worldKey(spriteId)), k.pos(x, y), k.anchor('center'), k.z(z)]);
     // KaPlay's sprite component exposes `play` at runtime but the inferred
     // add() return type doesn't include it — cast narrowly.
-    (obj as unknown as { play: (n: string) => void }).play('idle');
+    const play = () => (obj as unknown as { play: (n: string) => void }).play('idle');
+    whenSheetLoads(k, worldKey(spriteId), obj, { ready: play, emoji, size });
     return { obj, isSprite: true };
   }
 

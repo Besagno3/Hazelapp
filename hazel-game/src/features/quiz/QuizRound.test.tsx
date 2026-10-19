@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { Question } from '../../types';
 
 // Five questions; the first option is right (each with its own text, so the
@@ -76,6 +76,19 @@ beforeEach(() => {
   hook.questions = questions;
   hook.loading = false;
   lastLevelOverride = undefined;
+});
+
+describe('QuizRound — the top bar (#110h)', () => {
+  it('the level, streak and Switch sit in the page above the question, and above the results', async () => {
+    start(1, false);
+    render(<QuizRound />);
+    const bar = screen.getByTestId('screen-topbar');
+    expect(bar.querySelector('.fixed')).toBeNull();
+    expect(bar.compareDocumentPosition(screen.getByText('Question 0?')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    cleanup();
+    await playPerfectRound();
+    expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Round Passed!')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });
 
 describe('QuizRound — on screen = seen (#134)', () => {

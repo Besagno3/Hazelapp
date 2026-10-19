@@ -97,16 +97,42 @@ export function useBattleFx() {
   );
 
   // One banner lifecycle for every caller (archetype callouts, boss enrage,
-  // power moves, pair attacks, swaps, the speed trigger): a new banner cancels
-  // the previous hide timer, so a stale timeout can never wipe a fresh banner.
-  // Warnings default to ⚠️; other callers bring their own emoji.
+  // power moves, pair attacks, swaps, the speed trigger). Banners queue: a new
+  // one waits until the one on screen has had its time, so it can't wipe
+  // "So quick!" before it's read (#97c). One timer moves the queue on, so a
+  // stale timeout can never cut a banner short. The same banner showing or
+  // waiting isn't queued twice. A banner that `answers` an earlier one (the
+  // candle lit, for "Light a candle!") takes its place at once and drops it
+  // from the queue — still asking would be wrong. Warnings default to ⚠️;
+  // other callers bring their own emoji.
   const [banner, setBanner] = useState<string | null>(null);
+  const bannerShown = useRef<string | null>(null);
+  const bannerQueue = useRef<{ text: string; ttl: number }[]>([]);
   const bannerTimer = useRef<number | null>(null);
-  const showBanner = useCallback((text: string, ttl = 2500, icon = '⚠️') => {
-    if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
-    setBanner(`${icon} ${text}`);
-    bannerTimer.current = window.setTimeout(() => setBanner(null), ttl);
+  const nextBanner = useCallback(function next() {
+    const b = bannerQueue.current.shift() ?? null;
+    bannerShown.current = b?.text ?? null;
+    bannerTimer.current = b ? window.setTimeout(next, b.ttl) : null;
+    setBanner(b?.text ?? null);
   }, []);
+  const showBanner = useCallback(
+    (text: string, ttl = 2500, icon = '⚠️', answers?: string) => {
+      const line = `${icon} ${text}`;
+      if (answers) {
+        bannerQueue.current = bannerQueue.current.filter((b) => !b.text.includes(answers));
+        if (bannerShown.current?.includes(answers)) {
+          if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);
+          bannerQueue.current.unshift({ text: line, ttl });
+          nextBanner();
+          return;
+        }
+      }
+      if (bannerShown.current === line || bannerQueue.current.some((b) => b.text === line)) return;
+      bannerQueue.current.push({ text: line, ttl });
+      if (bannerTimer.current === null) nextBanner();
+    },
+    [nextBanner],
+  );
   useEffect(
     () => () => {
       if (bannerTimer.current !== null) clearTimeout(bannerTimer.current);

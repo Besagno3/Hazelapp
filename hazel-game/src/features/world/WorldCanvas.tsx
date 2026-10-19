@@ -62,11 +62,11 @@ import {
   type ZzPath,
 } from '../../lib/sleepMark';
 import { BOAT_REMOOR_REACH } from '../../content/boat';
-import { ensureBlendSheets, loadWorldSprites, worldFace, worldKey } from './worldSprites';
+import { ensureBlendSheets, loadWorldSprites, sheetFailed, whenSheetLoads, worldFace, worldKey } from './worldSprites';
 import { resolveSprite } from '../../content/sprites';
 import { animFor, facingFor, type Facing } from '../../lib/facing';
 import { camAxis, worldView } from '../../lib/camera';
-import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity, type FogPuff } from '../../lib/fog';
+import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealHoldS, revealOpacity, type FogPuff } from '../../lib/fog';
 import { floorZone, SPIRE_FLOOR_MAPS, type SpireTheme } from '../../content/spire';
 import { FADE_MS, SLIDE_MS, exitSide, needsArrivalLock, slideFrom, transitionFor, type ExitSide } from '../../lib/transition';
 import {
@@ -223,8 +223,19 @@ const MOVE_KEYS = new Set([
  * *previous* instance's pending quit() tear down the *new* canvas (the "black
  * line / dead canvas"). The cure is to call `kaplay()` exactly ONCE per session
  * and re-parent its canvas on every world mount. (#43 follow-up.)
+ *
+ * In development a hot reload runs this module again (editing it, or any file
+ * it imports — a zone, a sprite), which would reset the guard to null and call
+ * `kaplay()` over the live canvas: the same black line. So the instance is
+ * handed across reloads (`import.meta.hot.data`, sprite review A1).
  */
-let sharedKaplay: { k: ReturnType<typeof kaplay>; canvas: HTMLCanvasElement } | null = null;
+type SharedKaplay = { k: ReturnType<typeof kaplay>; canvas: HTMLCanvasElement };
+let sharedKaplay: SharedKaplay | null = (import.meta.hot?.data.sharedKaplay as SharedKaplay | undefined) ?? null;
+if (import.meta.hot) {
+  import.meta.hot.dispose((data) => {
+    data.sharedKaplay = sharedKaplay;
+  });
+}
 
 export interface WorldCanvasCallbacks {
   onTalk: (npcId: string) => void;
@@ -247,6 +258,8 @@ export interface WorldCanvasCallbacks {
   onFogLift?: (fog: FogDef) => void;
   /** …and has been watched clearing: remember that, so it plays once. */
   onFogRevealed?: (id: string) => void;
+  /** A fog reveal started (true) or ended (false): the camera is away from the hero meanwhile (#113). */
+  onReveal?: (playing: boolean) => void;
   /** Bumped the pitch dark of an unlit dark place (#75 item 9). */
   onDark?: () => void;
   /** Bumped a sleeping critter (`resting`, #114e): say how to wake it — true once said (once a scene). */
@@ -619,8 +632,11 @@ export default function WorldCanvas({
 
   // --- Build (and rebuild) the scene per zone / ember stage -------------------
   useEffect(() => {
-    const k = kRef.current;
-    if (!k) return;
+    const kNow = kRef.current;
+    if (!kNow) return;
+    // Its own non-null const: the guard's narrowing doesn't reach the inner
+    // functions below, which strict mode would read as "possibly null" (#111).
+    const k: NonNullable<typeof kNow> = kNow;
     // Clear the previous zone's objects before drawing this one ("*" = all).
     k.destroyAll('*');
 
@@ -1606,16 +1622,23 @@ export default function WorldCanvas({
       k.setCamPos(camAxis(x, W, v.w), camAxis(y, H, v.h));
     };
     followCam(spawn.x, spawn.y);
-    const heroView = resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null;
+    // A hero sheet that failed to load (a 404) would draw nothing: the emoji token instead (sprite review B1).
+    const heroView =
+      avatar.spriteId && !sheetFailed(k, worldKey(avatar.spriteId))
+        ? (resolveSprite(avatar.spriteId, avatar.sprite).def?.world ?? null)
+        : null;
+    let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle'; // spawn facing the camera
     let player: HeroActor;
     if (heroView && avatar.spriteId) {
-      player = k.add([
-        k.sprite(`w_${avatar.spriteId}`),
-        k.pos(spawn.x, spawn.y),
-        k.anchor('center'),
-        k.z(10),
-      ]) as unknown as HeroActor;
-      player.play(animFor('down', false, heroView.anims)); // spawn facing the camera
+      const hero = k.add([k.sprite(worldKey(avatar.spriteId)), k.pos(spawn.x, spawn.y), k.anchor('center'), k.z(10)]);
+      player = hero as unknown as HeroActor;
+      // Its anim once the sheet is in (whatever the hero is doing by then), and
+      // never on a hero a quick zone change took away (B3).
+      whenSheetLoads(k, worldKey(avatar.spriteId), hero, {
+        ready: () => player.play(curAnim),
+        emoji: avatar.sprite,
+        size: 20,
+      });
     } else {
       player = k.add([
         k.rect(28, 28, { radius: 8 }),
@@ -1627,7 +1650,6 @@ export default function WorldCanvas({
       ]) as unknown as HeroActor;
       player.add([k.text(avatar.sprite, { size: 20 }), k.anchor('center')]);
     }
-    let curAnim = heroView ? animFor('down', false, heroView.anims) : 'idle';
     let heroFacing: Facing = 'down';
     // Enemies that could reach the hero standing where they start — back from
     // a Flee (the critter respawns at home, maybe right beside them), a
@@ -2160,7 +2182,7 @@ export default function WorldCanvas({
     const LIFT_S = 1.6;
     // A bank hiding a place (the Spire) clears slowly, so it emerges gradually.
     const LIFT_HIDING_S = 3.2;
-    const HOLD_S = 0.7;
+    const liftS = (bank: (typeof fogBanks)[number]) => (bank.hides.length ? LIFT_HIDING_S : LIFT_S);
     // A beat after arriving before the camera moves, so you see where you are first.
     let revealWait = 0.8;
     // …and never before the map and the fog are drawn: on a slow first load the
@@ -2249,7 +2271,7 @@ export default function WorldCanvas({
       }
       if (r.phase === 'lift') {
         // The puffs spread out, rise and thin away (the drift updater draws it).
-        bank.lift = Math.min(1, r.t / (bank.hides.length ? LIFT_HIDING_S : LIFT_S));
+        bank.lift = Math.min(1, r.t / liftS(bank));
         if (bank.lift < 1) return true;
         for (const { obj } of bank.puffs) obj.destroy();
         bank.puffs = [];
@@ -2259,8 +2281,10 @@ export default function WorldCanvas({
         r.t = 0;
         return true;
       }
-      // hold: let the kid see what was hiding, then on to the next bank or home.
-      if (r.t < HOLD_S) return true;
+      // hold: let the kid see what was hiding and read its line — the camera stays
+      // until it has been up its reading time, at least a beat (`revealHoldS`, #100h) —
+      // then on to the next bank or home.
+      if (r.t < revealHoldS(bank.def.lifted, liftS(bank))) return true;
       r.from = camNow();
       r.t = 0;
       if (r.i + 1 < r.banks.length) {
@@ -2482,6 +2506,7 @@ export default function WorldCanvas({
             hint: skipHint(),
           };
           cinematic = true;
+          cbRef.current.onReveal?.(true);
           showPrompt(null);
           push = null;
           if (heroView) {
@@ -2500,6 +2525,7 @@ export default function WorldCanvas({
         for (const part of reveal.hint) part.destroy();
         reveal = null;
         cinematic = false;
+        cbRef.current.onReveal?.(false);
         arm(TRIGGER_COOLDOWN);
         needsRelease = true; // a key held through the reveal doesn't walk off at once
         usesSeen = uses(); // nor does the Space that skipped it use anything
@@ -3075,6 +3101,8 @@ export default function WorldCanvas({
     return () => {
       // Drop this zone's update loop; the next build calls destroyAll().
       loop.cancel();
+      // A reveal cut short by a rebuild is over too.
+      if (reveal) cbRef.current.onReveal?.(false);
     };
     // Rebuild only on zone / ember / Spire-floor change; the rest is read
     // through refs.

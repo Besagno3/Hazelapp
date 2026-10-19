@@ -18,8 +18,20 @@ const card = (name: string) => screen.getByRole('button', { name: new RegExp(`\\
 describe('AvatarSelect — five heroes', () => {
   it('offers all five heroes under their new names', () => {
     render(<AvatarSelect />);
-    expect(screen.getAllByRole('button')).toHaveLength(5);
+    // Five heroes; the top bar's Switch is the only other button (#110h).
+    const heroes = screen.getAllByRole('button').filter((b) => !screen.getByTestId('screen-topbar').contains(b));
+    expect(heroes).toHaveLength(5);
     for (const name of ['Valor', 'Bastion', 'Talon', 'Kira', 'Selene']) expect(card(name)).toBeInTheDocument();
+  });
+
+  it('the level, streak and Switch sit in a top bar in the page, before the heading (#110h)', () => {
+    render(<AvatarSelect />);
+    const bar = screen.getByTestId('screen-topbar');
+    expect(bar.querySelector('.fixed')).toBeNull();
+    expect(bar).toHaveTextContent(/Level/);
+    expect(within(bar).getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: 'Pick Your Hero' });
+    expect(bar.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("shows every hero's type and two signature abilities", () => {

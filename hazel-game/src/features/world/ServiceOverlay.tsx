@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import { CONSUMABLE_IDS, LIBRARY_XP, shopFor, type ConsumableId, type ShopItem } from '../../content/items';
 import { SAGES } from '../../content/abilities';
+import { sageSpell } from '../../content/spells';
 import { NPC_DEFS, npcSpriteId } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
@@ -34,6 +35,9 @@ const SERVICE_LABEL: Record<ServiceType, string> = {
   name: 'Umbra',
 };
 
+/** A service's way out — its Leave button, and Escape. */
+const leave = () => sendFlow({ type: 'CLOSE' });
+
 export default function ServiceOverlay({
   service,
   npcId,
@@ -42,7 +46,12 @@ export default function ServiceOverlay({
   npcId: string | null;
 }) {
   return (
-    <ModalLayer label={SERVICE_LABEL[service]} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    <ModalLayer
+      label={SERVICE_LABEL[service]}
+      // Escape is Leave (#110o) — not in the finale, whose questions have nothing to cancel.
+      onEscape={service !== 'name' ? leave : undefined}
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4"
+    >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -243,6 +252,8 @@ function Sage({ npcId }: { npcId: string | null }) {
   const topic = (npcId ? NPC_DEFS[npcId]?.topic : undefined) as CrystalTopic | undefined;
   if (!save || !topic) return null;
   const sage = SAGES[topic];
+  // What this Sage's spell does, as the Spellbook says it — Time Ripple skips a turn (#128b).
+  const spell = sageSpell(topic);
   const known = save.sages.includes(topic);
 
   function learn() {
@@ -259,6 +270,10 @@ function Sage({ npcId }: { npcId: string | null }) {
         <CharacterPortrait spriteId={npcId ? npcSpriteId(NPC_DEFS[npcId]) : undefined} emoji={sage.sprite} scale={2} />
       </div>
       <h2 className="text-xl font-extrabold mb-1">{sage.name}</h2>
+      <p className="text-sm text-white/90 mb-2">
+        <span aria-hidden>{spell.emoji} </span>
+        {spell.description}
+      </p>
       {!known ? (
         <>
           <p className="text-sm text-white/80 mb-5">
@@ -290,7 +305,7 @@ function Sage({ npcId }: { npcId: string | null }) {
 export function LeaveButton() {
   return (
     <button
-      onClick={() => sendFlow({ type: 'CLOSE' })}
+      onClick={leave}
       className="mt-5 w-full min-h-11 bg-white/15 hover:bg-white/25 font-semibold rounded-lg py-2 text-sm"
     >
       Leave

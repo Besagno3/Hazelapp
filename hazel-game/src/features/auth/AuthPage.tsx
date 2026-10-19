@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { errorMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage } from '../../lib/errors';
 import PasswordInput from '../../components/PasswordInput';
 import PrivacyNotice from '../family/PrivacyNotice';
 import { CONSENT_VERSION, MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -10,6 +10,19 @@ import { cn } from '../../lib/utils';
 /** Supabase refused a sign-in because the email link hasn't been tapped yet. */
 function notConfirmed(err: { code?: string; message?: string }): boolean {
   return err.code === 'email_not_confirmed' || /email not confirmed/i.test(err.message ?? '');
+}
+
+/**
+ * How long "Send the link again" waits after a link goes out (#146): Supabase
+ * sends one confirmation email a minute to an address, so a sooner tap would
+ * only be refused.
+ */
+const RESEND_COOLDOWN_S = 60;
+
+/** The friendly words on screen; the whole error in the console, for whoever fixes it (#130 S6). */
+function shown(where: string, err: unknown): string {
+  console.warn(`${where} failed:`, errorMessage(err));
+  return authErrorMessage(err);
 }
 
 /**
@@ -33,6 +46,21 @@ export default function AuthPage() {
   const inboxHeading = useRef<HTMLHeadingElement>(null);
   const emailField = useRef<HTMLInputElement>(null);
   const wasSent = useRef(false);
+  // "Send the link again" (#146): when the last link went out (sign-up counts),
+  // the clock that counts the wait down, and what the last try said.
+  const [linkSentAt, setLinkSentAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [resending, setResending] = useState(false);
+  const [resendNote, setResendNote] = useState<{ ok: boolean; text: string } | null>(null);
+  // Signing in said the email isn't confirmed yet: offer the link again for it.
+  const [unconfirmed, setUnconfirmed] = useState<string | null>(null);
+  const waitLeft = linkSentAt === null ? 0 : Math.max(0, Math.ceil((linkSentAt + RESEND_COOLDOWN_S * 1000 - now) / 1000));
+
+  useEffect(() => {
+    if (waitLeft <= 0) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [waitLeft]);
 
   // ?signup is read once: drop it from the address, so signing out later
   // (or a reload) opens Sign in as usual.
@@ -46,10 +74,38 @@ export default function AuthPage() {
     wasSent.current = sentTo !== null;
   }, [sentTo]);
 
+  /** A confirmation link just went out to `to`: start the wait. */
+  function linkSent(to: string) {
+    const at = Date.now();
+    setLinkSentAt(at);
+    setNow(at);
+    setSentTo(to);
+  }
+
+  async function resendLink(to: string) {
+    if (resending || waitLeft > 0) return;
+    setResending(true);
+    setResendNote(null);
+    // Like signUp, no redirect: the link goes where the first one did.
+    const { error: authError } = await supabase.auth.resend({ type: 'signup', email: to });
+    setResending(false);
+    if (authError) {
+      const text = shown('Sending the link again', authError);
+      if (sentTo) setResendNote({ ok: false, text });
+      else setError(text);
+      return;
+    }
+    setError(null);
+    setUnconfirmed(null);
+    linkSent(to);
+    setResendNote({ ok: true, text: `📬 Sent! A new link is on its way to ${to}. It can take a minute or two.` });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setNotice(null);
+    setUnconfirmed(null);
 
     if (isForgot) {
       setLoading(true);
@@ -60,7 +116,7 @@ export default function AuthPage() {
       });
       setLoading(false);
       if (authError) {
-        setError(errorMessage(authError));
+        setError(shown('Reset link', authError));
         return;
       }
       // Same message whether or not the account exists (no account probing).
@@ -84,12 +140,13 @@ export default function AuthPage() {
       });
       setLoading(false);
       if (authError) {
-        setError(errorMessage(authError));
+        setError(shown('Sign-up', authError));
         return;
       }
       // No session means email confirmation is required before sign-in.
       if (!data.session) {
-        setSentTo(email);
+        setResendNote(null);
+        linkSent(email);
         setIsSignUp(false);
         return;
       }
@@ -99,11 +156,12 @@ export default function AuthPage() {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       setLoading(false);
       if (authError) {
-        setError(
-          notConfirmed(authError)
-            ? `Please confirm your email first: tap the link we sent to ${email}. Can't find it? Look in your spam or junk folder.`
-            : errorMessage(authError),
-        );
+        if (notConfirmed(authError)) {
+          setUnconfirmed(email);
+          setError(`Please confirm your email first: tap the link we sent to ${email}. Can't find it? Look in your spam or junk folder.`);
+        } else {
+          setError(shown('Sign-in', authError));
+        }
         return;
       }
       // Success → useAuthInit's listener advances the app.
@@ -129,10 +187,18 @@ export default function AuthPage() {
               then sign in.
             </p>
             <p className="mt-2 text-sm text-gray-600">Can't find it? Look in your spam or junk folder.</p>
+            <ResendButton waitLeft={waitLeft} busy={resending} onClick={() => void resendLink(sentTo)} className="mt-4" />
+            {/* Always there, so a screen reader hears how the resend went. */}
+            <div role="status" className="mt-2 empty:mt-0 text-sm">
+              {resendNote && <p className={resendNote.ok ? 'text-green-700' : 'text-red-700'}>{resendNote.text}</p>}
+            </div>
             <button
               type="button"
-              onClick={() => setSentTo(null)}
-              className="mt-6 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
+              onClick={() => {
+                setSentTo(null);
+                setResendNote(null);
+              }}
+              className="mt-4 w-full min-h-[44px] bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
             >
               Back to sign in
             </button>
@@ -207,6 +273,9 @@ export default function AuthPage() {
                   {error && <p className="text-red-700">{error}</p>}
                   {notice && <p className="text-green-700">{notice}</p>}
                 </div>
+                {unconfirmed && unconfirmed === email && (
+                  <ResendButton waitLeft={waitLeft} busy={resending} onClick={() => void resendLink(unconfirmed)} className="mb-3" />
+                )}
                 <button
                   type="submit"
                   disabled={loading}
@@ -223,6 +292,7 @@ export default function AuthPage() {
                   setIsForgot(!isForgot);
                   setError(null);
                   setNotice(null);
+                  setUnconfirmed(null);
                 }}
                 className="mt-1 w-full py-3 text-center text-sm text-gray-500 hover:underline"
               >
@@ -236,6 +306,7 @@ export default function AuthPage() {
                 setIsForgot(false);
                 setError(null);
                 setNotice(null);
+                setUnconfirmed(null);
               }}
               className={cn('w-full py-3 text-center text-sm text-purple-600 hover:underline', isSignUp && 'mt-1')}
             >
@@ -245,5 +316,22 @@ export default function AuthPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/** "Send the link again", counting down while Supabase would still refuse (#146). */
+function ResendButton({ waitLeft, busy, onClick, className }: { waitLeft: number; busy: boolean; onClick: () => void; className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy || waitLeft > 0}
+      className={cn(
+        'w-full min-h-[44px] rounded-lg border-2 border-purple-600 py-2 font-semibold text-purple-700 transition hover:bg-purple-50 disabled:border-gray-300 disabled:text-gray-500 disabled:hover:bg-transparent',
+        className,
+      )}
+    >
+      {busy ? 'Sending…' : waitLeft > 0 ? `Send the link again in ${waitLeft}s` : '📨 Send the link again'}
+    </button>
   );
 }

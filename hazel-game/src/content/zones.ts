@@ -663,7 +663,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'sum-slime', x: 17, y: 5 },
-      { defId: 'count-bat', x: 14, y: 8 },
+      // A step clear of the villager (17,9) (#114aa).
+      { defId: 'count-bat', x: 13, y: 11 },
       { defId: 'sir-sumsalot', x: 7, y: 6 },
       { defId: 'raven-prince', x: 14, y: 3 },
       { defId: 'kia', x: 39, y: 11 },
@@ -764,10 +765,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'spore-puff', x: 5, y: 9 },
-      { defId: 'static-jelly', x: 15, y: 9 },
+      // These two keep a step clear of the villager (16,11) (#114aa).
+      { defId: 'static-jelly', x: 20, y: 12 },
       { defId: 'comet-crab', x: 6, y: 4 },
       { defId: 'fizzlet', x: 11, y: 11 },
-      { defId: 'magnetick', x: 18, y: 9 },
+      { defId: 'magnetick', x: 20, y: 8 },
       { defId: 'germinator', x: 16, y: 5 },
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
@@ -988,7 +990,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'doodle-imp', x: 6, y: 5 },
-      { defId: 'off-key-bird', x: 15, y: 4 },
+      // Well off Doodle's spot (16,5): talking to him never meets it (#114aa, zones.test).
+      { defId: 'off-key-bird', x: 20, y: 3 },
       { defId: 'pixel-witch', x: 10, y: 9 },
       { defId: 'flicker-goblin', x: 17, y: 1 },
       { defId: 'graffiti-gargoyle', x: 40, y: 6 },
@@ -1168,10 +1171,11 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'mossback-cub', x: 12, y: 4 },
-      { defId: 'thornhare', x: 17, y: 8 },
-      { defId: 'grumblebee', x: 16, y: 12 },
+      // Wisp's corner (17,10) stays clear: these three ringed it (#114aa).
+      { defId: 'thornhare', x: 14, y: 6 },
+      { defId: 'grumblebee', x: 2, y: 8 },
       { defId: 'dart-frog', x: 11, y: 2 },
-      { defId: 'snapjaw', x: 19, y: 10 },
+      { defId: 'snapjaw', x: 6, y: 11 },
       { defId: 'oak-owl', x: 5, y: 4 },
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
@@ -1427,7 +1431,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grove-otter', x: 6, y: 8 },
     ],
     enemies: [
-      { defId: 'mossback-cub', x: 4, y: 9 },
+      // Out of the otter's reach (6,8) (#114aa).
+      { defId: 'mossback-cub', x: 2, y: 9 },
       { defId: 'thornhare', x: 16, y: 8 },
       // Not right under the Thornhare (16,8), so a sleeping one's "z Z" rise clear of it (sleepMark.test).
       { defId: 'grumblebee', x: 18, y: 9 },
@@ -2508,7 +2513,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marker-post', x: 37, y: 23 },
       { defId: 'latitude-cat', x: 15, y: 18 },
       { defId: 'latitude-cat', x: 29, y: 15 },
-      { defId: 'globe-beetle', x: 4, y: 9 },
+      // A step clear of Drift (6,8) (#114aa).
+      { defId: 'globe-beetle', x: 4, y: 4 },
       { defId: 'globe-beetle', x: 36, y: 24 },
       // In the stone circle on the middle isle.
       { defId: 'compass-golem', x: 22, y: 16 },
@@ -3263,8 +3269,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'garden-gardener', x: 7, y: 8, ifFlag: 'key-asters-key' /* keyFlag('asters-key') */ },
     ],
     enemies: [
-      { defId: 'thorn-of-doubt', x: 4, y: 7 },
-      { defId: 'wilt-sprite', x: 14, y: 3 },
+      // Clear of the Gardener's beds (7,8) and the sprout (12,1) (#114aa).
+      { defId: 'thorn-of-doubt', x: 6, y: 4 },
+      { defId: 'wilt-sprite', x: 14, y: 5 },
       { defId: 'bramblewhy', x: 13, y: 8 },
       // In the gap in the hedge, guarding the way on to the Nameless Hall.
       { defId: 'the-gardener', x: 9, y: 10 },
