@@ -662,8 +662,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       },
     ],
     enemies: [
-      { defId: 'sum-slime', x: 17, y: 5 },
-      { defId: 'count-bat', x: 14, y: 8 },
+      // Off the save crystal's doorstep (18,3): saving is never a fight (#159 r2).
+      { defId: 'sum-slime', x: 14, y: 6 },
+      // A step clear of the villager (17,9) (#114aa).
+      { defId: 'count-bat', x: 13, y: 11 },
       { defId: 'sir-sumsalot', x: 7, y: 6 },
       { defId: 'raven-prince', x: 14, y: 3 },
       { defId: 'kia', x: 39, y: 11 },
@@ -763,11 +765,15 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       },
     ],
     enemies: [
-      { defId: 'spore-puff', x: 5, y: 9 },
-      { defId: 'static-jelly', x: 15, y: 9 },
+      // The field's four roam its top, under the Fiend's gate (#159 r2): the
+      // bottom rows stay clear, from the bridge up from town to the save
+      // crystal (2,11), the villager (16,11) a step clear (#114aa) and the
+      // mouth of the hidden way to the Queen Bee's glade (21,10) (#159 r1).
+      { defId: 'spore-puff', x: 5, y: 8 },
+      { defId: 'static-jelly', x: 13, y: 8 },
       { defId: 'comet-crab', x: 6, y: 4 },
-      { defId: 'fizzlet', x: 11, y: 11 },
-      { defId: 'magnetick', x: 18, y: 9 },
+      { defId: 'fizzlet', x: 11, y: 9 },
+      { defId: 'magnetick', x: 9, y: 8 },
       { defId: 'germinator', x: 16, y: 5 },
       { defId: 'smog-fiend', x: 10, y: 2 },
     ],
@@ -988,7 +994,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'doodle-imp', x: 6, y: 5 },
-      { defId: 'off-key-bird', x: 15, y: 4 },
+      // Well off Doodle's spot (16,5): talking to him never meets it (#114aa, zones.test).
+      { defId: 'off-key-bird', x: 20, y: 3 },
       { defId: 'pixel-witch', x: 10, y: 9 },
       { defId: 'flicker-goblin', x: 17, y: 1 },
       { defId: 'graffiti-gargoyle', x: 40, y: 6 },
@@ -1135,8 +1142,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     the: true,
     kind: 'field',
     topic: 'nature',
-    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure;
-    // critters roam the open right half where the spawn and both exits live.
+    // A gated chest alcove (cols 1-7, behind the col-8 wall) holds the treasure,
+    // watched by the Oak Owl and a Grumblebee; the other critters roam the open
+    // right half where the spawn and both exits live (#159 r1).
     map: [
       '######################',
       '#..C....#............#',
@@ -1168,10 +1176,13 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'mossback-cub', x: 12, y: 4 },
-      { defId: 'thornhare', x: 17, y: 8 },
-      { defId: 'grumblebee', x: 16, y: 12 },
+      // Wisp's corner (17,10) stays clear: these three ringed it (#114aa). The
+      // Thornhare's level tag sits on grass, not under the hut's roof (#159 r1).
+      { defId: 'thornhare', x: 14, y: 5 },
+      { defId: 'grumblebee', x: 2, y: 8 },
       { defId: 'dart-frog', x: 11, y: 2 },
-      { defId: 'snapjaw', x: 19, y: 10 },
+      // The only Snapjaw anywhere: out in the open, not behind the gate (#159 r1).
+      { defId: 'snapjaw', x: 14, y: 2 },
       { defId: 'oak-owl', x: 5, y: 4 },
       { defId: 'thicket-warden', x: 16, y: 4 },
     ],
@@ -1230,7 +1241,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       // doorstep — walking up to him, chatting, or stepping out never meets it
       // (#114w).
       { defId: 'moon-moth', x: 9, y: 8 },
-      { defId: 'orbit-otter', x: 2, y: 2 },
+      // On the beach, off the save crystal's corner (2,4) (#159 r2).
+      { defId: 'orbit-otter', x: 1, y: 9 },
       { defId: 'gravity-beetle', x: 14, y: 2 },
       { defId: 'eclipse-fox', x: 19, y: 5 },
       { defId: 'tide-colossus', x: 12, y: 3 },
@@ -1280,14 +1292,16 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'depths-echo', x: 14, y: 5 },
     ],
     enemies: [
-      { defId: 'cog-sprite', x: 6, y: 5 },
+      // The top room's three leave row 4 clear, from where you arrive (10,2)
+      // and up through the vault gate, to the save crystal (2,4) (#159 r2).
+      { defId: 'cog-sprite', x: 8, y: 7 },
       // In the corridor east of the Tinkery's door: clear of Echo (14,5) and the roof, so a
       // sleeping one's "z Z" show and read as its own, and out of reach of the vault gate, the
       // Tinkery's doorstep, the way out — and the walk from the arrival to the save crystal
       // (sleepMark.test, seaCritters.test).
       { defId: 'hourglass-imp', x: 20, y: 7 },
-      { defId: 'relic-golem', x: 8, y: 2 },
-      { defId: 'tut-tut', x: 3, y: 7 },
+      { defId: 'relic-golem', x: 7, y: 1 },
+      { defId: 'tut-tut', x: 5, y: 7 },
     ],
     exits: [
       // Up out of the cave mouth onto Dawnreach (#75 Phase 1).
@@ -1343,7 +1357,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     spawn: { x: 3, y: 3 },
     npcs: [],
     enemies: [
-      { defId: 'knight-mare', x: 9, y: 15 },
+      // Up against the hall's north wall, so its south side is a way past to
+      // the stairs up and the save crystal (#159 r2).
+      { defId: 'knight-mare', x: 9, y: 14 },
       { defId: 'cog-sprite', x: 14, y: 3 },
     ],
     exits: [
@@ -1427,7 +1443,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'grove-otter', x: 6, y: 8 },
     ],
     enemies: [
-      { defId: 'mossback-cub', x: 4, y: 9 },
+      // Out of the otter's reach (6,8) (#114aa).
+      { defId: 'mossback-cub', x: 2, y: 9 },
       { defId: 'thornhare', x: 16, y: 8 },
       // Not right under the Thornhare (16,8), so a sleeping one's "z Z" rise clear of it (sleepMark.test).
       { defId: 'grumblebee', x: 18, y: 9 },
@@ -2437,7 +2454,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'compass-crab', x: 12, y: 16 },
-      { defId: 'compass-crab', x: 33, y: 12 },
+      // Out of reach of Sandy's stroll (30,13) (#159 r2).
+      { defId: 'compass-crab', x: 34, y: 10 },
       { defId: 'gull-scout', x: 28, y: 3 },
       { defId: 'gull-scout', x: 41, y: 13 },
       { defId: 'tide-snail', x: 22, y: 16 },
@@ -2508,7 +2526,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'marker-post', x: 37, y: 23 },
       { defId: 'latitude-cat', x: 15, y: 18 },
       { defId: 'latitude-cat', x: 29, y: 15 },
-      { defId: 'globe-beetle', x: 4, y: 9 },
+      // A step clear of Drift (6,8) (#114aa).
+      { defId: 'globe-beetle', x: 4, y: 4 },
       { defId: 'globe-beetle', x: 36, y: 24 },
       // In the stone circle on the middle isle.
       { defId: 'compass-golem', x: 22, y: 16 },
@@ -2717,7 +2736,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'cuttle-scribe', x: 17, y: 13 },
       { defId: 'cuttle-scribe', x: 35, y: 3 },
       { defId: 'margin-shrimp', x: 28, y: 2 },
-      { defId: 'margin-shrimp', x: 9, y: 17 },
+      // Out of reach of Smudge's stroll (12,14) (#159 r2).
+      { defId: 'margin-shrimp', x: 8, y: 17 },
       // At the tip of the sandy point, in front of the chest — out of the ink (15e review).
       { defId: 'riddle-leviathan', x: 36, y: 14 },
     ],
@@ -3103,7 +3123,8 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     ],
     enemies: [
       { defId: 'faded-echo', x: 18, y: 12 },
-      { defId: 'lost-sock-golem', x: 2, y: 1 },
+      // Off the save crystal (4,3) (#159 r2).
+      { defId: 'lost-sock-golem', x: 8, y: 4 },
       { defId: 'misplaced-key', x: 12, y: 10 },
     ],
     exits: [
@@ -3263,8 +3284,9 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
       { defId: 'garden-gardener', x: 7, y: 8, ifFlag: 'key-asters-key' /* keyFlag('asters-key') */ },
     ],
     enemies: [
-      { defId: 'thorn-of-doubt', x: 4, y: 7 },
-      { defId: 'wilt-sprite', x: 14, y: 3 },
+      // Clear of the Gardener's beds (7,8) and the sprout (12,1) (#114aa).
+      { defId: 'thorn-of-doubt', x: 6, y: 4 },
+      { defId: 'wilt-sprite', x: 14, y: 5 },
       { defId: 'bramblewhy', x: 13, y: 8 },
       // In the gap in the hedge, guarding the way on to the Nameless Hall.
       { defId: 'the-gardener', x: 9, y: 10 },
@@ -3489,8 +3511,10 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
     npcs: [{ defId: 'root-glim', x: 16, y: 3 }],
     // The echo of the Tide Colossus stands in the one gap, before the stairs down.
     enemies: [
-      { defId: 'star-snail', x: 8, y: 3 },
-      { defId: 'tick-beetle', x: 12, y: 10 },
+      // Off the save crystal (6,3), and leaving row 9 clear from the stairs
+      // up from below (18,12) to the gap (#159 r2).
+      { defId: 'star-snail', x: 10, y: 2 },
+      { defId: 'tick-beetle', x: 13, y: 9 },
       { defId: 'echo-tide-colossus', x: 10, y: 7 },
     ],
     exits: [

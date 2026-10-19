@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import TopicSelect from './TopicSelect';
 import { ALL_TOPIC_INFO } from '../../content/topics';
 
@@ -20,5 +20,16 @@ describe('TopicSelect', () => {
       expect(button).toBeEnabled();
       expect(button.textContent).not.toContain('Completed');
     }
+  });
+
+  it('the level, streak and Switch sit in a top bar in the page, not over the heading (#110h)', () => {
+    render(<TopicSelect />);
+    const bar = screen.getByTestId('screen-topbar');
+    // In the page, not floating: it can't cover "Training Grounds" or the rounds line.
+    expect(bar.querySelector('.fixed')).toBeNull();
+    expect(bar).toHaveTextContent(/Level/);
+    expect(within(bar).getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { name: 'Training Grounds' });
+    expect(bar.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

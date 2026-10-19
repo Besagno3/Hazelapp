@@ -101,6 +101,67 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
     expect(sendFlow).not.toHaveBeenCalled();
     slot.remove();
   });
+
+  it('Keep climbing puts focus back on 🚪 Leave the Spire; Escape gives the keys back to the climb (#159 r2)', async () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    render(<SpireOverlay hudSlot={slot} />);
+    await readUntil('🚪 Leave the Spire');
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
+    fireEvent.click(screen.getByRole('button', { name: '🗼 Keep climbing' }));
+    expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).toHaveFocus();
+
+    fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
+    fireEvent.keyDown(screen.getByRole('button', { name: '🗼 Keep climbing' }), { key: 'Escape' });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    // Not on 🚪 Leave, whose next Space would ask again: on the page, so Space breaks the seal faced.
+    expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).not.toHaveFocus();
+    expect(document.activeElement).toBe(document.body);
+    expect(useSpireStore.getState().exploring).toBe(true);
+    slot.remove();
+  });
+});
+
+describe('the seals line is one live region for the whole climb (#110n)', () => {
+  beforeEach(() => {
+    sendFlow.mockClear();
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true])) },
+      flush: vi.fn(async () => {}),
+    });
+  });
+
+  it('stays mounted while a seal\'s question is up, and says "Seals 1/…" once walking resumes', async () => {
+    const slot = document.createElement('div');
+    document.body.appendChild(slot);
+    render(<SpireOverlay hudSlot={slot} />);
+    await readUntil('🚪 Leave the Spire');
+    const total = floorWards(SPIRE_FLOORS[0].theme).length;
+    const live = slot.querySelector('[role=status]')!;
+    // Heard as words, not "crystal ball … slash" (#159 r2); the line on screen is unchanged.
+    expect(live.textContent).toBe(`Seals: 0 of ${total}`);
+    expect(slot.textContent).toContain(`🔮 Seals 0/${total}`);
+
+    act(() => useSpireStore.getState().bump({ kind: 'ward', id: floorWards(SPIRE_FLOORS[0].theme)[0].id }));
+    fireEvent.click(await screen.findByRole('button', { name: 'a' }));
+    // The question panel is up: the same region is still there, still on the old count.
+    expect(live.isConnected).toBe(true);
+    expect(live.textContent).toBe(`Seals: 0 of ${total}`);
+    // Escape on a question does nothing — it never skips or answers one (#110o).
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: '🔮 Break the seal' })).toBeInTheDocument();
+    expect(sendFlow).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: '🔮 Break the seal' }));
+    await readUntil('🚪 Leave the Spire');
+    // Not a new region (a new one isn't read out): the same one, with the new count.
+    expect(slot.querySelector('[role=status]')).toBe(live);
+    expect(live.textContent).toBe(`Seals: 1 of ${total}`);
+    expect(slot.querySelectorAll('[role=status]')).toHaveLength(1);
+    slot.remove();
+  });
 });
 
 describe('the Spire opens on Act I\'s crystals (#75 item 14c)', () => {
@@ -131,6 +192,10 @@ describe('the Spire opens on Act I\'s crystals (#75 item 14c)', () => {
     render(<SpireOverlay hudSlot={null} />);
     expect(screen.getByText('The Spire is sealed')).toBeInTheDocument();
     expect(screen.getByText('3/4')).toBeInTheDocument();
+    // Escape steps back, like the panel's own button (#110o).
+    sendFlow.mockClear();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 });
 
@@ -247,12 +312,25 @@ describe('the Spire is fairer: gentler levels, an easier climb after each fall (
     expect(useSpireStore.getState().lives).toBe(SPIRE_LIVES + 1);
   });
 
-  it('losing a climb is remembered for the next one', async () => {
+  it('losing a climb is remembered for the next one — and the lose panel says what will change (#150)', async () => {
+    sendFlow.mockClear();
     start({});
     render(<SpireOverlay hudSlot={null} />);
     await climb({ answer: 'b', until: /Down, but never out/ });
     expect(spireFalls(flags())).toBe(1);
     expect(flags()['spire-falls-1']).toBe(true);
+    expect(screen.getByText("Next time you climb, you'll have one more candle — and the riddles will be a little easier.")).toBeInTheDocument();
+    // Escape takes the panel's own way out (#110o).
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  }, 20000);
+
+  it('a second fall promises another candle (#150)', async () => {
+    start({ 'spire-falls-1': true });
+    render(<SpireOverlay hudSlot={null} />);
+    await climb({ answer: 'b', until: /Down, but never out/ });
+    expect(spireFalls(flags())).toBe(2);
+    expect(screen.getByText("Next time you climb, you'll have another candle — and the riddles will be easier still.")).toBeInTheDocument();
   }, 20000);
 
   it('the Spire remembers two falls at most', async () => {
@@ -264,6 +342,8 @@ describe('the Spire is fairer: gentler levels, an easier climb after each fall (
     expect(spireFalls(flags())).toBe(2);
     // A third fall writes nothing at all — no stray flag (B4 review round 1).
     expect(flags()).toEqual(before);
+    // …so the lose panel promises nothing more (#150).
+    expect(screen.queryByText(/Next time you climb/)).toBeNull();
     expect(firstLevel()).toBe(OWN_LEVEL - 2);
   }, 20000);
 

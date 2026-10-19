@@ -1,5 +1,6 @@
 import { TILE, type FogDef } from '../content/zones';
 import { FOG_PUFF_FRAMES, FOG_PUFF_SIZE } from '../content/tiles';
+import { toastMs } from './toast';
 
 /**
  * How a fog bank looks (#75 item 7): not square tiles but a cluster of soft
@@ -146,4 +147,18 @@ export function placesInside<P extends { x: number; y: number }>(f: FogDef, plac
 export function revealOpacity(lift: number): number {
   const t = Math.min(1, Math.max(0, (lift - 0.25) / 0.75));
   return t * t * (3 - 2 * t);
+}
+
+/** The least the camera rests on a bank once it has cleared (s): a beat to see what was hiding. */
+export const REVEAL_HOLD_S = 0.7;
+
+/**
+ * How long the camera rests on a cleared bank (s) before moving on (#100h). Its
+ * line goes up as the lift begins and the next bank's replaces it, so the
+ * camera waits until the line has been up for its reading time (`toastMs`) —
+ * a long line (the shrine's) gets a long look, a short one the usual beat.
+ * The same with or without reduced motion: only the camera's glides change.
+ */
+export function revealHoldS(line: string, liftS: number): number {
+  return Math.max(REVEAL_HOLD_S, toastMs(line) / 1000 - liftS);
 }

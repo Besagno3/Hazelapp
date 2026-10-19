@@ -28,6 +28,7 @@ import {
   spireCandles,
   spireQuestionLevel,
   spireComebackLine,
+  spireNextClimbLine,
   flagsAfterSpireFall,
   flagsAfterSpireClear,
 } from '../../content/spire';
@@ -127,12 +128,15 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     msgShownAt.current = performance.now();
   }, [phase, spire]);
 
-  // Back from "Leave the Spire?" (Keep climbing, or Escape) the keyboard keeps
-  // its place: focus returns to 🚪 Leave the Spire in the HUD (#75 item 14b review).
+  // Back from "Leave the Spire?" with Keep climbing the keyboard keeps its
+  // place: focus returns to 🚪 Leave the Spire in the HUD (#75 item 14b review).
+  // Escape gives the keys back to the climb, as Escape does everywhere
+  // (#159 r2): focus stays on the page, so the next Space breaks the seal the
+  // hero faces instead of asking "Leave the Spire?" again.
   const leaveButton = useRef<HTMLButtonElement>(null);
   const refocusLeave = useRef(false);
-  function keepClimbing() {
-    refocusLeave.current = true;
+  function keepClimbing(refocus = true) {
+    refocusLeave.current = refocus;
     setPhase({ kind: 'explore' });
   }
   useEffect(() => {
@@ -361,22 +365,49 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
     sendFlow({ type: 'CLOSE' });
   }
 
-  if (!save) return null;
-
-  const candles = <Candles lit={lives} total={candleMax} />;
-
-  // Exploring: just a slim HUD over the map — the world stays playable.
-  if (phase.kind === 'explore' && floor) {
-    const status = floor.isBoss
+  // The climb's status while exploring a floor.
+  const status = !floor
+    ? ''
+    : floor.isBoss
       ? '👑 Walk up to Umbra'
       : broken.length >= wardTotal
         ? '🪜 The stairs are free!'
         : `🔮 Seals ${broken.length}/${wardTotal}`;
+  // …said by one live region kept for the whole climb (#110n), not one that
+  // came and went with each panel (a new one isn't read out, so "Seals 1/3"
+  // went unheard). Its words change only when walking resumes on a new status
+  // — written in an effect, so after the closing panel's layer has let go of
+  // the page's `inert` (its clean-up runs first) and the change can be heard.
+  // Words to hear, not the line's emoji and slash ("crystal ball, Seals 1
+  // slash 3", #159 r2): "Seals: 1 of 3".
+  const said = !floor
+    ? ''
+    : floor.isBoss
+      ? 'Walk up to Umbra.'
+      : broken.length >= wardTotal
+        ? 'The stairs are free!'
+        : `Seals: ${broken.length} of ${wardTotal}`;
+  const sayRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = sayRef.current;
+    if (el && phase.kind === 'explore' && said && el.textContent !== said) el.textContent = said;
+  }, [phase.kind, said, hudSlot]);
+
+  if (!save) return null;
+
+  const candles = <Candles lit={lives} total={candleMax} />;
+  // Always the first thing rendered, in the same place, so it stays mounted
+  // (in the HUD row when there is one) whatever panel is up.
+  const sayStatus = floor ? <span ref={sayRef} role="status" className="sr-only" /> : null;
+  const live = hudSlot && sayStatus ? createPortal(sayStatus, hudSlot) : sayStatus;
+
+  // Exploring: just a slim HUD over the map — the world stays playable.
+  if (phase.kind === 'explore' && floor) {
     if (hudSlot) {
       // In the HUD row (the floor's name is already its title): the seals, the candles, a way out.
-      return createPortal(
+      const hud = createPortal(
         <>
-          <span className="text-xs text-violet-100" role="status">
+          <span className="text-xs text-violet-100" aria-hidden>
             {status}
           </span>
           {candles}
@@ -391,21 +422,32 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
         </>,
         hudSlot,
       );
+      return (
+        <>
+          {live}
+          {hud}
+        </>
+      );
     }
     return (
-      <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex items-center gap-2">
-        <div className="bg-slate-950/85 border-2 border-violet-400/60 rounded-xl px-4 py-2 text-white shadow-xl flex items-center gap-4 whitespace-nowrap">
-          <span className="text-xs font-bold text-violet-200">{spireFloorTitle(floorIndex!)}</span>
-          <span className="text-xs text-white/80">{status}</span>
-          {candles}
+      <>
+        {live}
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-40 pointer-events-none flex items-center gap-2">
+          <div className="bg-slate-950/85 border-2 border-violet-400/60 rounded-xl px-4 py-2 text-white shadow-xl flex items-center gap-4 whitespace-nowrap">
+            <span className="text-xs font-bold text-violet-200">{spireFloorTitle(floorIndex!)}</span>
+            <span className="text-xs text-white/80" aria-hidden>
+              {status}
+            </span>
+            {candles}
+          </div>
+          <button
+            onClick={() => setPhase({ kind: 'leave' })}
+            className="pointer-events-auto bg-slate-950/85 hover:bg-slate-800 border-2 border-white/30 rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-xl whitespace-nowrap"
+          >
+            🚪 Leave the Spire
+          </button>
         </div>
-        <button
-          onClick={() => setPhase({ kind: 'leave' })}
-          className="pointer-events-auto bg-slate-950/85 hover:bg-slate-800 border-2 border-white/30 rounded-xl px-3 py-2 text-xs font-semibold text-white shadow-xl whitespace-nowrap"
-        >
-          🚪 Leave the Spire
-        </button>
-      </div>
+      </>
     );
   }
 
@@ -415,11 +457,22 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
   const showUmbra =
     !!floor?.isBoss && (phase.kind === 'message' || (phase.kind === 'question' && phase.mode === 'boss'));
   const umbraScale = typeof window !== 'undefined' && window.innerHeight < 720 ? 1.5 : 2.5;
+  // Escape takes a panel's own way out (#110o): Step back, Leave the Spire,
+  // the lose panel's and a re-clear's button. Never a question, a line of the
+  // story or the first clear's "See how it ends"; "Leave the Spire?" keeps
+  // its own (Keep climbing).
+  const escape =
+    phase.kind === 'locked' || phase.kind === 'error' || phase.kind === 'lose' || (phase.kind === 'win' && !phase.firstClear)
+      ? close
+      : undefined;
+  // The next climb after a fall (#150): only what it really changes.
+  const nextClimb = phase.kind === 'lose' ? spireNextClimbLine(falls) : null;
 
-  return (
+  const panel = (
     <ModalLayer
       label="The Crystal Spire"
       focusKey={phase.kind === 'question' ? `question-${phase.index}` : phase.kind}
+      onEscape={escape}
       className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/60 p-4 overflow-y-auto"
     >
       {showUmbra && (
@@ -502,7 +555,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             onKeyDown={(e) => {
               if (e.key !== 'Escape') return;
               e.stopPropagation();
-              keepClimbing();
+              keepClimbing(false);
             }}
           >
             <p id="spire-leave-q" className="font-extrabold text-lg">
@@ -514,7 +567,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 autoFocus
-                onClick={keepClimbing}
+                onClick={() => keepClimbing()}
                 className="flex-1 min-h-11 bg-violet-500 hover:bg-violet-400 rounded-xl px-4 py-2 font-bold"
               >
                 🗼 Keep climbing
@@ -612,6 +665,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               {wakeInn ? `at ${wakeInn}, where you last rested` : 'back home in Lumina Village'}, healed. The
               door stays open — rest up, and climb again whenever you're ready.
             </p>
+            {nextClimb && <p className="text-sm text-amber-200 font-semibold -mt-3 mb-5">{nextClimb}</p>}
             {phase.boatLine && <p className="text-sm text-sky-200 font-semibold -mt-3 mb-5">{phase.boatLine}</p>}
             <button
               onClick={close}
@@ -623,5 +677,11 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
         )}
       </motion.div>
     </ModalLayer>
+  );
+  return (
+    <>
+      {live}
+      {panel}
+    </>
   );
 }

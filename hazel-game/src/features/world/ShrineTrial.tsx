@@ -17,6 +17,7 @@ import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
+import { xpBonusPerCorrect } from '../../lib/powerups';
 import { pushLibrary } from '../../lib/save';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
@@ -98,6 +99,8 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
   const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, spell.topic, age);
   const flavor = 'shrine';
+  // Scholar stacks add to every right answer, as in battles and quizzes (#102j).
+  const perCorrect = XP_PER_CORRECT + xpBonusPerCorrect(profile?.powerUps ?? {});
 
   const [right, setRight] = useState(0);
   const [index, setIndex] = useState(0);
@@ -137,7 +140,7 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
         return;
       }
       // A starter question still counts toward the spell, but pays no XP (#153).
-      if (!isStarterId(question.id)) void addXp(XP_PER_CORRECT);
+      if (!isStarterId(question.id)) void addXp(perCorrect);
       const now = right + 1;
       setRight(now);
       if (now >= TRIAL_CORRECT) {
@@ -146,7 +149,7 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
         confetti({ particleCount: 140, spread: 90, origin: { y: 0.5 } });
       }
     },
-    [addXp, question, right, setFlag, spell.id, update],
+    [addXp, perCorrect, question, right, setFlag, spell.id, update],
   );
 
   function next() {

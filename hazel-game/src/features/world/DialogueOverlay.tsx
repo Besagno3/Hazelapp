@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { riddleTopic, riddleWords, questConversation, type QuestConversation } from '../../content/quests';
-import { boatFetchOffer, fetchBoatHome } from '../../content/boat';
+import { boatFetchOffer, boatSpot, fetchBoatHome } from '../../content/boat';
 import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
@@ -48,8 +48,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     const quest = save ? questConversation(npcId, save) : null;
     if (quest) return { lines: quest.lines, quest, fetchOffer: null };
     const flags = save?.flags ?? {};
-    // Guides end on "where to next?"; signposts read out the way (#75 item 6).
-    const wayfinding = npc ? wayfindingLines(ZONES, npc, flags) : [];
+    // Guides end on "where to next?"; signposts read out the way (#75 item 6) —
+    // from Old Marlow first, when the boat's been left away from his dock (#117p r1).
+    const wayfinding = npc ? wayfindingLines(ZONES, npc, flags, save ? boatSpot(save) : null) : [];
     // Old Marlow offers to row the boat home when it's away (#75 item 14).
     const fetchOffer = save ? boatFetchOffer(npcId, save) : null;
     const lines = [...visibleLines(npc?.lines ?? [], flags), ...wayfinding, ...(fetchOffer ? [fetchOffer.line] : [])];
@@ -60,6 +61,8 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // A choice made (#75 item 16b): what's said after it, before the box closes.
   const [picked, setPicked] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
+  // The line on show: what a screen reader reads as the box opens (#142 r1).
+  const lineId = useId();
 
   const invalid = !npc || lines.length === 0;
   useEffect(() => {
@@ -85,6 +88,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [choiceUp]);
+  // "⛵ Row her home" goes with its click: focus goes on to the way out (Bye!),
+  // before the box can take it — the box's description is his new line, which
+  // the live region says already, so it isn't read twice (#159 r2).
+  const onwardRef = useRef<HTMLButtonElement>(null);
+  useLayoutEffect(() => {
+    if (fetched) onwardRef.current?.focus({ preventScroll: true });
+  }, [fetched]);
   if (invalid) return null;
 
   const line = lines[Math.min(index, lines.length - 1)];
@@ -158,8 +168,20 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     setFetched(true);
   }
 
+  // Escape takes the box's own way out (#110o): "Later" on a choice or a
+  // riddle, 🎉 Thanks after a pick, Bye on the last line of a plain chat.
+  // Never ▼ Next (a talk is read to its end), a quest's offer or its reward.
+  const close = () => sendFlow({ type: 'CLOSE' });
+  const onEscape = choosing || picked !== null ? close : isLast && (!quest || quest.finishKind === 'riddle') ? advance : undefined;
+
   return (
-    <ModalLayer label={npcName(npc, flagsNow)} focusKey={`${index}-${picked ? 1 : 0}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+    <ModalLayer
+      label={npcName(npc, flagsNow)}
+      focusKey={`${index}-${picked ? 1 : 0}`}
+      describedBy={lineId}
+      onEscape={onEscape}
+      className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30"
+    >
       <motion.div
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -174,8 +196,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             </span>
           )}
         </div>
-        {/* pre-line: a signpost reads one direction per line. */}
-        <p className="leading-relaxed min-h-[3rem] whitespace-pre-line">{text}</p>
+        {/* pre-line: a signpost reads one direction per line. A live region,
+            so a screen reader reads each new line on ▼ Next (#142), as
+            StoryPanels does; whole, not just the words that changed. A live
+            region says nothing of what it opened with, so the first line —
+            often the only one — is the dialog's description (#142 r1). */}
+        <p id={lineId} aria-live="polite" aria-atomic="true" className="leading-relaxed min-h-[3rem] whitespace-pre-line">
+          {text}
+        </p>
         <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
           {offerService && (
             <button
@@ -226,6 +254,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {/* Focused, so Enter / Space read on (as in a story); the world behind is inert. */}
           {!choosing && picked === null && (
           <button
+            ref={onwardRef}
             autoFocus
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"

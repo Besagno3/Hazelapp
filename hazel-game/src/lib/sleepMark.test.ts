@@ -201,3 +201,15 @@ describe('a sleeping critter\'s rising "z Z" (#114e)', () => {
     expect(problems).toEqual([]);
   }, 20000);
 });
+
+describe("a critter's level tag (#159 r1)", () => {
+  it("sits on open ground at home, never under a roof (the Woods' Thornhare had its \"Lv 4\" under the Spellwright's Hut)", () => {
+    const under: string[] = [];
+    for (const z of Object.values(ZONES)) {
+      const roofs = roofBoxes(z.buildings ?? [], undefined, TILE);
+      for (const e of cast(z).enemies) if (roofs.some((r) => overlaps(e.marks[1], r))) under.push(`${z.id}: ${e.name}`);
+    }
+    // Chromaria's gargoyle by Swirl's shop is older than this rule (a follow-up: its row above is the street).
+    expect(under).toEqual(['chromaria: graffiti-gargoyle@40,6']);
+  });
+});

@@ -25,7 +25,7 @@ describe('warden keys (#58)', () => {
 
   it("every Act I key unlocks a crystal zone whose keyGate sits on its G tile", () => {
     for (const k of ACT_ONE_KEYS) {
-      const zone = ZONES[k.unlocksZone];
+      const zone = ZONES[k.unlocksZone!];
       expect(TOPICS, `${k.unlocksZone} is a crystal zone`).toContain(zone.topic);
       expect(zone.keyGate, `${k.unlocksZone} keyGate`).toBeTruthy();
       const { x, y } = zone.keyGate!;
@@ -38,7 +38,7 @@ describe('warden keys (#58)', () => {
       // The key id belongs to the zone it opens (which awards a crystal)…
       expect(k.id, `${k.id} keyed to destination`).toBe(`${k.unlocksZone}-key`);
       // …and never to the warden's home zone, which has no crystal of its own.
-      expect(ZONES[k.fromZone].topic).not.toBe(ZONES[k.unlocksZone].topic);
+      expect(ZONES[k.fromZone].topic).not.toBe(ZONES[k.unlocksZone!].topic);
     }
   });
 

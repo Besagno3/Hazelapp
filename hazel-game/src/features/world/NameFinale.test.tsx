@@ -129,7 +129,7 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
   it('starter questions pay no XP, like the Spire (#153): only the reward', async () => {
     const { fetchQuestions } = await import('../../lib/questions');
     vi.mocked(fetchQuestions).mockImplementation(async (topic, _age, level, count) =>
-      Array.from({ length: count }, (_, i) => ({
+      Array.from({ length: count ?? 0 }, (_, i) => ({
         id: `starter-${topic}-${i}`,
         topic,
         level,

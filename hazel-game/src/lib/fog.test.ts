@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { TILE, ZONES } from '../content/zones';
 import { FOG_PUFF_FRAMES, FOG_PUFF_SIZE } from '../content/tiles';
-import { FOG_OVERHANG, fogPuffs, placesInside, puffAt, revealOpacity } from './fog';
+import { FOG_OVERHANG, REVEAL_HOLD_S, fogPuffs, placesInside, puffAt, revealHoldS, revealOpacity } from './fog';
+import { toastMs } from './toast';
 
 const banks = ZONES.dawnreach.fogs!;
 const centre = (f: (typeof banks)[number]) => ({ x: (f.x + f.w / 2) * TILE, y: (f.y + f.h / 2) * TILE });
@@ -94,5 +95,17 @@ describe('a dense bank (#75 item 14e)', () => {
     const thick = fogPuffs(bank);
     expect(thick.length).toBeGreaterThan(thin.length);
     expect(thick.slice(0, thin.length)).toEqual(thin);
+  });
+});
+
+describe('how long the camera rests on a cleared bank (#100h)', () => {
+  it('a short line gets at least the usual beat; a long one is held until it has been up long enough to read', () => {
+    expect(revealHoldS('Gone!', 3.2)).toBe(REVEAL_HOLD_S);
+    expect(revealHoldS('Gone!', 1.6)).toBeCloseTo(toastMs('Gone!') / 1000 - 1.6);
+    const long = 'The fog over the road to the Shrine of First Light thins and drifts away — the old shrine is open at last!';
+    expect(revealHoldS(long, 1.6)).toBeCloseTo(toastMs(long) / 1000 - 1.6);
+    expect(revealHoldS(long, 1.6)).toBeGreaterThan(3);
+    // A slow lift (a bank hiding a place) already gives the line time, so the hold is shorter.
+    expect(revealHoldS(long, 3.2)).toBeLessThan(revealHoldS(long, 1.6));
   });
 });

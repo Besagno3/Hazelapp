@@ -30,8 +30,9 @@ export default function StreakBadge({ inline = false, dense = false }: { inline?
         <>
           <span className="text-sm font-bold leading-none sm:hidden" aria-hidden>
             {currentStreak}
-            {/* "days" fits from 360 px up — it says what the number counts (🔥 also means answers in a row in battle). */}
-            <span className="hidden min-[360px]:inline"> {currentStreak === 1 ? 'day' : 'days'}</span>
+            {/* "days" fits from 360 px up — it says what the number counts (🔥 also means answers in a row in battle).
+                Raw @media: the `touch` screens (tailwind.config.js) turn Tailwind's `min-[…]:` off (#158b). */}
+            <span className="hidden [@media(min-width:360px)]:inline"> {currentStreak === 1 ? 'day' : 'days'}</span>
           </span>
           <span className="sr-only sm:hidden">
             {isRecord ? 'Best streak! ' : 'Streak: '}

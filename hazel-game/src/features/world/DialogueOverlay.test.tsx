@@ -119,6 +119,20 @@ describe("Old Marlow rows the boat home (#75 item 14)", () => {
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
+  it('once ⛵ Row her home has gone from under focus, focus goes on to Bye! — and Escape still says Bye (#110o r1, #159 r2)', async () => {
+    await marlowWithBoatAt({ zoneId: 'silver-shallows', x: 3, y: 22 });
+    while (screen.queryByText('▼ Next')) fireEvent.click(screen.getByText('▼ Next'));
+    const row = screen.getByText('⛵ Row her home');
+    row.focus();
+    fireEvent.click(row);
+    // Not the box (its description, his new line, is said by the live region already): the way out.
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Bye!' }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Bye!' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
   it("closing without asking leaves the boat where it is; one moored right by his dock is home already", async () => {
     const { boatSpot } = await import('../../content/boat');
     await marlowWithBoatAt({ zoneId: 'dawnreach', x: 60, y: 56 });
@@ -251,5 +265,71 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     fireEvent.click(screen.getByText('Later'));
     expect(useSaveStore.getState().save!.flags['quest:unnamed-dog:done']).toBeUndefined();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+});
+
+describe('a screen reader hears each new line on ▼ Next (#142)', () => {
+  it('the line is a polite live region read whole, and ▼ Next changes its words in place', () => {
+    render(<DialogueOverlay npcId="hub-innkeeper" />);
+    const line = document.querySelector('p')!;
+    expect(line).toHaveAttribute('aria-live', 'polite');
+    expect(line).toHaveAttribute('aria-atomic', 'true');
+    const first = line.textContent;
+    fireEvent.click(screen.getByText('▼ Next'));
+    // The same region with new words — that's what gets read out.
+    expect(document.querySelector('p')).toBe(line);
+    expect(line.textContent).not.toBe(first);
+  });
+
+  it('the first line, often the only one, is heard too: a live region says nothing of what it opened with (#142 r1)', () => {
+    render(<DialogueOverlay npcId="hub-innkeeper" />);
+    const line = document.querySelector('p')!;
+    const box = screen.getByRole('dialog');
+    expect(box).toHaveAccessibleDescription(line.textContent!);
+    expect(box.contains(document.activeElement)).toBe(true);
+  });
+});
+
+describe("Escape takes the box's own way out, and nothing more (#110o)", () => {
+  const escape = () => fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+
+  it('mid-talk it does nothing (there is no way out but reading on); on a plain talk\'s last line it says Bye', () => {
+    render(<DialogueOverlay npcId="hub-innkeeper" />);
+    const first = document.querySelector('p')!.textContent;
+    escape();
+    expect(sendFlow).not.toHaveBeenCalled();
+    expect(document.querySelector('p')!.textContent).toBe(first);
+    while (screen.queryByText('▼ Next')) fireEvent.click(screen.getByText('▼ Next'));
+    escape();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    // …and never a service: the inn's 🛏️ Rest stays a click away.
+    expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_SERVICE' }));
+  });
+
+  it('never takes on a quest: an offer\'s last line ignores it', () => {
+    render(<DialogueOverlay npcId="dawnreach-hermit" />);
+    while (screen.queryByText('▼ Next')) fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText("I'm on it!")).toBeInTheDocument();
+    escape();
+    expect(sendFlow).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.flags['quest:hermit-moonstone:offered']).toBeUndefined();
+  });
+
+  it('on a choice it is Later — no name picked', () => {
+    withFlags({ 'act4-seen': true, 'quest:unnamed-dog:offered': true, 'quest-step:dog-wick': true, 'quest-step:dog-lumen': true, 'quest-step:dog-prim': true });
+    render(<DialogueOverlay npcId="memory-dog" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    escape();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(useSaveStore.getState().save!.flags['quest:unnamed-dog:done']).toBeUndefined();
+  });
+
+  it('on a tale-stone it is Later — the riddle is never asked', () => {
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), zoneId: 'story-reef', flags: { 'quest:yarn-tale:offered': true } }, status: 'ready', remoteError: null });
+    render(<DialogueOverlay npcId="reef-stone-1" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    escape();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
   });
 });

@@ -117,16 +117,28 @@ export const TIME_RIPPLE_MULTIPLIER = 2.2;
 /** Charge a landed Chorus Call gives back (STORY-4X §9). */
 export const CHORUS_REFUND = 1;
 
+/**
+ * What a Sage's spell does, in a few words with no names in them — the Sage's
+ * Learn panel leads with the spell's own name (#159 r1: it read "Sage
+ * Chronicle's ripple in time…" under the heading "Sage Chronicle").
+ */
+export function sageSpellDoes(topic: CrystalTopic): string {
+  if (topic === 'history') return 'a strong strike, and the enemy loses its next turn!';
+  if (topic === 'words') return 'big damage, and it sings one ◆ back to you!';
+  return 'big damage.';
+}
+
 /** A Sage's signature spell (the FF6-Esper homage), learned by meeting them. */
 export function sageSpell(topic: CrystalTopic): Spell {
   const s = SAGES[topic];
+  const does = sageSpellDoes(topic);
   // Sage Chronicle's Time Ripple (#75 item 14h): a strike that also costs the enemy its next turn.
   if (topic === 'history') {
     return {
       id: `sage-${topic}`,
       name: s.specialName,
       emoji: s.specialEmoji,
-      description: `${s.name}'s ripple in time — a strong strike, and the enemy loses its next turn!`,
+      description: `${s.name}'s ripple in time — ${does}`,
       cost: 3,
       effect: { kind: 'damage', multiplier: TIME_RIPPLE_MULTIPLIER, skipsTurn: true },
       color: s.flashColor,
@@ -139,7 +151,7 @@ export function sageSpell(topic: CrystalTopic): Spell {
       id: `sage-${topic}`,
       name: s.specialName,
       emoji: s.specialEmoji,
-      description: `${s.name}'s song — big damage, and it sings one ◆ back to you!`,
+      description: `${s.name}'s song — ${does}`,
       cost: 3,
       effect: { kind: 'damage', multiplier: 2.5, refund: CHORUS_REFUND },
       color: s.flashColor,
@@ -150,7 +162,7 @@ export function sageSpell(topic: CrystalTopic): Spell {
     id: `sage-${topic}`,
     name: s.specialName,
     emoji: s.specialEmoji,
-    description: `${s.name}'s signature strike — big damage.`,
+    description: `${s.name}'s signature strike — ${does}`,
     cost: 3,
     effect: { kind: 'damage', multiplier: 2.5 },
     color: s.flashColor,

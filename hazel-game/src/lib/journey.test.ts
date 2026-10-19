@@ -45,7 +45,7 @@ describe('Act I as a journey (#75 item 14b, the Phase 2 exit check)', () => {
       const last = leg.hops.at(-1)!;
       expect(last.zoneId).toBe(leg.target.zoneId);
       const end = last.path!.at(-1)!;
-      expect(Math.abs(end.x - leg.target.cell.x) + Math.abs(end.y - leg.target.cell.y), leg.goal.title).toBeLessThanOrEqual(1);
+      expect(Math.abs(end.x - leg.target.cell!.x) + Math.abs(end.y - leg.target.cell!.y), leg.goal.title).toBeLessThanOrEqual(1);
     }
   });
 

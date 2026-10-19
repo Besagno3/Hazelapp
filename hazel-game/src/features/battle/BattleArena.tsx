@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import LevelBadge from '../../components/LevelBadge';
@@ -99,6 +99,8 @@ import { IMPACT_MS, useBattleFx } from './useBattleFx';
 const COUNTER_DELAY_MS = 280;
 /** Super-hard questions warmed for spells and Pair Attacks. */
 const SPELL_POOL_COUNT = 4;
+/** A trickster's opening callout, after its name — which the lit candle's banner answers. */
+const TRICKSTER_CALLOUT = 'is too slippery for Hint Feathers!';
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
@@ -327,6 +329,9 @@ export default function BattleArena() {
   const speedRun = useRef(0);
   const speedBoost = useRef(0);
   const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
+  // Set as the fight is won or lost: a late async result (the speed boost's
+  // harder pool) bails, as it does once the arena has gone.
+  const fightOver = useRef(false);
   const [boostShown, setBoostShown] = useState(0);
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
@@ -359,7 +364,7 @@ export default function BattleArena() {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
         // A Glimmer Candle in the bag gets you round it (#75 item 14g review).
-        trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
+        trickster: `${enemy.name} ${TRICKSTER_CALLOUT}${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
         // Swift (#75 item 14h, decision 14: no new timers) — it strikes first.
         swift: `${enemy.name} is swift — it strikes first! Get ready to block!`,
@@ -546,7 +551,7 @@ export default function BattleArena() {
       updateSave((s) => ({ ...s, companionId: id }));
       fx.dropIn();
       sfx('swap');
-      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
+      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji, { kind: 'swap' });
     }
     setTurn({ kind: 'command' });
   }
@@ -571,9 +576,10 @@ export default function BattleArena() {
     if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
     // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
-    const did = id === 'candle' ? (enemy.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
-    // "Light a candle!" is done: the banner says so instead of still asking.
-    if (id === 'candle' && enemy.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️');
+    const did = id === 'candle' ? (enemy?.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
+    // "Light a candle!" is done: the banner says so instead of still asking
+    // (it answers the trickster callout, so it doesn't wait behind it, #97c).
+    if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: TRICKSTER_CALLOUT });
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -660,7 +666,7 @@ export default function BattleArena() {
     const s = combatState();
     applyCombat({ ...s, charge: Math.max(0, s.charge - pair.cost) });
     burst({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
-    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
+    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji, { kind: 'pair' });
     const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
     const heal = pair.heal ? Math.min(s.playerMaxHp, s.playerHp + pair.heal) - s.playerHp : 0;
     if (heal > 0) {
@@ -711,6 +717,9 @@ export default function BattleArena() {
       return;
     }
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
+    // Said once, in the message box (#128): a float over the enemy said it
+    // again, on top of the damage number. The number shows it instead, bigger
+    // and glowing ("-42!!"), for a kid who doesn't read the message box.
     const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
     const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
     const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
@@ -731,8 +740,8 @@ export default function BattleArena() {
       refundCharge: r.shieldRefund,
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
-      superEffective: weak,
       skipsTurn: r.skipsTurn,
+      superEffective: weak,
     });
   }
 
@@ -753,9 +762,9 @@ export default function BattleArena() {
       choreo = HERO_STRIKE,
       sound,
       heal = 0,
-      superEffective = false,
       skipsTurn = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean },
+      superEffective = false,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -768,8 +777,8 @@ export default function BattleArena() {
         return;
       }
       if (sound !== 'pair') sfx('impact');
-      float(`-${r.dealt}`, 'enemy', floatColor);
-      if (superEffective) float('Super effective!', 'enemy', 'text-yellow-200');
+      if (superEffective) float(`-${r.dealt}!!`, 'enemy', 'text-yellow-300', true);
+      else float(`-${r.dealt}`, 'enemy', floatColor);
     }, choreo.hitMs);
 
     if (r.outcome === 'shield-broken') {
@@ -926,15 +935,17 @@ export default function BattleArena() {
     if (to === from) return; // already at the top level
     speedBoost.current += 1;
     const wanted = speedBoost.current;
+    // No chime with no banner: once the fight is over the banners are shut.
     const announce = (text: string) => {
-      sfx('streak');
-      showBanner(text, 3200, '⚡');
+      if (showBanner(text, 3200, '⚡')) sfx('streak');
     };
     fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, 'battle')
       .then((all) => {
-        // Gone, or a newer boost superseded this one (an older, easier pool
-        // arriving late must never replace a harder one).
-        if (!fx.live.current || speedBoost.current !== wanted) return;
+        // Gone, the fight over (no ⚡ badge or "harder questions" for a fight
+        // that has ended — the level still saved at its end), or a newer boost
+        // superseded this one (an older, easier pool arriving late must never
+        // replace a harder one).
+        if (!fx.live.current || fightOver.current || speedBoost.current !== wanted) return;
         // Only the bank's harder questions (#153 review round 2): starter
         // questions fill in when the service can't help, and they're no
         // harder than what's being asked — keep the current pool then.
@@ -949,7 +960,7 @@ export default function BattleArena() {
       })
       .catch(() => {
         // Keep asking from the current pool — the level still saves at the end.
-        if (fx.live.current && speedBoost.current === wanted) {
+        if (fx.live.current && !fightOver.current && speedBoost.current === wanted) {
           announce(`So quick! Your level goes up to ${to} after this battle`);
         }
       });
@@ -1011,6 +1022,10 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
+    // The fight is over: a banner still waiting must not cycle over the result,
+    // and none asked for late may show there.
+    fightOver.current = true;
+    fx.clearBanners();
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
   }
 
@@ -1041,6 +1056,8 @@ export default function BattleArena() {
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
+    fightOver.current = true;
+    fx.clearBanners();
     setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }
 
@@ -1121,11 +1138,13 @@ export default function BattleArena() {
       {/* The level and streak in their own row above the status boxes, as in
           the world's top bar — floating, they covered the enemy's "!!!" on a
           phone (#75 item 14f review). Below 360 px wide or 500 px tall there's
-          no room for the row without pushing 🏃 Flee off the screen (measured,
-          `bench … battle`), so a fight there shows neither. */}
+          no room for the row without pushing the commands off the screen
+          (measured, `bench … battle`), so a fight there shows neither. Written
+          as raw @media: the `touch` screens (tailwind.config.js) are objects,
+          which turns Tailwind's `max-[…]:` / `min-[…]:` off (#158b). */}
       <div
         data-testid="battle-topbar"
-        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 [@media(max-width:359px)]:hidden [@media(max-height:500px)]:hidden"
       >
         <LevelBadge placement="inline" dense />
         <StreakBadge inline dense />
@@ -1148,18 +1167,20 @@ export default function BattleArena() {
           any backdrop; out of the layout (h-0), so nothing below it — a question's
           answers — jumps when it comes and goes; read aloud as it appears. */}
       <div role="status" aria-live="polite" className="relative z-20 h-0">
-        <AnimatePresence>
-          {fx.banner && (
-            <motion.p
-              initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
-            >
-              {fx.banner}
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* Keyed by its words, so each banner in the queue comes in on its own.
+            No exit fade: the one it replaces goes at once (two pills fading
+            over each other read as neither, and waiting for the fade would
+            hold a swap's banner back). */}
+        {fx.banner && (
+          <motion.p
+            key={fx.banner}
+            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
+          >
+            {fx.banner}
+          </motion.p>
+        )}
       </div>
 
       <BattleStage
@@ -1182,8 +1203,9 @@ export default function BattleArena() {
         ghost={enemy.role === 'echo'}
       />
 
-      {/* Bottom box: commands / question / message / results */}
-      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6">
+      {/* Bottom box: commands / question / message / results (tighter on a
+          short screen, so a boss fight's commands fit 320×568, #158b) */}
+      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6 [@media(max-height:600px)]:pt-1 [@media(max-height:600px)]:pb-2">
         {turn.kind === 'command' && (
           <CommandMenu
             charge={charge}

@@ -24,6 +24,7 @@ const { defaultSave } = await import('../../lib/save');
 const { fieldSpellFlag, TRIAL_CORRECT } = await import('../../content/fieldSpells');
 const { useProfileStore } = await import('../../store/profileStore');
 const { XP_PER_CORRECT } = await import('../../lib/level');
+const { xpBonusPerCorrect } = await import('../../lib/powerups');
 
 beforeEach(() => {
   fetchQuestions.mockClear();
@@ -76,6 +77,17 @@ describe('ShrineTrial (#75 item 9)', () => {
     fireEvent.click(screen.getByText('🕯️ Begin the trial'));
     await answer(0, 'Right', /1 of 3 — next question/);
     expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT);
+  });
+
+  it('a Scholar hero gets the bonus on top, as in battles and quizzes (#102j)', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ profile: { birthYear: 2017, birthMonth: 1, powerUps: { scholar: 2 } } as never, addXp });
+    render(<ShrineTrial npcId="wayfarer-keeper" />);
+    fireEvent.click(screen.getByText('🕯️ Begin the trial'));
+    await answer(0, 'Right', /1 of 3 — next question/);
+    expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT + xpBonusPerCorrect({ scholar: 2 }));
+    expect(xpBonusPerCorrect({ scholar: 2 })).toBeGreaterThan(0);
+    useProfileStore.setState({ profile: null });
   });
 
   it('fetches another batch if the questions run out', async () => {

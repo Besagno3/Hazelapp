@@ -47,7 +47,12 @@ export default function KeyGateOverlay({ target }: { target: PathTarget }) {
   }
 
   return (
-    <ModalLayer label={`Locked ${door}`} className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4">
+    // Escape walks away, like "Walk away" / "Not yet" (#128) — never uses the key.
+    <ModalLayer
+      label={`Locked ${door}`}
+      onEscape={() => sendFlow({ type: 'CLOSE' })}
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4"
+    >
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
