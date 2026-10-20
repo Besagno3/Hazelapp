@@ -217,6 +217,7 @@ export function defaultSave(): SaveData {
     library: [],
     companionId: 'ember',
     defendTimer: true,
+    typingAnchor: true,
     lastRest: null,
     boat: null,
     vehicle: 'foot',
@@ -291,6 +292,8 @@ export function normalizeSave(raw: unknown): SaveData {
       : d.companionId,
     // Added after v1 shipped: only an explicit `false` turns the countdown off.
     defendTimer: r.defendTimer !== false,
+    // The home-row hold in typing (#165) — additive the same way: on unless turned off.
+    typingAnchor: r.typingAnchor !== false,
     // Added with an inn in every town (#75 item 11) — additive, like the two
     // above: older saves (or a town without an inn) wake at home.
     lastRest: isZoneId(r.lastRest) && innOf(ZONES[r.lastRest]) ? r.lastRest : null,

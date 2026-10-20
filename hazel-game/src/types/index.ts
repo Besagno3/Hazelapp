@@ -272,6 +272,12 @@ export interface SaveData {
   /** Countdown on defend questions (⏳). A per-player setting in the 📜 menu; on by default. */
   defendTimer: boolean;
   /**
+   * The home-row hold in typing (#165): the other hand holds its bump key (F
+   * or J) while a letter is typed. A per-player setting (📜 Menu → ⌨️ Typing,
+   * and the Library's lessons); on by default. Additive, like `defendTimer`.
+   */
+  typingAnchor: boolean;
+  /**
    * The town whose inn the hero last rested at (#75 item 11) — where a defeat
    * wakes them. Null → home (Lumina Village's plaza), as before inns were everywhere.
    */

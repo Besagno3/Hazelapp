@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import { markSeen } from '../lib/seen';
@@ -29,6 +29,8 @@ export default function QuestionCard({
   secondChance = false,
   onSecondChance,
   focusContinue = false,
+  focusContinueKey,
+  afterAnswer,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -48,6 +50,8 @@ export default function QuestionCard({
    * tale-stone's "🔄 Ask me another!" was five Tabs away). Off by default.
    */
   focusContinue?: boolean;
+  /** Changes when the caller wants Continue focused later — a scribe burst settling (#165, review round 2). */
+  focusContinueKey?: unknown;
   /** Fires once with whether the pick was correct — guarded against double-clicks. */
   onContinue: (correct: boolean) => void;
   /**
@@ -60,6 +64,8 @@ export default function QuestionCard({
   secondChance?: boolean;
   /** Fires when the second try is spent (the parent unties the knot). */
   onSecondChance?: () => void;
+  /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #165). */
+  afterAnswer?: ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -80,11 +86,23 @@ export default function QuestionCard({
     const raf = requestAnimationFrame(() => {
       const btn = continueRef.current;
       if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-      if (focusContinue) continueRef.current?.focus({ preventScroll: true });
     });
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
+  // Focus apart from the scroll (review round 4: `focusContinue` turning scrolled the card, under a scribe's lock being unfolded).
+  useEffect(() => {
+    if (selected === null || !focusContinue) return;
+    const raf = requestAnimationFrame(() => continueRef.current?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(raf);
   }, [selected, focusContinue]);
   const [continued, setContinued] = useState(false);
+  // Continue takes focus when `focusContinueKey` turns (never on its first value).
+  const focusKeyWas = useRef(focusContinueKey);
+  useEffect(() => {
+    if (focusContinueKey === focusKeyWas.current) return;
+    focusKeyWas.current = focusContinueKey;
+    continueRef.current?.focus({ preventScroll: true });
+  }, [focusContinueKey]);
 
   function pick(idx: number) {
     if (selected !== null || idx === retried) return;
@@ -189,6 +207,8 @@ export default function QuestionCard({
         </button>
       )}
       {selected === null && hints === 0 && hintNote && <p className="mt-2 text-sm font-semibold text-gray-600">{hintNote}</p>}
+
+      {selected !== null && afterAnswer && <div className="mt-3">{afterAnswer}</div>}
 
       {selected !== null && selected !== question.correctIndex && (
         <motion.p

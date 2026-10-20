@@ -8,6 +8,11 @@ import { ZONES, topicAt } from '../../content/zones';
 import { wayfindingLines } from '../../lib/wayfinding';
 import { fieldSpellTaughtBy, knowsFieldSpell } from '../../content/fieldSpells';
 import { useSaveStore } from '../../store/saveStore';
+import { useKeyboardStore } from '../../store/keyboardStore';
+import { LINE_HOLD_MS, penPalFor, penPalReadLine, penPalReplyFlag, scriptoriumOpen, type PenPal } from '../../content/typing';
+import { LineRun } from '../typing/TypingLesson';
+import { shortWindow } from '../typing/hints';
+import { sfx } from '../../lib/audio';
 import { sendFlow } from '../../machines/gameFlow';
 import ModalLayer from '../../components/ModalLayer';
 import type { ServiceType } from '../../types';
@@ -46,7 +51,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }>(() => {
     const save = useSaveStore.getState().save;
     const quest = save ? questConversation(npcId, save) : null;
-    if (quest) return { lines: quest.lines, quest, fetchOffer: null };
+    if (quest) {
+      // A letter the kid added a line to (#165 item 9): the giver reads it back before the reward.
+      const read = quest.finishKind === 'complete' && quest.questId && save ? penPalReadLine(quest.questId, save.flags) : null;
+      const lines = read && quest.lines.length > 1 ? [...quest.lines.slice(0, -1), read, quest.lines[quest.lines.length - 1]] : quest.lines;
+      return { lines, quest, fetchOffer: null };
+    }
     const flags = save?.flags ?? {};
     // Guides end on "where to next?"; signposts read out the way (#75 item 6) —
     // from Old Marlow first, when the boat's been left away from his dock (#117p r1).
@@ -61,6 +71,18 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // A choice made (#75 item 16b): what's said after it, before the box closes.
   const [picked, setPicked] = useState<string | null>(null);
   const [fetched, setFetched] = useState(false);
+  // A pen-pal reply (#165 item 9): offered at a letter's bring step with a keyboard
+  // and the capitals lesson; the line picked, then typed, then its thanks.
+  const keyboard = useKeyboardStore((s) => s.present);
+  const holdRule = useSaveStore((s) => s.save?.typingAnchor ?? true);
+  const penPal: PenPal | null = quest?.finishKind === 'step' && quest.step ? penPalFor(quest.step) : null;
+  const canWrite = !!penPal && keyboard && scriptoriumOpen(flagsNow ?? {});
+  const [writing, setWriting] = useState<'pick' | number | 'done' | null>(null);
+  // The envelope's beat after the line is typed (review round 4), cleared if the talk closes first.
+  const written = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(written.current ?? undefined), []);
+  // The line is typed and its envelope is on its way (round 5: the buttons beside it stayed live in the beat).
+  const [sealing, setSealing] = useState(false);
   // The line on show: what a screen reader reads as the box opens (#142 r1).
   const lineId = useId();
 
@@ -143,11 +165,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }
   const choosing = isLast && !!quest?.choice?.length && picked === null;
 
+  // The pen-pal offer is on this line: the service button leaves it standing (round 6: 📚 Library spent the one-time ask).
+  const offering = isLast && canWrite;
   function openService() {
     applyLineFlag();
     // Leaving via the service button must still advance the quest step —
-    // otherwise "Learn" would strand a delivery mid-step.
-    if (quest?.finish) update(quest.finish);
+    // otherwise "Learn" would strand a delivery mid-step. Not past the pen-pal offer: the next talk makes it again.
+    if (quest?.finish && !offering) update(quest.finish);
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 
@@ -166,6 +190,92 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   function rowHome() {
     update(fetchBoatHome);
     setFetched(true);
+  }
+
+  /** The reply typed: the step finishes as it would, remembering which line was written. */
+  function replyWritten(index: number) {
+    applyLineFlag();
+    const finish = quest?.finish;
+    const flag = penPalReplyFlag(penPal!.questId, index);
+    update((s) => {
+      const done = finish ? finish(s) : s;
+      return { ...done, flags: { ...done.flags, [flag]: true } };
+    });
+    // The envelope after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    setSealing(true);
+    written.current = window.setTimeout(() => {
+      sfx('chest');
+      setSealing(false);
+      setWriting('done');
+    }, LINE_HOLD_MS);
+  }
+
+  if (penPal && writing !== null) {
+    const pal = penPal;
+    return (
+      <ModalLayer
+        label={npcName(npc, flagsNow)}
+        focusKey={`write-${String(writing)}`}
+        // Escape is the box's own way out (#110o): "Maybe not" while picking or typing, "Got it!" once sealed.
+        onEscape={writing === 'done' ? () => sendFlow({ type: 'CLOSE' }) : sealing ? undefined : () => setWriting(null)}
+        className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
+        <div className="w-full max-w-xl max-h-[calc(100dvh-4rem)] overflow-y-auto bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl" data-testid="pen-pal">
+          {/* The envelope, read out (round 6). */}
+          <p className="sr-only" role="status">
+            {writing === 'done' ? pal.written : ''}
+          </p>
+          <div className="flex items-center gap-2 mb-2">
+            <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
+            <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
+            <span className="ml-auto text-[10px] uppercase tracking-wider bg-amber-400/20 text-amber-300 rounded px-2 py-0.5">✍️ To {pal.to}</span>
+          </div>
+          {writing === 'pick' && (
+            <>
+              <p className="leading-relaxed mb-3">{pal.offer}</p>
+              <div className="flex flex-col gap-2">
+                {pal.replies.map((line, i) => (
+                  <button
+                    key={line}
+                    onClick={() => setWriting(i)}
+                    className="text-left bg-white/10 hover:bg-white/20 rounded-lg px-4 py-2.5 min-h-11 text-sm font-semibold"
+                  >
+                    ✍️ {line}
+                  </button>
+                ))}
+                <button onClick={() => setWriting(null)} className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11 self-end">
+                  Maybe not
+                </button>
+              </div>
+            </>
+          )}
+          {typeof writing === 'number' && (
+            <>
+              <p className="text-xs text-white/70 mb-2">Type your line, every letter and dot:</p>
+              <LineRun key={writing} text={pal.replies[writing]} holdRule={holdRule} onDone={() => replyWritten(writing)} announce compact={shortWindow()} label="Your line" />
+              <div className="mt-3 flex gap-2">
+                <button disabled={sealing} onClick={() => setWriting('pick')} className="flex-1 min-h-11 bg-white/10 hover:bg-white/20 disabled:opacity-50 font-semibold rounded-lg py-2 text-sm">
+                  Pick another line
+                </button>
+                {/* A way out from here too (review round 4: it took two steps). */}
+                <button disabled={sealing} onClick={() => setWriting(null)} className="min-h-11 bg-white/15 hover:bg-white/25 disabled:opacity-50 font-semibold rounded-lg px-4 py-2 text-sm">
+                  Maybe not
+                </button>
+              </div>
+            </>
+          )}
+          {writing === 'done' && (
+            <>
+              <p className="leading-relaxed mb-3">{pal.written}</p>
+              <div className="flex justify-end">
+                <button autoFocus onClick={() => sendFlow({ type: 'CLOSE' })} className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11">
+                  ✨ Got it!
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </ModalLayer>
+    );
   }
 
   // Escape takes the box's own way out (#110o): "Later" on a choice or a
@@ -210,9 +320,23 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               // Umbra's finale is focused (16e review round 4): Enter through the talk mustn't close the climax.
               autoFocus={service === 'name'}
               onClick={openService}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+              // Beside the pen-pal offer the pen is the gold action (round 6).
+              className={
+                offering
+                  ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'
+                  : 'bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11'
+              }
             >
               {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
+            </button>
+          )}
+          {/* Not focused: Enter reads on as ever; the pen is a choice (#165 item 9). */}
+          {isLast && canWrite && (
+            <button
+              onClick={() => setWriting('pick')}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+            >
+              ✍️ Add a line of my own
             </button>
           )}
           {isLast && fetchOffer && !fetched && (
@@ -255,7 +379,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {!choosing && picked === null && (
           <button
             ref={onwardRef}
-            autoFocus
+            // Not focused beside a pen-pal offer (review round 2): a held Enter skipped the one-time ask, as it would a quest's choice.
+            // A new node there (round 3): the same button, kept across lines, kept the focus a keyboard kid had given it.
+            key={isLast && canWrite ? 'offer' : 'next'}
+            autoFocus={!(isLast && canWrite)}
             onClick={isLast && quest?.finishKind === 'riddle' ? askRiddle : advance}
             className="bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11"
           >

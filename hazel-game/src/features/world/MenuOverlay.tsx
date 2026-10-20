@@ -10,6 +10,7 @@ import { COMPANIONS, COMPANION_IDS, companionLook, companionsInParty } from '../
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_BADGES, QUEST_ITEMS } from '../../content/quests';
 import { ALL_SECRETS, SECRET_BADGES, secretFlag, secretProgress } from '../../content/secrets';
+import { TYPING_BADGES, TYPING_LESSONS, pagesCopied, typingLessonsCleared } from '../../content/typing';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
@@ -168,7 +169,7 @@ export default function MenuOverlay({
             {/* Each one named under it — a phone has no hover (#75 item 14g UX review). */}
             <ul className="flex flex-wrap gap-x-3 gap-y-1">
               {save.badges.map((b) => {
-                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b] ?? QUEST_BADGES[b] ?? SECRET_BADGES[b];
+                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b] ?? QUEST_BADGES[b] ?? TYPING_BADGES[b] ?? SECRET_BADGES[b];
                 return (
                   <li key={b} className="flex flex-col items-center text-center w-16">
                     <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>
@@ -268,6 +269,28 @@ export default function MenuOverlay({
               {save.defendTimer ? 'On' : 'Off'}
             </span>
           </button>
+        </div>
+
+        {/* Touch typing (#165): the home-row hold, and how far the lessons have got. */}
+        <div className="bg-white/10 rounded-xl p-3 mb-3">
+          <div className="font-bold text-sm mb-2">⌨️ Typing</div>
+          <button
+            onClick={() => update((s) => ({ ...s, typingAnchor: !s.typingAnchor }))}
+            className="w-full min-h-[44px] flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
+            aria-pressed={save.typingAnchor}
+          >
+            <span className="text-left">
+              🖐️ Home-row hold
+              <span className="block text-xs text-white/70">
+                {save.typingAnchor ? 'Hold F or J with your other hand while you type' : 'Type with either hand — no holding'}
+              </span>
+            </span>
+            <span className={save.typingAnchor ? 'text-emerald-300 font-bold' : 'text-white/70'}>{save.typingAnchor ? 'On' : 'Off'}</span>
+          </button>
+          <p className="text-xs text-white/70 mt-2">
+            Lessons: {typingLessonsCleared(save.flags)} of {TYPING_LESSONS.length} cleared · pages copied: {pagesCopied(save.flags)} · Librarian Sage teaches at
+            the Lumina Library.
+          </p>
         </div>
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
