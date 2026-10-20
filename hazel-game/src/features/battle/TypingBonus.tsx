@@ -45,7 +45,7 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
     <div ref={box} className="mt-4 rounded-xl border-2 border-amber-300/70 bg-white/10 p-3 text-left" data-testid="typing-bonus">
       <p className="font-bold text-amber-300 text-sm">📜 A bonus scroll!</p>
       <p className="text-xs text-white/80 mb-2">
-        {claimed ? `Claimed: ${bonusWords(bonus.reward)}! A scribe's reward.` : `Type ${whose} to claim ${bonusWords(bonus.reward)}:`}
+        {claimed ? "A scribe's reward — well typed!" : `Type ${whose} to claim ${bonusWords(bonus.reward)}:`}
       </p>
       <div className="py-1">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />

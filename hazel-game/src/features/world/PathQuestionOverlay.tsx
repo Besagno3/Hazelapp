@@ -54,6 +54,14 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const [answeredWrong, setAnsweredWrong] = useState(false);
   // The sentence is typed and the chest is on its way (round 5: the riddle stayed answerable in the beat).
   const [typed, setTyped] = useState(false);
+  // Set as an attribute, as `useInertOutside` does (round 7: React 19 reads `inert` as a boolean, where "" is false).
+  const riddleBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = riddleBox.current;
+    if (!el) return;
+    if (typed) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  }, [typed]);
   const opening = useRef<number | null>(null);
   useEffect(() => () => window.clearTimeout(opening.current ?? undefined), []);
   function openByLock() {
@@ -117,7 +125,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         return;
       }
       setSolved(true);
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, disableForReducedMotion: true });
       // The way still opens on a starter question, but it pays no XP (#153).
       if (question && !isStarterId(question.id)) void addXp(XP_PER_CORRECT);
       if (target.kind === 'gate') {
@@ -165,7 +173,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       <div className={`min-h-full flex flex-col items-center justify-center pb-8 ${lockShown ? 'pt-24' : 'pt-8'}`}>
         {/* The lock's opening, read out (round 6: the card arrived as new text, and only its button was heard). */}
         <p className="sr-only" aria-live="polite">
-          {lockOpened ? `The lock springs open! Inside: ${chestRewardText(target.id)} A scribe's bonus: ${PANGRAM_BONUS_COINS} coins more.` : ''}
+          {lockOpened ? `The lock springs open! Inside: ${chestRewardText(target.id).replace(/\s*🪙\s*$/, '')} A scribe's bonus: ${PANGRAM_BONUS_COINS} coins more.` : ''}
         </p>
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
@@ -245,7 +253,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         )}
 
         {!lockOpened && question && (
-          <div {...((typed ? { inert: '' } : {}) as Record<string, string>)} className={typed ? 'opacity-60 transition-opacity' : undefined}>
+          <div ref={riddleBox} className={typed ? 'opacity-60 transition-opacity' : undefined}>
           <QuestionCard
             key={question.id}
             question={question}

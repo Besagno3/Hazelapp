@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
@@ -183,9 +183,22 @@ function Library() {
   // ...and the 🍂 Falling Leaves game (#159 item 7), from lesson 1.
   const [leaves, setLeaves] = useState(false);
   const keyboard = useKeyboardStore((s) => s.present);
-  if (typing) return <TypingLessons onBack={() => setTyping(false)} />;
-  if (desk) return <Scriptorium onBack={() => setDesk(false)} />;
-  if (leaves) return <FallingLeaves onBack={() => setLeaves(false)} />;
+  // Back from a sub-screen, the shelf's heading takes the focus (review round 7: the button that led there is gone,
+  // so a keyboard lands at the top of the page).
+  const shelf = useRef<HTMLHeadingElement>(null);
+  const returned = useRef(false);
+  useEffect(() => {
+    if (typing || desk || leaves || !returned.current) return;
+    returned.current = false;
+    shelf.current?.focus();
+  }, [typing, desk, leaves]);
+  const back = (close: (open: boolean) => void) => () => {
+    returned.current = true;
+    close(false);
+  };
+  if (typing) return <TypingLessons onBack={back(setTyping)} />;
+  if (desk) return <Scriptorium onBack={back(setDesk)} />;
+  if (leaves) return <FallingLeaves onBack={back(setLeaves)} />;
   const typed = typingLessonsCleared(flags);
   const copied = pagesCopied(flags);
   // Locked cards look locked (review round 2: all three were the same amber card); a glass keyboard is told up front.
@@ -234,7 +247,9 @@ function Library() {
 
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">📚 The Library</h2>
+      <h2 ref={shelf} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+        📚 The Library
+      </h2>
       <button onClick={() => setTyping(true)} className={card(false)}>
         <span className="text-2xl" aria-hidden="true">
           ⌨️

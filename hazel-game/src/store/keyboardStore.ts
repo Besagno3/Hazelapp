@@ -35,19 +35,25 @@ export function keysDown(): ReadonlySet<string> {
 export function watchKeyboard(): () => void {
   const onKey = (e: KeyboardEvent) => {
     if (!fromPhysicalKeyboard(e)) return;
-    down.add(e.code);
+    // A chord's key is never an anchor, and macOS sends no keyup for a key pressed under ⌘ (round 7).
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) down.add(e.code);
     // Written once (review round 2: every key, WASD's auto-repeat included, wrote the store).
     if (!useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
   };
   const onUp = (e: KeyboardEvent) => down.delete(e.code);
   const onBlur = () => down.clear();
+  const onHidden = () => {
+    if (document.visibilityState === 'hidden') down.clear();
+  };
   window.addEventListener('keydown', onKey, true);
   window.addEventListener('keyup', onUp, true);
   window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onHidden);
   return () => {
     window.removeEventListener('keydown', onKey, true);
     window.removeEventListener('keyup', onUp, true);
     window.removeEventListener('blur', onBlur);
+    document.removeEventListener('visibilitychange', onHidden);
     down.clear();
   };
 }

@@ -87,7 +87,11 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         // Caps Lock, or a Shift held from the capitals lesson (review round 2).
         setNudge(nudgeText('caps', anchorsFor(leaf.ch), leaf.ch, e.getModifierState?.('CapsLock') === true));
       } else if (event === 'wrong') {
-        setNudge(`No leaf says "${e.key.toLowerCase()}" — look for the lowest one!`);
+        // A mark is named too — a reader skips ";" (review round 7).
+        const ch = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+        const name = keyName(e.code);
+        const said = /^[a-z]$/.test(ch) || name === e.code || name === ch ? `"${ch}"` : `"${ch}" (${name})`;
+        setNudge(`No leaf says ${said} — look for the lowest one!`);
       }
     };
     const up = (e: KeyboardEvent) => {
@@ -114,10 +118,13 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   }, [phase, holdRule]);
 
   // The round over: its milestones, each paid once.
+  // The result is read out once the tally is in (round 7: a milestone landing a beat after "over" read it twice).
+  const [tallied, setTallied] = useState(false);
   useEffect(() => {
     if (phase !== 'over') return;
     const fresh = newMilestones(stateRef.current.caught, useSaveStore.getState().save?.flags ?? {});
     setReached(fresh);
+    setTallied(true);
     if (fresh.length === 0) return;
     update((s) => ({ ...s, flags: { ...s.flags, ...Object.fromEntries(fresh.map((m) => [leavesFlag(m), true])) } }));
     // One write for every milestone this round reached (review round 2: one per milestone raced the server).
@@ -135,7 +142,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           🍂
         </div>
         <h2 className="text-xl font-extrabold mb-2">Falling Leaves</h2>
-        <p className="text-sm text-white/80 mb-1">"Letters drift down on leaves — catch each one with the right finger before it lands!"</p>
+        <p className="text-sm text-white/80 mb-1">"Letters drift down on leaves — catch each one before it lands!"</p>
         <p className="text-xs text-white/60 mb-5">Clear typing lesson 1 ({TYPING_LESSONS[0].title}) first: only keys you've learned fall.</p>
         <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
           📚 Back to the shelf
@@ -150,6 +157,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     setState(fresh);
     setNudge(null);
     setReached([]);
+    setTallied(false);
     // A bump key already down counts as held (round 6).
     heldRef.current = new Set(keysDown());
     setHeld(heldRef.current);
@@ -168,7 +176,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   // One live region across the round and its result (round 6: the result card arrived as new text and went unread).
   const live = (
     <p key="live" className="sr-only" role="status" data-testid="leaf-live">
-      {phase === 'over'
+      {phase === 'over' && tallied
         ? `${ended} You caught ${state.caught} ${state.caught === 1 ? 'leaf' : 'leaves'}, and ${accuracy}% of your keys were right.${reached.map((m) => ` ${m} in one round — ${LEAVES_XP} XP!`).join('')}`
         : phase === 'playing'
           ? `Caught ${state.caught}, missed ${state.missed}.${lowestNow ? ` Lowest leaf: ${keyName(lowestNow.code)}` : ''}`
@@ -207,11 +215,12 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         ) : (
           <>
             <p className="text-sm text-white/80 mb-1">
-              "Letters drift down on leaves. Press each one with the right finger before its leaf lands — the lowest leaf has a white ring. Three
+              "Letters drift down on leaves. Press each one before its leaf lands — the lowest leaf has a white ring. Three
               on the ground — or a minute gone — and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
-              Your letters so far: <span className="font-mono text-white/80" aria-label={pool.map((k) => keyName(k.code)).join(', ')}>{letters}</span> — more with each lesson.
+              Your letters so far: <span className="font-mono text-white/80" aria-hidden="true">{letters}</span>
+              <span className="sr-only">{pool.map((k) => keyName(k.code)).join(', ')}</span> — more with each lesson.
             </p>
             <p className="text-xs text-white/60 mb-4">
               {holdRule ? 'Keep your other hand on its bump key. ' : ''}10, 25 or 50 in one round: ⭐ {LEAVES_XP} XP each, once.

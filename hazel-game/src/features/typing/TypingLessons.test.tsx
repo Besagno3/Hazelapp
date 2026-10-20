@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 
@@ -236,5 +236,24 @@ describe('round 1 review fixes (#159)', () => {
     expect(document.activeElement).toBe(next);
     fireEvent.click(next);
     expect(screen.getByText(TYPING_LESSONS[2].title)).toBeInTheDocument();
+  });
+
+  it('a heading takes the focus where no button does: the keyboard gate, the list once every lesson is cleared, the result (review round 7)', () => {
+    render(<TypingLessons onBack={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Typing lessons' }));
+    cleanup();
+    useKeyboardStore.getState().seen();
+    const all: Record<string, boolean> = {};
+    for (const l of TYPING_LESSONS) all[typingLessonFlag(l.id)] = true;
+    useSaveStore.setState({ save: { ...defaultSave(), flags: all } });
+    render(<TypingLessons onBack={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: '⌨️ Typing lessons' }));
+    const last = TYPING_LESSONS[TYPING_LESSONS.length - 1];
+    fireEvent.click(openLessons()[TYPING_LESSONS.length - 1]);
+    fireEvent.click(screen.getByText('⌨️ Start typing'));
+    for (const l of last.lines) typeLine(l);
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Lesson cleared!' }));
+    fireEvent.click(screen.getByText('← Back to the lessons'));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: '⌨️ Typing lessons' }));
   });
 });

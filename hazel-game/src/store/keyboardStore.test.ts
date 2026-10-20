@@ -22,6 +22,12 @@ describe('keyboardStore (#159)', () => {
     expect([...keysDown()]).toContain('KeyB');
     fireEvent.keyUp(window, { code: 'KeyB', key: 'b' });
     expect([...keysDown()]).not.toContain('KeyB');
+    // A chord's key is never remembered (round 7: macOS sends no keyup under ⌘); a blur lets go of everything.
+    fireEvent.keyDown(window, { code: 'Equal', key: '=', metaKey: true });
+    expect([...keysDown()]).not.toContain('Equal');
+    fireEvent.keyDown(window, { code: 'KeyC', key: 'c' });
+    fireEvent.blur(window);
+    expect([...keysDown()]).toHaveLength(0);
     useKeyboardStore.getState().reset();
     stop();
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });

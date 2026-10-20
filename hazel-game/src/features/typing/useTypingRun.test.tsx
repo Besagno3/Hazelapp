@@ -67,9 +67,31 @@ describe('useTypingRun (#159 review rounds 2–3)', () => {
     expect(screen.getByTestId('held')).toHaveTextContent('KeyJ');
     fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
     expect(screen.getByTestId('index')).toHaveTextContent('1');
-    // Its auto-repeat is not a fresh press; a repeat of a key never seen going down is.
     fireEvent.keyUp(window, { code: 'KeyF', key: 'f' });
     fireEvent.keyUp(window, { code: 'KeyJ', key: 'j' });
+    stop();
+  });
+
+  it('a repeat of a key never seen going down counts as a press; one let go of before the run attaches does not (review rounds 6–7)', () => {
+    render(<Probe text="ff" holdRule />);
+    // No watcher: only the auto-repeat says J is down.
+    fireEvent.keyDown(window, { code: 'KeyJ', key: 'j', repeat: true });
+    expect(screen.getByTestId('held')).toHaveTextContent('KeyJ');
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
+    expect(screen.getByTestId('index')).toHaveTextContent('1');
+    fireEvent.keyUp(window, { code: 'KeyF', key: 'f' });
+    fireEvent.keyUp(window, { code: 'KeyJ', key: 'j' });
+    cleanup();
+    // J down at render, up before the run attaches: not held.
+    const stop = watchKeyboard();
+    fireEvent.keyDown(window, { code: 'KeyJ', key: 'j' });
+    const { rerender } = render(<Probe text="ff" holdRule active={false} />);
+    fireEvent.keyUp(window, { code: 'KeyJ', key: 'j' });
+    rerender(<Probe text="ff" holdRule />);
+    expect(screen.getByTestId('held')).toHaveTextContent('');
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
+    expect(screen.getByTestId('index')).toHaveTextContent('0');
+    fireEvent.keyUp(window, { code: 'KeyF', key: 'f' });
     stop();
   });
 

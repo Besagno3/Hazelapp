@@ -129,12 +129,15 @@ describe('the Scriptorium (#159 item 5)', () => {
       vi.advanceTimersByTime(LINE_HOLD_MS + 10);
     });
     expect(screen.getByText('Page copied!')).toBeInTheDocument();
+    // The result's heading takes the focus, before its buttons (review round 7).
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Page copied!' }));
     expect(screen.getByText(`⭐ +${SCRIPTORIUM_XP} XP`)).toBeInTheDocument();
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp).toHaveBeenCalledWith(SCRIPTORIUM_XP);
     expect(flags()[pageFlag('q-why')]).toBe(true);
-    // Back on the desk the shelf page is gone and the count moved on.
+    // Back on the desk the shelf page is gone and the count moved on; the desk's heading has the focus.
     fireEvent.click(screen.getByText('← Back to the pages'));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: '📜 The Scriptorium' }));
     expect(screen.getByText('1 page copied', { exact: false })).toBeInTheDocument();
     expect(screen.queryByText('Why does ice float?')).toBeNull();
     // ➡️ Next page opens the next one straight from the result screen.

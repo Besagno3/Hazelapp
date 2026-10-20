@@ -122,6 +122,11 @@ export function typingAccuracy(p: Pick<TypingProgress, 'hits' | 'misses'>): numb
 }
 
 /** What to say for a nudge, in a kid's words. */
+/**
+ * `capsLock` is what the press knew of Caps Lock. Unknown (the tests), a small
+ * letter come out big is blamed on Caps Lock, the likelier slip; a capital
+ * come out small is blamed on it only when it is known to be on.
+ */
 export function nudgeText(event: TypingEvent, anchors: string[], target: string, capsLock?: boolean): string | null {
   if (event === 'hold') {
     const a = anchors[0];

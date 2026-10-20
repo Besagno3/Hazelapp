@@ -30,6 +30,11 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   // last key, and a kid typing in rhythm pressed into the new line). Keys in the beat do nothing.
   const hold = useRef<number | null>(null);
   useEffect(() => () => window.clearTimeout(hold.current ?? undefined), []);
+  // The result's heading takes the focus (review round 7: landing on "Next lesson" skipped the stars and the XP).
+  const resultHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (result) resultHeading.current?.focus();
+  }, [result]);
   function lineDone(p: TypingProgress) {
     const total = { hits: tally.hits + p.hits, misses: tally.misses + p.misses };
     setTally(total);
@@ -78,7 +83,9 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
         <div className="text-5xl mb-2" aria-hidden="true">
           {lesson.emoji}
         </div>
-        <h2 className="text-xl font-extrabold mb-1">Lesson cleared!</h2>
+        <h2 ref={resultHeading} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+          Lesson cleared!
+        </h2>
         <p className="text-2xl mb-1" role="img" aria-label={`${stars} of 3 stars`}>
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
@@ -96,11 +103,11 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
         {result.badge && <p className="text-sm text-amber-300 font-semibold">✍️ You earned the Scribe's Quill badge! Find it on your 📜 Menu.</p>}
         <div className="flex flex-wrap justify-center gap-3 mt-4">
           {onNext && (
-            <button autoFocus onClick={onNext} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
+            <button onClick={onNext} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
               ➡️ Next lesson
             </button>
           )}
-          <button autoFocus={!onNext} onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
+          <button onClick={onBack} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
             ← Back to the lessons
           </button>
         </div>
@@ -149,7 +156,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
       {live}
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
-        <h2 className="text-lg font-extrabold truncate">
+        <h2 className="text-base sm:text-lg font-extrabold truncate">
           {lesson.emoji} {lesson.title}
         </h2>
         <span className="shrink-0 text-xs text-white/70">

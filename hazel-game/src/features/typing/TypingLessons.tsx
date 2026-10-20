@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { LITTLE_HANDS_AGE, TYPING_LESSONS, typingLessonFlag, typingLessonOpen, typingLessonsCleared } from '../../content/typing';
 import { fromPhysicalKeyboard } from '../../lib/typing';
 import { playerAge } from '../../lib/age';
@@ -20,6 +20,13 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
   const profile = useProfileStore((s) => s.profile);
   const keyboard = useKeyboardStore((s) => s.present);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const cleared = typingLessonsCleared(flags);
+  // With every lesson cleared there is no Continue button to land on: the heading takes the focus (review round 7).
+  const heading = useRef<HTMLHeadingElement>(null);
+  const allCleared = cleared === TYPING_LESSONS.length;
+  useEffect(() => {
+    if (keyboard && activeId === null && allCleared) heading.current?.focus();
+  }, [keyboard, activeId, allCleared]);
 
   if (!keyboard) return <KeyboardGate onBack={onBack} />;
 
@@ -30,13 +37,14 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
     return <TypingLesson key={active.id} lesson={active} onBack={() => setActiveId(null)} onNext={next ? () => setActiveId(next.id) : undefined} />;
   }
 
-  const cleared = typingLessonsCleared(flags);
   const little = playerAge(profile) < LITTLE_HANDS_AGE;
   // The lesson to do next: the first open one not yet cleared (review round 1: it sat below twelve ✅ rows).
   const next = TYPING_LESSONS.find((l) => flags[typingLessonFlag(l.id)] !== true && typingLessonOpen(l.id, flags));
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">⌨️ Typing lessons</h2>
+      <h2 ref={heading} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+        ⌨️ Typing lessons
+      </h2>
       <p className="text-sm text-white/80 mb-1">
         "Ten fingers, eyes on the page, pointers on the bumpy keys. That's how a scribe types!"
       </p>
@@ -122,6 +130,11 @@ export default function TypingLessons({ onBack }: { onBack: () => void }) {
 export function KeyboardGate({ onBack, title = 'Typing lessons' }: { onBack: () => void; title?: string }) {
   const seen = useKeyboardStore((s) => s.seen);
   const [touch] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true);
+  // The gate has no button to land on but Back: its heading takes the focus (review round 7).
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (fromPhysicalKeyboard(e)) seen();
@@ -134,7 +147,9 @@ export function KeyboardGate({ onBack, title = 'Typing lessons' }: { onBack: () 
       <div className="text-5xl mb-2" aria-hidden="true">
         ⌨️
       </div>
-      <h2 className="text-xl font-extrabold mb-2">{title}</h2>
+      <h2 ref={heading} tabIndex={-1} className="text-xl font-extrabold mb-2 focus:outline-none">
+        {title}
+      </h2>
       <p className="text-sm text-white/80 mb-2">Press any key on your keyboard to begin.</p>
       <p className="text-xs text-white/60 mb-5">
         {touch

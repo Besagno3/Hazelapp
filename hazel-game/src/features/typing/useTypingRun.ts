@@ -54,10 +54,9 @@ export function useTypingRun({
   onDone?: (progress: TypingProgress) => void;
 }) {
   const [progress, setProgress] = useState<TypingProgress>(() => startTyping(text));
-  // Keys already down as the run starts count as held (round 6: an anchor kept down through a line's beat).
-  const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set(keysDown()));
+  const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
   const [last, setLast] = useState<{ event: TypingEvent; code: string; seq: number; capsLock: boolean } | null>(null);
-  const heldRef = useRef<Set<string>>(new Set(keysDown()));
+  const heldRef = useRef<Set<string>>(new Set());
   // The listeners read the latest progress and callbacks through refs, kept
   // current in an effect (never written during render).
   const progressRef = useRef(progress);
@@ -74,6 +73,11 @@ export function useTypingRun({
 
   useEffect(() => {
     if (!active) return;
+    // Keys already down as the run starts count as held (round 6: an anchor kept down through a line's
+    // beat) — read here, the instant the listeners attach (round 7: read at render, a key let go in
+    // between stayed held).
+    heldRef.current = new Set(keysDown());
+    setHeld(heldRef.current);
     // A Space the line took off a focused button: its keyup is taken too (Firefox clicks
     // a button on Space's keyup even after a prevented keydown — review round 2).
     let spaceTaken = false;

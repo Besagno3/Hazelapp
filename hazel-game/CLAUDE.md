@@ -585,7 +585,11 @@ zod, react-query. Add the package in the same change that first uses it.
   `watchKeyboard`'s capture-phase listeners); a run and a leaves round start
   from it, so an anchor held across lines stays held. Each typing screen
   keeps one live region across its states (the lesson, the desk, the leaves,
-  the lock's overlay, the letter) rather than mounting result text anew.
+  the lock's overlay, the letter) rather than mounting result text anew. Where a screen has no button to
+  land on (the desk's list, the keyboard gate, the lessons list once all are
+  cleared, the shelf on the way back, a result card) its heading takes the
+  focus (`tabIndex={-1}`, `focus:outline-none`), so a keyboard and a reader
+  start at the top of what changed.
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1059,6 +1063,27 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-20 — Touch typing review round 7: headings take the focus, keys read as the run attaches (#159)
+The second of the two extra rounds. Fresh code (5 low, 4 nits) and UX
+(1 medium, 6 low, 2 nits) reviewers over round 6's screenshots; all fixed.
+- **Code:** a run reads the keys down as its listeners attach, not at
+  render; `keyboardStore` never keeps a chord's key (no keyup under ⌘) and
+  lets go of everything when the tab is hidden; the leaves' marks are hidden
+  text, not an `aria-label` on a span; the leaves' result is read once the
+  tally is in; the riddle's `inert` is set as an attribute (React 19 reads
+  the prop as a boolean); the burst's clock label read once; the bonus
+  scroll's claimed line says the reward once.
+- **UX:** the Library's sub-screens no longer leave a keyboard at the top of
+  the page — the desk's heading, the gate's, the lessons list's (once every
+  lesson is cleared) and the shelf's on the way back take the focus; "Page
+  copied!" and "Lesson cleared!" are focused before their buttons; a long
+  desk title wraps (`line-clamp-2`); the leaves' wrong-key nudge names a
+  mark; a lesson's title is `text-base` on a phone; the leaves' copy drops
+  the finger check it never made; the lock's spoken opening ends cleanly;
+  the riddle's confetti respects reduced motion.
+- Tests: +4 (TC-1512, TC-1513); 1711 green, lint + tsc clean; `bench …
+  typing` rerun.
 
 ### 2026-10-20 — Touch typing review round 6: keys held across lines, results read out (#159)
 The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)

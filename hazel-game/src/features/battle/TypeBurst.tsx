@@ -97,7 +97,8 @@ export function TypeBurst({
           stopped={state === 'done'}
           ready={ready}
           onExpire={() => settle(false)}
-          label={label}
+          // The box's name says it (round 7: the timer's visible label read it a second time).
+          label={<span aria-hidden="true">{label}</span>}
           what="to type"
         />
       ) : (

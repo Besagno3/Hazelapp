@@ -80,10 +80,14 @@ describe('the Library — the scriptorium (#159 item 5)', () => {
     expect(open).toHaveAttribute('aria-disabled', 'false');
     fireEvent.click(open);
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
+    // The gate's heading takes the focus; back on the shelf, the shelf's does (review round 7).
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'The Scriptorium' }));
     fireEvent.click(screen.getByText('📚 Back to the shelf'));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: '📚 The Library' }));
     fireEvent.click(screen.getByText('Falling Leaves').closest('button')!);
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
     fireEvent.click(screen.getByText('📚 Back to the shelf'));
     expect(screen.getByText('📚 The Library')).toBeInTheDocument();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: '📚 The Library' }));
   });
 });

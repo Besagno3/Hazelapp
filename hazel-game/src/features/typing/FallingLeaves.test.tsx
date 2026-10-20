@@ -6,7 +6,7 @@ vi.mock('canvas-confetti', () => ({ default: () => {} }));
 const { default: FallingLeaves } = await import('./FallingLeaves');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
-const { useKeyboardStore } = await import('../../store/keyboardStore');
+const { useKeyboardStore, watchKeyboard } = await import('../../store/keyboardStore');
 const { defaultSave } = await import('../../lib/save');
 const { TYPING_LESSONS, charKey, typingLessonFlag } = await import('../../content/typing');
 const { LEAVES_TUNING, LEAVES_XP, leafPace, leavesFlag } = await import('../../lib/leaves');
@@ -67,6 +67,9 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     // A key with no leaf: a nudge, nothing caught.
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });
     expect(screen.getByText(/No leaf says "a"/)).toHaveAttribute('role', 'status');
+    // A mark is named (review round 7).
+    fireEvent.keyDown(window, { code: 'Semicolon', key: ';' });
+    expect(screen.getByText(/No leaf says ";" \(semicolon\)/)).toBeInTheDocument();
     catchLowest();
     expect(leaves()).toHaveLength(0);
     expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 1');
@@ -155,6 +158,23 @@ describe('🍂 Falling Leaves (#159 item 7)', () => {
     }
     expect(screen.getByTestId('leaf-live')).toHaveTextContent(/Time's up!/);
     expect(screen.getByTestId('leaf-live')).not.toHaveTextContent(/landed/);
+  });
+
+  it('a bump key already down as the round starts counts as held (review round 6)', () => {
+    vi.useFakeTimers();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, typingAnchor: true } });
+    const stop = watchKeyboard();
+    render(<FallingLeaves onBack={() => {}} />);
+    fireEvent.keyDown(window, { code: 'KeyJ', key: 'j' });
+    fireEvent.click(screen.getByText('🍂 Play'));
+    tick(leafPace(0).spawnMs);
+    const leaf = leaves()[0];
+    if (leaf.textContent === 'f') {
+      fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
+      expect(screen.getByTestId('leaf-tally')).toHaveTextContent('Caught 1');
+    }
+    fireEvent.keyUp(window, { code: 'KeyJ', key: 'j' });
+    stop();
   });
 
   it('with the hold on, a leaf wants the other hand on its bump key', () => {

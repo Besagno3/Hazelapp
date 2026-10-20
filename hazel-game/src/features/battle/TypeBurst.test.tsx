@@ -62,6 +62,14 @@ describe('TypeBurst (#159 item 2)', () => {
     expect(onResult).toHaveBeenCalledWith(true);
   });
 
+  it('a Space in the beat after the word is swallowed by the card, not the page (review round 6)', () => {
+    render(<TypeBurst word="bat" holdRule={false} onResult={() => {}} />);
+    type('bat');
+    const card = screen.getByTestId('type-burst');
+    expect(document.activeElement).toBe(card);
+    expect(fireEvent.keyDown(card, { code: 'Space', key: ' ' })).toBe(false);
+  });
+
   it('with the home-row hold on, a letter without the other hand is a nudge; wrong keys are misses', () => {
     const onEvent = vi.fn();
     render(<TypeBurst word="kira" holdRule onResult={() => {}} onEvent={onEvent} />);

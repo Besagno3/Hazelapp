@@ -34,6 +34,16 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const hold = useRef<number | null>(null);
   const [activeAt, setActiveAt] = useState(0);
   useEffect(() => () => window.clearTimeout(hold.current ?? undefined), []);
+  // The desk's heading takes the focus on arrival and on the way back from a page, and the result's before its
+  // buttons (review round 7: a keyboard landed at the top of the page, or on "Next page" past the stars).
+  const heading = useRef<HTMLHeadingElement>(null);
+  const resultHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (keyboard && !active) heading.current?.focus();
+  }, [keyboard, active]);
+  useEffect(() => {
+    if (result) resultHeading.current?.focus();
+  }, [result]);
 
   if (!keyboard) return <KeyboardGate title="The Scriptorium" onBack={onBack} />;
 
@@ -64,6 +74,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
       return;
     }
     const flag = pageFlag(active!.id);
+    // Always true today — a copied page leaves the desk — kept as a guard should a page ever be reopened.
     const paid = flags[flag] !== true;
     update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
     if (paid) void addXp(SCRIPTORIUM_XP);
@@ -83,7 +94,9 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         <div className="text-5xl mb-2" aria-hidden="true">
           📜
         </div>
-        <h2 className="text-xl font-extrabold mb-2">The Scriptorium</h2>
+        <h2 ref={heading} tabIndex={-1} className="text-xl font-extrabold mb-2 focus:outline-none">
+          The Scriptorium
+        </h2>
         <p className="text-sm text-white/80 mb-1">"A scribe copies whole pages here — big letters, little letters, every dot and comma."</p>
         <p className="text-xs text-white/60 mb-5">
           Clear typing lesson {at} ({gate.title}) first — {typingLessonsCleared(flags)} of {at} so far.
@@ -119,7 +132,9 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         <div className="text-5xl mb-2" aria-hidden="true">
           📜
         </div>
-        <h2 className="text-xl font-extrabold mb-1">Page copied!</h2>
+        <h2 ref={resultHeading} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+          Page copied!
+        </h2>
         <p className="text-2xl mb-1" role="img" aria-label={`${stars} of 3 stars`}>
           {'⭐'.repeat(stars)}
           <span className="opacity-25">{'⭐'.repeat(3 - stars)}</span>
@@ -135,11 +150,11 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
         )}
         <div className="flex flex-wrap justify-center gap-3 mt-4">
           {next && (
-            <button autoFocus onClick={() => open(next)} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
+            <button onClick={() => open(next)} className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-5 py-2.5 min-h-11">
               ➡️ Next page
             </button>
           )}
-          <button autoFocus={!next} onClick={leave} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
+          <button onClick={leave} className="bg-white/15 hover:bg-white/25 font-semibold rounded-xl px-5 py-2.5 min-h-11">
             ← Back to the pages
           </button>
         </div>
@@ -189,7 +204,9 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     <>
       {live}
     <div>
-      <h2 className="text-xl font-extrabold mb-1">📜 The Scriptorium</h2>
+      <h2 ref={heading} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+        📜 The Scriptorium
+      </h2>
       <p className="text-sm text-white/80 mb-1">"Copy a page, every letter and dot, and it's yours for good. That's how the old books were kept."</p>
       <p className="text-xs text-amber-300 font-semibold mb-3">
         {copied === 0 ? 'No pages copied yet' : `${copied} ${copied === 1 ? 'page' : 'pages'} copied`} · +{SCRIPTORIUM_XP} XP a page
@@ -210,7 +227,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
                 {page.source === 'shelf' ? '📚' : '💡'}
               </span>
               <span className="flex-1 min-w-0">
-                <span className="font-bold block truncate">{page.title}</span>
+                <span className="font-bold line-clamp-2">{page.title}</span>
                 <span className="block text-xs text-white/60">
                   {page.source === 'shelf' ? 'From your shelf — copy out why · ' : 'A true fact · '}
                   {page.lines.length} {page.lines.length === 1 ? 'line' : 'lines'}
