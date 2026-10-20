@@ -112,7 +112,24 @@ export function shuffleAnswers<T extends Pick<Question, 'options' | 'correctInde
 // repeat request triggers a new generation — the server re-randomises the
 // cache/fresh mix on every call anyway.
 
-const prefetched = new Map<string, Promise<Question[]>>();
+/**
+ * How long a question handed over for later is kept for this kid (#163
+ * review): well inside the server's hold on what it hands over but isn't
+ * shown (`RESERVE_MINUTES`, an hour), so it can't have been handed over
+ * again — and shown — somewhere else meanwhile. A look-ahead warmed longer
+ * ago than this isn't used, nor is a carried-over question.
+ */
+export const HELD_FOR_MS = 45 * 60 * 1000;
+
+const prefetched = new Map<string, { promise: Promise<Question[]>; at: number }>();
+
+/** The look-ahead warmed under `key`, consumed (once) — none when it's older than `HELD_FOR_MS`. */
+function takePrefetched(key: string): Promise<Question[]> | undefined {
+  const warm = prefetched.get(key);
+  if (!warm) return undefined;
+  prefetched.delete(key);
+  return Date.now() - warm.at < HELD_FOR_MS ? warm.promise : undefined;
+}
 
 function cacheKey(topic: Topic, skillLevel: number, count: number, flavor?: FlavorId): string {
   // Per kid, so a batch warmed for one never goes to a sibling after a switch.
@@ -126,6 +143,12 @@ export interface PrefetchOptions {
    * costs nothing. A short batch is finished when it's used.
    */
   cacheOnly?: boolean;
+  /**
+   * How many to ask for when fewer than `count` are needed — the quiz's next
+   * round, whose carried-over questions are already here (#163 review). It
+   * is still found under `count`.
+   */
+  ask?: number;
 }
 
 /** Warms a question request so it is ready before the screen needs it. */
@@ -135,15 +158,18 @@ export function prefetchQuestions(
   skillLevel: number,
   count: number,
   flavor?: FlavorId,
-  { cacheOnly = false }: PrefetchOptions = {},
+  { cacheOnly = false, ask = count }: PrefetchOptions = {},
 ): void {
   const key = cacheKey(topic, skillLevel, count, flavor);
-  if (prefetched.has(key)) return;
-  const promise = invokeGenerate(topic, age, skillLevel, count, flavor, cacheOnly);
-  prefetched.set(key, promise);
+  const warm = prefetched.get(key);
+  if (warm && Date.now() - warm.at < HELD_FOR_MS) return;
+  const promise = invokeGenerate(topic, age, skillLevel, ask, flavor, cacheOnly);
+  prefetched.set(key, { promise, at: Date.now() });
   // Drop a failed prefetch so a real request retries cleanly; this also marks
   // the rejection handled if the prefetch is never consumed.
-  promise.catch(() => prefetched.delete(key));
+  promise.catch(() => {
+    if (prefetched.get(key)?.promise === promise) prefetched.delete(key);
+  });
 }
 
 /** The server's questions, or none when it fails — the starters fill in (B5). */
@@ -182,11 +208,9 @@ export async function fetchQuestions(
   count = QUIZ_QUESTION_COUNT,
   flavor?: FlavorId,
 ): Promise<Question[]> {
-  const key = cacheKey(topic, skillLevel, count, flavor);
-  const pre = prefetched.get(key);
+  const pre = takePrefetched(cacheKey(topic, skillLevel, count, flavor));
   let have: Question[] = [];
   if (pre) {
-    prefetched.delete(key); // consume once
     have = await pre.catch(() => []); // failed: ask again below
     if (have.length >= count) return have;
   }
@@ -230,29 +254,39 @@ export interface QuickOptions {
   fill?: number;
   waitMs?: number;
   flavor?: FlavorId;
+  /**
+   * Questions already in hand, which go first: the quiz's carried over from
+   * an earlier round (#163 review). Only the rest are asked for, and with
+   * `start` of them the pool starts at once, the saved ones coming as `late`.
+   */
+  have?: Question[];
 }
 
 /**
  * Saved questions to start on, quickly: the warmed look-ahead if one is
  * waiting, else a saved-questions-only request (never Claude) for the whole
- * `count`. Never fewer than `start` — with fewer saved ones (a thin bank, a
- * slow or failed request, `waitMs`), starter questions fill the pool to
- * `fill` — and maybe the whole `count` when the bank has them.
+ * `count` (less any `have`). Never fewer than `start` — with fewer saved ones
+ * (a thin bank, a slow or failed request, `waitMs`), starter questions fill
+ * the pool to `fill` — and maybe the whole `count` when the bank has them.
  */
 export async function quickQuestions(
   topic: Topic,
   age: number,
   skillLevel: number,
   count: number,
-  { start = BATTLE_START_COUNT, fill = BATTLE_START_FILL, waitMs = QUICK_WAIT_MS, flavor }: QuickOptions = {},
+  { start = BATTLE_START_COUNT, fill = BATTLE_START_FILL, waitMs = QUICK_WAIT_MS, flavor, have = [] }: QuickOptions = {},
 ): Promise<QuickStart> {
-  const key = cacheKey(topic, skillLevel, count, flavor);
-  const pre = prefetched.get(key);
-  if (pre) prefetched.delete(key); // consume once
-  const source = (pre ?? invokeGenerate(topic, age, skillLevel, count, flavor, true)).catch(() => [] as Question[]);
+  const pre = takePrefetched(cacheKey(topic, skillLevel, count, flavor));
+  const need = count - have.length;
+  const ids = new Set(have.map((q) => q.id));
+  const source = (pre ?? (need > 0 ? invokeGenerate(topic, age, skillLevel, need, flavor, true) : Promise.resolve([]))).then(
+    (qs) => qs.filter((q) => !ids.has(q.id)).slice(0, count),
+    () => [] as Question[],
+  );
+  if (have.length >= start) return { questions: have, late: source };
   const got = await Promise.race([source, waitFor(waitMs)]);
-  const saved = (got ?? []).slice(0, count);
-  const late = got === null ? source.then((qs) => qs.slice(0, count)) : Promise.resolve([] as Question[]);
+  const saved = [...have, ...(got ?? [])];
+  const late = got === null ? source : Promise.resolve([] as Question[]);
   if (saved.length >= start) return { questions: saved, late };
   const fillTo = Math.min(count, Math.max(start, fill));
   const starters = starterQuestions(topic, skillLevel, fillTo - saved.length).map((q) => shuffleAnswers(q));
@@ -316,6 +350,128 @@ export function spareStarter(topic: Topic, skillLevel: number, asked: Question[]
   // One more than the round has asked, so at least one of them is new.
   const starters = starterQuestions(topic, skillLevel, ids.size + 1);
   return shuffleAnswers(starters.find((q) => !ids.has(q.id)) ?? starters[0]);
+}
+
+/**
+ * `asked` with a spare starter in the kid's slot (`number`) and in any slot
+ * before it still empty — and unchanged when a question already came for it
+ * (#163 review: a bank question landing in the same tick as the timer, or a
+ * slot the kid got past without one).
+ */
+export function withSpareStarters(asked: Question[], number: number, topic: Topic, skillLevel: number): Question[] {
+  let out = asked;
+  while (out.length <= number) out = [...out, spareStarter(topic, skillLevel, out)];
+  return out;
+}
+
+// --- Carried over to the next round (#163 review) ----------------------------
+// A round takes each question as the kid reaches it, so on a thin bank the
+// questions Claude writes for it can land after their slot went to a starter,
+// or after the round ends. The server holds back what it hands over from this
+// kid for an hour, so a question dropped here is lost to them for that hour:
+// they're kept for the kid's next round of the topic instead, and go first.
+
+/** At most this many carried a topic. */
+const CARRY_MAX = 2 * QUIZ_QUESTION_COUNT;
+/** Used in a round within this many levels of the question's own — the band the server reuses saved questions from. */
+const CARRY_LEVEL_BAND = 2;
+
+const carried = new Map<string, { question: Question; at: number }[]>();
+/** Topics with a round's fresh request on its way (`askFreshForNextRound`), one at a time. */
+const freshOnTheWay = new Set<string>();
+
+const carryKey = (kid: string | null, topic: Topic) => `${kid ?? ''}|${topic}`;
+const activeKid = () => useFamilyStore.getState().activeKidId;
+
+/** The topic's carried questions, the ones older than `HELD_FOR_MS` dropped. */
+function stillHeld(key: string) {
+  const now = Date.now();
+  const list = (carried.get(key) ?? []).filter((c) => now - c.at < HELD_FOR_MS);
+  if (list.length) carried.set(key, list);
+  else carried.delete(key);
+  return list;
+}
+
+/**
+ * Keeps questions a quiz round was handed but couldn't use for `kid`'s next
+ * round of `topic`: bank questions only (the starters are always there), none
+ * twice, at most `CARRY_MAX`. `kid` is the one the round was for — it may end
+ * after a switch of player.
+ */
+export function carryOver(kid: string | null, topic: Topic, questions: Question[]): void {
+  const key = carryKey(kid, topic);
+  const list = stillHeld(key);
+  const ids = new Set(list.map((c) => c.question.id));
+  const at = Date.now();
+  for (const q of questions) {
+    if (list.length >= CARRY_MAX) break;
+    if (isStarterId(q.id) || ids.has(q.id)) continue;
+    ids.add(q.id);
+    list.push({ question: q, at });
+  }
+  if (list.length) carried.set(key, list);
+}
+
+/** The kid playing's carried questions a round of `topic` at `skillLevel` can use, oldest first. */
+function usable(topic: Topic, skillLevel: number) {
+  const key = carryKey(activeKid(), topic);
+  return { key, list: stillHeld(key), fits: (q: Question) => Math.abs(q.level - skillLevel) <= CARRY_LEVEL_BAND };
+}
+
+/** Up to `count` of the kid playing's carried questions for a round of `topic` at `skillLevel`, oldest first — taken, so no other round gets them. */
+export function takeCarried(topic: Topic, skillLevel: number, count: number): Question[] {
+  const { key, list, fits } = usable(topic, skillLevel);
+  const taken = list.filter((c) => fits(c.question)).slice(0, count);
+  const rest = list.filter((c) => !taken.includes(c));
+  if (rest.length) carried.set(key, rest);
+  else carried.delete(key);
+  return taken.map((c) => c.question);
+}
+
+/** How many carried questions a round of `topic` at `skillLevel` would start with. */
+export function carriedCount(topic: Topic, skillLevel: number): number {
+  const { list, fits } = usable(topic, skillLevel);
+  return list.filter((c) => fits(c.question)).length;
+}
+
+/** Forgets every carried question and fresh request (each test starts clean). */
+export function clearCarried(): void {
+  carried.clear();
+  freshOnTheWay.clear();
+}
+
+/**
+ * A round's fresh question on a rich bank (#30, #163 review). The quiz starts
+ * on saved questions, so when the bank covers a round nothing asks Claude and
+ * the bank would only grow when it runs short. This asks the way a round
+ * always did — `count` questions, of which the server writes about one in
+ * five fresh (`chooseFreshCount`, `NOVELTY_RATE`) — in the background, for the
+ * kid's next round of the topic (`carryOver`): nothing waits for it. One at a
+ * time a topic, and none while the next round is already covered.
+ */
+export function askFreshForNextRound(topic: Topic, age: number, skillLevel: number, count: number): void {
+  const kid = activeKid();
+  const key = carryKey(kid, topic);
+  if (freshOnTheWay.has(key) || carriedCount(topic, skillLevel) >= count) return;
+  freshOnTheWay.add(key);
+  invokeGenerate(topic, age, skillLevel, count)
+    .then(
+      (qs) => carryOver(kid, topic, qs),
+      (e) => console.warn("The next round's questions didn't come:", errorMessage(e)),
+    )
+    .finally(() => freshOnTheWay.delete(key));
+}
+
+/**
+ * Warms the kid's next round of `topic` (#163): saved questions only, like a
+ * zone's critters (B5) — nothing is written for a round the kid may never
+ * play — and only as many as its carried-over questions, and a round's fresh
+ * request still on its way, leave missing.
+ */
+export function warmNextRound(topic: Topic, age: number, skillLevel: number, count: number): void {
+  const coming = freshOnTheWay.has(carryKey(activeKid(), topic)) ? count : 0;
+  const ask = count - carriedCount(topic, skillLevel) - coming;
+  if (ask > 0) prefetchQuestions(topic, age, skillLevel, count, undefined, { cacheOnly: true, ask });
 }
 
 /**

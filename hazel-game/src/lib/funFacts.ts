@@ -1,9 +1,9 @@
 import type { Topic } from '../types';
 
 /**
- * Short, kid-friendly facts shown on the loading screen while Claude generates
- * questions. Topic-specific when the loading context knows which topic is
- * coming; falls back to GENERIC otherwise (e.g. world map → battle transitions).
+ * Short, kid-friendly facts: one of the topic's on the quiz's results card
+ * (`pickFact`, #163 review — they filled the quiz's wait, which is gone), and
+ * the generic ones on the full-screen loading screen.
  */
 export const FUN_FACTS: Record<Topic, string[]> = {
   math: [
@@ -78,7 +78,7 @@ export const FUN_FACTS: Record<Topic, string[]> = {
   ],
 };
 
-/** Shown when the loading screen doesn’t know which topic is loading. */
+/** The loading screen's, which doesn't know a topic. */
 export const GENERIC_FACTS: string[] = [
   'Did you know? Reading for just 6 minutes can lower your stress level.',
   'Your brain uses about 20% of your body’s energy — even while you sleep.',

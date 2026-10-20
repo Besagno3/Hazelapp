@@ -19,7 +19,27 @@ vi.mock('./supabase', () => ({
 }));
 
 // Import AFTER the mock is registered.
-import { BATTLE_QUESTION_COUNT, QUIZ_QUESTION_COUNT, fetchQuestions, flagQuestion, inQuestionBank, moreQuestions, nextRoundQuestion, prefetchQuestions, quickQuestions, shuffleAnswers, spareStarter } from './questions';
+import {
+  BATTLE_QUESTION_COUNT,
+  HELD_FOR_MS,
+  QUIZ_QUESTION_COUNT,
+  askFreshForNextRound,
+  carriedCount,
+  carryOver,
+  clearCarried,
+  fetchQuestions,
+  flagQuestion,
+  inQuestionBank,
+  moreQuestions,
+  nextRoundQuestion,
+  prefetchQuestions,
+  quickQuestions,
+  shuffleAnswers,
+  spareStarter,
+  takeCarried,
+  warmNextRound,
+  withSpareStarters,
+} from './questions';
 import type { Question } from '../types';
 import { useFamilyStore } from '../store/familyStore';
 
@@ -28,6 +48,7 @@ beforeEach(() => {
   fromMock.mockClear();
   invokeMock.mockReset();
   useFamilyStore.setState({ activeKidId: 'kid-1' });
+  clearCarried();
 });
 
 describe('flagQuestion', () => {
@@ -461,10 +482,162 @@ describe('a quiz round that starts at once (#163)', () => {
   it("the next round's look-ahead is saved questions only, and the round starts on it", async () => {
     invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(5) }, error: null });
     // QuizRound's call, word for word.
-    prefetchQuestions('words', 9, 4, QUIZ_QUESTION_COUNT, undefined, { cacheOnly: true });
+    warmNextRound('words', 9, 4, QUIZ_QUESTION_COUNT);
     expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'words', count: 5, cacheOnly: true });
     const { questions } = await quickQuestions('words', 9, 4, QUIZ_QUESTION_COUNT);
     expect(questions).toHaveLength(5);
     expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a quiz round — review round 1 (#163)', () => {
+  const q = (id: string, level = 5): Question => ({ id, topic: 'math', level, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
+  const ids = (qs: Question[]) => qs.map((x) => x.id);
+
+  it('the wait fills the kid\'s slot, and any empty one before it — and nothing when a question already came for it', () => {
+    const asked = [q('b1'), q('b2'), q('b3'), q('b4')];
+    // A bank question landed in the same tick as the timer: slot 3 is taken.
+    expect(withSpareStarters(asked, 3, 'math', 5)).toBe(asked);
+    const one = withSpareStarters(asked.slice(0, 3), 3, 'math', 5);
+    expect(ids(one).slice(0, 3)).toEqual(['b1', 'b2', 'b3']);
+    expect(one).toHaveLength(4);
+    // Two slots empty (one got past without a question): both filled, none twice.
+    const two = withSpareStarters(asked.slice(0, 3), 4, 'math', 5);
+    expect(two).toHaveLength(5);
+    expect(two.slice(3).every((x) => x.id.startsWith('starter-math-'))).toBe(true);
+    expect(new Set(ids(two)).size).toBe(5);
+  });
+
+  it('a quick start with questions in hand starts on them at once and asks only for the rest, none twice', async () => {
+    const have = [q('c1'), q('c2'), q('c3')];
+    let answer!: (v: unknown) => void;
+    invokeMock.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    // In before the saved ones answer — no wait at all.
+    let started: Awaited<ReturnType<typeof quickQuestions>> | null = null;
+    void quickQuestions('math', 9, 5, 5, { have }).then((r) => (started = r));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(started).not.toBeNull();
+    const { questions, late } = started!;
+    expect(ids(questions)).toEqual(['c1', 'c2', 'c3']);
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ count: 2, cacheOnly: true });
+    // The server hands back one already here (held for another screen), and two new.
+    answer({ data: { questions: [{ ...apiBatch(1)[0], id: 'c2' }, ...apiBatch(2)] }, error: null });
+    expect(ids(await late)).toEqual(['q-0', 'q-1']);
+  });
+
+  it('…with fewer than three in hand it waits for the saved ones as usual, and with the whole round in hand asks nothing', async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(4) }, error: null });
+    const { questions } = await quickQuestions('math', 9, 5, 5, { have: [q('c1')] });
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ count: 4 });
+    expect(ids(questions)).toEqual(['c1', 'q-0', 'q-1', 'q-2', 'q-3']);
+
+    invokeMock.mockReset();
+    const all = [q('c1'), q('c2'), q('c3'), q('c4'), q('c5')];
+    const start = await quickQuestions('math', 9, 5, 5, { have: all });
+    expect(start.questions).toEqual(all);
+    expect(await start.late).toEqual([]);
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it('carries over bank questions only, none twice, for that kid and topic alone', () => {
+    carryOver('kid-1', 'math', [q('b1'), q('starter-math-middle-1'), q('b2')]);
+    carryOver('kid-1', 'math', [q('b2'), q('b3')]);
+    expect(carriedCount('math', 5)).toBe(3);
+    expect(carriedCount('science', 5)).toBe(0);
+    // A sibling never gets them.
+    useFamilyStore.setState({ activeKidId: 'kid-2' });
+    expect(takeCarried('math', 5, 5)).toEqual([]);
+    useFamilyStore.setState({ activeKidId: 'kid-1' });
+    // Oldest first, taken once.
+    expect(ids(takeCarried('math', 5, 2))).toEqual(['b1', 'b2']);
+    expect(ids(takeCarried('math', 5, 5))).toEqual(['b3']);
+    expect(takeCarried('math', 5, 5)).toEqual([]);
+  });
+
+  it('a carried question is used only near its level, and dropped once the server\'s hold may have lapsed; at most ten a topic', () => {
+    vi.useFakeTimers();
+    try {
+      carryOver('kid-1', 'math', [q('lvl3', 3), q('lvl8', 8)]);
+      // Within two levels, the band the server reuses from.
+      expect(ids(takeCarried('math', 5, 5))).toEqual(['lvl3']);
+      expect(carriedCount('math', 7)).toBe(1);
+      vi.advanceTimersByTime(HELD_FOR_MS);
+      expect(carriedCount('math', 7)).toBe(0);
+      carryOver('kid-1', 'math', Array.from({ length: 12 }, (_, i) => q(`b${i}`)));
+      expect(carriedCount('math', 5)).toBe(10);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a round's fresh request asks the way a round always did — normally, five — and its questions go to the next round", async () => {
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(5) }, error: null });
+    askFreshForNextRound('math', 9, 5, QUIZ_QUESTION_COUNT);
+    // One at a time a topic.
+    askFreshForNextRound('math', 9, 5, QUIZ_QUESTION_COUNT);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    const body = invokeMock.mock.calls[0][1].body;
+    expect(body).toMatchObject({ topic: 'math', count: 5 });
+    expect(body).not.toHaveProperty('cacheOnly');
+    await vi.waitFor(() => expect(carriedCount('math', 5)).toBe(5));
+    // The next round is covered: none asked for it.
+    askFreshForNextRound('math', 9, 5, QUIZ_QUESTION_COUNT);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a fresh request that fails is logged in words, and nothing else happens', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    invokeMock.mockResolvedValueOnce({ data: null, error: new Error('Failed to fetch') });
+    askFreshForNextRound('math', 9, 5, 5);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledWith("The next round's questions didn't come:", expect.stringContaining('Failed to fetch')));
+    expect(carriedCount('math', 5)).toBe(0);
+    // …and the next can go.
+    invokeMock.mockResolvedValueOnce({ data: { questions: [] }, error: null });
+    askFreshForNextRound('math', 9, 5, 5);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("the next round's look-ahead asks only for what its carried questions leave missing — none when they cover it, or a fresh request is bringing them", async () => {
+    carryOver('kid-1', 'history', [q('c1'), q('c2')]);
+    invokeMock.mockResolvedValueOnce({ data: { questions: apiBatch(3) }, error: null });
+    warmNextRound('history', 9, 5, 5);
+    expect(invokeMock.mock.calls[0][1].body).toMatchObject({ topic: 'history', count: 3, cacheOnly: true });
+    // The round finds it under its own count, and starts on the carried two first.
+    const { questions } = await quickQuestions('history', 9, 5, 5, { have: takeCarried('history', 5, 5) });
+    expect(ids(questions)).toEqual(['c1', 'c2', 'q-0', 'q-1', 'q-2']);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+
+    invokeMock.mockReset();
+    carryOver('kid-1', 'history', [1, 2, 3, 4, 5].map((n) => q(`d${n}`)));
+    warmNextRound('history', 9, 5, 5);
+    expect(invokeMock).not.toHaveBeenCalled();
+
+    invokeMock.mockReturnValueOnce(new Promise(() => {})); // being written
+    askFreshForNextRound('words', 9, 5, 5);
+    warmNextRound('words', 9, 5, 5);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('a look-ahead warmed longer ago than the server holds its questions is asked for again (#163 review, also noted)', async () => {
+    vi.useFakeTimers();
+    try {
+      invokeMock.mockResolvedValue({ data: { questions: apiBatch(9) }, error: null });
+      prefetchQuestions('geography', 9, 4, 9, undefined, { cacheOnly: true });
+      vi.advanceTimersByTime(HELD_FOR_MS);
+      // Warming again replaces it…
+      prefetchQuestions('geography', 9, 4, 9, undefined, { cacheOnly: true });
+      expect(invokeMock).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(HELD_FOR_MS);
+      // …and an old one isn't used: the battle asks afresh.
+      await quickQuestions('geography', 9, 4, 9);
+      expect(invokeMock).toHaveBeenCalledTimes(3);
+      prefetchQuestions('geography', 9, 4, 9, undefined, { cacheOnly: true });
+      vi.advanceTimersByTime(HELD_FOR_MS);
+      await fetchQuestions('geography', 9, 4, 9);
+      expect(invokeMock).toHaveBeenCalledTimes(5);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

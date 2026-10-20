@@ -1,51 +1,27 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
-import type { Topic } from '../types';
+import { GENERIC_FACTS } from '../lib/funFacts';
 import type { OutdatedReason } from '../store/saveStore';
 
 const FACT_ROTATION_MS = 4000;
 
-/**
- * The full-screen backdrop. With a `topBar` (the quiz's level, streak and
- * Switch player, `ScreenTopBar`) the bar sits at the top, where the screen it
- * stands in for has it — so a long wait still has a way out — and the rest
- * centres below it.
- */
-function Backdrop({ topBar, className = '', children }: { topBar?: ReactNode; className?: string; children: ReactNode }) {
-  if (!topBar) {
-    return (
-      <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6 ${className}`}>
-        {children}
-      </div>
-    );
-  }
+/** The full-screen backdrop. */
+function Backdrop({ className = '', children }: { className?: string; children: ReactNode }) {
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
-      {topBar}
-      <div className={`flex-1 w-full flex flex-col items-center justify-center py-6 ${className}`}>{children}</div>
+    <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6 ${className}`}>
+      {children}
     </div>
   );
 }
 
 /**
- * Full-screen loading state. When a `topic` is provided, rotates a kid-friendly
- * fact about that topic while the request is in flight — turns the AI-generation
- * wait (3-5s, sometimes longer) from dead air into a brand moment (#31).
+ * Full-screen loading state, rotating a kid-friendly fact while it lasts, so
+ * a wait isn't dead air (#31). (The topic facts went to the quiz's results
+ * card when its wait went, #163.)
  */
-export function LoadingScreen({
-  label = 'Loading…',
-  topic,
-  topBar,
-}: {
-  label?: string;
-  topic?: Topic;
-  /** The screen's top bar, shown above the wait (see `Backdrop`). */
-  topBar?: ReactNode;
-}) {
-  const pool = useMemo(() => (topic ? FUN_FACTS[topic] : GENERIC_FACTS), [topic]);
+export function LoadingScreen({ label = 'Loading…' }: { label?: string }) {
   // Start at a random fact each mount so consecutive loads don't repeat the same one.
-  const [start] = useState(() => Math.floor(Math.random() * pool.length));
+  const [start] = useState(() => Math.floor(Math.random() * GENERIC_FACTS.length));
   const [step, setStep] = useState(0);
 
   useEffect(() => {
@@ -53,10 +29,10 @@ export function LoadingScreen({
     return () => clearInterval(id);
   }, []);
 
-  const fact = pool[(start + step) % pool.length];
+  const fact = GENERIC_FACTS[(start + step) % GENERIC_FACTS.length];
 
   return (
-    <Backdrop topBar={topBar} className="text-white">
+    <Backdrop className="text-white">
       <motion.div
         className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full"
         animate={{ rotate: 360 }}
@@ -108,61 +84,39 @@ export function OutdatedScreen({ reason, onRefresh }: { reason: OutdatedReason |
 }
 
 /**
- * Full-screen error state with optional retry / back actions. `title`, `emoji`
- * and `retryLabel` let a screen that isn't really an error (an update to
- * refresh for) say so in friendlier words.
+ * Full-screen error state with an optional retry. `title`, `emoji` and
+ * `retryLabel` let a screen that isn't really an error (an update to refresh
+ * for) say so in friendlier words.
  */
 export function ErrorScreen({
   message,
   onRetry,
-  onBack,
   title = 'Something went wrong',
   emoji = '😕',
   retryLabel = 'Try again',
-  backLabel = 'Back',
-  topBar,
 }: {
   message: string;
   onRetry?: () => void;
-  onBack?: () => void;
   title?: string;
   emoji?: string;
   retryLabel?: string;
-  backLabel?: string;
-  /** The screen's top bar, shown above the card (see `Backdrop`). */
-  topBar?: ReactNode;
 }) {
   return (
-    <Backdrop topBar={topBar}>
+    <Backdrop>
       <div className="bg-white text-gray-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
         <div className="text-5xl mb-3" aria-hidden="true">
           {emoji}
         </div>
         <h2 className="text-xl font-bold mb-2">{title}</h2>
         <p className="text-sm text-gray-500 mb-6">{message}</p>
-        <div className="flex gap-3 justify-center">
-          {onRetry && (
-            <button
-              onClick={onRetry}
-              className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-2 transition"
-            >
-              {retryLabel}
-            </button>
-          )}
-          {onBack && (
-            <button
-              onClick={onBack}
-              // The only way on when there's nothing to retry: the main button (#135).
-              className={
-                onRetry
-                  ? 'bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg px-5 py-2 transition'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-3 min-h-[44px] transition'
-              }
-            >
-              {backLabel}
-            </button>
-          )}
-        </div>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-2 transition"
+          >
+            {retryLabel}
+          </button>
+        )}
       </div>
     </Backdrop>
   );

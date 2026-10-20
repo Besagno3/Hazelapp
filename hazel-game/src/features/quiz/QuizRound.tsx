@@ -1,20 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { useQuizRound } from './useQuizRound';
+import { useCalmWait, FIRST_WAIT_DELAY_MS, LONG_WAIT_MS, WAIT_DELAY_MS, WAIT_MIN_MS } from './useCalmWait';
 import { PASS_THRESHOLD } from '../../lib/utils';
 import { bankRamp, nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
-import { prefetchQuestions, QUIZ_QUESTION_COUNT } from '../../lib/questions';
+import { warmNextRound, QUIZ_QUESTION_COUNT } from '../../lib/questions';
+import { pickFact } from '../../lib/funFacts';
 import { markSeen } from '../../lib/seen';
 import { isStarterId } from '../../content/starterQuestions';
 import FlagButton from '../../components/FlagButton';
 import ScreenTopBar from '../../components/ScreenTopBar';
-import type { Question } from '../../types';
+import type { Question, Topic } from '../../types';
 
 /** A round as it was played, kept for its results screen. */
 interface FinishedRound {
@@ -23,6 +25,8 @@ interface FinishedRound {
   picks: number[];
   /** The question level the round was played at. */
   level: number;
+  /** The XP it paid (none before the world opens, nor for starters). */
+  xp: number;
 }
 
 export default function QuizRound() {
@@ -38,7 +42,7 @@ export default function QuizRound() {
   const [finished, setFinished] = useState<FinishedRound | null>(null);
   // Starts at once on saved questions (or starters) and takes the rest as
   // they come — no wait for the whole round (#163).
-  const { question: q, number: current, asked, waiting, advance, age, skillLevel } = useQuizRound(
+  const { question, number: current, asked, waiting, advance, age, skillLevel } = useQuizRound(
     topic,
     QUIZ_QUESTION_COUNT,
     // Once the round is over, keep asking at the level it was played at: the
@@ -51,6 +55,19 @@ export default function QuizRound() {
   const [answers, setAnswers] = useState<boolean[]>([]);
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
+
+  // The wait for a question shows only once it has lasted a moment — longer
+  // for the round's first, whose saved questions often take most of a
+  // second — and then stays a moment, so it never flashes (#163 review).
+  const waitShown = useCalmWait(waiting, current === 0 ? FIRST_WAIT_DELAY_MS : WAIT_DELAY_MS, WAIT_MIN_MS);
+  const q = waitShown ? null : question;
+  // Never longer than `QUICK_WAIT_MS` — unless something broke: then a way back.
+  const longWait = useCalmWait(waiting, LONG_WAIT_MS, 0) && waiting;
+  // The status line says the wait as it shows (a quick question stays quiet),
+  // and that the question is here when it ends.
+  const [saidFor, setSaidFor] = useState<number | null>(null);
+  if (waitShown && saidFor !== current) setSaidFor(current);
+  const status = waitShown ? 'One moment… your question is on its way.' : saidFor === current ? `Here's question ${current + 1}!` : '';
 
   // On screen = seen, so the next batches leave it out for this kid (#134).
   // Not on the results screen: the next round's batch may be loading under it.
@@ -74,7 +91,7 @@ export default function QuizRound() {
     return () => cancelAnimationFrame(raf);
   }, [selected]);
 
-  if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
+  if (finished) return <RoundResults round={finished} topic={topic} worldUnlocked={worldUnlocked} />;
 
   const total = QUIZ_QUESTION_COUNT;
   const isLastQuestion = current + 1 >= total;
@@ -96,7 +113,6 @@ export default function QuizRound() {
     if (finalPassed) {
       confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
     }
-    setFinished({ questions, answers, picks, level: skillLevel });
     // Misses feed the Library in town (#37) on top of the on-screen recap.
     const misses = questions
       .map((question, i) => ({ question, picked: picks[i] }))
@@ -114,19 +130,23 @@ export default function QuizRound() {
     const newLevel = nextSkillLevel(skillLevel, bankRamp(bankAnswers, answers.length));
     void setSkillLevel(topic, newLevel);
     const bankCorrect = bankAnswers.filter(Boolean).length;
-    if (worldUnlocked && bankCorrect > 0) void addXp(bankCorrect * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)));
+    const xp = worldUnlocked && bankCorrect > 0 ? bankCorrect * (XP_PER_CORRECT + xpBonusPerCorrect(powerUps)) : 0;
+    if (xp > 0) void addXp(xp);
+    setFinished({ questions, answers, picks, level: skillLevel, xp });
     void recordActivity();
     // Warm the next same-topic round so a replay starts instantly — from
     // saved questions only, like a zone's critters (#153): it costs nothing
     // if the kid goes elsewhere, and the round asks for the rest as it plays.
-    prefetchQuestions(topic, age, newLevel, QUIZ_QUESTION_COUNT, undefined, { cacheOnly: true });
+    // Only what the questions carried over to it leave missing (#163 review).
+    warmNextRound(topic, age, newLevel, QUIZ_QUESTION_COUNT);
   }
 
   function goNext() {
     if (isLastQuestion) {
       finishRound();
     } else {
-      advance();
+      // From this question only: a second tap can't skip one (#163 review).
+      advance(current);
       setSelected(null);
     }
   }
@@ -147,88 +167,53 @@ export default function QuizRound() {
             </span>
           </div>
 
-          {/* Always in the page, so a screen reader hears the wait (#163). */}
+          {/* Always in the page and empty at first, so a screen reader hears
+              what's put in it (#163). */}
           <p role="status" data-testid="quiz-status" className="sr-only">
-            {waiting ? 'One moment… your question is on its way.' : ''}
+            {status}
           </p>
 
           <AnimatePresence mode="wait">
             {!q ? (
               // The question isn't here yet (the first one, or the rest of a
               // round still on its way): a short wait in the card, never the
-              // full-screen loader (#163). It fades in a beat late and leaves
-              // at once, so a quick question never flashes it, nor waits
-              // behind it.
+              // full-screen loader (#163). As tall as a question, so the card
+              // doesn't jump when it comes (#163 review).
               <motion.div
                 key="waiting"
                 data-testid="quiz-waiting"
-                aria-hidden
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1, transition: { delay: 0.25, duration: 0.3 } }}
                 exit={{ opacity: 0, transition: { duration: 0 } }}
-                className="min-h-[14rem] flex flex-col items-center justify-center text-center [@media(max-height:500px)]:min-h-[8rem]"
+                className="min-h-[18.5rem] flex flex-col items-center justify-center text-center [@media(max-height:500px)]:min-h-[16rem]"
               >
-                <span className="w-9 h-9 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin motion-reduce:animate-none" />
-                <p className="mt-4 text-lg font-semibold text-gray-700">One moment…</p>
-                <p className="mt-1 text-sm text-gray-500">Your question is on its way!</p>
+                <motion.div
+                  aria-hidden
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: waitShown ? 1 : 0, transition: { duration: waitShown ? 0.2 : 0 } }}
+                  className="flex flex-col items-center"
+                >
+                  <span className="w-9 h-9 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin motion-reduce:animate-none" />
+                  <p className="mt-4 text-lg font-semibold text-gray-700">One moment…</p>
+                  <p className="mt-1 text-sm text-gray-500">Your question is on its way!</p>
+                </motion.div>
+                {longWait && (
+                  <button
+                    onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
+                    className="mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2.5 transition"
+                  >
+                    Back to Topics
+                  </button>
+                )}
               </motion.div>
             ) : (
-              <motion.div
+              <RoundQuestion
                 key={q.id}
-                initial={{ x: 40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -40, opacity: 0 }}
-              >
-                <h2 className="text-xl font-semibold mb-6 [@media(max-height:500px)]:mb-3">{q.text}</h2>
-                <div className="space-y-3 [@media(max-height:500px)]:space-y-2">
-                  {q.options.map((opt, idx) => {
-                    let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 [@media(max-height:500px)]:py-2.5 transition font-medium ';
-                    if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
-                    else if (idx === q.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
-                    else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
-                    else cls += 'border-gray-200 opacity-50';
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => handleAnswer(idx)}
-                        disabled={selected !== null}
-                        className={cls}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {selected !== null && q.explanation && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
-                  >
-                    💡 {q.explanation}
-                  </motion.p>
-                )}
-
-                {selected !== null && (
-                  <div className="mt-3">
-                    <FlagButton questionId={q.id} />
-                  </div>
-                )}
-
-                {selected !== null && (
-                  <motion.button
-                    ref={nextButton}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    onClick={goNext}
-                    className="mt-5 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
-                  >
-                    {isLastQuestion ? 'See Results' : 'Next Question'}
-                  </motion.button>
-                )}
-              </motion.div>
+                q={q}
+                selected={selected}
+                isLastQuestion={isLastQuestion}
+                onAnswer={handleAnswer}
+                onNext={goNext}
+                nextButton={nextButton}
+              />
             )}
           </AnimatePresence>
         </div>
@@ -237,9 +222,85 @@ export default function QuizRound() {
   );
 }
 
-/** The results of a finished round: score, the questions missed, and the way on. */
-function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnlocked: boolean }) {
-  const { questions, answers, picks } = round;
+/**
+ * A question of the round, its answers, and Next once one is picked. While
+ * it slides out it's inert (#163 review): a second tap on its Next, or Enter
+ * again, reaches nothing.
+ */
+function RoundQuestion({
+  q,
+  selected,
+  isLastQuestion,
+  onAnswer,
+  onNext,
+  nextButton,
+}: {
+  q: Question;
+  selected: number | null;
+  isLastQuestion: boolean;
+  onAnswer: (idx: number) => void;
+  onNext: () => void;
+  nextButton: RefObject<HTMLButtonElement>;
+}) {
+  const isPresent = useIsPresent();
+  const card = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (isPresent) card.current?.removeAttribute('inert');
+    else card.current?.setAttribute('inert', '');
+  }, [isPresent]);
+
+  return (
+    <motion.div ref={card} initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}>
+      <h2 className="text-xl font-semibold mb-6 [@media(max-height:500px)]:mb-3">{q.text}</h2>
+      <div className="space-y-3 [@media(max-height:500px)]:space-y-2">
+        {q.options.map((opt, idx) => {
+          let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 [@media(max-height:500px)]:py-2.5 transition font-medium ';
+          if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
+          else if (idx === q.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
+          else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
+          else cls += 'border-gray-200 opacity-50';
+
+          return (
+            <button key={idx} onClick={() => onAnswer(idx)} disabled={selected !== null} className={cls}>
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+
+      {selected !== null && q.explanation && (
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+          💡 {q.explanation}
+        </motion.p>
+      )}
+
+      {selected !== null && (
+        <div className="mt-3">
+          <FlagButton questionId={q.id} />
+        </div>
+      )}
+
+      {selected !== null && (
+        <motion.button
+          ref={nextButton}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          onClick={onNext}
+          className="mt-5 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
+        >
+          {isLastQuestion ? 'See Results' : 'Next Question'}
+        </motion.button>
+      )}
+    </motion.div>
+  );
+}
+
+/** The results of a finished round: score, XP, the questions missed, a fun fact, and the way on. */
+function RoundResults({ round, topic, worldUnlocked }: { round: FinishedRound; topic: Topic; worldUnlocked: boolean }) {
+  const { questions, answers, picks, xp } = round;
+  // One of the topic's fun facts, a small treat at the end (#163 review: the
+  // wait they filled is gone).
+  const [fact] = useState(() => pickFact(topic).replace(/^Did you know\?\s*/, ''));
   const score = questions.length > 0 ? answers.filter(Boolean).length / questions.length : 0;
   const passed = score >= PASS_THRESHOLD;
   const missed = questions
@@ -255,12 +316,14 @@ function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnl
           animate={{ scale: 1, opacity: 1 }}
           className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
         >
-          <div className="text-center">
+          <div className="text-center mb-6">
             <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
             <h2 className="text-2xl font-bold mb-2">
               {passed ? 'Round Passed!' : 'Keep Trying!'}
             </h2>
-            <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
+            <p className="text-gray-500">Score: {Math.round(score * 100)}%</p>
+            {/* Only when it paid some: opening rounds pay none by design (#122). */}
+            {xp > 0 && <p className="mt-1 font-bold text-amber-700">+{xp} XP</p>}
           </div>
 
           {missed.length > 0 && (
@@ -294,6 +357,11 @@ function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnl
               </ul>
             </div>
           )}
+
+          <p className="mb-5 rounded-lg bg-purple-50 px-3 py-2 text-sm text-purple-900">
+            <span aria-hidden="true">💡 </span>
+            <span className="font-semibold">Did you know?</span> {fact}
+          </p>
 
           <div className="flex flex-col gap-2 items-center">
             {worldUnlocked && (

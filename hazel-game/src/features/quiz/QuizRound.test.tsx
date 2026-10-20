@@ -29,12 +29,16 @@ vi.mock('../../lib/supabase', () => ({ supabase: { functions: { invoke } } }));
 function answer(qs: Question[] | Error) {
   return qs instanceof Error ? { data: null, error: qs } : { data: { questions: qs.map(toApi) }, error: null };
 }
-/** The look-ahead finishRound warms for the next round. */
-const { prefetch } = vi.hoisted(() => ({ prefetch: vi.fn() }));
-vi.mock('../../lib/questions', async (orig) => ({
-  ...(await orig<typeof import('../../lib/questions')>()),
-  prefetchQuestions: prefetch,
-}));
+/** The look-ahead finishRound warms for the next round; and a quick start a test can hang. */
+const { warm, hangQuick } = vi.hoisted(() => ({ warm: vi.fn(), hangQuick: { on: false } }));
+vi.mock('../../lib/questions', async (orig) => {
+  const real = await orig<typeof import('../../lib/questions')>();
+  return {
+    ...real,
+    warmNextRound: warm,
+    quickQuestions: (...args: Parameters<typeof real.quickQuestions>) => (hangQuick.on ? new Promise(() => {}) : real.quickQuestions(...args)),
+  };
+});
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 const { markSeen } = vi.hoisted(() => ({ markSeen: vi.fn() }));
 vi.mock('../../lib/seen', () => ({ markSeen }));
@@ -44,7 +48,10 @@ const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { XP_PER_CORRECT } = await import('../../lib/level');
-const { QUICK_WAIT_MS } = await import('../../lib/questions');
+const { QUICK_WAIT_MS, clearCarried } = await import('../../lib/questions');
+const { FUN_FACTS } = await import('../../lib/funFacts');
+const { LONG_WAIT_MS } = await import('./useCalmWait');
+const { flowActor, sendFlow } = await import('../../machines/gameFlow');
 
 /** The bodies the question service was asked with. */
 const asked = () => invoke.mock.calls.map((c) => c[1].body as { count: number; skillLevel: number; cacheOnly?: boolean });
@@ -89,7 +96,9 @@ async function playRound(right: boolean[]) {
 beforeEach(() => {
   addXp.mockReset();
   markSeen.mockClear();
-  prefetch.mockClear();
+  warm.mockClear();
+  hangQuick.on = false;
+  clearCarried();
   server.saved = questions;
   server.rest = () => Promise.resolve([]);
   invoke.mockReset();
@@ -106,6 +115,8 @@ describe('QuizRound — the top bar (#110h)', () => {
     expect(bar.querySelector('.fixed')).toBeNull();
     expect(bar.compareDocumentPosition(await screen.findByText('Question 0?')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     cleanup();
+    // (Left mid-round, the unasked four were carried to the next round: start afresh.)
+    clearCarried();
     await playPerfectRound();
     expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Round Passed!')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -121,6 +132,41 @@ describe('QuizRound — the top bar (#110h)', () => {
     expect(screen.getByTestId('screen-topbar')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
     expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByTestId('quiz-waiting')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('the wait is a question\'s height, so the card doesn\'t jump when it ends (#163 review)', () => {
+    start(1, false);
+    invoke.mockReturnValue(new Promise(() => {}));
+    render(<QuizRound />);
+    // One line and four answers: 296 px, 256 on a short landscape phone (measured).
+    expect(screen.getByTestId('quiz-waiting')).toHaveClass('min-h-[18.5rem]', '[@media(max-height:500px)]:min-h-[16rem]');
+  });
+
+  it('a first question that takes most of a second never brings up the wait (#163 review)', async () => {
+    start(1, false);
+    const said: string[] = [];
+    const saved = server.saved as Question[];
+    invoke.mockImplementation(async (_n: string, { body }: { body: { count: number; cacheOnly?: boolean } }) => {
+      if (!body.cacheOnly) return answer([]);
+      await new Promise((r) => setTimeout(r, 500));
+      return answer(saved.slice(0, body.count));
+    });
+    render(<QuizRound />);
+    const status = screen.getByTestId('quiz-status');
+    const watch = new MutationObserver(() => said.push(status.textContent ?? ''));
+    watch.observe(status, { childList: true, characterData: true, subtree: true });
+    expect(await screen.findByText('Question 0?', {}, { timeout: 2000 })).toBeInTheDocument();
+    watch.disconnect();
+    expect(said.filter(Boolean)).toEqual([]);
+  });
+
+  it('the status line is in the page empty, and says nothing for a question that comes at once (#163 review)', async () => {
+    start(1, false);
+    render(<QuizRound />);
+    // Mounted empty, so what's put in it later is read out.
+    expect(screen.getByTestId('quiz-status')).toBeEmptyDOMElement();
+    await screen.findByText('Question 0?');
+    expect(screen.getByTestId('quiz-status')).toBeEmptyDOMElement();
   });
 
   it('a short landscape phone keeps the bar and the card tight, so the answers stay on screen', async () => {
@@ -247,9 +293,11 @@ describe('QuizRound — the results keep the next round\'s warm-up (#130 review)
     // The round was played at level 3: the questions keep asking for 3, so the
     // new level can't re-key them and use up the batch warmed for the next round.
     await act(async () => {});
-    expect(asked().map((b) => b.skillLevel)).toEqual([3]);
-    // …which is warmed at the new level, from saved questions only (#163).
-    expect(prefetch).toHaveBeenCalledWith('math', expect.any(Number), 5, 5, undefined, { cacheOnly: true });
+    expect(asked().length).toBeGreaterThan(0);
+    expect(asked().every((b) => b.skillLevel === 3)).toBe(true);
+    // …which is warmed at the new level (saved questions only, #163; the
+    // carried-over ones counted, #163 review).
+    expect(warm).toHaveBeenCalledWith('math', expect.any(Number), 5, 5);
   });
 });
 
@@ -349,15 +397,17 @@ describe('QuizRound — starts at once, the rest while the kid answers (#163)', 
       fireEvent.click(await screen.findByText(`Right ${i}`));
       fireEvent.click(screen.getByText('Next Question'));
     }
-    // Question 4 isn't here yet: a short wait in the card, heard as well as seen.
+    // Question 4 isn't here yet: a short wait in the card, heard as well as seen
+    // (a moment late, as it shows — #163 review).
     expect(await screen.findByText('Question 4/5')).toBeInTheDocument();
-    expect(screen.getByTestId('quiz-status')).toHaveTextContent('One moment…');
     expect(await screen.findByTestId('quiz-waiting')).toHaveTextContent('One moment…');
+    await waitFor(() => expect(screen.getByTestId('quiz-status')).toHaveTextContent('One moment…'));
 
-    // The rest arrive — one of them a question the round already asked.
+    // The rest arrive — one of them a question the round already asked — and
+    // the status line says so (#163 review).
     await act(async () => finish([questions[1], questions[3], questions[4]]));
     fireEvent.click(await screen.findByText('Right 3'));
-    expect(screen.getByTestId('quiz-status')).toBeEmptyDOMElement();
+    expect(screen.getByTestId('quiz-status')).toHaveTextContent("Here's question 4!");
     fireEvent.click(screen.getByText('Next Question'));
     fireEvent.click(await screen.findByText('Right 4'));
     fireEvent.click(screen.getByText('See Results'));
@@ -416,4 +466,77 @@ describe('QuizRound — starts at once, the rest while the kid answers (#163)', 
     expect(addXp).toHaveBeenCalledWith(4 * XP_PER_CORRECT);
     warn.mockRestore();
   }, 10000);
+});
+
+describe('QuizRound — review round 1 (#163)', () => {
+  it('a double tap on Next never skips a question: the old card is inert, and the recap pairs every answer with its question', async () => {
+    start(3, true);
+    render(<QuizRound />);
+    fireEvent.click(await screen.findByText('Right 0'));
+    const next = screen.getByRole('button', { name: 'Next Question' });
+    fireEvent.click(next);
+    // Sliding out, the old card takes no more taps or keys…
+    expect(next.closest('[inert]')).not.toBeNull();
+    // …and a tap that gets through anyway moves nothing.
+    fireEvent.click(next);
+    expect(await screen.findByText('Question 1?')).toBeInTheDocument();
+    expect(screen.getByText('Question 2/5')).toBeInTheDocument();
+    // Miss question 2, get the rest.
+    fireEvent.click(screen.getByText('Wrong 1a'));
+    fireEvent.click(screen.getByText('Next Question'));
+    for (let i = 2; i < questions.length; i++) {
+      fireEvent.click(await screen.findByText(`Right ${i}`));
+      fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+    }
+    await screen.findByText('Round Passed!');
+    expect(screen.getByText('Score: 80%')).toBeInTheDocument();
+    // The miss is the question that was on screen, with the answer picked there.
+    expect(screen.getByText('Question 1?')).toBeInTheDocument();
+    expect(screen.getByText('Wrong 1a')).toBeInTheDocument();
+    expect(markSeen.mock.calls.map((c) => c[0])).toEqual(questions.map((q) => q.id));
+    expect(addXp).toHaveBeenCalledWith(4 * XP_PER_CORRECT);
+  });
+
+  it('the results show the XP the round paid, and one of the topic\'s fun facts', async () => {
+    start(3, true);
+    render(<QuizRound />);
+    for (let i = 0; i < questions.length; i++) {
+      fireEvent.click(await screen.findByText(`Right ${i}`));
+      // The first fact, which starts "Did you know?" itself.
+      const random = i === questions.length - 1 ? vi.spyOn(Math, 'random').mockReturnValue(0) : null;
+      fireEvent.click(screen.getByText(i === questions.length - 1 ? 'See Results' : 'Next Question'));
+      random?.mockRestore();
+    }
+    await screen.findByText('Round Passed!');
+    expect(screen.getByText(`+${5 * XP_PER_CORRECT} XP`)).toBeInTheDocument();
+    const fact = screen.getByText('Did you know?').parentElement!;
+    expect(fact).toHaveTextContent(FUN_FACTS.math[0].replace(/^Did you know\?\s*/, ''));
+    // Never "Did you know? Did you know?".
+    expect(fact.textContent!.match(/Did you know\?/g)).toHaveLength(1);
+  });
+
+  it('no XP line for a round that paid none (the opening rounds, #122)', async () => {
+    start(0, false);
+    await playPerfectRound();
+    expect(screen.queryByText(/^\+\d+ XP$/)).toBeNull();
+  });
+
+  it('a wait that runs long (only a bug does that) keeps a way back to the topics', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      start(1, false);
+      sendFlow({ type: 'RESET' });
+      sendFlow({ type: 'READY' });
+      sendFlow({ type: 'PICK_TOPIC', topic: 'math' });
+      expect(flowActor.getSnapshot().value).toBe('quiz');
+      hangQuick.on = true;
+      render(<QuizRound />);
+      expect(screen.queryByRole('button', { name: 'Back to Topics' })).toBeNull();
+      await act(async () => void (await vi.advanceTimersByTimeAsync(LONG_WAIT_MS)));
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Topics' }));
+      expect(flowActor.getSnapshot().value).toBe('topicSelect');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

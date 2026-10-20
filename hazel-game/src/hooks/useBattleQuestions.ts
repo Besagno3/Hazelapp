@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { moreQuestions, quickQuestions, waitFor, QUICK_WAIT_MS } from '../lib/questions';
+import {
+  askFreshForNextRound,
+  carryOver,
+  moreQuestions,
+  quickQuestions,
+  shuffleAnswers,
+  takeCarried,
+  waitFor,
+  BATTLE_START_FILL,
+  QUICK_WAIT_MS,
+} from '../lib/questions';
+import { isStarterId, starterQuestions } from '../content/starterQuestions';
 import { playerAge, skillLevelFor } from '../lib/age';
 import { errorMessage } from '../lib/errors';
+import { useFamilyStore } from '../store/familyStore';
 import { useProfileStore } from '../store/profileStore';
 import type { Question, Topic } from '../types';
 import type { FlavorId } from '../../supabase/functions/_shared/flavors';
@@ -22,9 +34,19 @@ interface Pool {
  * it lands, and the rest are only asked for once it has (or a little later),
  * so nothing the server handed over is wasted. It never errors. The spell
  * pool uses it too (`flavor` 'spell'), so spells are ready as soon as the
- * battle is, and so does the Training Grounds quiz (`useQuizRound`, #163).
+ * battle is, and so does the Training Grounds quiz (`useQuizRound`, #163),
+ * with `carry` (#163 review): it starts on the questions an earlier round of
+ * the topic was handed too late (`takeCarried`), keeps any that land once it's
+ * done with for the next round (`carryOver`), and when the bank covered the
+ * round asks for the next one's in the background, ~1 fresh (`askFreshForNextRound`).
  */
-export function useBattleQuestions(topic: Topic, count: number, levelOverride?: number, flavor?: FlavorId) {
+export function useBattleQuestions(
+  topic: Topic,
+  count: number,
+  levelOverride?: number,
+  flavor?: FlavorId,
+  { carry = false }: { carry?: boolean } = {},
+) {
   const profile = useProfileStore((s) => s.profile);
   const age = playerAge(profile);
   const skillLevel = levelOverride ?? skillLevelFor(profile?.skillLevels ?? {}, topic, age);
@@ -37,11 +59,18 @@ export function useBattleQuestions(topic: Topic, count: number, levelOverride?: 
 
   useEffect(() => {
     let active = true;
+    // The kid this pool is for: what lands after a switch of player is theirs.
+    const kid = useFamilyStore.getState().activeKidId;
+    const carried = carry ? takeCarried(topic, skillLevel, count) : [];
     // What this request's pool holds, kept beside the state so additions can
     // skip questions already in it.
     let have: Question[] = [];
     const add = (qs: Question[]) => {
-      if (!active) return;
+      if (!active) {
+        // Landed once the pool is done with: the quiz keeps them for its next round.
+        if (carry) carryOver(kid, topic, qs);
+        return;
+      }
       const ids = new Set(have.map((q) => q.id));
       const fresh = qs.filter((q) => !ids.has(q.id));
       if (fresh.length === 0) return;
@@ -52,8 +81,12 @@ export function useBattleQuestions(topic: Topic, count: number, levelOverride?: 
     // here is a bug: logged in words, never shown — neither the battle nor the
     // quiz has an error screen any more (#158, #163).
     (async () => {
-      const { questions: first, late } = await quickQuestions(topic, age, skillLevel, count, { flavor });
-      if (!active) return;
+      const { questions: first, late } = await quickQuestions(topic, age, skillLevel, count, carry ? { flavor, have: carried } : { flavor });
+      if (!active) {
+        add(first);
+        late.then(add);
+        return;
+      }
       have = first;
       setPool({ key: requestKey, questions: first });
       late.then(add);
@@ -61,12 +94,21 @@ export function useBattleQuestions(topic: Topic, count: number, levelOverride?: 
       // little longer, so the rest aren't asked for twice.
       await Promise.race([late, waitFor(QUICK_WAIT_MS)]);
       if (!active) return;
-      add(await moreQuestions(topic, age, skillLevel, count, have, flavor));
-    })().catch((e) => console.warn('Questions failed to load:', errorMessage(e)));
+      // A bank that covers the quiz's round asks nothing more for it; the next
+      // round's questions (one of them fresh, #30) are asked for instead.
+      if (carry && have.filter((q) => !isStarterId(q.id)).length >= count) askFreshForNextRound(topic, age, skillLevel, count);
+      else add(await moreQuestions(topic, age, skillLevel, count, have, flavor));
+    })().catch((e) => {
+      console.warn('Questions failed to load:', errorMessage(e));
+      if (!active) return add(carried);
+      // Never a wait for ever (#163 review): with no pool yet, starter questions.
+      const starters = starterQuestions(topic, skillLevel, Math.min(count, BATTLE_START_FILL)).map((q) => shuffleAnswers(q));
+      setPool((p) => (p.key === requestKey ? p : { key: requestKey, questions: [...carried, ...starters] }));
+    });
     return () => {
       active = false;
     };
-  }, [requestKey, topic, age, skillLevel, count, flavor]);
+  }, [requestKey, topic, age, skillLevel, count, flavor, carry]);
 
   const reload = useCallback(() => setAttempt((a) => a + 1), []);
 

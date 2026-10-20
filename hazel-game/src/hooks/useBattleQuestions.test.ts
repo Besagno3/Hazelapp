@@ -5,20 +5,21 @@ import type { Question } from '../types';
 const q = (id: string): Question => ({ id, topic: 'math', level: 4, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
 
 const { quick, more } = vi.hoisted(() => ({ quick: vi.fn(), more: vi.fn() }));
-vi.mock('../lib/questions', () => ({
+vi.mock('../lib/questions', async (orig) => ({
+  ...(await orig<typeof import('../lib/questions')>()),
   quickQuestions: quick,
   moreQuestions: more,
-  QUICK_WAIT_MS: 3000,
-  waitFor: (ms: number) => new Promise((resolve) => setTimeout(() => resolve(null), ms)),
 }));
 /** A quick start with nothing coming late. */
 const started = (qs: Question[]) => ({ questions: qs, late: Promise.resolve([]) });
 
 import { useBattleQuestions } from './useBattleQuestions';
+import { carriedCount, clearCarried } from '../lib/questions';
 
 beforeEach(() => {
   quick.mockReset();
   more.mockReset();
+  clearCarried();
 });
 
 describe('useBattleQuestions (#158)', () => {
@@ -86,5 +87,41 @@ describe('useBattleQuestions — a failure is logged in words, never shown (#163
     await waitFor(() => expect(warn).toHaveBeenCalledWith('Questions failed to load:', 'boom'));
     expect(result.current.error).toBeNull();
     warn.mockRestore();
+  });
+
+  it('…and never waits for ever: with no pool yet, starter questions (#163 review)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    quick.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useBattleQuestions('math', 5, 4));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.questions).toHaveLength(5);
+    expect(result.current.questions.every((x) => x.id.startsWith('starter-math-'))).toBe(true);
+    warn.mockRestore();
+  });
+});
+
+describe('useBattleQuestions — carry (the quiz, #163 review)', () => {
+  it('a battle drops what lands after it is done with; the quiz keeps it for its next round', async () => {
+    for (const carry of [false, true]) {
+      clearCarried();
+      quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3')]));
+      let finish!: (qs: Question[]) => void;
+      more.mockReturnValue(new Promise<Question[]>((resolve) => (finish = resolve)));
+      const { result, unmount } = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry }));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(more).toHaveBeenCalled());
+      unmount();
+      await act(async () => finish([q('n1'), q('n2')]));
+      expect(carriedCount('math', 4)).toBe(carry ? 2 : 0);
+    }
+  });
+
+  it('a quick start that lands after the quiz left is kept too', async () => {
+    let land!: (v: { questions: Question[]; late: Promise<Question[]> }) => void;
+    quick.mockReturnValue(new Promise((r) => (land = r)));
+    const { unmount } = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    unmount();
+    await act(async () => land(started([q('s1'), q('s2'), q('starter-math-middle-1')])));
+    expect(carriedCount('math', 4)).toBe(2);
   });
 });
