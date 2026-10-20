@@ -45,6 +45,8 @@ async function invokeGenerate(
   // the server what it shows (`markSeen`, #134), so a batch handed over here is
   // only held back, not counted as seen.
   const profileId = useFamilyStore.getState().activeKidId;
+  // The server's hold on what it hands over starts with the request (#163 review round 2).
+  const sentAt = Date.now();
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: {
       topic,
@@ -69,6 +71,7 @@ async function invokeGenerate(
   }
 
   const api = (data?.questions ?? []) as ApiQuestion[];
+  noteHandedOver(profileId, api, sentAt);
   return api.map((q) =>
     shuffleAnswers({
       id: q.id,
@@ -376,12 +379,31 @@ const CARRY_MAX = 2 * QUIZ_QUESTION_COUNT;
 /** Used in a round within this many levels of the question's own — the band the server reuses saved questions from. */
 const CARRY_LEVEL_BAND = 2;
 
+/** Carried questions per kid and topic, oldest first; `at` is when the server handed each over. */
 const carried = new Map<string, { question: Question; at: number }[]>();
 /** Topics with a round's fresh request on its way (`askFreshForNextRound`), one at a time. */
 const freshOnTheWay = new Set<string>();
+/**
+ * When each question was handed over to a kid (`kid|id`), so a carried
+ * question's time runs from then — never from when a round carried it, put it
+ * back or carried it again (#163 review round 2): past the server's hold it
+ * could be handed over, and shown, again.
+ */
+const handedAt = new Map<string, number>();
 
 const carryKey = (kid: string | null, topic: Topic) => `${kid ?? ''}|${topic}`;
+const handKey = (kid: string | null, id: string) => `${kid ?? ''}|${id}`;
 const activeKid = () => useFamilyStore.getState().activeKidId;
+
+/**
+ * Notes when `questions` were handed over to `kid` (`invokeGenerate`). Ones
+ * handed over twice the hold ago are forgotten (memory): by then no round
+ * still has them in hand.
+ */
+function noteHandedOver(kid: string | null, questions: { id: string }[], at: number): void {
+  for (const [key, then] of handedAt) if (at - then >= 2 * HELD_FOR_MS) handedAt.delete(key);
+  for (const q of questions) handedAt.set(handKey(kid, q.id), at);
+}
 
 /** The topic's carried questions, the ones older than `HELD_FOR_MS` dropped. */
 function stillHeld(key: string) {
@@ -395,20 +417,25 @@ function stillHeld(key: string) {
 /**
  * Keeps questions a quiz round was handed but couldn't use for `kid`'s next
  * round of `topic`: bank questions only (the starters are always there), none
- * twice, at most `CARRY_MAX`. `kid` is the one the round was for — it may end
- * after a switch of player.
+ * twice, each until `HELD_FOR_MS` after the server handed it over (not after
+ * it was carried). At most `CARRY_MAX`: past that the oldest go — they lapse
+ * first, and a kid who climbed has left them behind — never the new ones,
+ * which fit the next round (#163 review round 2). `kid` is the one the round
+ * was for — it may end after a switch of player.
  */
 export function carryOver(kid: string | null, topic: Topic, questions: Question[]): void {
   const key = carryKey(kid, topic);
   const list = stillHeld(key);
   const ids = new Set(list.map((c) => c.question.id));
-  const at = Date.now();
+  const now = Date.now();
   for (const q of questions) {
-    if (list.length >= CARRY_MAX) break;
     if (isStarterId(q.id) || ids.has(q.id)) continue;
     ids.add(q.id);
-    list.push({ question: q, at });
+    list.push({ question: q, at: handedAt.get(handKey(kid, q.id)) ?? now });
   }
+  list.sort((a, b) => a.at - b.at);
+  list.splice(0, list.length - CARRY_MAX);
+  // (One handed over too long ago goes on the next read, `stillHeld`.)
   if (list.length) carried.set(key, list);
 }
 
@@ -434,10 +461,11 @@ export function carriedCount(topic: Topic, skillLevel: number): number {
   return list.filter((c) => fits(c.question)).length;
 }
 
-/** Forgets every carried question and fresh request (each test starts clean). */
+/** Forgets every carried question, hand-over time and fresh request (each test starts clean). */
 export function clearCarried(): void {
   carried.clear();
   freshOnTheWay.clear();
+  handedAt.clear();
 }
 
 /**
@@ -446,8 +474,10 @@ export function clearCarried(): void {
  * the bank would only grow when it runs short. This asks the way a round
  * always did — `count` questions, of which the server writes about one in
  * five fresh (`chooseFreshCount`, `NOVELTY_RATE`) — in the background, for the
- * kid's next round of the topic (`carryOver`): nothing waits for it. One at a
- * time a topic, and none while the next round is already covered.
+ * kid's next round of the topic (`carryOver`): nothing waits for it. Asked as
+ * a round ends, at the level the next is played at (`warmNextRound`, #163
+ * review round 2). One at a time a topic, and none while the next round is
+ * already covered.
  */
 export function askFreshForNextRound(topic: Topic, age: number, skillLevel: number, count: number): void {
   const kid = activeKid();
@@ -463,12 +493,18 @@ export function askFreshForNextRound(topic: Topic, age: number, skillLevel: numb
 }
 
 /**
- * Warms the kid's next round of `topic` (#163): saved questions only, like a
- * zone's critters (B5) — nothing is written for a round the kid may never
- * play — and only as many as its carried-over questions, and a round's fresh
- * request still on its way, leave missing.
+ * Warms the kid's next round of `topic` at the level it will be played at
+ * (#163): saved questions only, like a zone's critters (B5) — nothing is
+ * written for a round the kid may never play — and only as many as its
+ * carried-over questions, and a round's fresh request still on its way, leave
+ * missing. With `fresh` (the round just played asked the server for nothing
+ * past its saved questions, #30) it asks the way a round always did instead
+ * (`askFreshForNextRound`) — at this level, so what comes fits the next round
+ * (#163 review round 2: asked at the round's own level, a climb of two left
+ * about two of the five behind).
  */
-export function warmNextRound(topic: Topic, age: number, skillLevel: number, count: number): void {
+export function warmNextRound(topic: Topic, age: number, skillLevel: number, count: number, { fresh = false }: { fresh?: boolean } = {}): void {
+  if (fresh) askFreshForNextRound(topic, age, skillLevel, count);
   const coming = freshOnTheWay.has(carryKey(activeKid(), topic)) ? count : 0;
   const ask = count - carriedCount(topic, skillLevel) - coming;
   if (ask > 0) prefetchQuestions(topic, age, skillLevel, count, undefined, { cacheOnly: true, ask });

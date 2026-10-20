@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  askFreshForNextRound,
   carryOver,
   moreQuestions,
   quickQuestions,
@@ -22,6 +21,8 @@ import type { FlavorId } from '../../supabase/functions/_shared/flavors';
 interface Pool {
   key: string;
   questions: Question[];
+  /** The quiz's: its bank questions covered the round, so nothing more was asked of the server. */
+  covered?: boolean;
 }
 
 /**
@@ -37,8 +38,9 @@ interface Pool {
  * battle is, and so does the Training Grounds quiz (`useQuizRound`, #163),
  * with `carry` (#163 review): it starts on the questions an earlier round of
  * the topic was handed too late (`takeCarried`), keeps any that land once it's
- * done with for the next round (`carryOver`), and when the bank covered the
- * round asks for the next one's in the background, ~1 fresh (`askFreshForNextRound`).
+ * done with for the next round (`carryOver`), and says when its bank covered
+ * the round (`covered`), so nothing was written for it — the round's end then
+ * asks for the next one's the normal way, ~1 fresh (`warmNextRound`, #30).
  */
 export function useBattleQuestions(
   topic: Topic,
@@ -94,9 +96,9 @@ export function useBattleQuestions(
       // little longer, so the rest aren't asked for twice.
       await Promise.race([late, waitFor(QUICK_WAIT_MS)]);
       if (!active) return;
-      // A bank that covers the quiz's round asks nothing more for it; the next
-      // round's questions (one of them fresh, #30) are asked for instead.
-      if (carry && have.filter((q) => !isStarterId(q.id)).length >= count) askFreshForNextRound(topic, age, skillLevel, count);
+      // A bank that covers the quiz's round asks nothing more for it: the
+      // round's end asks for the next one's instead (one of them fresh, #30).
+      if (carry && have.filter((q) => !isStarterId(q.id)).length >= count) setPool((p) => (p.key === requestKey ? { ...p, covered: true } : p));
       else add(await moreQuestions(topic, age, skillLevel, count, have, flavor));
     })().catch((e) => {
       console.warn('Questions failed to load:', errorMessage(e));
@@ -112,5 +114,5 @@ export function useBattleQuestions(
 
   const reload = useCallback(() => setAttempt((a) => a + 1), []);
 
-  return { questions: pool.questions, loading, error: null as string | null, age, skillLevel, reload };
+  return { questions: pool.questions, loading, covered: !loading && pool.covered === true, error: null as string | null, age, skillLevel, reload };
 }

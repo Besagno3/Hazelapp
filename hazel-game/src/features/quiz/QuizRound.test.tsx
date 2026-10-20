@@ -29,14 +29,14 @@ vi.mock('../../lib/supabase', () => ({ supabase: { functions: { invoke } } }));
 function answer(qs: Question[] | Error) {
   return qs instanceof Error ? { data: null, error: qs } : { data: { questions: qs.map(toApi) }, error: null };
 }
-/** The look-ahead finishRound warms for the next round; and a quick start a test can hang. */
-const { warm, hangQuick } = vi.hoisted(() => ({ warm: vi.fn(), hangQuick: { on: false } }));
+/** The look-ahead finishRound warms for the next round; and a quick start a test can hang (and land later). */
+const { warm, hangQuick } = vi.hoisted(() => ({ warm: vi.fn(), hangQuick: { on: false, until: null as Promise<unknown> | null } }));
 vi.mock('../../lib/questions', async (orig) => {
   const real = await orig<typeof import('../../lib/questions')>();
   return {
     ...real,
     warmNextRound: warm,
-    quickQuestions: (...args: Parameters<typeof real.quickQuestions>) => (hangQuick.on ? new Promise(() => {}) : real.quickQuestions(...args)),
+    quickQuestions: (...args: Parameters<typeof real.quickQuestions>) => (hangQuick.on ? (hangQuick.until ?? new Promise(() => {})) : real.quickQuestions(...args)),
   };
 });
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
@@ -50,7 +50,8 @@ const { defaultSave } = await import('../../lib/save');
 const { XP_PER_CORRECT } = await import('../../lib/level');
 const { QUICK_WAIT_MS, clearCarried } = await import('../../lib/questions');
 const { FUN_FACTS } = await import('../../lib/funFacts');
-const { LONG_WAIT_MS } = await import('./useCalmWait');
+const { LONG_WAIT_MS, LONG_WAIT_WORDS } = await import('./useCalmWait');
+const { MotionConfig } = await import('framer-motion');
 const { flowActor, sendFlow } = await import('../../machines/gameFlow');
 
 /** The bodies the question service was asked with. */
@@ -98,6 +99,7 @@ beforeEach(() => {
   markSeen.mockClear();
   warm.mockClear();
   hangQuick.on = false;
+  hangQuick.until = null;
   clearCarried();
   server.saved = questions;
   server.rest = () => Promise.resolve([]);
@@ -134,12 +136,19 @@ describe('QuizRound — the top bar (#110h)', () => {
     expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByTestId('quiz-waiting')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('the wait is a question\'s height, so the card doesn\'t jump when it ends (#163 review)', () => {
+  it('the wait is a question\'s height, so the card doesn\'t jump when it ends (#163 review)', async () => {
     start(1, false);
     invoke.mockReturnValue(new Promise(() => {}));
     render(<QuizRound />);
-    // One line and four answers: 296 px, 256 on a short landscape phone (measured).
-    expect(screen.getByTestId('quiz-waiting')).toHaveClass('min-h-[18.5rem]', '[@media(max-height:500px)]:min-h-[16rem]');
+    // Two lines and four answers: 324 px; one line on a short landscape phone,
+    // 256 px, where the card runs past the screen (measured).
+    expect(screen.getByTestId('quiz-waiting')).toHaveClass('min-h-[20.25rem]', '[@media(max-height:500px)]:min-h-[16rem]');
+    cleanup();
+    // …and a question keeps two lines' room, so a one-line one is as tall
+    // as a two-line one (review round 2: two lines grew the card 28 px).
+    invoke.mockImplementation(async (_n: string, { body }: { body: { count: number; cacheOnly?: boolean } }) => answer(body.cacheOnly ? questions.slice(0, body.count) : []));
+    render(<QuizRound />);
+    expect(await screen.findByText('Question 0?')).toHaveClass('min-h-[3.5rem]', '[@media(max-height:500px)]:min-h-0');
   });
 
   it('a first question that takes most of a second never brings up the wait (#163 review)', async () => {
@@ -295,9 +304,10 @@ describe('QuizRound — the results keep the next round\'s warm-up (#130 review)
     await act(async () => {});
     expect(asked().length).toBeGreaterThan(0);
     expect(asked().every((b) => b.skillLevel === 3)).toBe(true);
-    // …which is warmed at the new level (saved questions only, #163; the
-    // carried-over ones counted, #163 review).
-    expect(warm).toHaveBeenCalledWith('math', expect.any(Number), 5, 5);
+    // …which is warmed at the new level (the carried-over ones counted, #163
+    // review) — the normal way, as the bank covered this round (#30, review
+    // round 2: asked at the new level, not this round's).
+    expect(warm).toHaveBeenCalledWith('math', expect.any(Number), 5, 5, { fresh: true });
   });
 });
 
@@ -522,8 +532,7 @@ describe('QuizRound — review round 1 (#163)', () => {
   });
 
   it('a wait that runs long (only a bug does that) keeps a way back to the topics', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
-    try {
+    await onFakeTime(async () => {
       start(1, false);
       sendFlow({ type: 'RESET' });
       sendFlow({ type: 'READY' });
@@ -535,8 +544,175 @@ describe('QuizRound — review round 1 (#163)', () => {
       await act(async () => void (await vi.advanceTimersByTimeAsync(LONG_WAIT_MS)));
       fireEvent.click(screen.getByRole('button', { name: 'Back to Topics' }));
       expect(flowActor.getSnapshot().value).toBe('topicSelect');
-    } finally {
-      vi.useRealTimers();
-    }
+    });
+  });
+});
+
+/** Real time's own timer, taken before any test fakes it. */
+const realSetTimeout = globalThis.setTimeout;
+/**
+ * Fake time on: moves it on by `ms`, letting what's due run — 16 ms at a time,
+ * so React renders between (inside one `act` it would only render at the end).
+ */
+async function step(ms: number) {
+  for (let t = 0; t < ms; t += 16) await act(async () => void (await vi.advanceTimersByTimeAsync(Math.min(16, ms - t))));
+}
+/**
+ * Steps fake time until `check` holds. The motion runs its frames on the
+ * real animation-frame clock (framer-motion takes it at import), reading the
+ * fake time, so each step lets a real frame go by too.
+ */
+async function stepUntil(check: () => boolean, maxMs = 5000) {
+  for (let t = 0; t < maxMs && !check(); t += 16) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(16);
+      await new Promise((r) => realSetTimeout(r, 20));
+    });
+  }
+  expect(check()).toBe(true);
+}
+const heading = () => screen.queryByRole('heading', { level: 2 })?.textContent;
+/** Runs `test` on fake time, then unmounts and lets the motion's last frames run before real time is back — a frame left waiting would stall every later test's motion. */
+async function onFakeTime(test: () => Promise<void>) {
+  vi.useFakeTimers();
+  try {
+    await test();
+  } finally {
+    cleanup();
+    await vi.advanceTimersByTimeAsync(1000);
+    vi.useRealTimers();
+  }
+}
+/** Every text the status line takes, in order. */
+function hear() {
+  const status = screen.getByTestId('quiz-status');
+  const said: string[] = [];
+  const watch = new MutationObserver(() => said.push(status.textContent ?? ''));
+  watch.observe(status, { childList: true, characterData: true, subtree: true });
+  return said;
+}
+
+describe('QuizRound — review round 2 (#163)', () => {
+  it('a round its saved questions covered asks for the next one\'s the normal way, at the new level; one that asked for the rest only warms', async () => {
+    start(3, true);
+    await playPerfectRound();
+    expect(warm).toHaveBeenLastCalledWith('math', expect.any(Number), 5, 5, { fresh: true });
+    cleanup();
+    warm.mockClear();
+    // Three saved: the round asked for the other two (Claude may write them).
+    server.saved = questions.slice(0, 3);
+    server.rest = () => Promise.resolve(questions.slice(3));
+    await playPerfectRound();
+    expect(asked().filter((b) => !b.cacheOnly)).toHaveLength(1);
+    expect(warm).toHaveBeenLastCalledWith('math', expect.any(Number), 5, 5, { fresh: false });
+  });
+
+  it('the "+N XP" line counts the bank questions\' right answers only, as paid', async () => {
+    start(3, true);
+    // Two from the bank, three starters — every answer right.
+    server.saved = questions.map((q, i) => (i < 2 ? q : { ...q, id: `starter-math-easy-${i + 1}` }));
+    await playPerfectRound();
+    expect(screen.getByText(`+${2 * XP_PER_CORRECT} XP`)).toBeInTheDocument();
+    expect(screen.queryByText(`+${5 * XP_PER_CORRECT} XP`)).toBeNull();
+  });
+
+  it('a question that lands while the last one is still sliding out comes straight in — the wait starts only once the slot is free', async () => {
+    await onFakeTime(async () => {
+      start(3, true);
+      server.saved = questions.slice(0, 3);
+      const rest: ((qs: Question[]) => void)[] = [];
+      server.rest = () => new Promise((resolve) => rest.push(resolve));
+      // A slide of 1 s, so "still sliding out" is long enough to land in.
+      render(
+        <MotionConfig transition={{ duration: 1 }}>
+          <QuizRound />
+        </MotionConfig>,
+      );
+      const said = hear();
+      for (let i = 0; i < 3; i++) {
+        await stepUntil(() => heading() === `Question ${i}?`);
+        fireEvent.click(screen.getByText(`Right ${i}`));
+        fireEvent.click(screen.getByText('Next Question'));
+      }
+      // Half a second on, question 3 is still on its way out: no wait yet
+      // (it used to show 0.25 s after the tap, behind the old card).
+      await step(500);
+      expect(said.filter(Boolean)).toEqual([]);
+      await act(async () => rest[0](questions.slice(3)));
+      await stepUntil(() => heading() === 'Question 3?');
+      expect(said.filter(Boolean)).toEqual([]);
+      expect(screen.queryByTestId('quiz-waiting')).toBeNull();
+    });
+  });
+
+  it('…and when nothing has come, the wait shows a beat after the old question has gone', async () => {
+    await onFakeTime(async () => {
+      start(3, true);
+      server.saved = questions.slice(0, 3);
+      server.rest = () => new Promise(() => {});
+      render(
+        <MotionConfig transition={{ duration: 1 }}>
+          <QuizRound />
+        </MotionConfig>,
+      );
+      for (let i = 0; i < 3; i++) {
+        await stepUntil(() => heading() === `Question ${i}?`);
+        fireEvent.click(screen.getByText(`Right ${i}`));
+        fireEvent.click(screen.getByText('Next Question'));
+      }
+      // Question 3 has gone: the wait's place is there, its clock just started.
+      await stepUntil(() => !!screen.queryByTestId('quiz-waiting'));
+      expect(screen.getByTestId('quiz-status')).toBeEmptyDOMElement();
+      await step(200);
+      expect(screen.getByTestId('quiz-status')).toBeEmptyDOMElement();
+      await step(60);
+      expect(screen.getByTestId('quiz-status')).toHaveTextContent('One moment…');
+      expect(screen.getByTestId('quiz-waiting')).toHaveTextContent('One moment…');
+    });
+  });
+
+  it('a wait past 8 s says so — not "on its way" — and so does the status line, once; the way back goes the moment the question comes', async () => {
+    await onFakeTime(async () => {
+      start(1, false);
+      let land!: (v: unknown) => void;
+      hangQuick.on = true;
+      hangQuick.until = new Promise((r) => (land = r));
+      render(<QuizRound />);
+      const said = hear();
+      await step(LONG_WAIT_MS - 1);
+      expect(screen.queryByRole('button', { name: 'Back to Topics' })).toBeNull();
+      expect(screen.getByTestId('quiz-waiting')).toHaveTextContent('Your question is on its way!');
+      await step(1);
+      const wait = screen.getByTestId('quiz-waiting');
+      expect(wait).toHaveTextContent('This is taking a while.');
+      expect(wait).toHaveTextContent('You can go back and pick again.');
+      expect(wait).not.toHaveTextContent(/on its way/);
+      expect(wait.querySelector('.animate-spin')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Back to Topics' })).toBeInTheDocument();
+      expect(screen.getByTestId('quiz-status')).toHaveTextContent(LONG_WAIT_WORDS);
+      await step(5000);
+      expect(said.filter((t) => t === LONG_WAIT_WORDS)).toHaveLength(1);
+      // The question comes after all: the way back is gone at once.
+      await act(async () => land({ questions, late: Promise.resolve([]) }));
+      expect(screen.queryByRole('button', { name: 'Back to Topics' })).toBeNull();
+      await stepUntil(() => heading() === 'Question 0?');
+      expect(screen.getByTestId('quiz-status')).toHaveTextContent("Here's question 1!");
+      expect(said.filter(Boolean)).toEqual(['One moment… your question is on its way.', LONG_WAIT_WORDS, "Here's question 1!"]);
+    });
+  });
+
+  it('a short landscape phone tightens the results card — the emoji beside the title, the XP beside the score — and the fact has its own mark', async () => {
+    start(3, true);
+    await playPerfectRound();
+    const title = screen.getByRole('heading', { name: 'Round Passed!' });
+    const row = title.parentElement!;
+    expect(row).toHaveClass('[@media(max-height:500px)]:flex');
+    expect(row.firstElementChild).toHaveClass('text-6xl', '[@media(max-height:500px)]:text-4xl', '[@media(max-height:500px)]:mb-0');
+    expect(screen.getByText(`+${5 * XP_PER_CORRECT} XP`).parentElement).toHaveClass('[@media(max-height:500px)]:flex');
+    expect(row.closest('.rounded-2xl')).toHaveClass('p-8', '[@media(max-height:500px)]:py-4');
+    // 🌟 for the fact — 💡 is the recap's explanations.
+    const fact = screen.getByText('Did you know?').parentElement!;
+    expect(fact).toHaveTextContent(/^🌟 Did you know\?/);
+    expect(fact).not.toHaveTextContent('💡');
   });
 });

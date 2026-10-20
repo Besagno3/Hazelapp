@@ -794,7 +794,8 @@ zod, react-query. Add the package in the same change that first uses it.
   reaches it — the next bank question when one is in, else a starter
   (`nextRoundQuestion`), never one the round asked — and if nothing new has
   arrived it says "One moment…" in its card (not a full-screen loader; shown
-  only after a beat and then for at least 0.4 s, `useCalmWait`) for at most
+  only after a beat, counted once the last question has slid out, and then
+  for at least 0.4 s, `useCalmWait`) for at most
   `QUICK_WAIT_MS`, then asks a starter (`withSpareStarters`), so a round
   always finishes. Next moves on only from the question it belongs to
   (`advance(from)`), and a question sliding out is inert. The quiz runs
@@ -802,10 +803,12 @@ zod, react-query. Add the package in the same change that first uses it.
   (in after every slot was taken, or after the kid left) are carried to the
   kid's next round of the topic (`carryOver` / `takeCarried`, in memory, per
   kid, within ±2 levels, dropped after `HELD_FOR_MS`) and go first there
-  (`quickQuestions`' `have`: with 3 it starts at once); the round-end
-  look-ahead (`warmNextRound`) asks only for what they leave missing; and a
-  round whose bank covered it asks, in the background, for the next round's
-  — a normal request, ~1 fresh (#30, `askFreshForNextRound`). Gates, chests and tale-stones, shrine trials, the Spire
+  (`quickQuestions`' `have`: with 3 it starts at once), each kept until 45
+  min after the server handed it over (`noteHandedOver`), the oldest going
+  at the cap; the round-end look-ahead (`warmNextRound`, at the new level)
+  asks only for what they leave missing; and a round whose bank covered it
+  (`covered`) asks instead, as it ends, for the next round's — a normal
+  request at the new level, ~1 fresh (#30, `askFreshForNextRound`). Gates, chests and tale-stones, shrine trials, the Spire
   and a battle's speed boost still use `fetchQuestions` (one call, the whole
   batch, starters for whatever the server can't give).
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
@@ -1024,6 +1027,55 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-20 — Quiz review round 2: the next round asked for at its own level, held questions that never outlive the server's hold, a wait that starts when the slot is free, a results card that fits a sideways phone (#163)
+`/saas-code-review` (2 medium, 1 low) and `/saas-ux-review` (4 low + 2 also
+noted), all fixed; the lead's calls on the two open questions. **The next
+round's questions are asked for as a round ends, at the level it's played
+at:** a round its saved questions covered (`useBattleQuestions`' new
+`covered`, through `useQuizRound`) has `finishRound` call `warmNextRound(…,
+newLevel, …, { fresh: true })`, which makes the normal request (~1 fresh,
+#30, `askFreshForNextRound`) there instead of the saved-only look-ahead —
+it used to go out as the round started, at that round's level, so after a
+climb of two about 2 of its 5 never fitted the next round and sat held and
+unused. At the cap of 10 the oldest carried questions go (`carryOver` sorts
+by hand-over time), never the new ones that fit. **A held question never
+outlives the server's hold:** `invokeGenerate` notes when it handed each
+question over, per kid (`noteHandedOver`, the request's send time), and a
+carried question keeps that time — carrying it, putting it back unasked or
+carrying it again no longer restarts its 45 minutes (it could be offered 75–84
+min after hand-over, past the server's hour, so the kid could see it twice).
+Tests for the per-kid routing and the catch path's carried questions (6 of
+the reviewer's 14 mutations survived; all 14, and 19 more of this round's,
+now fail a test). **The wait starts when the slot is free:** Next sets
+`leaving`, cleared by `AnimatePresence`'s `onExitComplete`, and the calm
+wait gets `waiting && !leaving` — a question that lands while the old card
+slides out (~0.42 s) comes straight in, never behind a 0.17 s flash of "One
+moment…" or held for its 0.4 s minimum. **At 8 s** the card says "This is
+taking a while. You can go back and pick again." (no spinner, no "on its
+way") over "Back to Topics", the status line says it once
+(`LONG_WAIT_WORDS`), and the button goes the moment a question comes.
+**Results on a short landscape phone** (`[@media(max-height:500px)]`): the
+emoji (text-4xl) beside the title, the XP beside the score, tighter padding
+and gaps — a perfect world round's card is 264 px at 740×360 (was 424, 140 px
+past the screen), both buttons on screen; portrait and desktop unchanged.
+The fact has its own mark, 🌟 (💡 is the recap's explanations). Five facts
+reworded for a 7-year-old (no "asylum", the Cleopatra line, "slow
+microwaves", factors, 99.965%) and the Sun's "99.8% of the mass" too, which
+the new no-decimal-percentages test caught. **Also noted:** the wait block
+and a question keep two lines' room (`min-h-[20.25rem]`, the h2
+`min-h-[3.5rem]`), so a two-line question no longer grows the card 28 px; on
+a short landscape phone it stays one line (the page already scrolls there,
+and a second line would push every one-line question's last answer below
+the fold). Starter-only rounds still show no XP line (the lead).
+Stubbed app (BENCH_PORT 5781): the rest of a round released 150–600 ms
+after Next → the wait never shows, no status line (375×667, 320×568,
+740×360, 1024×768); 800 ms → shown from ~0.74 s for 0.42 s; at 8 s the new
+words at three sizes, Tab reaches Back; results at 320×568, 375×667, 740×360
+touch and 1024×768; a two-line question 424 px waiting and shown at 375×667
+and 1024×768; a rich bank whose kid reads the results 25 s → every round
+starts on the five asked at its level, none stranded, one call a round.
+Tests 1844 → 1861.
 
 ### 2026-10-20 — The quiz starts at once review round 1: no skipped question, nothing wasted, a wait that never flashes, XP and a fun fact (#163)
 `/saas-code-review` (1 high, 2 medium, 3 low) and `/saas-ux-review` (1

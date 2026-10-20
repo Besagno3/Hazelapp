@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react';
  * has lasted `delayMs`, and then for at least `minMs` — so a quick arrival
  * never shows it, and a slower one never cuts it off mid-fade. While it's
  * true after `waiting` ends, the screen keeps the wait up a moment longer.
+ * `waiting` is true only while the wait's place is on screen (the quiz's
+ * isn't while the last question slides out, #163 review round 2), so the
+ * clock runs from when it could be seen.
  */
 export function useCalmWait(waiting: boolean, delayMs: number, minMs: number): boolean {
   const [shownAt, setShownAt] = useState<number | null>(null);
@@ -32,3 +35,5 @@ export const WAIT_DELAY_MS = 250;
 export const WAIT_MIN_MS = 400;
 /** A wait this long is a bug (a round's longest is `QUICK_WAIT_MS`): the way back to the topics shows. */
 export const LONG_WAIT_MS = 8000;
+/** What the card and the status line say then, over "Back to Topics" (#163 review round 2). */
+export const LONG_WAIT_WORDS = 'This is taking a while. You can go back and pick again.';

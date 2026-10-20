@@ -18,10 +18,12 @@ import type { Question, Topic } from '../../types';
  * Nothing the server hands over is wasted (#163 review): the round starts on
  * the questions an earlier round of the topic got too late, and what it can't
  * use — in once every slot is taken, or not asked when the kid leaves — is
- * carried over to the next (`carryOver`).
+ * carried over to the next (`carryOver`). `covered`: the round's saved
+ * questions covered it, so nothing was written for it (#30) — its end asks
+ * for the next round's the normal way (`warmNextRound`'s `fresh`).
  */
 export function useQuizRound(topic: Topic, count: number, levelOverride?: number) {
-  const { questions: pool, loading, age, skillLevel } = useBattleQuestions(topic, count, levelOverride, undefined, { carry: true });
+  const { questions: pool, loading, covered, age, skillLevel } = useBattleQuestions(topic, count, levelOverride, undefined, { carry: true });
   /** The round's questions so far, in the order asked. */
   const [asked, setAsked] = useState<Question[]>([]);
   /** Where the kid is in the round, from 0. */
@@ -72,5 +74,5 @@ export function useQuizRound(topic: Topic, count: number, levelOverride?: number
    */
   const advance = useCallback((from: number) => setNumber((n) => (n === from ? Math.min(n + 1, count - 1) : n)), [count]);
 
-  return { question: waiting ? null : asked[number], number, asked, waiting, advance, age, skillLevel };
+  return { question: waiting ? null : asked[number], number, asked, waiting, advance, covered, age, skillLevel };
 }

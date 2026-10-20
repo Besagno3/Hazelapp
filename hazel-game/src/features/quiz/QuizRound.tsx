@@ -5,7 +5,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { useQuizRound } from './useQuizRound';
-import { useCalmWait, FIRST_WAIT_DELAY_MS, LONG_WAIT_MS, WAIT_DELAY_MS, WAIT_MIN_MS } from './useCalmWait';
+import { useCalmWait, FIRST_WAIT_DELAY_MS, LONG_WAIT_MS, LONG_WAIT_WORDS, WAIT_DELAY_MS, WAIT_MIN_MS } from './useCalmWait';
 import { PASS_THRESHOLD } from '../../lib/utils';
 import { bankRamp, nextSkillLevel } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
@@ -42,7 +42,7 @@ export default function QuizRound() {
   const [finished, setFinished] = useState<FinishedRound | null>(null);
   // Starts at once on saved questions (or starters) and takes the rest as
   // they come — no wait for the whole round (#163).
-  const { question, number: current, asked, waiting, advance, age, skillLevel } = useQuizRound(
+  const { question, number: current, asked, waiting, advance, covered, age, skillLevel } = useQuizRound(
     topic,
     QUIZ_QUESTION_COUNT,
     // Once the round is over, keep asking at the level it was played at: the
@@ -56,18 +56,32 @@ export default function QuizRound() {
   /** The option index the player picked, per question — for the missed-questions recap (#25). */
   const [picks, setPicks] = useState<number[]>([]);
 
+  // The question Next was tapped on is still sliding out (#163 review round
+  // 2): its slot isn't free yet, so the wait hasn't begun — a question that
+  // lands meanwhile comes straight in, never behind a flash of the wait.
+  const [leaving, setLeaving] = useState(false);
   // The wait for a question shows only once it has lasted a moment — longer
   // for the round's first, whose saved questions often take most of a
   // second — and then stays a moment, so it never flashes (#163 review).
-  const waitShown = useCalmWait(waiting, current === 0 ? FIRST_WAIT_DELAY_MS : WAIT_DELAY_MS, WAIT_MIN_MS);
+  const waitShown = useCalmWait(waiting && !leaving, current === 0 ? FIRST_WAIT_DELAY_MS : WAIT_DELAY_MS, WAIT_MIN_MS);
   const q = waitShown ? null : question;
-  // Never longer than `QUICK_WAIT_MS` — unless something broke: then a way back.
-  const longWait = useCalmWait(waiting, LONG_WAIT_MS, 0) && waiting;
+  // Never longer than `QUICK_WAIT_MS` — unless something broke: then words
+  // that say so, and a way back while it lasts (it goes the moment the
+  // question comes; the words go with the wait).
+  const longShown = useCalmWait(waiting, LONG_WAIT_MS, 0);
+  const longWait = longShown && waiting;
   // The status line says the wait as it shows (a quick question stays quiet),
-  // and that the question is here when it ends.
+  // that the way back is there once it runs long, and that the question is
+  // here when it ends.
   const [saidFor, setSaidFor] = useState<number | null>(null);
   if (waitShown && saidFor !== current) setSaidFor(current);
-  const status = waitShown ? 'One moment… your question is on its way.' : saidFor === current ? `Here's question ${current + 1}!` : '';
+  const status = longShown
+    ? LONG_WAIT_WORDS
+    : waitShown
+      ? 'One moment… your question is on its way.'
+      : saidFor === current
+        ? `Here's question ${current + 1}!`
+        : '';
 
   // On screen = seen, so the next batches leave it out for this kid (#134).
   // Not on the results screen: the next round's batch may be loading under it.
@@ -138,7 +152,10 @@ export default function QuizRound() {
     // saved questions only, like a zone's critters (#153): it costs nothing
     // if the kid goes elsewhere, and the round asks for the rest as it plays.
     // Only what the questions carried over to it leave missing (#163 review).
-    warmNextRound(topic, age, newLevel, QUIZ_QUESTION_COUNT);
+    // A round its saved questions covered had nothing written for it: the
+    // next one's are asked for the normal way, ~1 fresh (#30) — at the new
+    // level, so they fit it (#163 review round 2).
+    warmNextRound(topic, age, newLevel, QUIZ_QUESTION_COUNT, { fresh: covered });
   }
 
   function goNext() {
@@ -148,6 +165,7 @@ export default function QuizRound() {
       // From this question only: a second tap can't skip one (#163 review).
       advance(current);
       setSelected(null);
+      setLeaving(true);
     }
   }
 
@@ -173,27 +191,41 @@ export default function QuizRound() {
             {status}
           </p>
 
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" onExitComplete={() => setLeaving(false)}>
             {!q ? (
               // The question isn't here yet (the first one, or the rest of a
               // round still on its way): a short wait in the card, never the
-              // full-screen loader (#163). As tall as a question, so the card
-              // doesn't jump when it comes (#163 review).
+              // full-screen loader (#163). As tall as a question of up to two
+              // lines, so the card doesn't jump when it comes (#163 review;
+              // one line on a short landscape phone, where the page already
+              // scrolls and a second would push a one-line question's last
+              // answer below the fold).
               <motion.div
                 key="waiting"
                 data-testid="quiz-waiting"
                 exit={{ opacity: 0, transition: { duration: 0 } }}
-                className="min-h-[18.5rem] flex flex-col items-center justify-center text-center [@media(max-height:500px)]:min-h-[16rem]"
+                className="min-h-[20.25rem] flex flex-col items-center justify-center text-center [@media(max-height:500px)]:min-h-[16rem]"
               >
                 <motion.div
                   aria-hidden
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: waitShown ? 1 : 0, transition: { duration: waitShown ? 0.2 : 0 } }}
+                  animate={{ opacity: waitShown || longShown ? 1 : 0, transition: { duration: waitShown || longShown ? 0.2 : 0 } }}
                   className="flex flex-col items-center"
                 >
-                  <span className="w-9 h-9 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin motion-reduce:animate-none" />
-                  <p className="mt-4 text-lg font-semibold text-gray-700">One moment…</p>
-                  <p className="mt-1 text-sm text-gray-500">Your question is on its way!</p>
+                  {longShown ? (
+                    // Taking far too long (only a bug): no more "on its way",
+                    // the way back instead (#163 review round 2).
+                    <>
+                      <p className="text-lg font-semibold text-gray-700">This is taking a while.</p>
+                      <p className="mt-1 text-sm text-gray-500">You can go back and pick again.</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="w-9 h-9 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin motion-reduce:animate-none" />
+                      <p className="mt-4 text-lg font-semibold text-gray-700">One moment…</p>
+                      <p className="mt-1 text-sm text-gray-500">Your question is on its way!</p>
+                    </>
+                  )}
                 </motion.div>
                 {longWait && (
                   <button
@@ -251,7 +283,8 @@ function RoundQuestion({
 
   return (
     <motion.div ref={card} initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}>
-      <h2 className="text-xl font-semibold mb-6 [@media(max-height:500px)]:mb-3">{q.text}</h2>
+      {/* Two lines' room, like the wait before it (#163 review round 2). */}
+      <h2 className="text-xl font-semibold mb-6 min-h-[3.5rem] [@media(max-height:500px)]:mb-3 [@media(max-height:500px)]:min-h-0">{q.text}</h2>
       <div className="space-y-3 [@media(max-height:500px)]:space-y-2">
         {q.options.map((opt, idx) => {
           let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 [@media(max-height:500px)]:py-2.5 transition font-medium ';
@@ -311,23 +344,30 @@ function RoundResults({ round, topic, worldUnlocked }: { round: FinishedRound; t
     <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
       <ScreenTopBar />
       <div className="flex-1 w-full flex items-center justify-center">
+        {/* A short landscape phone (740×360) tightens the card — the emoji
+            beside the title, the XP beside the score — so the buttons stay
+            on screen (#163 review round 2). */}
         <motion.div
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
+          className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:py-4"
         >
-          <div className="text-center mb-6">
-            <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
-            <h2 className="text-2xl font-bold mb-2">
-              {passed ? 'Round Passed!' : 'Keep Trying!'}
-            </h2>
-            <p className="text-gray-500">Score: {Math.round(score * 100)}%</p>
-            {/* Only when it paid some: opening rounds pay none by design (#122). */}
-            {xp > 0 && <p className="mt-1 font-bold text-amber-700">+{xp} XP</p>}
+          <div className="text-center mb-6 [@media(max-height:500px)]:mb-3">
+            <div className="[@media(max-height:500px)]:flex [@media(max-height:500px)]:items-center [@media(max-height:500px)]:justify-center [@media(max-height:500px)]:gap-2">
+              <div className="text-6xl mb-4 [@media(max-height:500px)]:text-4xl [@media(max-height:500px)]:mb-0">{passed ? '🏆' : '😅'}</div>
+              <h2 className="text-2xl font-bold mb-2 [@media(max-height:500px)]:mb-0">
+                {passed ? 'Round Passed!' : 'Keep Trying!'}
+              </h2>
+            </div>
+            <div className="[@media(max-height:500px)]:flex [@media(max-height:500px)]:items-baseline [@media(max-height:500px)]:justify-center [@media(max-height:500px)]:gap-3">
+              <p className="text-gray-500">Score: {Math.round(score * 100)}%</p>
+              {/* Only when it paid some: opening rounds pay none by design (#122). */}
+              {xp > 0 && <p className="mt-1 font-bold text-amber-700 [@media(max-height:500px)]:mt-0">+{xp} XP</p>}
+            </div>
           </div>
 
           {missed.length > 0 && (
-            <div className="mb-6 text-left">
+            <div className="mb-6 text-left [@media(max-height:500px)]:mb-3">
               <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
                 What you missed
               </h3>
@@ -358,8 +398,9 @@ function RoundResults({ round, topic, worldUnlocked }: { round: FinishedRound; t
             </div>
           )}
 
-          <p className="mb-5 rounded-lg bg-purple-50 px-3 py-2 text-sm text-purple-900">
-            <span aria-hidden="true">💡 </span>
+          {/* Its own mark: 💡 is the recap's explanations (#163 review round 2). */}
+          <p className="mb-5 rounded-lg bg-purple-50 px-3 py-2 text-sm text-purple-900 [@media(max-height:500px)]:mb-3 [@media(max-height:500px)]:py-1.5">
+            <span aria-hidden="true">🌟 </span>
             <span className="font-semibold">Did you know?</span> {fact}
           </p>
 

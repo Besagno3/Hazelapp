@@ -25,6 +25,16 @@ function pending<T>() {
 const { useQuizRound } = await import('./useQuizRound');
 const { QUICK_WAIT_MS, clearCarried, carriedCount } = await import('../../lib/questions');
 const { isStarterId } = await import('../../content/starterQuestions');
+const { useFamilyStore } = await import('../../store/familyStore');
+
+/** `carriedCount` for `kid` (it reads the kid playing). */
+function carriedFor(kid: string | null, level = 4) {
+  const playing = useFamilyStore.getState().activeKidId;
+  useFamilyStore.setState({ activeKidId: kid });
+  const n = carriedCount('math', level);
+  useFamilyStore.setState({ activeKidId: playing });
+  return n;
+}
 
 /** Lets the promises and timers due by now run. */
 const flush = (ms = 0) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
@@ -35,6 +45,7 @@ beforeEach(() => {
   more.mockReset();
   fresh.mockReset();
   clearCarried();
+  useFamilyStore.setState({ activeKidId: 'kid-1' });
 });
 afterEach(() => {
   vi.useRealTimers();
@@ -226,21 +237,50 @@ describe('useQuizRound — review round 1 (#163)', () => {
     expect(carriedCount('math', 4)).toBe(3);
   });
 
-  it('a bank that covers the round asks nothing more for it, but the next round\'s questions — about one fresh (#30) — in the background', async () => {
+  it('a bank that covers the round asks nothing more for it, and says so — the round\'s end asks for the next one\'s (#30; review round 2)', async () => {
     quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3'), q('s4'), q('s5')]));
     const { result } = renderHook(() => useQuizRound('math', 5, 4));
     await flush();
     expect(result.current.question?.id).toBe('s1');
     expect(more).not.toHaveBeenCalled();
-    expect(fresh).toHaveBeenCalledWith('math', expect.any(Number), 4, 5);
+    expect(result.current.covered).toBe(true);
+    // Not at the round's start, at the level it started at (review round 2).
+    expect(fresh).not.toHaveBeenCalled();
   });
 
   it('a thin bank asks for the rest as before, and no extra request', async () => {
     quick.mockResolvedValue(started([q('s1'), q('starter-math-easy-1'), q('starter-math-easy-2')]));
     more.mockResolvedValue([]);
-    renderHook(() => useQuizRound('math', 5, 4));
+    const { result } = renderHook(() => useQuizRound('math', 5, 4));
     await flush();
     expect(more).toHaveBeenCalled();
+    expect(result.current.covered).toBe(false);
     expect(fresh).not.toHaveBeenCalled();
+  });
+});
+
+describe('useQuizRound — review round 2 (#163)', () => {
+  it('left mid-round by a switch of player: what the round never asked goes to the kid it was for', async () => {
+    quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3'), q('s4')]));
+    more.mockReturnValue(pending<Question[]>().promise);
+    const { result, unmount } = renderHook(() => useQuizRound('math', 5, 4));
+    await flush();
+    act(() => result.current.advance(0));
+    // switchPlayer: no kid playing, then the quiz unmounts.
+    useFamilyStore.setState({ activeKidId: null });
+    unmount();
+    expect(carriedFor('kid-1')).toBe(2);
+    expect(carriedFor(null)).toBe(0);
+  });
+
+  it('every slot taken after the kid playing changed: the rest still go to the kid the round was for', async () => {
+    quick.mockResolvedValue(started([1, 2, 3, 4, 5, 6, 7].map((n) => q(`s${n}`))));
+    const { result } = renderHook(() => useQuizRound('math', 5, 4));
+    await flush();
+    useFamilyStore.setState({ activeKidId: 'kid-2' });
+    for (let i = 0; i < 4; i++) act(() => result.current.advance(i));
+    expect(result.current.asked).toHaveLength(5);
+    expect(carriedFor('kid-1')).toBe(2);
+    expect(carriedFor('kid-2')).toBe(0);
   });
 });

@@ -641,3 +641,87 @@ describe('a quiz round — review round 1 (#163)', () => {
     }
   });
 });
+
+describe('a quiz round — review round 2 (#163)', () => {
+  const q = (id: string, level = 5): Question => ({ id, topic: 'math', level, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
+  const ids = (qs: Question[]) => qs.map((x) => x.id);
+  /** The server's answer: saved questions from the ±2 band around the level asked, the fresh one at it. */
+  const band = (level: number, from = 0) => [-2, -1, 0, 1, 2].map((d, i) => ({ ...apiBatch(1, from + i)[0], level: level + d }));
+
+  it("the next round's fresh request goes out as the round ends, at the level it is played at, and all it brings fits that round", async () => {
+    invokeMock.mockImplementation(async (_n: string, { body }: { body: { skillLevel: number } }) => ({ data: { questions: band(body.skillLevel) }, error: null }));
+    // A round at level 5 aced: the next is at 7.
+    warmNextRound('math', 9, 7, 5, { fresh: true });
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+    const body = invokeMock.mock.calls[0][1].body;
+    expect(body).toMatchObject({ topic: 'math', skillLevel: 7, count: 5 });
+    expect(body).not.toHaveProperty('cacheOnly');
+    // None stranded: all five within two levels of 7.
+    await vi.waitFor(() => expect(carriedCount('math', 7)).toBe(5));
+    // The next round's covered: the one after asks nothing more, either way.
+    warmNextRound('math', 9, 7, 5, { fresh: true });
+    warmNextRound('math', 9, 7, 5);
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("…for the kid it was asked for, even after a switch of player; and it holds back only that kid's look-ahead for that topic", async () => {
+    let answer!: (v: unknown) => void;
+    invokeMock.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    warmNextRound('words', 9, 5, 5, { fresh: true });
+    // Another topic, or a sibling, warms as usual (saved questions only).
+    invokeMock.mockResolvedValue({ data: { questions: [] }, error: null });
+    warmNextRound('history', 9, 5, 5);
+    useFamilyStore.setState({ activeKidId: 'kid-2' });
+    warmNextRound('words', 9, 5, 5);
+    expect(invokeMock).toHaveBeenCalledTimes(3);
+    expect(invokeMock.mock.calls.slice(1).map((c) => c[1].body)).toEqual([
+      expect.objectContaining({ topic: 'history', cacheOnly: true, profileId: 'kid-1' }),
+      expect.objectContaining({ topic: 'words', cacheOnly: true, profileId: 'kid-2' }),
+    ]);
+    // It lands while the sibling plays: it's still kid-1's.
+    answer({ data: { questions: band(5) }, error: null });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(carriedCount('words', 5)).toBe(0);
+    useFamilyStore.setState({ activeKidId: 'kid-1' });
+    expect(carriedCount('words', 5)).toBe(5);
+  });
+
+  it('a carried question lasts until 45 min after the server handed it over — carrying it, putting it back or carrying it again never resets that', async () => {
+    vi.useFakeTimers();
+    try {
+      invokeMock.mockResolvedValue({ data: { questions: apiBatch(3) }, error: null });
+      askFreshForNextRound('math', 9, 5, 5);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(carriedCount('math', 5)).toBe(3);
+      // Taken into a round 30 min on, which used one and was left: two back.
+      vi.advanceTimersByTime(30 * 60 * 1000);
+      const taken = takeCarried('math', 5, 5);
+      carryOver('kid-1', 'math', taken.slice(1));
+      carryOver('kid-1', 'math', taken.slice(1));
+      vi.advanceTimersByTime(HELD_FOR_MS - 30 * 60 * 1000 - 1);
+      expect(carriedCount('math', 5)).toBe(2);
+      vi.advanceTimersByTime(1);
+      expect(carriedCount('math', 5)).toBe(0);
+      // Handed over that long ago, it isn't kept at all.
+      carryOver('kid-1', 'math', taken);
+      expect(carriedCount('math', 5)).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('at the cap the oldest carried go — never the newest, which fit the next round', () => {
+    vi.useFakeTimers();
+    try {
+      // Ten left behind at level 3 by a kid who has since climbed…
+      carryOver('kid-1', 'math', Array.from({ length: 10 }, (_, i) => q(`old${i}`, 3)));
+      vi.advanceTimersByTime(60 * 1000);
+      // …and five for the round at level 7.
+      carryOver('kid-1', 'math', [1, 2, 3, 4, 5].map((n) => q(`new${n}`, 7)));
+      expect(ids(takeCarried('math', 7, 5))).toEqual(['new1', 'new2', 'new3', 'new4', 'new5']);
+      expect(ids(takeCarried('math', 3, 10))).toEqual(['old5', 'old6', 'old7', 'old8', 'old9']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

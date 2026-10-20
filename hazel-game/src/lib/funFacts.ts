@@ -3,14 +3,15 @@ import type { Topic } from '../types';
 /**
  * Short, kid-friendly facts: one of the topic's on the quiz's results card
  * (`pickFact`, #163 review — they filled the quiz's wait, which is gone), and
- * the generic ones on the full-screen loading screen.
+ * the generic ones on the full-screen loading screen. Plain words for a
+ * 7-year-old, and true (#163 review round 2: no "asylum", no 99.965%).
  */
 export const FUN_FACTS: Record<Topic, string[]> = {
   math: [
     'Did you know? Zero is the only number that can’t be written as a Roman numeral.',
     'A “googol” is a 1 followed by 100 zeros — more than every atom in the universe.',
     'Add up every number from 1 to 100 and you get exactly 5,050.',
-    'A perfect square (like 9 or 16) has an odd number of factors. Other numbers have an even number.',
+    'In the 9 times table up to 9 × 10, the digits of every answer add up to 9 — like 27: 2 + 7 = 9!',
     'There are infinitely many prime numbers — and we’ll never run out of new ones.',
   ],
   science: [
@@ -21,15 +22,15 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'Octopuses have three hearts and blue blood.',
   ],
   engineering: [
-    'Did you know? Wi-Fi signals are just very slow microwaves.',
+    'Did you know? Wi-Fi uses the same kind of invisible waves as a microwave oven — just much, much weaker.',
     'The Eiffel Tower can grow about 6 inches taller in summer because heat expands the iron.',
     'A single Lego brick can support the weight of around 375,000 other Lego bricks.',
     'The first computer mouse, built in 1964, was made of wood.',
     'Bridges have small gaps so they can expand on hot days without cracking.',
   ],
   creativity: [
-    'Did you know? Van Gogh painted “The Starry Night” from his window in an asylum.',
-    'The color “Vantablack” absorbs 99.965% of light — objects coated in it look 2D.',
+    'Did you know? Van Gogh’s “The Starry Night” shows the night sky he saw from his hospital window.',
+    'The color “Vantablack” soaks up almost all the light that hits it, so things coated in it look flat.',
     'There are only 12 musical notes — every song you’ve ever heard uses just those.',
     'Mozart wrote his first symphony when he was 8 years old.',
     'A new shade of blue called YInMn was discovered by accident in 2009.',
@@ -46,10 +47,10 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'There are more stars in the universe than grains of sand on every beach on Earth.',
     'Saturn is so light it would float in a (very, very big) bathtub of water.',
     'Footprints left on the Moon could last for millions of years — there’s no wind.',
-    'The Sun makes up about 99.8% of all the mass in our solar system.',
+    'The Sun is heavier than all the planets put together — hundreds of times over!',
   ],
   history: [
-    'Did you know? The Great Pyramid is older to Cleopatra than Cleopatra is to us.',
+    'Did you know? The Great Pyramid was already over 2,000 years old when Cleopatra was born!',
     'Oxford University is older than the Aztec Empire.',
     'People in ancient Rome used crushed charcoal and salt as toothpaste.',
     'The first alarm clocks could only ring at one set time — 4 a.m.',
