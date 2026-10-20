@@ -50,7 +50,7 @@ export default function QuestionCard({
    * tale-stone's "🔄 Ask me another!" was five Tabs away). Off by default.
    */
   focusContinue?: boolean;
-  /** Changes when the caller wants Continue focused later — a scribe burst settling (#159, review round 2). */
+  /** Changes when the caller wants Continue focused later — a scribe burst settling (#165, review round 2). */
   focusContinueKey?: unknown;
   /** Fires once with whether the pick was correct — guarded against double-clicks. */
   onContinue: (correct: boolean) => void;
@@ -64,7 +64,7 @@ export default function QuestionCard({
   secondChance?: boolean;
   /** Fires when the second try is spent (the parent unties the knot). */
   onSecondChance?: () => void;
-  /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #159). */
+  /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #165). */
   afterAnswer?: ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);

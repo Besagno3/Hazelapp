@@ -3,7 +3,8 @@
     python3 site/tools/prep-assets.py [capturesDir]     (default: site-captures)
 
 Reads public/ (tiles, sprites, backdrops), the logo from site/tools/logo.py,
-and the captures from site/tools/capture.cjs; writes site/assets/{img,shots,video}.
+and the captures from site/tools/capture.cjs; writes site/assets/{img,shots,video}
+(and the game's own copy of the icons, public/favicon.png + apple-touch-icon.png).
 Needs Pillow and numpy, and ffmpeg for the gameplay clip. The fonts in
 site/assets/fonts are committed as they are (SIL Open Font License, from
 @fontsource/jersey-15 and @fontsource/andika).
@@ -64,10 +65,28 @@ for zone, i, name in [('lumina-village', 6, 'bush'), ('lumina-village', 7, 'flow
 save_png(frame(PUB / 'tiles' / 'props.png', 2), OUT / 'img' / 'prop-chest.png')
 save_png(frame(PUB / 'tiles' / 'props.png', 0), OUT / 'img' / 'prop-crystal.png')
 
-# --- favicon (Ember's egg) and the share card
+# --- favicon and home-screen icon (Ember's egg): cropped to the egg and centred
+# at about 80% of the square, in whole-pixel steps so the pixel art stays crisp.
+# The 180 px icon is opaque on the theme colour: iOS fills a transparent one
+# with black. The game serves the same two files from its root (public/).
 egg = frame(PUB / 'sprites' / 'ember-egg' / 'battle.png', 0)
-egg.resize((64, 64), N).save(OUT / 'img' / 'favicon.png', optimize=True)
-egg.resize((180, 180), N).save(OUT / 'img' / 'apple-touch-icon.png', optimize=True)
+egg = egg.crop(egg.getbbox())
+
+
+def icon(size, background=None):
+    k = max(1, round(size * 0.8 / max(egg.size)))
+    big = egg.resize((egg.width * k, egg.height * k), N)
+    im = Image.new('RGBA', (size, size), background or (0, 0, 0, 0))
+    im.paste(big, ((size - big.width) // 2, (size - big.height) // 2), big)
+    return im if background is None else im.convert('RGB')
+
+
+icon(64).save(OUT / 'img' / 'favicon.png', optimize=True)
+icon(180, '#1e1b4b').save(OUT / 'img' / 'apple-touch-icon.png', optimize=True)
+for name in ('favicon.png', 'apple-touch-icon.png'):
+    shutil.copyfile(OUT / 'img' / name, PUB / name)
+
+# --- the share card
 
 card = Image.open(PUB / 'backgrounds' / 'lumina-village.png').convert('RGBA').resize((256 * 5, 144 * 5), N).crop((40, 45, 1240, 675))
 logo = Image.open(OUT / 'img' / 'logo.png')

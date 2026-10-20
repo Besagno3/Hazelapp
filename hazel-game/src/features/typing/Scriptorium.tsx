@@ -11,7 +11,7 @@ import { LineRun } from './TypingLesson';
 import { KeyboardGate } from './TypingLessons';
 
 /**
- * The scriptorium (#159, item 5): a scribe's desk in the Library where the
+ * The scriptorium (#165, item 5): a scribe's desk in the Library where the
  * kid copies out a page — the "here's why" of a question that stumped them
  * (learning by writing), or a true fact — line by line over the keyboard and
  * hands. A page pays `SCRIPTORIUM_XP` once and leaves the desk; the desk

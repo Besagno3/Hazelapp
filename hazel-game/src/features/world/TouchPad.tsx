@@ -44,7 +44,8 @@ export default function TouchPad({
   return (
     <div
       data-testid="touch-pad"
-      className="flex items-center gap-6 mt-3 sm:hidden touch:flex touch-wide:fixed touch-wide:inset-x-0 touch-wide:bottom-0 touch-wide:z-30 touch-wide:mt-0 touch-wide:justify-between touch-wide:items-end touch-wide:px-4 touch-wide:pb-[max(1rem,env(safe-area-inset-bottom))] touch-wide:pointer-events-none"
+      // On a short phone held upright (320×568) a little less room above, so ▼ isn't cut off (#159 r2).
+      className="flex items-center gap-6 mt-3 [@media(pointer:coarse)_and_(orientation:portrait)_and_(max-height:600px)]:mt-1 sm:hidden touch:flex touch-wide:fixed touch-wide:inset-x-0 touch-wide:bottom-0 touch-wide:z-30 touch-wide:mt-0 touch-wide:justify-between touch-wide:items-end touch-wide:px-4 touch-wide:pb-[max(1rem,env(safe-area-inset-bottom))] touch-wide:pointer-events-none"
     >
       <div className="grid grid-cols-3 gap-1 pointer-events-auto" aria-label="movement pad">
         <div />

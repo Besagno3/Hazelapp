@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { describe as describeKey, keyHint, keyName, spellLine, wrongKey } from './hints';
 
-describe('typing hints (#159 review round 3)', () => {
+describe('typing hints (#165 review round 3)', () => {
   it('names keys as they are said: letters, punctuation, the space bar, the Shifts', () => {
     expect(keyName('KeyJ')).toBe('J');
     expect(keyName('Comma')).toBe('comma');

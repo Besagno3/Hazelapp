@@ -2,7 +2,7 @@ import { KEY_BY_CODE, TYPING_LESSONS, anchorsFor, keysTaughtBy, typingLessonFlag
 import { IGNORED_CODES, type TypingPress } from './typing';
 
 /**
- * 🍂 Falling Leaves (#159, item 7): a typing game in the Library. Letters
+ * 🍂 Falling Leaves (#165, item 7): a typing game in the Library. Letters
  * drift down on leaves; type a letter before its leaf touches the ground to
  * catch it. Three leaves on the ground end the round, and so does the clock.
  * Accuracy first: nothing hurries the kid but the leaves themselves, which

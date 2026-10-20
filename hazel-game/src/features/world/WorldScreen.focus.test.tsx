@@ -128,6 +128,22 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '📜 Menu' }));
   });
 
+  it('📜 Menu closed by Escape: focus on the world\'s stage — not 📜 Menu (its next Space would reopen it), not lost on the page (#159 r2)', () => {
+    render(<WorldScreen />);
+    const menu = screen.getByRole('button', { name: '📜 Menu' });
+    menu.focus();
+    fireEvent.click(menu);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Menu' }), { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Menu' })).toBeNull();
+    const stage = screen.getByRole('region', { name: 'The world' });
+    expect(stage).toHaveFocus();
+    // It owns no keys: Space and the arrows are still the world's (`ownsKeys`)…
+    expect(stage.closest('button, [role="button"], [role="dialog"]')).toBeNull();
+    // …and the HUD, with 📜 Menu, is inside it: the next Tab goes there, not up to Switch player.
+    expect(stage.contains(menu)).toBe(true);
+    expect(stage.contains(switchPlayer())).toBe(false);
+  });
+
   it('the Spire: its panels cover the top bar (no Tab, Enter, Enter to Switch player mid-climb); walking a floor leaves it live', async () => {
     useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a3', zoneId: 'crystal-spire', flags: ALL_CRYSTALS } });
     flow.setState({ overlay: 'spire' });
@@ -142,14 +158,15 @@ describe('keyboard and screen readers reach every overlay (#75 item 14b review)'
     expect(isInert(switchPlayer())).toBe(false);
     expect(document.querySelector('[inert]')).toBeNull();
 
-    // Leave → Escape: back on the floor, focus on Leave again.
+    // Leave → Escape: back on the floor, the keys the climb's again (#159 r2) — focus on the
+    // world's stage, which owns no keys, not on Leave (whose next Space would ask again).
     fireEvent.click(screen.getByRole('button', { name: '🚪 Leave the Spire' }));
     const ask = screen.getByRole('alertdialog', { name: 'Leave the Spire?' });
     expect(isInert(switchPlayer())).toBe(true);
     expect(screen.getByRole('button', { name: '🗼 Keep climbing' })).toHaveFocus();
     fireEvent.keyDown(ask, { key: 'Escape' });
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(screen.getByRole('button', { name: '🚪 Leave the Spire' })).toHaveFocus();
+    expect(screen.getByRole('region', { name: 'The world' })).toHaveFocus();
     expect(isInert(switchPlayer())).toBe(false);
 
     // Leave → Keep climbing: the same.

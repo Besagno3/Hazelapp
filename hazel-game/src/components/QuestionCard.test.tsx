@@ -110,7 +110,7 @@ describe('QuestionCard — any question can be reported (B10)', () => {
   });
 });
 
-describe('QuestionCard — a slot under the options once answered (#159)', () => {
+describe('QuestionCard — a slot under the options once answered (#165)', () => {
   const question: Question = { id: 'q-slot', topic: 'math', level: 1, text: '1 + 1?', options: ['2', '3', '4', '5'], correctIndex: 0 };
   it('shows afterAnswer only once an answer is picked', () => {
     render(<QuestionCard question={question} onAnswered={() => {}} onContinue={() => {}} afterAnswer={<p>a scribe burst</p>} />);

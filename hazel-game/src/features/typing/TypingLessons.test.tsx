@@ -42,7 +42,7 @@ function typeLine(line: string, hold = true) {
 const flags = () => useSaveStore.getState().save!.flags;
 const openLessons = () => screen.getAllByRole('button').filter((b) => /\d+\. /.test(b.textContent ?? '') && !/^(Start|Continue): /.test(b.textContent?.replace(/^▶/, '') ?? ''));
 
-describe('TypingLessons (#159)', () => {
+describe('TypingLessons (#165)', () => {
   it('asks for a real keyboard first: a glass keyboard changes nothing, a physical key opens the lessons', () => {
     render(<TypingLessons onBack={() => {}} />);
     expect(screen.getByText('Press any key on your keyboard to begin.')).toBeInTheDocument();
@@ -196,7 +196,7 @@ describe('TypingLessons (#159)', () => {
   });
 });
 
-describe('round 1 review fixes (#159)', () => {
+describe('round 1 review fixes (#165)', () => {
   it("Space on a focused button is the button's while a line is up — unless the line wants a space next", () => {
     useKeyboardStore.getState().seen();
     render(<TypingLessons onBack={() => {}} />);

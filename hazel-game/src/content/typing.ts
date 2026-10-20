@@ -1,5 +1,5 @@
 /**
- * Touch typing (#159): Librarian Sage's typing lessons at the Lumina Library,
+ * Touch typing (#165): Librarian Sage's typing lessons at the Lumina Library,
  * the ✍️ scribe bursts in battle and the post-battle name bonus. All the
  * content and the rules of the keyboard live here; the pure typing reducer is
  * `lib/typing.ts`, the screens `features/typing/`.
@@ -8,7 +8,7 @@
  * on every layout), which is what decides the hand and the finger. What a key
  * types is matched by `KeyboardEvent.key`, so a child on another layout is
  * still right when the right letter comes out. The labels drawn on the
- * on-screen keyboard are QWERTY's (ISSUES #159: other layouts).
+ * on-screen keyboard are QWERTY's (ISSUES #165: other layouts).
  */
 import { FUN_FACTS } from '../lib/funFacts';
 import type { LibraryEntry, Topic } from '../types';
@@ -134,7 +134,7 @@ export function charKey(ch: string): { key: KeyDef; shift: boolean } | null {
 }
 
 /**
- * The home-row hold (the owner's safeguard, #159): while one hand types a
+ * The home-row hold (the owner's safeguard, #165): while one hand types a
  * letter, the OTHER hand must be holding a key at its end of the keyboard —
  * its index finger's bump key (F for the right hand's letters, J for the
  * left's), which is where that finger belongs anyway. A capital needs the
@@ -365,7 +365,7 @@ export function typingStars(accuracy: number): 1 | 2 | 3 {
   return 1;
 }
 
-// --- Battle (#159, items 2 and 3) ---------------------------------------------
+// --- Battle (#165, items 2 and 3) ---------------------------------------------
 
 /** How long a ✍️ scribe burst gives to type its word, in ms. Generous: the hold rule slows a kid down. */
 export const BURST_MS = 10_000;
@@ -406,7 +406,7 @@ export function plainName(name: string): string {
   return name.replace(/^The /, '').replace(/-/g, ' ');
 }
 
-// --- The name race (#159, item 4) ---------------------------------------------
+// --- The name race (#165, item 4) ---------------------------------------------
 
 /**
  * As a regular critter's battle opens, one encounter in this many starts on a
@@ -470,7 +470,7 @@ export interface TypingBonus {
 }
 
 /**
- * After a won battle (#159 item 3), one time in `TYPING_BONUS_CHANCE` a scroll
+ * After a won battle (#165 item 3), one time in `TYPING_BONUS_CHANCE` a scroll
  * asks the kid to type the hero's name, Ember's or the foe's for a bonus — a
  * few coins, a little XP or a potion or a feather. `rolls` are injected so a
  * test can pick; each is 0–1.
@@ -497,7 +497,7 @@ export function bonusWords(reward: TypingBonusReward): string {
   return `${item.emoji} a ${item.name}`;
 }
 
-// --- The scriptorium (#159, item 5) -------------------------------------------
+// --- The scriptorium (#165, item 5) -------------------------------------------
 
 /** XP for copying a page the first time. */
 export const SCRIPTORIUM_XP = 15;
@@ -605,7 +605,7 @@ export function scriptoriumPages(library: readonly LibraryEntry[], flags: Record
   return pages;
 }
 
-// --- The song that breaks the hush (#159, item 6) ------------------------------
+// --- The song that breaks the hush (#165, item 6) ------------------------------
 
 /**
  * A boss whose power move can be broken by a song: while it winds up, the kid
@@ -645,7 +645,7 @@ export function songFor(enemyId: string): BossSong | null {
   return BOSS_SONGS[enemyId] ?? null;
 }
 
-// --- Pangram chests (#159, item 8) ---------------------------------------------
+// --- Pangram chests (#165, item 8) ---------------------------------------------
 
 /**
  * Sentences with every letter of the alphabet — a scribe's test since the
@@ -692,7 +692,7 @@ export function isPangram(text: string): boolean {
   return letters.size === 26;
 }
 
-// --- Pen-pal replies (#159, item 9) --------------------------------------------
+// --- Pen-pal replies (#165, item 9) --------------------------------------------
 
 /**
  * A letter quest where the kid can add a line in their own hand: at the bring

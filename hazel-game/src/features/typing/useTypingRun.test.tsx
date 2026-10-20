@@ -21,7 +21,7 @@ afterEach(() => {
   useKeyboardStore.getState().reset();
 });
 
-describe('useTypingRun (#159 review rounds 2–3)', () => {
+describe('useTypingRun (#165 review rounds 2–3)', () => {
   it('a focused text field keeps its keys: nothing typed, nothing prevented', () => {
     render(<Probe text="fj" />);
     const field = screen.getByLabelText('field');

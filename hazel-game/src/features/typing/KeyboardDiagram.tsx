@@ -3,7 +3,7 @@ import { cn } from '../../lib/utils';
 import { keyHint } from './hints';
 
 /**
- * The on-screen keyboard and the two hands under it (#159): the key to press
+ * The on-screen keyboard and the two hands under it (#165): the key to press
  * glows gold, the key the other hand must hold glows blue, keys held down are
  * pressed in, and the finger for each is lit on the hands. Drawn from the
  * physical key map, so it matches any keyboard's layout of keys; the letters
@@ -132,7 +132,7 @@ export function KeyboardDiagram({
   );
 }
 
-const FINGERS: readonly Finger[] = ['pinky', 'ring', 'middle', 'index'];
+const FINGERS: readonly Exclude<Finger, 'thumb'>[] = ['pinky', 'ring', 'middle', 'index'];
 /** Finger heights, pinky to pointer. */
 const HEIGHTS: Record<Exclude<Finger, 'thumb'>, number> = { pinky: 22, ring: 30, middle: 34, index: 30 };
 

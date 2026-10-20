@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { StoryPanel } from '../content/story';
 import StoryScene, { type StoryCast } from './StoryScene';
 import { useInertOutside } from '../hooks/useInertOutside';
+import { refocusTopLayer } from '../lib/modalLayers';
 
 /** How long a panel takes to fade in, or out (ms): a picture slowly, words quickly. */
 export const PICTURE_FADE_MS = 700;
@@ -61,6 +62,9 @@ export default function StoryPanels({
   // The button keeps focus, so Enter / Space read on; the world behind is inert.
   const self = useRef<HTMLDivElement>(null);
   useInertOutside(self);
+  // Done over an overlay (a talk, the Spire), the button goes with the story:
+  // the overlay takes focus back, once it's no longer inert (#159 r2).
+  useEffect(() => () => refocusTopLayer(), []);
   const next = useRef<HTMLButtonElement>(null);
   useEffect(() => next.current?.focus(), [index]);
   const textId = useId();

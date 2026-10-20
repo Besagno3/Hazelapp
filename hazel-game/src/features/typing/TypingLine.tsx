@@ -2,7 +2,7 @@ import type { TypingProgress } from '../../lib/typing';
 import { cn } from '../../lib/utils';
 
 /**
- * The line being typed (#159): what's done in green, the next character on a
+ * The line being typed (#165): what's done in green, the next character on a
  * glowing tile, the rest waiting. Spaces show as a visible gap tile. Words
  * stay whole when the line wraps (review round 1: "jum / p" split a reader's
  * word), and a screen reader hears the whole line.

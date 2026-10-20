@@ -8,7 +8,7 @@ import { useSaveStore } from '../../store/saveStore';
 import TypingLesson from './TypingLesson';
 
 /**
- * Librarian Sage's typing lessons (#159), inside the Library's panel: a real
+ * Librarian Sage's typing lessons (#165), inside the Library's panel: a real
  * keyboard first (touch typing can't be learned on glass), then the lessons
  * in order — each opens once the one before is cleared — and the home-row
  * hold switch, which the 📜 Menu has too.

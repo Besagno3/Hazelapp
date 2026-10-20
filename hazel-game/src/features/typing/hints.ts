@@ -1,7 +1,7 @@
 import { KEY_BY_CODE, charKey, keyName, type Finger } from '../../content/typing';
 
 /**
- * Words for keys and fingers (#159), shared by the diagram, the lines and the
+ * Words for keys and fingers (#165), shared by the diagram, the lines and the
  * bursts — for a screen reader, which can't watch a key glow (review round 1).
  */
 

@@ -38,8 +38,9 @@
 // check fails is left as it is (unmarked) and counted, so a rerun picks it up.
 // ----------------------------------------------------------------------------
 
-import Anthropic from 'npm:@anthropic-ai/sdk';
-import { createClient } from 'npm:@supabase/supabase-js';
+// The same exact versions as generate-questions/index.ts (#131d) — bump them together.
+import Anthropic from 'npm:@anthropic-ai/sdk@0.135.0';
+import { createClient } from 'npm:@supabase/supabase-js@2.101.1';
 import {
   ESCALATION_MODEL,
   HAIKU_CHECKER,

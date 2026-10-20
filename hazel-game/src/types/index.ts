@@ -272,7 +272,7 @@ export interface SaveData {
   /** Countdown on defend questions (⏳). A per-player setting in the 📜 menu; on by default. */
   defendTimer: boolean;
   /**
-   * The home-row hold in typing (#159): the other hand holds its bump key (F
+   * The home-row hold in typing (#165): the other hand holds its bump key (F
    * or J) while a letter is typed. A per-player setting (📜 Menu → ⌨️ Typing,
    * and the Library's lessons); on by default. Additive, like `defendTimer`.
    */

@@ -4,7 +4,7 @@ import { keysDown, useKeyboardStore, watchKeyboard } from './keyboardStore';
 
 beforeEach(() => useKeyboardStore.getState().reset());
 
-describe('keyboardStore (#159)', () => {
+describe('keyboardStore (#165)', () => {
   it('a real key marks a keyboard present; a glass keyboard\'s key does not; the watcher unsubscribes', () => {
     const stop = watchKeyboard();
     fireEvent.keyDown(window, { code: '', key: 'a' });

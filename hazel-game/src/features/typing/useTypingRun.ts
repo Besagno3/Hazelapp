@@ -31,7 +31,7 @@ export function inField(target: EventTarget | null): boolean {
 }
 
 /**
- * Types one line against the real keyboard (#159): listens on `window` while
+ * Types one line against the real keyboard (#165): listens on `window` while
  * `active`, keeps the set of keys held down (for the home-row hold), and
  * steps `lib/typing`'s rules on every press. Space and the characters are
  * `preventDefault`ed so the page never scrolls or opens a find bar; Tab and

@@ -3,6 +3,7 @@ import { PASS_THRESHOLD, ROUNDS_TO_UNLOCK } from '../../lib/utils';
 import { ALL_TOPIC_INFO } from '../../content/topics';
 import { useSaveStore } from '../../store/saveStore';
 import { sendFlow } from '../../machines/gameFlow';
+import ScreenTopBar from '../../components/ScreenTopBar';
 import type { Topic } from '../../types';
 
 /**
@@ -24,55 +25,57 @@ export default function TopicSelect() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
-      <motion.h1
-        initial={{ y: -30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="text-4xl font-extrabold text-white mb-2 text-center"
-      >
-        Training Grounds
-      </motion.h1>
-      <p className="text-indigo-200 mb-8 text-center">
-        {worldUnlocked ? (
-          <>The world of Lumina awaits — or train a topic first!</>
-        ) : (
-          <>
-            Rounds passed: <strong>{Math.min(passedRounds, ROUNDS_TO_UNLOCK)}/{ROUNDS_TO_UNLOCK}</strong>{' '}
-            — pass {ROUNDS_TO_UNLOCK} at {Math.round(PASS_THRESHOLD * 100)}%+ to unlock the world!
-          </>
-        )}
-      </p>
-
-      {/* Above the topics, so ten cards never push it off a phone's screen (#135c). */}
-      {worldUnlocked && (
-        <motion.button
-          initial={{ y: 16, opacity: 0 }}
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6">
+      <ScreenTopBar />
+      <div className="flex-1 w-full flex flex-col items-center justify-center">
+        <motion.h1
+          initial={{ y: -30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          whileHover={{ scale: 1.04 }}
-          onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
-          className="mb-6 bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold rounded-2xl px-8 py-4 text-lg shadow-xl"
+          className="text-4xl font-extrabold text-white mb-2 text-center"
         >
-          🗺️ Enter Lumina
-        </motion.button>
-      )}
+          Training Grounds
+        </motion.h1>
+        <p className="text-indigo-200 mb-8 text-center">
+          {worldUnlocked ? (
+            <>The world of Lumina awaits — or train a topic first!</>
+          ) : (
+            <>
+              Rounds passed: <strong>{Math.min(passedRounds, ROUNDS_TO_UNLOCK)}/{ROUNDS_TO_UNLOCK}</strong>{' '}
+              — pass {ROUNDS_TO_UNLOCK} at {Math.round(PASS_THRESHOLD * 100)}%+ to unlock the world!
+            </>
+          )}
+        </p>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 auto-rows-fr gap-3 sm:gap-4 w-full max-w-md sm:max-w-2xl lg:max-w-5xl">
-        {/* Every topic stays open: a child can train the same topic as often as they like. */}
-        {ALL_TOPIC_INFO.map((t, i) => (
+        {/* Above the topics, so ten cards never push it off a phone's screen (#135c). */}
+        {worldUnlocked && (
           <motion.button
-            key={t.id}
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: i * 0.05 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handlePick(t.id)}
-            className={`${t.buttonColor} text-white rounded-2xl p-4 sm:p-6 text-center shadow-lg transition`}
+            initial={{ y: 16, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            whileHover={{ scale: 1.04 }}
+            onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
+            className="mb-6 bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold rounded-2xl px-8 py-4 text-lg shadow-xl"
           >
-            <div className="text-5xl mb-2">{t.emoji}</div>
-            <div className="font-bold text-base sm:text-lg">{t.label}</div>
+            🗺️ Enter Lumina
           </motion.button>
-        ))}
+        )}
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 auto-rows-fr gap-3 sm:gap-4 w-full max-w-md sm:max-w-2xl lg:max-w-5xl">
+          {/* Every topic stays open: a child can train the same topic as often as they like. */}
+          {ALL_TOPIC_INFO.map((t, i) => (
+            <motion.button
+              key={t.id}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: i * 0.05 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handlePick(t.id)}
+              className={`${t.buttonColor} text-white rounded-2xl p-4 sm:p-6 text-center shadow-lg transition`}
+            >
+              <div className="text-5xl mb-2">{t.emoji}</div>
+              <div className="font-bold text-base sm:text-lg">{t.label}</div>
+            </motion.button>
+          ))}
       </div>
 
       {/* Stripped from production by Vite's import.meta.env constant folding. */}
@@ -85,6 +88,7 @@ export default function TopicSelect() {
           🔧 DEV: skip to world
         </button>
       )}
+      </div>
     </div>
   );
 }

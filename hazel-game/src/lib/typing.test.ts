@@ -18,7 +18,7 @@ const press = (code: string, key: string, held: string[] = [code], holdRule = tr
   holdRule,
 });
 
-describe('stepTyping (#159) — the rules of typing a line', () => {
+describe('stepTyping (#165) — the rules of typing a line', () => {
   it('the right key moves on; the last one finishes the line', () => {
     let p = startTyping('fj');
     let r = stepTyping(p, press('KeyF', 'f', ['KeyJ', 'KeyF']));

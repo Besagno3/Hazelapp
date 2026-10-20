@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import WorldCanvas, { type Travel } from './WorldCanvas';
 import TouchPad from './TouchPad';
+import { helpLine } from './helpLine';
 import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
 import PathQuestionOverlay from './PathQuestionOverlay';
@@ -183,6 +184,8 @@ export default function WorldScreen() {
   }, []);
   const [action, setAction] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // A fog reveal is playing (#113): the camera is off on the fog, nobody walks.
+  const [revealing, setRevealing] = useState(false);
   const [flightNote, setFlightNote] = useState('');
   // One timer for whichever toast is up: a new toast replaces the old one's
   // timer, so an earlier toast can't hide a newer one early.
@@ -211,6 +214,11 @@ export default function WorldScreen() {
   const travelRef = useRef<Travel | null>(null);
   /** 🐉 Fly / 🛬 Land (#75 item 15b): asked of the canvas, taken once the world runs. */
   const flightRef = useRef<'fly' | 'land' | null>(null);
+  /** "⏩ Tap to skip" pressed while a fog reveal plays (#159 r1): the canvas skips it. */
+  const skipRef = useRef(false);
+  const skipReveal = () => {
+    skipRef.current = true;
+  };
   const calmRef = useRef(0);
   const [calmLeft, setCalmLeft] = useState(0);
   /** Where the Spire climb shows its seals, candles and Leave button: the HUD, in Menu's place (#75 item 14b). */
@@ -408,6 +416,13 @@ export default function WorldScreen() {
   // 🐉 Fly / 🛬 Land is offered (#75 item 15b): over an overworld map once
   // Memory is restored, never from the boat, never under an overlay or a story.
   const flightOffered = canFly(flags) && canFlyOver(z) && save?.vehicle !== 'boat' && overlay === null && !cutscene;
+  // The help line under the map: how this hero gets about right now (#130 S4).
+  const help = {
+    vehicle: save?.vehicle ?? 'foot',
+    flightOffered,
+    // Out on the Shallows before Voices thins the fog: go ashore and fly over it.
+    fogTip: zoneId === 'silver-shallows' && canFly(flags) && !flags[crystalFlag('words')],
+  };
   const flightKeyRef = useRef({ offered: flightOffered, flying: save?.vehicle === 'ember' });
   flightKeyRef.current = { offered: flightOffered, flying: save?.vehicle === 'ember' };
   // F flies or lands too, for keyboard players (#75 item 15b review).
@@ -545,6 +560,10 @@ export default function WorldScreen() {
     }
   }
   const knowsGlow = knowsFieldSpell('glow', flags);
+  // 🔆 Glow on the HUD: in a dark place it can light, with no panel or story up.
+  const glowOffered = knowsGlow && canGlow(z, flags) && overlay === null && !cutscene;
+  // The HUD's group of buttons (and Calm's timer) has something in it.
+  const hasActions = calmLeft > 0 || flightOffered || glowOffered || overlay !== 'spire';
   // On a dungeon floor (#75 item 10) the title says which floor: "B2 — The Gear Halls",
   // numbered like the Spire's "Floor 2 — …". The label never wraps away from the name.
   const floor = dungeonFloor(zoneId);
@@ -558,7 +577,8 @@ export default function WorldScreen() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3">
+    // On a short phone held upright, a thinner bottom edge: with the HUD's 🐉 the pad's ▼ went 2 px off a 320×568 screen (#159 r2).
+    <div className="min-h-screen flex flex-col items-center justify-start bg-gradient-to-br from-slate-900 to-indigo-950 p-4 pt-3 [@media(pointer:coarse)_and_(orientation:portrait)_and_(max-height:600px)]:pb-1">
       {/* Top bar (#75 item 14b, #102i): the level, the streak and Switch sit
           here, in the page — not floating over the place name, and under every
           overlay. The page's full width (not the stage's, which is narrow on a
@@ -573,14 +593,27 @@ export default function WorldScreen() {
       </div>
       {/* Responsive stage: as wide as the viewport allows while keeping the
           11:7 zone fully on screen (cap leaves room for top bar + footer). */}
+      {/* Where focus goes when an overlay closes by Escape, or its button went
+          with it (`data-keys-home`, #159 r2): a region that owns no keys, so
+          Space stays the world's, a screen reader says where it is, and Tab
+          goes on into the HUD. */}
       <div
-        className="flex flex-col items-center"
+        data-keys-home
+        role="region"
+        aria-label="The world"
+        tabIndex={-1}
+        className="flex flex-col items-center outline-none"
         style={{ width: 'min(96vw, calc((100dvh - 220px) * 11 / 7))' }}
       >
       {/* HUD */}
       {/* On a phone the stats don't leave a place name room beside them, so the
-          row wraps: the name on its own line, the stats right-aligned below. */}
-      <div className="w-full flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-white mb-2 px-1">
+          row wraps: the name on its own line, the stats right-aligned below.
+          On a sideways phone (a coarse pointer, landscape, at most 500 px
+          tall: `touch-wide` and short) the stage is a narrow column
+          between the pad's halves, where the row stacked four lines deep and
+          pushed the map off the bottom: there it spans the page, like the top
+          bar, over the pad (#159 r1). */}
+      <div className="w-full [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:w-[calc(100vw-2rem)] flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-white mb-2 px-1">
         <div className="min-w-0">
           <h1 className="text-lg font-extrabold leading-tight">
             {spireTheme ? spireFloorTitle(spireFloorIndex!) : hudTitle}
@@ -616,51 +649,59 @@ export default function WorldScreen() {
           </span>
           <span title="Coins">🪙 {save.coins}</span>
           <span title="Potions">🧪 {save.items.potion}</span>
-          {calmLeft > 0 && (
-            <span title="Calm: critters let you pass" className="rounded-full bg-sky-400/20 px-2 py-0.5 text-sky-100">
-              🕊️ {calmLeft}s
-            </span>
+          {/* The HUD's buttons (and Calm's timer) keep together, so when they
+              wrap onto two lines (a sideways phone, flying with Calm) the lines
+              sit far enough apart that each button's 44 px tap target is its
+              own — 🛬 Land's no longer reached under 📜 Menu's. */}
+          {hasActions && (
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-4">
+              {calmLeft > 0 && (
+                <span title="Calm: critters let you pass" className="rounded-full bg-sky-400/20 px-2 py-0.5 text-sky-100">
+                  🕊️ {calmLeft}s
+                </span>
+              )}
+              {/* Ember flies (#75 item 15b): over an overworld map once Memory is restored, never from the boat. */}
+              {flightOffered && (
+                <button
+                  onClick={(e) => {
+                    flightRef.current = save.vehicle === 'ember' ? 'land' : 'fly';
+                    // Hand the keys back to the world: a focused button would take
+                    // the next Space (landing) as another click (#75 item 15b review).
+                    e.currentTarget.blur();
+                  }}
+                  aria-label={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
+                  title={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
+                  className={`min-w-11 bg-orange-400 hover:bg-orange-300 text-orange-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
+                >
+                  {save.vehicle === 'ember' ? '🛬 Land' : '🐉 Fly'}
+                </button>
+              )}
+              {/* In a dark place, Glow is one tap away (#75 item 9). */}
+              {glowOffered && (
+                <button
+                  onClick={() => castFieldSpell({ spell: 'glow' })}
+                  aria-label="Cast Glow"
+                  title="Cast Glow"
+                  className={`min-w-11 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
+                >
+                  {/* Just the lamp on a phone, so the place name keeps its room. */}
+                  🔆<span className="hidden sm:inline"> Glow</span>
+                </button>
+              )}
+              {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
+                  mid-climb — in its place the climb shows its seals, candles and
+                  "Leave the Spire" (SpireOverlay portals them into the slot below). */}
+              {overlay !== 'spire' && (
+                <button
+                  onClick={() => sendFlow({ type: 'OPEN_MENU' })}
+                  className={`shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold ${HUD_TAP}`}
+                >
+                  📜 Menu
+                </button>
+              )}
+            </div>
           )}
-          {/* Ember flies (#75 item 15b): over an overworld map once Memory is restored, never from the boat. */}
-          {flightOffered && (
-            <button
-              onClick={(e) => {
-                flightRef.current = save.vehicle === 'ember' ? 'land' : 'fly';
-                // Hand the keys back to the world: a focused button would take
-                // the next Space (landing) as another click (#75 item 15b review).
-                e.currentTarget.blur();
-              }}
-              aria-label={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
-              title={save.vehicle === 'ember' ? 'Land' : 'Fly on Ember'}
-              className={`min-w-11 bg-orange-400 hover:bg-orange-300 text-orange-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
-            >
-              {save.vehicle === 'ember' ? '🛬 Land' : '🐉 Fly'}
-            </button>
-          )}
-          {/* In a dark place, Glow is one tap away (#75 item 9). */}
-          {knowsGlow && canGlow(z, flags) && overlay === null && !cutscene && (
-            <button
-              onClick={() => castFieldSpell({ spell: 'glow' })}
-              aria-label="Cast Glow"
-              title="Cast Glow"
-              className={`min-w-11 bg-amber-400 hover:bg-amber-300 text-amber-950 rounded-lg px-3 py-1.5 text-xs font-bold ${HUD_TAP}`}
-            >
-              {/* Just the lamp on a phone, so the place name keeps its room. */}
-              🔆<span className="hidden sm:inline"> Glow</span>
-            </button>
-          )}
-          {/* The machine's Spire state ignores OPEN_MENU, so don't offer it
-              mid-climb — in its place the climb shows its seals, candles and
-              "Leave the Spire" (SpireOverlay portals them into this slot). */}
           {overlay === 'spire' && <span ref={setHudSlot} className="contents" data-testid="spire-hud-slot" />}
-          {overlay !== 'spire' && (
-            <button
-              onClick={() => sendFlow({ type: 'OPEN_MENU' })}
-              className={`shrink-0 bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 text-xs font-semibold ${HUD_TAP}`}
-            >
-              📜 Menu
-            </button>
-          )}
         </div>
       </div>
 
@@ -737,6 +778,7 @@ export default function WorldScreen() {
             showToast(fog.lifted);
           },
           onFogRevealed: (id) => setFlag(fogSeenFlag(id)),
+          onReveal: setRevealing,
           onDark: () =>
             showToast(
               knowsGlow ? '🌑 Too dark to go on! Tap 🔆 Glow at the top to light the way.' : `🌑 ${z.dark?.hint ?? "It's too dark!"}`,
@@ -808,29 +850,66 @@ export default function WorldScreen() {
         aboard={save.vehicle === 'boat'}
         flying={save.vehicle === 'ember'}
         flightRef={flightRef}
+        skipRef={skipRef}
         escort={walk ? { npcId: walk.npcId, goal: walk.goal, from: useBattleStore.getState().escortAt } : null}
       />
 
-      <p className="text-white/50 text-xs mt-2">
-        {save.vehicle === 'ember'
-          ? 'Fly: arrow keys / WASD · Land: Space, F or 🛬 (over grass, sand or a road)'
-          : save.vehicle === 'boat'
-          ? `Sail: arrow keys / WASD · into a beach or dock to land, a critter to battle!${zoneId === 'silver-shallows' && canFly(flags) && !flags[crystalFlag('words')] ? ' · to cross the fog: go ashore, then 🐉 Fly' : ''}`
-          : `Walk: arrow keys / WASD · Space, Enter or a click to talk, open and use · walk into foes to battle!${flightOffered ? ' · F or 🐉 to fly' : ''}`}
-      </p>
+      {/* The keyboard's words, or on a touch screen the pad's (#130 S4, #110m) —
+          the same `touch:` screen that shows the d-pad at any width. Not on a
+          sideways phone, where it fell below the screen's edge (the pad's ✋
+          and 🐉 say it there, #159 r1). While a fog reveal plays, on a touch
+          screen the way to skip it in its place, clear of the map and the pad:
+          big enough to read and tap (#159 r1: the canvas's own pill was 3 px
+          text on a phone). Both share one grid cell and the line keeps its
+          room while hidden — at least the button's height on a touch screen —
+          so the swap never moves the pad under a thumb (#159 r2). On a
+          keyboard computer the skip button sits beside the fog's line, below. */}
+      <div className="mt-2 grid place-items-center [&>*]:col-start-1 [&>*]:row-start-1">
+        <p
+          className={`text-white/50 text-xs touch:min-h-8 [@media(pointer:coarse)_and_(orientation:landscape)_and_(max-height:500px)]:hidden ${revealing ? 'invisible' : ''}`}
+          data-testid="world-help"
+        >
+          <span className="touch:hidden">{helpLine({ ...help, touch: false })}</span>
+          <span className="hidden touch:inline">{helpLine({ ...help, touch: true })}</span>
+        </p>
+        {revealing && (
+          <button
+            data-testid="reveal-skip"
+            onClick={skipReveal}
+            // 32 px tall, like the two-line help line it covers; the ::after
+            // reaches 6 px above and below for a 44 px tap.
+            className="hidden touch:inline-flex items-center h-8 rounded-full bg-black/60 px-4 text-sm font-semibold text-white relative after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+          >
+            ⏩ Tap to skip
+          </button>
+        )}
+      </div>
       </div>
       <TouchPad onDirChange={onDirChange} onAction={onAction} action={action} />
 
       {/* Toast — inside a live region that's always there, so screen readers
           announce each one as it appears. Centred, and on a phone or any touch
-          screen up top, so it never sits over the d-pad. */}
+          screen up top, so it never sits over the d-pad — except while a fog
+          bank lifts (#113): then the camera has glided to the fog and nobody
+          walks, so its line goes where it covers no map — at the bottom, under
+          it, or on a sideways phone (where the map runs nearly to the bottom)
+          at the very top, over the top bar. */}
       <div
-        role="status"
-        aria-live="polite"
-        className="fixed inset-x-0 top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto z-50 flex justify-center px-4 pointer-events-none"
+        data-testid="world-toast-row"
+        className={`fixed inset-x-0 z-50 flex items-center justify-center gap-2 px-4 pointer-events-none ${
+          revealing ? 'bottom-8 touch-wide:top-3 touch-wide:bottom-auto' : 'top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto'
+        }`}
       >
+      <div role="status" aria-live="polite" data-testid="world-toast" className="flex min-w-0 justify-center">
         {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
         <span className="sr-only">{flightNote}</span>
+        {/* …and so is the way to skip a fog reveal (#159 r1). */}
+        {revealing && (
+          <span className="sr-only">
+            <span className="touch:hidden">The fog is lifting. Press any key to skip.</span>
+            <span className="hidden touch:inline">The fog is lifting. Tap to skip.</span>
+          </span>
+        )}
         {toast && (
           <motion.div
             initial={{ y: 16, opacity: 0 }}
@@ -840,6 +919,18 @@ export default function WorldScreen() {
             {toast}
           </motion.div>
         )}
+      </div>
+      {/* A keyboard computer's way to skip a fog reveal: beside its line, not
+          under it (#159 r2: the line covered it for most of every reveal). */}
+      {revealing && (
+        <button
+          data-testid="reveal-skip-keys"
+          onClick={skipReveal}
+          className="touch:hidden pointer-events-auto shrink-0 min-h-11 rounded-full bg-black/70 px-4 text-sm font-semibold text-white shadow-xl"
+        >
+          ⏩ Press any key to skip
+        </button>
+      )}
       </div>
 
       {/* Secret found */}

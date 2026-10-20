@@ -13,12 +13,17 @@ const riddle: Question = {
   explanation: 'Because it did.',
 };
 // The question served; a test may swap in a starter one (#153).
-const served = { q: riddle };
+const served: { q: Question | null } = { q: riddle };
 vi.mock('../../lib/questions', async (orig) => ({
   ...(await orig<typeof import('../../lib/questions')>()),
-  fetchQuestions: async () => [served.q],
+  fetchQuestions: async () => (served.q ? [served.q] : []),
 }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
+const sendFlow = vi.fn();
+vi.mock('../../machines/gameFlow', async (orig) => ({
+  ...(await orig<typeof import('../../machines/gameFlow')>()),
+  sendFlow: (...args: unknown[]) => sendFlow(...args),
+}));
 
 const { default: PathQuestionOverlay } = await import('./PathQuestionOverlay');
 const { useSaveStore } = await import('../../store/saveStore');
@@ -29,6 +34,7 @@ const { XP_PER_CORRECT } = await import('../../lib/level');
 const { useKeyboardStore } = await import('../../store/keyboardStore');
 const { PANGRAM_BONUS_COINS, charKey, pangramChest, pangramFor, typingLessonFlag } = await import('../../content/typing');
 const { CHEST_COINS } = await import('../../content/items');
+const { xpBonusPerCorrect } = await import('../../lib/powerups');
 
 const moonstoneChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 8, 7), topic: 'history', zoneId: 'echo-mine' };
 const plainChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 19, 2), topic: 'history', zoneId: 'echo-mine' };
@@ -41,6 +47,7 @@ const YARN_ASKED = { 'quest:yarn-tale:offered': true };
 
 beforeEach(() => {
   served.q = riddle;
+  sendFlow.mockClear();
   withFlags({});
 });
 
@@ -61,6 +68,18 @@ describe('PathQuestionOverlay — starter questions pay no XP (#153)', () => {
     fireEvent.click(await screen.findByText('Right'));
     expect(useSaveStore.getState().save!.openedChests).toEqual([plainChest.id]);
     expect(addXp).not.toHaveBeenCalled();
+  });
+});
+
+describe('PathQuestionOverlay — the Scholar bonus (#102j)', () => {
+  it('a Scholar hero gets the bonus on top of a right answer, as in battles and quizzes', async () => {
+    const addXp = vi.fn();
+    useProfileStore.setState({ profile: { birthYear: 2017, birthMonth: 1, powerUps: { scholar: 2 } } as never, addXp });
+    render(<PathQuestionOverlay target={plainChest} />);
+    fireEvent.click(await screen.findByText('Right'));
+    expect(addXp).toHaveBeenCalledWith(XP_PER_CORRECT + xpBonusPerCorrect({ scholar: 2 }));
+    expect(xpBonusPerCorrect({ scholar: 2 })).toBeGreaterThan(0);
+    useProfileStore.setState({ profile: null });
   });
 });
 
@@ -164,7 +183,7 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
   });
 });
 
-describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 8)", () => {
+describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#165 item 8)", () => {
   // The first Echo Mine cell whose chest id has a lock, and one without.
   const ids = Array.from({ length: 40 }, (_, i) => pathTargetId('echo-mine', 'chest', i % 20, Math.floor(i / 20)));
   const lockedChest: PathTarget = { kind: 'chest', id: ids.find(pangramChest)!, topic: 'history', zoneId: 'echo-mine' };
@@ -283,5 +302,36 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     render(<PathQuestionOverlay target={plainLock} />);
     expect(screen.queryByTestId('scribe-lock')).toBeNull();
     expect(await screen.findByText('Right')).toBeInTheDocument();
+  });
+});
+
+describe('PathQuestionOverlay — Escape is "Later" or "Walk away" while one is offered (#159 r2)', () => {
+  const stone: PathTarget = { kind: 'riddle', id: 'yarn-stone-1', topic: 'words', zoneId: 'story-reef' };
+  const escape = () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+  it('over a question still to answer it does nothing — nothing to cancel', async () => {
+    withFlags(YARN_ASKED);
+    render(<PathQuestionOverlay target={stone} />);
+    await screen.findByText('Right');
+    escape();
+    expect(sendFlow).not.toHaveBeenCalled();
+    expect(screen.getByText('Which came first?')).toBeInTheDocument();
+  });
+
+  it('after a tale-stone miss, Escape is "Later"', async () => {
+    withFlags(YARN_ASKED);
+    render(<PathQuestionOverlay target={stone} />);
+    fireEvent.click(await screen.findByText('Wrong A'));
+    expect(screen.getByRole('button', { name: 'Later' })).toBeInTheDocument();
+    escape();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('when no question came, Escape is "Walk away"', async () => {
+    served.q = null;
+    render(<PathQuestionOverlay target={plainChest} />);
+    expect(await screen.findByRole('button', { name: 'Walk away' })).toBeInTheDocument();
+    escape();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 });

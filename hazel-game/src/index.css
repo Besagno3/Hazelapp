@@ -21,7 +21,7 @@ input::-ms-reveal {
   display: none;
 }
 
-/* A wrong key in a typing lesson (#159): the line shivers once. */
+/* A wrong key in a typing lesson (#165): the line shivers once. */
 @keyframes hq-shake {
   0%,
   100% {

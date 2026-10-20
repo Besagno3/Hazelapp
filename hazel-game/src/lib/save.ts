@@ -7,6 +7,7 @@ import { canFlyOver } from './travel';
 import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/boat';
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
+import { withSecretsBadge } from '../content/secrets';
 
 export const SAVE_VERSION = 3 as const;
 
@@ -291,7 +292,7 @@ export function normalizeSave(raw: unknown): SaveData {
       : d.companionId,
     // Added after v1 shipped: only an explicit `false` turns the countdown off.
     defendTimer: r.defendTimer !== false,
-    // The home-row hold in typing (#159) — additive the same way: on unless turned off.
+    // The home-row hold in typing (#165) — additive the same way: on unless turned off.
     typingAnchor: r.typingAnchor !== false,
     // Added with an inn in every town (#75 item 11) — additive, like the two
     // above: older saves (or a town without an inn) wake at home.
@@ -309,7 +310,9 @@ export function normalizeSave(raw: unknown): SaveData {
   // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy
   // Sheep Inn". A save that beat the Spire before the walk home existed (or
   // was reloaded mid-morning) is put to bed there too, so that's true.
-  return save.flags[SPIRE_VICTORY_SEEN] && !save.flags[ACT2_SEEN] ? { ...save, ...restAtHomeInn() } : save;
+  // Every secret found before the Secret Seeker trophy existed: it's on the shelf (#80b).
+  const trophied = withSecretsBadge(save);
+  return trophied.flags[SPIRE_VICTORY_SEEN] && !trophied.flags[ACT2_SEEN] ? { ...trophied, ...restAtHomeInn() } : trophied;
 }
 
 /**

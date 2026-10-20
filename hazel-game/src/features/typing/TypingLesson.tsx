@@ -11,7 +11,7 @@ import { TypingLine } from './TypingLine';
 import { useTypingRun } from './useTypingRun';
 
 /**
- * One typing lesson (#159): the Librarian's words, then its lines one by one
+ * One typing lesson (#165): the Librarian's words, then its lines one by one
  * over the keyboard diagram, then stars for accuracy. Clearing it sets its
  * flag (which opens the next lesson), pays `TYPING_LESSON_XP` the first time,
  * and the last lesson cleared gives the Scribe's Quill badge.

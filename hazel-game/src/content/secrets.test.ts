@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_SECRETS, claimSecret, rewardSummary, secretAt, secretById, secretFlag, secretProgress } from './secrets';
+import { ALL_SECRETS, SECRETS_BADGE, SECRET_BADGES, allSecretsFound, claimSecret, rewardSummary, secretAt, secretById, secretFlag, secretProgress, withSecretsBadge } from './secrets';
 import { ZONES, WALKABLE_CHARS, tileAt } from './zones';
 import { reach } from '../lib/reach';
 import { QUEST_ITEMS } from './quests';
-import { defaultSave } from '../lib/save';
+import { defaultSave, normalizeSave } from '../lib/save';
 
 const TOWNS = ['lumina-village', 'numbria', 'verdara', 'gearfall', 'chromaria'] as const;
 
@@ -77,5 +77,38 @@ describe('secrets (village expansion)', () => {
     const save = claimSecret(defaultSave(), secretById('numbria-pond')!);
     expect(secretProgress('numbria', save)).toEqual({ found: 1, total: ZONES.numbria.secrets!.length });
     expect(secretProgress('dawnreach', save)).toEqual({ found: 0, total: 0 });
+  });
+});
+
+describe('the Secret Seeker trophy (#80b)', () => {
+  const allBut = (n: number) => Object.fromEntries(ALL_SECRETS.slice(n).map((s) => [secretFlag(s.secret.id), true]));
+
+  it('finding the last secret puts the trophy on the shelf — once', () => {
+    const last = ALL_SECRETS[0].secret;
+    let save = { ...defaultSave(), flags: { ...defaultSave().flags, ...allBut(1) } };
+    expect(allSecretsFound(save.flags)).toBe(false);
+    expect(withSecretsBadge(save).badges).not.toContain(SECRETS_BADGE);
+    save = claimSecret(save, last);
+    expect(allSecretsFound(save.flags)).toBe(true);
+    expect(save.badges.filter((b) => b === SECRETS_BADGE)).toHaveLength(1);
+    // Claiming again (a no-op) or asking again never adds a second.
+    expect(claimSecret(save, last).badges.filter((b) => b === SECRETS_BADGE)).toHaveLength(1);
+    expect(withSecretsBadge(save)).toBe(save);
+    expect(SECRET_BADGES[SECRETS_BADGE]).toMatchObject({ name: 'Secret Seeker' });
+  });
+
+  it('any secret but the last pays no trophy', () => {
+    const save = claimSecret(defaultSave(), ALL_SECRETS[0].secret);
+    expect(save.badges).not.toContain(SECRETS_BADGE);
+  });
+
+  it('a save that found them all before the trophy existed gets it on load, once', () => {
+    const old = { ...defaultSave(), badges: ['badge:clover'], flags: { ...defaultSave().flags, ...allBut(0) } };
+    const loaded = normalizeSave(JSON.parse(JSON.stringify(old)));
+    expect(loaded.badges).toEqual(['badge:clover', SECRETS_BADGE]);
+    expect(normalizeSave(JSON.parse(JSON.stringify(loaded))).badges).toEqual(['badge:clover', SECRETS_BADGE]);
+    // One secret short: no trophy.
+    const short = { ...old, flags: { ...defaultSave().flags, ...allBut(1) } };
+    expect(normalizeSave(JSON.parse(JSON.stringify(short))).badges).toEqual(['badge:clover']);
   });
 });

@@ -25,6 +25,24 @@ describe('frameAt', () => {
     const once: SpriteAnim = { from: 0, to: 2, fps: 8, loop: false };
     expect(frameAt(once, 10_000)).toBe(2);
   });
+  it('a negative time shows the first frame, looping or not (sprite review A4)', () => {
+    const once: SpriteAnim = { from: 3, to: 5, fps: 8, loop: false };
+    expect(frameAt(once, -1)).toBe(3); // was 2 — a frame outside the anim
+    expect(frameAt(once, -10_000)).toBe(3);
+    expect(frameAt(walk, -1)).toBe(2);
+    expect(frameAt(walk, -130)).toBe(2);
+  });
+  it('a non-looping anim reaches its last frame exactly at the end and holds it', () => {
+    const once: SpriteAnim = { from: 0, to: 2, fps: 8, loop: false };
+    expect(frameAt(once, 249)).toBe(1);
+    expect(frameAt(once, 250)).toBe(2);
+    expect(frameAt(once, 375)).toBe(2);
+  });
+  it('an anim with no speed holds its first frame (no NaN)', () => {
+    expect(frameAt({ from: 4, to: 7, fps: 0 }, 1000)).toBe(4);
+    expect(frameAt({ from: 4, to: 7, fps: 0, loop: false }, 1000)).toBe(4);
+    expect(frameAt({ from: 4, to: 7, fps: -2 }, 1000)).toBe(4);
+  });
 });
 
 describe('bgPosX', () => {
@@ -37,5 +55,9 @@ describe('bgPosX', () => {
 describe('cycleMs', () => {
   it('is frames over fps in milliseconds', () => {
     expect(cycleMs(walk)).toBe(500);
+  });
+  it('is 0, not Infinity, for an anim with no speed (sprite review A4)', () => {
+    expect(cycleMs({ from: 0, to: 3, fps: 0 })).toBe(0);
+    expect(cycleMs({ from: 0, to: 3, fps: -1 })).toBe(0);
   });
 });

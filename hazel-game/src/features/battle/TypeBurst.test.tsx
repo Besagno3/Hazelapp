@@ -13,7 +13,7 @@ function type(word: string) {
 
 afterEach(() => vi.useRealTimers());
 
-describe('TypeBurst (#159 item 2)', () => {
+describe('TypeBurst (#165 item 2)', () => {
   it('the word typed in time settles once with true, and says so', () => {
     const onResult = vi.fn();
     render(<TypeBurst word="ember" holdRule={false} onResult={onResult} />);

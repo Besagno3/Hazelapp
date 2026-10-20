@@ -222,7 +222,7 @@ describe('normalizeSave', () => {
     expect(normalizeSave({ defendTimer: 'nope' }).defendTimer).toBe(true);
   });
 
-  it('the typing home-row hold is on by default; only an explicit false turns it off (#159)', () => {
+  it('the typing home-row hold is on by default; only an explicit false turns it off (#165)', () => {
     expect(defaultSave().typingAnchor).toBe(true);
     expect(normalizeSave({}).typingAnchor).toBe(true);
     expect(normalizeSave({ typingAnchor: false }).typingAnchor).toBe(false);

@@ -14,7 +14,7 @@ import { KeyboardGate } from './TypingLessons';
 import { inField, onControl } from './useTypingRun';
 
 /**
- * 🍂 Falling Leaves (#159, item 7), in the Library: letters drift down on
+ * 🍂 Falling Leaves (#165, item 7), in the Library: letters drift down on
  * leaves; type one before its leaf touches the ground. Three on the ground
  * (or the clock) end the round. Only the keys the lessons have taught so far
  * fall, the home-row hold applies as set, and the keyboard under the field

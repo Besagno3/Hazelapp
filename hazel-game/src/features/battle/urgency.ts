@@ -1,7 +1,7 @@
 /**
  * Seconds left at which a countdown turns red and starts ticking: the last
  * 5 s, as the defend question has always had — but on a short clock (a name
- * race) at most a third of it, else it's red from its first second (#159
+ * race) at most a third of it, else it's red from its first second (#165
  * review rounds 2–3). Clocks of 10 s and over keep the 5 s.
  */
 const URGENT_SECONDS = 5;

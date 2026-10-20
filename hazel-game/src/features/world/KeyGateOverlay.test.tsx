@@ -3,6 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { PathTarget } from '../../types';
 
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
+const sendFlow = vi.fn();
+vi.mock('../../machines/gameFlow', () => ({ sendFlow: (e: unknown) => sendFlow(e) }));
 
 const { default: KeyGateOverlay } = await import('./KeyGateOverlay');
 const { useSaveStore } = await import('../../store/saveStore');
@@ -58,5 +60,25 @@ describe('KeyGateOverlay — the double gate on Chorus Isle (#75 item 15g)', () 
     render(<KeyGateOverlay target={gateOf('sunken-archive')} />);
     expect(screen.getByText('The Memoria Key fits!')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Use the Memoria Key' })).toBeInTheDocument();
+  });
+});
+
+describe('Escape at a key gate (#128)', () => {
+  beforeEach(() => sendFlow.mockClear());
+
+  it('walks away, like "Walk away"', () => {
+    render(<KeyGateOverlay target={gateOf('sunken-archive')} />);
+    expect(screen.getByRole('button', { name: 'Walk away' })).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('with the key held it is "Not yet" — the gate stays shut, the key unused', () => {
+    withFlags({ [keyFlag('memoria')]: true });
+    const target = gateOf('sunken-archive');
+    render(<KeyGateOverlay target={target} />);
+    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Locked silver door' }), { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+    expect(useSaveStore.getState().save!.flags[gateFlag(target.id)]).toBeUndefined();
   });
 });

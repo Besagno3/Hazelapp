@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TypingBonus } from './TypingBonus';
 import { bonusWords, charKey } from '../../content/typing';
 
-describe('TypingBonus (#159 item 3)', () => {
+describe('TypingBonus (#165 item 3)', () => {
   it('names whose name and what it pays; the name typed claims it once', () => {
     const onClaim = vi.fn();
     render(<TypingBonus bonus={{ word: 'Count Bat', who: 'enemy', reward: { kind: 'item', id: 'potion' } }} holdRule={false} onClaim={onClaim} />);

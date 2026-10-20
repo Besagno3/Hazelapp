@@ -5,7 +5,7 @@ import { KeyboardDiagram } from './KeyboardDiagram';
 const keyRect = (code: string) => screen.getByRole('img').querySelector(`g[data-code="${code}"] rect`)!;
 const keyText = (code: string) => screen.getByRole('img').querySelector(`g[data-code="${code}"] text`)!.textContent;
 
-describe('KeyboardDiagram (#159 review rounds 4–5)', () => {
+describe('KeyboardDiagram (#165 review rounds 4–5)', () => {
   it('a mark up on its key: the key shows the mark, and only the anchor Shift lights with the hold on', () => {
     render(<KeyboardDiagram target="Digit1" targetChar="!" anchors={['ShiftRight']} held={new Set()} />);
     expect(keyText('Digit1')).toBe('!');

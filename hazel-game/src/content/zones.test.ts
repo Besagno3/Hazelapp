@@ -23,7 +23,8 @@ import { edgeLinkProblem, exitSide } from '../lib/transition';
 import { edgeCrossing, flownLink, seaEntryCell } from '../lib/travel';
 import { behindFog, reach, reachPath, safeSpawn, touches } from '../lib/reach';
 import { zoneTier } from './regions';
-import { WANDER_TUNING } from '../lib/wander';
+import { WANDER_TUNING, npcWanders } from '../lib/wander';
+import { idleReach } from '../lib/encounter';
 import { NPC_DEFS, isThing, lineText, npcAmbient, npcEmoji, npcName, npcSpriteId, visibleLines } from './npcs';
 import { GENERATED_SPRITES } from './sprites.generated';
 import { HALL_DEDICATED } from './spells';
@@ -848,7 +849,7 @@ describe('Remembrance Hill (#75 item 14e)', () => {
     expect(said({ ...memory, [HALL_DEDICATED]: true })).toContain('Five plaques shine now: Numbers, Nature, Gears, Wonder and Memory!');
     expect(said(act2).join(' ')).toMatch(/first Sage/);
     const call = visibleLines(mnem.lines, memory).at(-1);
-    expect(typeof call !== 'string' && call.setFlag).toBe(HALL_CALLED);
+    expect(typeof call === 'object' && call.setFlag).toBe(HALL_CALLED);
     // Once dedicated, no call — your name is in the Hall's heart.
     expect(said({ ...memory, [HALL_DEDICATED]: true }).at(-1)).toMatch(/Hall's heart/);
   });
@@ -1714,7 +1715,8 @@ describe('the Dream Root Door (#75 item 16a)', () => {
   });
 
   it("Aurora's welcome is always her first line, and it says hello for the 🚩 (16a code review round 3)", () => {
-    for (const flags of [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }]) {
+    const flagSets: Record<string, boolean>[] = [{}, { [ACT4_SEEN]: true }, { [stepFlag('name-chronicle')]: true }, { [NAME_LEARNED]: true }];
+    for (const flags of flagSets) {
       const first = visibleLines(NPC_DEFS['root-aurora'].lines, flags)[0];
       expect(typeof first === 'string' ? null : first.setFlag).toBe(MET_ROOT_AURORA);
     }
@@ -1915,5 +1917,134 @@ describe('no fog shuts a building door (16c review round 3)', () => {
         }),
       );
     }
+  });
+});
+
+describe("nobody you talk to stands in a critter's patch (#114aa)", () => {
+  // A critter wanders up to its leash from home and touches from a step past
+  // that (`idleReach`) — over open ground, so a wall or a shop keeps it out.
+  const leash = TILE * WANDER_TUNING.enemy.leashTiles;
+  /** Every quest-giver, and everyone a quest sends you to talk to. */
+  const questPeople = new Set(QUESTS.flatMap((q) => [q.giverNpcId, ...q.steps.flatMap((s) => (s.npc ? [s.npc.id] : []))]));
+  /**
+   * The cells a critter can reach from home: walking, never further than `px`
+   * from it — through a gate once it's open, as a wanderer does (`blockerAt`, #159 r1).
+   */
+  const within = (z: ZoneDef, home: { x: number; y: number }, px: number, gates: 'closed' | 'open') =>
+    reach(z, { from: home, exits: 'stop', flags: null, gates, blocked: (x, y) => Math.hypot(x - home.x, y - home.y) * TILE > px });
+  /** Every critter that wanders into you: not a boss (it holds its ground), not a sea critter (it only meets a sailing hero). */
+  const wanderers = (z: ZoneDef) => z.enemies.filter((e) => !ENEMY_DEFS[e.defId].isBoss && ENEMY_DEFS[e.defId].habitat !== 'sea');
+  const critterReach = idleReach({ isBoss: false }, leash);
+
+  it('a quest person stands a step clear of every critter (the Starfall rule, zone-wide); anyone else out of its reach', () => {
+    for (const z of allZones) {
+      for (const e of wanderers(z)) {
+        for (const gates of ['closed', 'open'] as const) {
+          const touch = within(z, e, critterReach, gates);
+          const stepClear = within(z, e, critterReach + TILE, gates);
+          for (const p of z.npcs) {
+            const near = questPeople.has(p.defId) ? stepClear : touch;
+            // Anyone who strolls (`npcWanders`) is clear wherever the stroll takes them — a
+            // quest person by a step, a villager out of reach (Sandy, Smudge: #159 r2).
+            const stroll = npcWanders(NPC_DEFS[p.defId])
+              ? reach(z, { from: p, exits: 'stop', flags: null, blocked: (x, y) => Math.hypot(x - p.x, y - p.y) > WANDER_TUNING.npc.leashTiles })
+              : new Set([`${p.x},${p.y}`]);
+            for (const c of stroll) {
+              expect(near.has(c), `${z.id} (gates ${gates}): ${e.defId} (${e.x},${e.y}) reaches ${p.defId} (${p.x},${p.y}) at ${c}`).toBe(false);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('only a tough critter (a level up) lives nowhere but behind a gate — the rest are met in the open (the only Snapjaw, #159 r1)', () => {
+    const met = new Set<string>();
+    const kinds = new Set<string>();
+    for (const z of allZones) {
+      const open = reach(z, { gates: 'closed', flags: null });
+      for (const e of wanderers(z)) {
+        kinds.add(e.defId);
+        if (open.has(`${e.x},${e.y}`)) met.add(e.defId);
+      }
+    }
+    const gatedOnly = [...kinds].filter((k) => !met.has(k));
+    expect(gatedOnly.length).toBeGreaterThan(0);
+    for (const k of gatedOnly) expect(ENEMY_DEFS[k].levelOffset, k).toBeGreaterThan(0);
+  });
+
+  it("no critter wanders up to the mouth of a hidden way: a secret isn't found in a fight (Verdara's glade, #159 r1)", () => {
+    for (const z of allZones) {
+      // A hidden passage ('H'), with the cells at its ends.
+      const spots: string[] = [];
+      z.map.forEach((row, y) =>
+        [...row].forEach((ch, x) => {
+          if (ch !== 'H') return;
+          for (const [dx, dy] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) spots.push(`${x + dx},${y + dy}`);
+        }),
+      );
+      for (const e of wanderers(z)) {
+        const touch = within(z, e, critterReach, 'open');
+        for (const c of spots) expect(touch.has(c), `${z.id}: ${e.defId} (${e.x},${e.y}) reaches ${c}`).toBe(false);
+      }
+    }
+  });
+
+  /** Each save crystal ('S') on a map, with the ground beside it a hero saves from. */
+  const crystals = (z: ZoneDef) =>
+    z.map.flatMap((row, y) =>
+      [...row].flatMap((ch, x) =>
+        ch === 'S' ? [{ x, y, beside: [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: x + dx, y: y + dy })).filter((c) => isWalkable(z, c.x, c.y)) }] : [],
+      ),
+    );
+
+  it('no critter wanders up beside a save crystal: saving is never a fight (#159 r2)', () => {
+    let seen = 0;
+    for (const z of allZones) {
+      for (const s of crystals(z)) {
+        seen++;
+        for (const e of wanderers(z)) {
+          for (const gates of ['closed', 'open'] as const) {
+            const touch = within(z, e, critterReach, gates);
+            for (const c of s.beside) expect(touch.has(`${c.x},${c.y}`), `${z.id} (gates ${gates}): ${e.defId} (${e.x},${e.y}) reaches ${c.x},${c.y} beside the save crystal`).toBe(false);
+          }
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(20);
+  });
+
+  it("from the spawn and wherever you arrive, a walk to every save crystal stays out of every critter's reach (#159 r2)", () => {
+    // Every way into a map: its spawn, and where each exit into it lands.
+    const arrivals = (z: ZoneDef) => [z.spawn, ...allZones.flatMap((o) => o.exits.filter((e) => e.to === z.id).map((e) => ({ x: e.spawnX, y: e.spawnY })))];
+    for (const z of allZones) {
+      for (const s of crystals(z)) {
+        for (const gates of ['closed', 'open'] as const) {
+          const patches = wanderers(z).map((e) => ({ e, touch: within(z, e, critterReach, gates) }));
+          for (const from of arrivals(z)) {
+            const anyWay = reach(z, { from, exits: 'stop', flags: null, gates });
+            // A crystal you can't walk to from here at all (behind stairs, a gate, the sea) needs no safe walk.
+            if (!s.beside.some((c) => anyWay.has(`${c.x},${c.y}`))) continue;
+            // A critter whose patch you start in rests there and lets you pass (`standDown`); the rest are awake.
+            const awake = patches.filter((p) => !p.touch.has(`${from.x},${from.y}`));
+            const safe = reach(z, { from, exits: 'stop', flags: null, gates, blocked: (x, y) => awake.some((p) => p.touch.has(`${x},${y}`)) });
+            expect(
+              s.beside.some((c) => safe.has(`${c.x},${c.y}`)),
+              `${z.id} (gates ${gates}): from ${from.x},${from.y} to the save crystal at ${s.x},${s.y}`,
+            ).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it("Chromaria's Off-Key Bird is well away from Doodle, the way in and the way out", () => {
+    const z = ZONES.chromaria;
+    const bird = z.enemies.find((e) => e.defId === 'off-key-bird')!;
+    const doodle = z.npcs.find((p) => p.defId === 'chromaria-villager')!;
+    expect(WALKABLE_CHARS.has(tileAt(z, bird.x, bird.y))).toBe(true);
+    expect(Math.hypot(bird.x - doodle.x, bird.y - doodle.y)).toBeGreaterThanOrEqual(4);
+    const reachTiles = idleReach({ isBoss: false }, leash) / TILE;
+    for (const c of [z.spawn, ...z.exits]) expect(Math.hypot(bird.x - c.x, bird.y - c.y), `${c.x},${c.y}`).toBeGreaterThan(reachTiles);
   });
 });

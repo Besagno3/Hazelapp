@@ -51,7 +51,7 @@ import { FUN_FACTS } from '../lib/funFacts';
 import { ALL_TOPICS } from './topics';
 import type { LibraryEntry } from '../types';
 
-describe('the keyboard map (#159)', () => {
+describe('the keyboard map (#165)', () => {
   it('every letter, digit and the punctuation the lessons use has a key, a hand and a finger', () => {
     for (const ch of 'abcdefghijklmnopqrstuvwxyz0123456789,.;') {
       const found = charKey(ch);
@@ -96,7 +96,7 @@ describe('the keyboard map (#159)', () => {
   });
 });
 
-describe('the lessons (#159)', () => {
+describe('the lessons (#165)', () => {
   it('start on the bump keys, have unique ids and lines a kid can read', () => {
     expect(TYPING_LESSONS[0].keys).toEqual(expect.arrayContaining(['KeyF', 'KeyJ']));
     const ids = TYPING_LESSONS.map((l) => l.id);
@@ -146,7 +146,7 @@ describe('the lessons (#159)', () => {
   });
 });
 
-describe('the battle words (#159)', () => {
+describe('the battle words (#165)', () => {
   it('a burst word is short and lowercase: the hero, Ember, or the foe', () => {
     expect(burstWord('Valor', 'Count Bat', 0)).toBe('valor');
     expect(burstWord('Valor', 'Count Bat', 0.4)).toBe('ember');
@@ -194,7 +194,7 @@ describe('the battle words (#159)', () => {
   });
 });
 
-describe('the scriptorium (#159 item 5)', () => {
+describe('the scriptorium (#165 item 5)', () => {
   const missed = (id: string, explanation?: string): LibraryEntry => ({
     question: { id, topic: 'math', level: 2, text: `Question ${id}?`, options: ['a', 'b', 'c', 'd'], correctIndex: 0, explanation },
     picked: 1,
@@ -252,7 +252,7 @@ describe('the scriptorium (#159 item 5)', () => {
   });
 });
 
-describe('the song that breaks the hush (#159 item 6)', () => {
+describe('the song that breaks the hush (#165 item 6)', () => {
   it("the Hush Fiend has one; its lines are short, lowercase letters and spaces only, so the hold never wants a Shift", () => {
     expect(songFor('hush-fiend')).toBe(BOSS_SONGS['hush-fiend']);
     expect(songFor('count-bat')).toBeNull();
@@ -268,7 +268,7 @@ describe('the song that breaks the hush (#159 item 6)', () => {
   });
 });
 
-describe('pangram chests (#159 item 8)', () => {
+describe('pangram chests (#165 item 8)', () => {
   it('every pangram uses only keys the lessons teach (review round 2: "!" asked for the number row)', () => {
     const taught = keysTaughtBy(TYPING_LESSONS[TYPING_LESSONS.length - 1].id);
     for (const p of PANGRAMS) for (const ch of p) expect(taught.has(charKey(ch)!.key.code), `${p}: ${ch}`).toBe(true);
@@ -299,7 +299,7 @@ describe('pangram chests (#159 item 8)', () => {
   });
 });
 
-describe('pen-pal replies (#159 item 9)', () => {
+describe('pen-pal replies (#165 item 9)', () => {
   it("each pen pal hangs off a real quest's bring step; its lines type on the key map", () => {
     for (const pal of PEN_PALS) {
       const quest = QUESTS.find((q) => q.id === pal.questId)!;

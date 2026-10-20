@@ -60,7 +60,7 @@ function typeLine(line: string) {
 
 const flags = () => useSaveStore.getState().save!.flags;
 
-describe('the Scriptorium (#159 item 5)', () => {
+describe('the Scriptorium (#165 item 5)', () => {
   it('"Next page" opens the page that followed the one copied (review round 6)', () => {
     useKeyboardStore.getState().seen();
     render(<Scriptorium onBack={() => {}} />);

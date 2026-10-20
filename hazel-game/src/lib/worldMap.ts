@@ -276,3 +276,127 @@ export function edgeLabelSpot(
   }
   return best;
 }
+
+/**
+ * How far above its place a pin sits on the menu map, in its own heights
+ * (`WorldMapPanel`: `-translate-y-[145%]` for both): the ⭐ (16 px) and the
+ * 🚩 (15 px) clear the place's 13 px emoji, so all three show (#117n — they
+ * used to sit on its top, hiding Eldergrove's 🌳).
+ */
+export const STAR_PERCH = 1.45;
+export const FLAG_PERCH = 1.45;
+/** …or how far below it they hang (`translate-y-[45%]`), on a place in the map's top rows (`pinsBelow`). */
+export const PIN_HANG = 0.45;
+
+/**
+ * Do pins on a place in row `y` hang below it? Near the map's top a pin above
+ * would stick out over the map's title (Foglight Marsh, the Story Reef) — on
+ * the narrowest map, so the same rows on every size.
+ */
+export function pinsBelow(cols: number, y: number): boolean {
+  return (y + 0.5) * (MAP_MIN_PX / cols) < FLAG_PERCH * 16;
+}
+
+/** A marker on the narrowest menu map (`MAP_MIN_PX`): its centre and half its size, in px. */
+export interface MapBox {
+  x: number;
+  y: number;
+  hw: number;
+  hh: number;
+}
+
+/** Do two markers come within `gap` px of each other? (`gap` 0: do they overlap.) */
+export function boxesMeet(a: MapBox, b: MapBox, gap = 0): boolean {
+  return Math.abs(a.x - b.x) < a.hw + b.hw + gap && Math.abs(a.y - b.y) < a.hh + b.hh + gap;
+}
+
+/** Ways to try a nudge, turning further and further from straight out. */
+const NUDGE_TURNS = [0, 30, -30, 60, -60, 90, -90, 120, -120, 150, -150, 180].map((deg) => (deg * Math.PI) / 180);
+
+/**
+ * The smallest nudge (whole px) that keeps `mark` `gap` px clear of every box
+ * in `taken`: none when it's clear already; else straight out from what it
+ * would cover (up, when it sits right on top of it), turning further round
+ * only if that's blocked. Never more than `maxPx` — past that it stays put —
+ * and, given the map's size, never out over its edge (or further out than it
+ * started, for a mark already over it): up there is the map's title (r1).
+ */
+export function nudgeClear(
+  mark: MapBox,
+  taken: readonly MapBox[],
+  gap = GAP_PX,
+  maxPx = 40,
+  bounds: { w: number; h: number } | null = null,
+): { dx: number; dy: number } {
+  const clear = (dx: number, dy: number) => !taken.some((t) => boxesMeet({ ...mark, x: mark.x + dx, y: mark.y + dy }, t, gap));
+  if (clear(0, 0)) return { dx: 0, dy: 0 };
+  // How far past the map's edges the mark would stick out.
+  const over = (dx: number, dy: number) => {
+    if (!bounds) return 0;
+    const x = mark.x + dx;
+    const y = mark.y + dy;
+    return Math.max(0, mark.hw - x) + Math.max(0, x + mark.hw - bounds.w) + Math.max(0, mark.hh - y) + Math.max(0, y + mark.hh - bounds.h);
+  };
+  const was = over(0, 0);
+  const hit = taken.filter((t) => boxesMeet(mark, t, gap));
+  const ox = mark.x - hit.reduce((n, t) => n + t.x, 0) / hit.length;
+  const oy = mark.y - hit.reduce((n, t) => n + t.y, 0) / hit.length;
+  const out = Math.hypot(ox, oy) > 0.5 ? Math.atan2(oy, ox) : -Math.PI / 2;
+  for (let d = 1; d <= maxPx; d++) {
+    for (const turn of NUDGE_TURNS) {
+      const dx = Math.round(Math.cos(out + turn) * d);
+      const dy = Math.round(Math.sin(out + turn) * d);
+      if (clear(dx, dy) && over(dx, dy) <= was) return { dx, dy };
+    }
+  }
+  return { dx: 0, dy: 0 };
+}
+
+/**
+ * Where the menu map draws the ⛵ (#117n): a px nudge off its mooring so it
+ * never sits on a place's icon, a landmark, a fog bank's crystal, the ⭐ or the
+ * 🚩. Inside Eldergrove all of them piled onto one small island — the boat
+ * moored at its beach, the ⭐ and 🚩 pinned to its 🌳. Worked out on the
+ * narrowest map (a 320 px phone), where markers crowd most, and drawn the same
+ * on every size: a few px further out at most, the way it already lay. The
+ * boxes follow how `WorldMapPanel` draws each one (its CSS classes).
+ */
+export function boatNudge(
+  cols: number,
+  rows: number,
+  boat: { x: number; y: number },
+  {
+    icons = [],
+    here = null,
+    shared = false,
+    flag = null,
+  }: {
+    /** Places, landmarks and fog crystals: drawn centred on their cell. */
+    icons?: readonly { x: number; y: number }[];
+    here?: MapMarker | null;
+    /** The ⭐ steps aside for the 🚩 on the same place. */
+    shared?: boolean;
+    flag?: { x: number; y: number } | null;
+  } = {},
+): { dx: number; dy: number } {
+  const s = MAP_MIN_PX / cols; // px per cell (the map's cells are square)
+  const at = (c: { x: number; y: number }) => ({ x: (c.x + 0.5) * s, y: (c.y + 0.5) * s });
+  const taken: MapBox[] = icons.map((c) => ({ ...at(c), hw: ICON_HALF_PX, hh: ICON_HALF_PX }));
+  // A pin `h` px tall perched above its place, or hanging below it near the map's top.
+  const pinY = (c: { x: number; y: number }, row: number, h: number, perch: number) =>
+    (pinsBelow(cols, row) ? c.y + PIN_HANG * h : c.y - perch * h) + h / 2;
+  if (here) {
+    // 16 px text, 20 px wide; on its own cell when it's you on the map, else pinned to the place,
+    // and stepped left (-100%) when the 🚩 shares the place.
+    const c = at(here);
+    taken.push({ x: shared ? c.x - STAR_HALF_W : c.x, y: here.exact ? c.y : pinY(c, here.y, 16, STAR_PERCH), hw: STAR_HALF_W, hh: 8 });
+  }
+  if (flag) {
+    // 15 px text, ~17 px wide, pinned by the place's top-right corner (-15%).
+    const c = at(flag);
+    taken.push({ x: c.x + 0.35 * 17, y: pinY(c, flag.y, 15, FLAG_PERCH), hw: 8.5, hh: 7.5 });
+  }
+  // …and kept on the map: the wrapper doesn't clip, and above it is the title (r1).
+  return nudgeClear({ ...at(boat), hw: ICON_HALF_PX, hh: 7 }, taken, GAP_PX, 40, { w: MAP_MIN_PX, h: rows * s });
+}
+

@@ -335,7 +335,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
         ifFlag: ACT2_SEEN,
       },
       'Every question you ever missed waits in my library. Beat it here, and it makes you stronger!',
-      // Touch typing (#159): the lessons are inside the Library.
+      // Touch typing (#165): the lessons are inside the Library.
       'I teach typing too — ten fingers, home row, no peeking at the keys! Find ⌨️ Typing lessons in my Library.',
       // The Pen-Pal Papers (#75 item 15f round 3): Sage remembers Shush.
       { text: "Shush's letters always smell of candle wax. I've started my next one already!", ifFlag: questDoneFlag({ id: SHUSH_QUEST }) },
@@ -691,7 +691,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
       },
       // Once his boat is mended (#75 item 14, "Marlow's Boat").
       {
-        text: "The Biscuit's yours whenever you like — my dock's just east of here. Sail off the edge of the sea to reach the Silver Shallows!",
+        text: "The Biscuit's yours whenever you like — my dock's just east of here. Sail east to reach the Silver Shallows!",
         ifFlag: BOAT_MENDED,
       },
       {
@@ -1836,8 +1836,10 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     stationary: true,
     // Her quest's offer comes first ("A Letter, Long Overdue"); these follow it.
+    // Once it's done she knows you already — no second hello (#128a).
     lines: [
-      "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!",
+      { text: "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!", unlessFlag: questDoneFlag({ id: 'archive-letter' }) },
+      { text: "Wick's note is filed under T, for Thank you. Now, where was I? Ah… Bh… CHOO! Filed under S.", ifFlag: questDoneFlag({ id: 'archive-letter' }) },
       { text: 'The Crystal of Memory shines! Every card in my catalog remembers its book again. A to Z!', ifFlag: 'crystal-history-restored' },
     ],
   },

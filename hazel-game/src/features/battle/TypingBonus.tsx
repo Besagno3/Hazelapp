@@ -7,7 +7,7 @@ import { TypingLine } from '../typing/TypingLine';
 import { useTypingRun } from '../typing/useTypingRun';
 
 /**
- * The post-battle bonus scroll (#159, item 3): one battle in three, with a
+ * The post-battle bonus scroll (#165, item 3): one battle in three, with a
  * keyboard, a name to type for a little extra — the hero's, Ember's or the
  * foe's, written as it is (a capital wants the other hand's Shift). No clock:
  * the fight is over. Onward! without typing is fine too.

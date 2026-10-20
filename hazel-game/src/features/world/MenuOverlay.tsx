@@ -9,7 +9,7 @@ import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from 
 import { COMPANIONS, COMPANION_IDS, companionLook, companionsInParty } from '../../content/companion';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { activeQuests, activeStep, resolveHint, QUEST_BADGES, QUEST_ITEMS } from '../../content/quests';
-import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
+import { ALL_SECRETS, SECRET_BADGES, secretFlag, secretProgress } from '../../content/secrets';
 import { TYPING_BADGES, TYPING_LESSONS, pagesCopied, typingLessonsCleared } from '../../content/typing';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
@@ -71,7 +71,8 @@ export default function MenuOverlay({
   }
 
   return (
-    <ModalLayer label="Menu" className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+    // Escape is "Back to the world", like ✕ (#110o).
+    <ModalLayer label="Menu" onEscape={() => sendFlow({ type: 'CLOSE' })} className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -168,7 +169,7 @@ export default function MenuOverlay({
             {/* Each one named under it — a phone has no hover (#75 item 14g UX review). */}
             <ul className="flex flex-wrap gap-x-3 gap-y-1">
               {save.badges.map((b) => {
-                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b] ?? QUEST_BADGES[b] ?? TYPING_BADGES[b];
+                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b] ?? QUEST_BADGES[b] ?? TYPING_BADGES[b] ?? SECRET_BADGES[b];
                 return (
                   <li key={b} className="flex flex-col items-center text-center w-16">
                     <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>
@@ -270,7 +271,7 @@ export default function MenuOverlay({
           </button>
         </div>
 
-        {/* Touch typing (#159): the home-row hold, and how far the lessons have got. */}
+        {/* Touch typing (#165): the home-row hold, and how far the lessons have got. */}
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <div className="font-bold text-sm mb-2">⌨️ Typing</div>
           <button

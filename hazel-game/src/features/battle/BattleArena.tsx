@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
 import LevelBadge from '../../components/LevelBadge';
@@ -102,6 +102,8 @@ import { IMPACT_MS, useBattleFx } from './useBattleFx';
 const COUNTER_DELAY_MS = 280;
 /** Super-hard questions warmed for spells and Pair Attacks. */
 const SPELL_POOL_COUNT = 4;
+/** A trickster's opening callout, after its name — which the lit candle's banner answers. */
+const TRICKSTER_CALLOUT = 'is too slippery for Hint Feathers!';
 
 /** Wall-clock ms for answer timing (module-level so it's never called during render). */
 const nowMs = () => performance.now();
@@ -121,9 +123,9 @@ type Turn =
   | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
-  /** The name race (#159 item 4): type the critter's name before it moves. */
+  /** The name race (#165 item 4): type the critter's name before it moves. */
   | { kind: 'race'; word: string }
-  /** A boss winding up its power move, and a line of the song that breaks it (#159 item 6). */
+  /** A boss winding up its power move, and a line of the song that breaks it (#165 item 6). */
   | { kind: 'song'; line: string; move: string }
   | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
   | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
@@ -322,7 +324,7 @@ export default function BattleArena() {
   const peek = useRef(0);
   // What the enemy does on its NEXT turn (see lib/battleTurn nextIntent).
   const [intent, setIntent] = useState<EnemyIntent>('attack');
-  // Which line of a boss's song the next wind-up asks for (#159 item 6).
+  // Which line of a boss's song the next wind-up asks for (#165 item 6).
   const songLineNo = useRef(0);
   // The race / song card where the command menu sits: brought into view as it opens
   // (review round 1: at 1024×768 its keyboard ran off the bottom of the window).
@@ -348,13 +350,16 @@ export default function BattleArena() {
   const speedRun = useRef(0);
   const speedBoost = useRef(0);
   const boostPool = useRef<{ qs: Question[]; i: number }>({ qs: [], i: 0 });
+  // Set as the fight is won or lost: a late async result (the speed boost's
+  // harder pool) bails, as it does once the arena has gone.
+  const fightOver = useRef(false);
   const [boostShown, setBoostShown] = useState(0);
   // The question (by card key) the player has picked an answer for — stops
   // the defend countdown.
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
   /** The question whose defend timer a Forget-Me-Knot's second try paused (#75 item 14e). */
   const [pausedKey, setPausedKey] = useState<string | null>(null);
-  // A ✍️ scribe burst (#159): the word to type after a right Attack or block
+  // A ✍️ scribe burst (#165): the word to type after a right Attack or block
   // answer, on the card it belongs to. Typed in time, an Attack's burst sets
   // `scribeRef` for the strike that follows; a block's adds ◆ at once.
   const [scribeBurst, setScribeBurst] = useState<{ key: string; mode: 'attack' | 'block'; word: string } | null>(null);
@@ -390,7 +395,7 @@ export default function BattleArena() {
       const callout = {
         shielded: `${enemy.name} raises a stony shield — the first hit will shatter it!`,
         // A Glimmer Candle in the bag gets you round it (#75 item 14g review).
-        trickster: `${enemy.name} is too slippery for Hint Feathers!${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
+        trickster: `${enemy.name} ${TRICKSTER_CALLOUT}${save?.items.candle ? ' Light a 🕯️ Glimmer Candle!' : ''}`,
         healer: `${enemy.name} mends itself when it's hurt — press the attack!`,
         // Swift (#75 item 14h, decision 14: no new timers) — it strikes first.
         swift: `${enemy.name} is swift — it strikes first! Get ready to block!`,
@@ -422,7 +427,7 @@ export default function BattleArena() {
     // A swift critter (#75 item 14h) takes the first turn: its blow, blocked by a
     // defend question as ever, comes before the hero's first command.
     const swift = enemy.behavior === 'swift';
-    // The name race (#159 item 4): one regular critter in three, with a keyboard and lesson 1.
+    // The name race (#165 item 4): one regular critter in three, with a keyboard and lesson 1.
     // No race for a player whose defend countdown is off (📜 → ⚔️ Battle): a race is a clock;
     // and none before every letter's lesson is cleared (`nameRaceOpen`).
     const race = nameRaceDue(enemy, useKeyboardStore.getState().present && nameRaceOpen(save?.flags ?? {}) && save?.defendTimer !== false);
@@ -467,7 +472,7 @@ export default function BattleArena() {
   const viewEnemyHp = shownHp?.e ?? enemyHp;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const powerMove = powerMoveName(enemy.id);
-  // Scribe bursts need a real keyboard and the first typing lesson (#159); their clocks
+  // Scribe bursts need a real keyboard and the first typing lesson (#165); their clocks
   // wait for every letter's lesson and the player's countdown setting (review round 2).
   const scribe = keyboard && typingUnlocked(save.flags);
   const typingClock = save.defendTimer && lettersLearned(save.flags);
@@ -590,7 +595,7 @@ export default function BattleArena() {
       updateSave((s) => ({ ...s, companionId: id }));
       fx.dropIn();
       sfx('swap');
-      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji);
+      showBanner(`${c.name} tags in — still your move!`, 1800, c.emoji, { kind: 'swap' });
     }
     setTurn({ kind: 'command' });
   }
@@ -615,9 +620,10 @@ export default function BattleArena() {
     if (bf) float(bf[0], 'hero', bf[1]);
     const { name, emoji } = CONSUMABLES[id];
     // The candle says what it did: slippery critters can't block hints now (#75 item 14g review).
-    const did = id === 'candle' ? (enemy.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
-    // "Light a candle!" is done: the banner says so instead of still asking.
-    if (id === 'candle' && enemy.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️');
+    const did = id === 'candle' ? (enemy?.behavior === 'trickster' ? ' Hints work now — even on this slippery critter!' : ' A free hint is ready!') : '';
+    // "Light a candle!" is done: the banner says so instead of still asking
+    // (it answers the trickster callout, so it doesn't wait behind it, #97c).
+    if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: TRICKSTER_CALLOUT });
     say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
   }
   function commandFlee() {
@@ -635,7 +641,7 @@ export default function BattleArena() {
   // --- Turn resolution --------------------------------------------------------
 
   /**
-   * A ✍️ scribe burst ended (#159): typed in time, the move it follows is
+   * A ✍️ scribe burst ended (#165): typed in time, the move it follows is
    * powered up — an Attack hits `SCRIBE_ATTACK_MULT`× (read by
    * `resolvePlayerQuestion` when ▶ Go! resolves it), a block adds
    * `SCRIBE_BLOCK_CHARGE` ◆ now (the store is the truth, #70). Too late:
@@ -677,7 +683,7 @@ export default function BattleArena() {
     // Focus Tea (#80) or Battle Cry: a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
     const focus = applyFocus(now, boost(Math.round(attackDamage(wasCorrect, style, powerUps) * heart)));
     applyCombat(focus.state);
-    // A ✍️ scribe burst typed in time (#159): the strike hits harder.
+    // A ✍️ scribe burst typed in time (#165): the strike hits harder.
     const scribed = scribeRef.current;
     scribeRef.current = false;
     const dmg = scribed ? Math.round(focus.dmg * SCRIBE_ATTACK_MULT) : focus.dmg;
@@ -733,7 +739,7 @@ export default function BattleArena() {
     const s = combatState();
     applyCombat({ ...s, charge: Math.max(0, s.charge - pair.cost) });
     burst({ particleCount: 140, spread: 120, origin: { y: 0.4 }, colors: ['#fb923c', '#fbbf24', '#f87171', '#fde68a'] });
-    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji);
+    showBanner(`PAIR ATTACK — ${pair.name.toUpperCase()}!`, 1800, pair.emoji, { kind: 'pair' });
     const dmg = boost(pairDamage(style, powerUps, cPower, pair.multiplier));
     const heal = pair.heal ? Math.min(s.playerMaxHp, s.playerHp + pair.heal) - s.playerHp : 0;
     if (heal > 0) {
@@ -784,6 +790,9 @@ export default function BattleArena() {
       return;
     }
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
+    // Said once, in the message box (#128): a float over the enemy said it
+    // again, on top of the damage number. The number shows it instead, bigger
+    // and glowing ("-42!!"), for a kid who doesn't read the message box.
     const weak = spell.topic !== undefined && spell.topic === enemy!.topic;
     const dmg = boost(Math.round(spellDamage(style, powerUps, r.multiplier) * (weak ? SUPER_EFFECTIVE : 1)));
     const breath = spell.id === 'ember-breath' || spell.id === 'radiant-breath';
@@ -804,8 +813,8 @@ export default function BattleArena() {
       refundCharge: r.shieldRefund,
       choreo: breath && emberActive ? EMBER_BREATH : HERO_STRIKE,
       sound: 'spell',
-      superEffective: weak,
       skipsTurn: r.skipsTurn,
+      superEffective: weak,
     });
   }
 
@@ -826,10 +835,10 @@ export default function BattleArena() {
       choreo = HERO_STRIKE,
       sound,
       heal = 0,
-      superEffective = false,
       skipsTurn = false,
+      superEffective = false,
       then = enemyTurn,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; superEffective?: boolean; skipsTurn?: boolean; then?: () => void },
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean; then?: () => void },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -842,15 +851,15 @@ export default function BattleArena() {
         return;
       }
       if (sound !== 'pair') sfx('impact');
-      float(`-${r.dealt}`, 'enemy', floatColor);
-      if (superEffective) float('Super effective!', 'enemy', 'text-yellow-200');
+      if (superEffective) float(`-${r.dealt}!!`, 'enemy', 'text-yellow-300', true);
+      else float(`-${r.dealt}`, 'enemy', floatColor);
     }, choreo.hitMs);
 
     if (r.outcome === 'shield-broken') {
       say(
         `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!` +
           (r.refunded > 0 ? ' The spell-light flows back to you — charge refunded!' : ''),
-        // What follows the blow (the name race's free strike hands the hero their turn, #159 item 4).
+        // What follows the blow (the name race's free strike hands the hero their turn, #165 item 4).
         then,
       );
       return;
@@ -867,12 +876,12 @@ export default function BattleArena() {
       say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
       return;
     }
-    // `then`: what follows the blow — the enemy's turn, or the hero's own (a first strike, #159 item 4).
+    // `then`: what follows the blow — the enemy's turn, or the hero's own (a first strike, #165 item 4).
     say(text, then);
   }
 
   /**
-   * The name race ended (#159 item 4). Won: a free first blow at
+   * The name race ended (#165 item 4). Won: a free first blow at
    * `FIRST_STRIKE_SHARE` of an Attack's power, then the hero's turn as usual.
    * Lost: the critter darts in first — its turn, a defend question as ever.
    */
@@ -907,7 +916,7 @@ export default function BattleArena() {
       sfx('charge');
       showBanner(`${enemy!.name} is gathering power for ${powerMove}!`, 2800, '💢');
       advanceIntent('charge');
-      // A boss with a song (#159 item 6): sing a line of it, with a keyboard, to break the move.
+      // A boss with a song (#165 item 6): sing a line of it, with a keyboard, to break the move.
       const song = scribe ? songFor(enemy!.id) : null;
       if (song) {
         setTurn({ kind: 'song', line: song.lines[songLineNo.current++ % song.lines.length], move: powerMove });
@@ -925,7 +934,7 @@ export default function BattleArena() {
   }
 
   /**
-   * The song line's clock ran out, or the line was typed in time (#159 item 6):
+   * The song line's clock ran out, or the line was typed in time (#165 item 6):
    * in time, the wound-up move drops back to a plain blow (`nextIntent`'s
    * "a charge is always followed by its power blow" has this one exception).
    */
@@ -1045,15 +1054,17 @@ export default function BattleArena() {
     if (to === from) return; // already at the top level
     speedBoost.current += 1;
     const wanted = speedBoost.current;
+    // No chime with no banner: once the fight is over the banners are shut.
     const announce = (text: string) => {
-      sfx('streak');
-      showBanner(text, 3200, '⚡');
+      if (showBanner(text, 3200, '⚡')) sfx('streak');
     };
     fetchQuestions(topic, age, to, BATTLE_QUESTION_COUNT, 'battle')
       .then((all) => {
-        // Gone, or a newer boost superseded this one (an older, easier pool
-        // arriving late must never replace a harder one).
-        if (!fx.live.current || speedBoost.current !== wanted) return;
+        // Gone, the fight over (no ⚡ badge or "harder questions" for a fight
+        // that has ended — the level still saved at its end), or a newer boost
+        // superseded this one (an older, easier pool arriving late must never
+        // replace a harder one).
+        if (!fx.live.current || fightOver.current || speedBoost.current !== wanted) return;
         // Only the bank's harder questions (#153 review round 2): starter
         // questions fill in when the service can't help, and they're no
         // harder than what's being asked — keep the current pool then.
@@ -1068,7 +1079,7 @@ export default function BattleArena() {
       })
       .catch(() => {
         // Keep asking from the current pool — the level still saves at the end.
-        if (fx.live.current && speedBoost.current === wanted) {
+        if (fx.live.current && !fightOver.current && speedBoost.current === wanted) {
           announce(`So quick! Your level goes up to ${to} after this battle`);
         }
       });
@@ -1130,12 +1141,16 @@ export default function BattleArena() {
         ...(enemy!.isBoss && enemy!.role !== 'fiend' && !keyBoss ? { [bossFlag(enemy!.id)]: true } : {}),
       },
     }));
-    // The bonus scroll (#159 item 3): one win in three, with a keyboard, a name to type for a little extra.
+    // The fight is over: a banner still waiting must not cycle over the result,
+    // and none asked for late may show there.
+    fightOver.current = true;
+    fx.clearBanners();
+    // The bonus scroll (#165 item 3): one win in three, with a keyboard, a name to type for a little extra.
     const bonus = keyboard ? rollTypingBonus(avatar!.name, enemy!.name) : null;
     setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus });
   }
 
-  /** The bonus scroll's name typed (#159 item 3): pay it. `TypingBonus` asks once. */
+  /** The bonus scroll's name typed (#165 item 3): pay it. `TypingBonus` asks once. */
   function claimBonus(bonus: TypingBonus) {
     sfx('chest');
     burst({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
@@ -1171,6 +1186,8 @@ export default function BattleArena() {
       library: pushLibrary(s.library, misses.current),
     }));
     useBattleStore.getState().setEscortAt(null);
+    fightOver.current = true;
+    fx.clearBanners();
     setTurn({ kind: 'defeat', xp, boatLine, shelter });
   }
 
@@ -1251,11 +1268,13 @@ export default function BattleArena() {
       {/* The level and streak in their own row above the status boxes, as in
           the world's top bar — floating, they covered the enemy's "!!!" on a
           phone (#75 item 14f review). Below 360 px wide or 500 px tall there's
-          no room for the row without pushing 🏃 Flee off the screen (measured,
-          `bench … battle`), so a fight there shows neither. */}
+          no room for the row without pushing the commands off the screen
+          (measured, `bench … battle`), so a fight there shows neither. Written
+          as raw @media: the `touch` screens (tailwind.config.js) are objects,
+          which turns Tailwind's `max-[…]:` / `min-[…]:` off (#158b). */}
       <div
         data-testid="battle-topbar"
-        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 max-[359px]:hidden [@media(max-height:500px)]:hidden"
+        className="relative z-10 flex flex-wrap items-center gap-1.5 px-2 pt-1 sm:px-4 sm:pt-3 [@media(max-width:359px)]:hidden [@media(max-height:500px)]:hidden"
       >
         <LevelBadge placement="inline" dense />
         <StreakBadge inline dense />
@@ -1278,18 +1297,20 @@ export default function BattleArena() {
           any backdrop; out of the layout (h-0), so nothing below it — a question's
           answers — jumps when it comes and goes; read aloud as it appears. */}
       <div role="status" aria-live="polite" className="relative z-20 h-0">
-        <AnimatePresence>
-          {fx.banner && (
-            <motion.p
-              initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
-            >
-              {fx.banner}
-            </motion.p>
-          )}
-        </AnimatePresence>
+        {/* Keyed by its words, so each banner in the queue comes in on its own.
+            No exit fade: the one it replaces goes at once (two pills fading
+            over each other read as neither, and waiting for the fade would
+            hold a swap's banner back). */}
+        {fx.banner && (
+          <motion.p
+            key={fx.banner}
+            initial={fx.reduceMotion ? { opacity: 0 } : { y: -12, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className="pointer-events-none absolute inset-x-0 top-1 mx-auto w-fit max-w-[92%] rounded-xl border-2 border-white/70 bg-indigo-950/90 px-3 py-1.5 text-center text-amber-300 font-extrabold tracking-wide shadow-lg"
+          >
+            {fx.banner}
+          </motion.p>
+        )}
       </div>
 
       <BattleStage
@@ -1312,8 +1333,9 @@ export default function BattleArena() {
         ghost={enemy.role === 'echo'}
       />
 
-      {/* Bottom box: commands / question / message / results */}
-      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6">
+      {/* Bottom box: commands / question / message / results (tighter on a
+          short screen, so a boss fight's commands fit 320×568, #158b) */}
+      <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6 [@media(max-height:600px)]:pt-1 [@media(max-height:600px)]:pb-2">
         {turn.kind === 'command' && (
           <CommandMenu
             charge={charge}
@@ -1497,7 +1519,7 @@ export default function BattleArena() {
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
                 recordAnswer(correct, turn.question, picked);
-                // A ✍️ scribe burst (#159) after a right Attack or block answer.
+                // A ✍️ scribe burst (#165) after a right Attack or block answer.
                 if (correct && scribe && (turn.kind === 'enemy-question' || turn.mode === 'attack')) {
                   setScribeBurst({ key: qKey, mode: turn.kind === 'enemy-question' ? 'block' : 'attack', word: burstWord(avatar.name, enemy.name) });
                 }

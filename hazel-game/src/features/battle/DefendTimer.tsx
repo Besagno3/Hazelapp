@@ -10,7 +10,7 @@ import { tickAt, urgentAt } from './urgency';
  * for the last three. Stops the moment `stopped` is set (an answer was picked).
  * `paused` holds it where it is (a Forget-Me-Knot's second try, #75 item 14e):
  * no ticking, no running out, until it's answered. `ready={false}` is a beat
- * before it starts (a name race's "Ready…", #159 review round 3) — the bar
+ * before it starts (a name race's "Ready…", #165 review round 3) — the bar
  * full, nothing counting yet. Left running to the end it says "⏰ Time's up"
  * (round 3: a typed word's clock stayed on screen, and it said "In time").
  *
@@ -34,7 +34,7 @@ export function DefendTimer({
   ready?: boolean;
   onExpire: () => void;
   label: ReactNode;
-  /** What the seconds are for, read aloud: "to block" (default), "to type" (a ✍️ scribe burst, #159). */
+  /** What the seconds are for, read aloud: "to block" (default), "to type" (a ✍️ scribe burst, #165). */
   what?: string;
 }) {
   const [left, setLeft] = useState(durationMs);

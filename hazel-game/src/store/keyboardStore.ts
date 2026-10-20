@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { fromPhysicalKeyboard } from '../lib/typing';
 
 /**
- * Whether a real keyboard has been seen this session (#159). Touch typing
+ * Whether a real keyboard has been seen this session (#165). Touch typing
  * can't be taught on a phone's glass keyboard, so the ✍️ scribe bursts and
  * the name bonus only appear once a physical key has been pressed; the
  * Library's lessons ask for one first. Session-only on purpose: a tablet

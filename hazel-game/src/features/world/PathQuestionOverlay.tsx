@@ -7,6 +7,7 @@ import { isStarterId } from '../../content/starterQuestions';
 import { errorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
+import { xpBonusPerCorrect } from '../../lib/powerups';
 import { riddleWords, chestRewardText, chestWantedLine, openChest, riddleSolvedLine, solveRiddle } from '../../content/quests';
 import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
@@ -18,6 +19,9 @@ import { LineRun } from '../typing/TypingLesson';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
 import ModalLayer from '../../components/ModalLayer';
+
+/** "Walk away" / "Later" — and Escape while either is offered. */
+const walkAway = () => sendFlow({ type: 'CLOSE' });
 
 /**
  * "Questions along the path" (#37): a gatekeeper's challenge, a question-
@@ -38,11 +42,13 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
   const age = playerAge(profile);
   const level = skillLevelFor(profile?.skillLevels ?? {}, target.topic, age);
+  // Scholar stacks add to every right answer, as in battles and quizzes (#102j).
+  const perCorrect = XP_PER_CORRECT + xpBonusPerCorrect(profile?.powerUps ?? {});
 
   const [solved, setSolved] = useState(false);
   // A tale-stone's question answered wrong (15e review): it offers another, right here.
   const [missed, setMissed] = useState(false);
-  // A scribe's lock (#159 item 8): a pangram chest, with a keyboard and the
+  // A scribe's lock (#165 item 8): a pangram chest, with a keyboard and the
   // capitals lesson, can be opened by typing its sentence instead — for a bonus.
   const keyboard = useKeyboardStore((s) => s.present);
   const [lockOpened, setLockOpened] = useState(false);
@@ -127,7 +133,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       setSolved(true);
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, disableForReducedMotion: true });
       // The way still opens on a starter question, but it pays no XP (#153).
-      if (question && !isStarterId(question.id)) void addXp(XP_PER_CORRECT);
+      if (question && !isStarterId(question.id)) void addXp(perCorrect);
       if (target.kind === 'gate') {
         sfx('gate');
         update((s) => ({ ...s, flags: { ...s.flags, [gateFlag(target.id)]: true } }));
@@ -140,7 +146,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         update((s) => openChest(s, target.id));
       }
     },
-    [addXp, question, target, update],
+    [addXp, perCorrect, question, target, update],
   );
 
   const title =
@@ -167,6 +173,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
     <ModalLayer
       // A new question (after "Ask me another" or Try again) pulls focus back in (15e round 4).
       focusKey={requestKey}
+      // Escape is "Walk away" or "Later" while one is offered (#159 r2) — never
+      // over a question still to answer, which has nothing to cancel.
+      onEscape={error || (question && missed) ? walkAway : undefined}
       label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
       {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the
           HUD band — under it, with the lock up (round 4). */}
@@ -243,7 +252,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                 Try again
               </button>
               <button
-                onClick={() => sendFlow({ type: 'CLOSE' })}
+                onClick={walkAway}
                 className="bg-gray-200 text-gray-700 font-semibold rounded-lg px-4 py-2 text-sm"
               >
                 Walk away
@@ -290,7 +299,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         )}
         {!lockOpened && question && missed && (
           <button
-            onClick={() => sendFlow({ type: 'CLOSE' })}
+            onClick={walkAway}
             className="mt-3 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-lg px-4 py-2 text-sm"
           >
             Later

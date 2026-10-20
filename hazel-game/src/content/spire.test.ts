@@ -17,6 +17,7 @@ import {
   spireCandles,
   spireQuestionLevel,
   spireComebackLine,
+  spireNextClimbLine,
 } from './spire';
 import { LEGEND_CHARS, WALKABLE_CHARS, VIEW_COLS, VIEW_ROWS } from './zones';
 import { reach, touches } from '../lib/reach';
@@ -115,6 +116,26 @@ describe('Spire climb (#55)', () => {
       expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(30);
       expect(line).not.toMatch(/\b(test|quiz|exam|grade|score)\b/i);
     }
+  });
+
+  it('the lose panel promises only what the next climb really changes (#150)', () => {
+    for (const before of [0, 1]) {
+      const line = spireNextClimbLine(before)!;
+      // The fall is remembered, so the next climb really has a candle more and riddles a level lower.
+      const next = spireFalls(flagsAfterSpireFall(Object.fromEntries(SPIRE_FALL_FLAGS.slice(0, before).map((f) => [f, true]))));
+      expect(next).toBe(before + 1);
+      expect(spireCandles(next)).toBe(spireCandles(before) + 1);
+      expect(spireQuestionLevel(5, SPIRE_FLOORS[1], next)).toBe(spireQuestionLevel(5, SPIRE_FLOORS[1], before) - 1);
+      expect(line).toMatch(/^Next time you climb, you'll have (one more|another) candle — and the riddles will be/);
+      expect(line.split(/\s+/).length, line).toBeLessThanOrEqual(30);
+      expect(line).not.toMatch(/\b(test|quiz|exam|grade|score)\b/i);
+    }
+    expect(spireNextClimbLine(0)).toMatch(/one more candle .* a little easier/);
+    expect(spireNextClimbLine(1)).toMatch(/another candle .* easier still/);
+    // After two falls a third changes nothing, so nothing is promised.
+    expect(spireCandles(2)).toBe(spireCandles(3));
+    expect(spireNextClimbLine(2)).toBeNull();
+    expect(spireNextClimbLine(5)).toBeNull();
   });
 
   it('every floor draws from real question topics', () => {

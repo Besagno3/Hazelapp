@@ -1,7 +1,7 @@
 import { anchorsFor, charKey, keyName } from '../content/typing';
 
 /**
- * The rules of typing a line (#159), pure and table-tested: what a key press
+ * The rules of typing a line (#165), pure and table-tested: what a key press
  * does to the kid's place in the text. The screens (`features/typing/`) only
  * listen to the keyboard and draw.
  */

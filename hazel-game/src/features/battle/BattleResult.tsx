@@ -67,7 +67,7 @@ export function BattleResult({
    * from the sea (#75 item 14d), or round to an island town's beach (#114o).
    */
   boatLine?: string | null;
-  /** Victory: the bonus scroll (#159 item 3) — a name to type for a little extra, when one was rolled. */
+  /** Victory: the bonus scroll (#165 item 3) — a name to type for a little extra, when one was rolled. */
   bonus?: Bonus | null;
   /** The home-row hold, as the player has it set. */
   holdRule?: boolean;

@@ -10,7 +10,7 @@ const tick = (ms: number) =>
     vi.advanceTimersByTime(ms);
   });
 
-describe('DefendTimer (#159 review round 3)', () => {
+describe('DefendTimer (#165 review round 3)', () => {
   it('urgency: the last 5 s on a clock of 10 s and over, a third of a shorter one; ticks never longer than urgency', () => {
     expect(urgentAt(25_000)).toBe(5);
     expect(urgentAt(10_000)).toBe(5);

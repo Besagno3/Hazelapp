@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { Question } from '../../types';
 
 // Five questions; the first option is right (each with its own text, so the
@@ -76,6 +76,71 @@ beforeEach(() => {
   hook.questions = questions;
   hook.loading = false;
   lastLevelOverride = undefined;
+});
+
+describe('QuizRound — the top bar (#110h)', () => {
+  it('the level, streak and Switch sit in the page above the question, and above the results', async () => {
+    start(1, false);
+    render(<QuizRound />);
+    const bar = screen.getByTestId('screen-topbar');
+    expect(bar.querySelector('.fixed')).toBeNull();
+    expect(bar.compareDocumentPosition(screen.getByText('Question 0?')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    cleanup();
+    await playPerfectRound();
+    expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Round Passed!')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('…and through the wait for the questions, and a failure: Switch player is never out of reach (#110h review)', () => {
+    start(1, false);
+    hook.loading = true;
+    render(<QuizRound />);
+    expect(screen.getByText('Building your questions…')).toBeInTheDocument();
+    expect(screen.getByTestId('screen-topbar')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    cleanup();
+    hook.loading = false;
+    hook.error = 'Question generation failed — rate limited';
+    render(<QuizRound />);
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    expect(screen.getByTestId('screen-topbar').compareDocumentPosition(screen.getByText('Try again')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a short landscape phone keeps the bar and the card tight, so the answers stay on screen', () => {
+    start(1, false);
+    render(<QuizRound />);
+    expect(screen.getByTestId('screen-topbar')).toHaveClass('[@media(max-height:500px)]:mb-1');
+    expect(screen.getByText('Question 0?')).toHaveClass('[@media(max-height:500px)]:mb-3');
+    // Still 48 px a tap (py-2.5 + the line + the border).
+    expect(screen.getByRole('button', { name: 'Right 0' })).toHaveClass('[@media(max-height:500px)]:py-2.5');
+  });
+
+  it('after an answer, Next is brought into view — on a sideways phone it sat below the fold (#159 review round 2)', async () => {
+    const scrolled: Element[] = [];
+    const scroll = vi.fn(function (this: Element) {
+      scrolled.push(this);
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', { value: scroll, configurable: true, writable: true });
+    const raf = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0);
+      return 1;
+    });
+    try {
+      start(1, false);
+      render(<QuizRound />);
+      expect(scroll).not.toHaveBeenCalled();
+      fireEvent.click(await screen.findByText('Right 0'));
+      // 'nearest': no scroll at all when it already fits.
+      expect(scroll).toHaveBeenCalledWith({ block: 'nearest', behavior: 'smooth' });
+      expect(scrolled.at(-1)).toBe(screen.getByRole('button', { name: 'Next Question' }));
+      // The next question's answer brings its Next in too.
+      fireEvent.click(screen.getByText('Next Question'));
+      fireEvent.click(await screen.findByText('Wrong 1a'));
+      expect(scroll).toHaveBeenCalledTimes(2);
+    } finally {
+      raf.mockRestore();
+      delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    }
+  });
 });
 
 describe('QuizRound — on screen = seen (#134)', () => {

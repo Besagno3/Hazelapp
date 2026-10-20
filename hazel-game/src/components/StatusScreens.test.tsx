@@ -23,6 +23,19 @@ describe('LoadingScreen', () => {
   });
 });
 
+describe('a top bar above the wait or the failure (#110h review)', () => {
+  it('sits first, at the top, with the rest below it', () => {
+    const { unmount } = render(<LoadingScreen label="Building your questions…" topBar={<nav>bar</nav>} />);
+    let bar = screen.getByRole('navigation');
+    expect(bar.compareDocumentPosition(screen.getByText('Building your questions…')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.parentElement!.firstElementChild).toBe(bar);
+    unmount();
+    render(<ErrorScreen message="Network failed" onRetry={vi.fn()} topBar={<nav>bar</nav>} />);
+    bar = screen.getByRole('navigation');
+    expect(bar.compareDocumentPosition(screen.getByText('Network failed')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('ErrorScreen', () => {
   it('renders the message and both actions when handlers are given', () => {
     render(<ErrorScreen message="Network failed" onRetry={vi.fn()} onBack={vi.fn()} />);

@@ -13,7 +13,7 @@ function untilSpawn(s = startLeaves()) {
   return stepLeaves(s, leafPace(s.caught).spawnMs, pool, () => 0);
 }
 
-describe('🍂 Falling Leaves (#159 item 7)', () => {
+describe('🍂 Falling Leaves (#165 item 7)', () => {
   it('the pool is the keys the lessons cleared so far have taught: f and j after lesson 1, more after each, never space', () => {
     expect(leafPool({}).map((k) => k.ch).sort()).toEqual(['f', 'j']);
     const two = { [typingLessonFlag(TYPING_LESSONS[0].id)]: true, [typingLessonFlag(TYPING_LESSONS[1].id)]: true };

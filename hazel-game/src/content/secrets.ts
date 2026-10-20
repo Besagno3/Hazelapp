@@ -24,19 +24,41 @@ export function secretAt(z: ZoneDef, x: number, y: number): SecretDef | undefine
   return z.secrets?.find((s) => s.x === x && s.y === y);
 }
 
-/** Hand over a secret's reward and mark it found. A no-op if already found. */
+/** The trophy for finding every secret in Lumina (#80b) — its id in `save.badges`. */
+export const SECRETS_BADGE = 'all-secrets-badge';
+/** Its name and emoji for the trophy shelf (like `QUEST_BADGES`). */
+export const SECRET_BADGES: Record<string, { name: string; emoji: string }> = {
+  [SECRETS_BADGE]: { name: 'Secret Seeker', emoji: '🔍' },
+};
+
+/** Has the save found every secret there is? */
+export function allSecretsFound(flags: Record<string, boolean>): boolean {
+  return ALL_SECRETS.length > 0 && ALL_SECRETS.every((s) => flags[secretFlag(s.secret.id)]);
+}
+
+/**
+ * The Secret Seeker trophy, given once every secret is found — once only.
+ * `claimSecret` asks as each secret is found; `normalizeSave` asks on load,
+ * for a save that found them all before the trophy existed.
+ */
+export function withSecretsBadge(save: SaveData): SaveData {
+  if (save.badges.includes(SECRETS_BADGE) || !allSecretsFound(save.flags)) return save;
+  return { ...save, badges: [...save.badges, SECRETS_BADGE] };
+}
+
+/** Hand over a secret's reward and mark it found — the last one adds the trophy. A no-op if already found. */
 export function claimSecret(save: SaveData, secret: SecretDef): SaveData {
   if (save.flags[secretFlag(secret.id)]) return save;
   const { coins = 0, items = {}, questItem } = secret.reward;
   const nextItems = { ...save.items };
   for (const [id, n] of Object.entries(items) as [ConsumableId, number][]) nextItems[id] += n;
-  return {
+  return withSecretsBadge({
     ...save,
     coins: save.coins + coins,
     items: nextItems,
     questItems: questItem && !save.questItems.includes(questItem) ? [...save.questItems, questItem] : save.questItems,
     flags: { ...save.flags, [secretFlag(secret.id)]: true },
-  };
+  });
 }
 
 /** One-line reward summary for the "secret found" popup, e.g. "+30 🪙 · 🍵 Focus Tea". */

@@ -17,9 +17,12 @@ export const SWITCH_CONFIRM_GAP_MS = 400;
  * size (the hint floats below it), so the map and the d-pad never move; any
  * other tap or key, or leaving the button, takes the question back; and a
  * double-tap's second half doesn't count as the answer (#75 item 14b review).
- * Once switching has started, more taps do nothing.
+ * Once switching has started, more taps do nothing. Its name read out is
+ * always "Switch player"; `fullName` shows it in full too where the bar has
+ * room (from 400 px), as the Training Grounds', quiz's and hero pick's do —
+ * there a bare "Switch" could mean the topic or the hero.
  */
-export default function SwitchPlayerButton({ inline = false }: { inline?: boolean }) {
+export default function SwitchPlayerButton({ inline = false, fullName = false }: { inline?: boolean; fullName?: boolean }) {
   const [armedAt, setArmedAt] = useState<number | null>(null);
   const [leaving, setLeaving] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
@@ -96,7 +99,9 @@ export default function SwitchPlayerButton({ inline = false }: { inline?: boolea
         aria-label={armed ? 'Switch player?' : 'Switch player'}
         className={`min-h-11 min-w-[5rem] ${look} disabled:opacity-60 ${armed ? 'ring-2 ring-white/70' : ''}`}
       >
-        {armed ? 'Switch?' : 'Switch'}
+        Switch
+        {fullName && <span className="hidden [@media(min-width:400px)]:inline"> player</span>}
+        {armed && '?'}
       </button>
       {/* Read out as it appears; on screen it floats under the button, so the bar doesn't grow. */}
       <span id={hintId} role="status" className="sr-only">

@@ -40,6 +40,16 @@ describe('SwitchPlayerButton (#124, was Sign out)', () => {
     expect(switchPlayer).toHaveBeenCalledTimes(1);
   });
 
+  it('`fullName` (Training Grounds, quiz, hero pick): "Switch player" where it fits, the same name read out (#110h review)', () => {
+    render(<SwitchPlayerButton inline fullName />);
+    const button = screen.getByRole('button', { name: 'Switch player' });
+    expect(button).toHaveTextContent('Switch player');
+    // From 400 px: "player" hides on a narrower bar.
+    expect(screen.getByText('player', { exact: false, selector: 'span' })).toHaveClass('hidden', '[@media(min-width:400px)]:inline');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: 'Switch player?' })).toHaveTextContent('Switch player?');
+  });
+
   it('…goes back to "Switch" if the second tap never comes', () => {
     render(<SwitchPlayerButton inline />);
     fireEvent.click(screen.getByRole('button', { name: 'Switch player' }));

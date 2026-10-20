@@ -101,8 +101,18 @@ export function BattleHud({
           <motion.div className="h-full bg-red-400 rounded-full" animate={{ width: hpPct(enemyHp, enemy.maxHp) }} />
         </div>
         <div className="flex justify-between gap-2 text-xs mt-0.5">
-          <span className="text-amber-300 font-bold animate-pulse">{powerMoveNext && `💢 ${powerMoveNext} next!`}</span>
-          <span className="text-white/60">
+          {/* One line, whatever the move's called: on a phone its name wrapped
+              this panel to four lines and pushed the commands off a 320×568
+              screen (#158b) — the banner, the message and Guard all name it. */}
+          <span className="min-w-0 truncate sm:overflow-visible sm:whitespace-normal text-amber-300 font-bold animate-pulse">
+            {powerMoveNext && (
+              <>
+                <span className="sm:hidden" aria-hidden="true">💢 Big hit next!</span>
+                <span className="sr-only sm:not-sr-only">💢 {powerMoveNext} next!</span>
+              </>
+            )}
+          </span>
+          <span className="shrink-0 text-white/60">
             {enemyHp}/{enemy.maxHp}
           </span>
         </div>
@@ -132,7 +142,13 @@ export function BattleHud({
         </div>
         <div className="flex justify-between gap-2 text-xs mt-0.5">
           <span className="text-orange-300 font-bold" title="Answers in a row">
-            {streak >= STREAK_START && `🔥×${streak} streak`}
+            {/* "streak" from `sm` up: on a phone it squeezed the enemy's name and its 💢 line. */}
+            {streak >= STREAK_START && (
+              <>
+                🔥×{streak}
+                <span className="sr-only sm:not-sr-only"> streak</span>
+              </>
+            )}
           </span>
           <span className="text-white/60">
             {playerHp}/{playerMaxHp}

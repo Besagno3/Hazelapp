@@ -8,7 +8,7 @@ import { useTypingRun } from '../typing/useTypingRun';
 import { DefendTimer } from './DefendTimer';
 
 /**
- * A ✍️ scribe burst (#159, item 2): after a right answer, a short word to
+ * A ✍️ scribe burst (#165, item 2): after a right answer, a short word to
  * type against the clock — the hero's name, Ember's or the foe's. Every key
  * does something at once (a tick, the next letter lights); the word typed in
  * time powers the move (a harder hit, or ◆ after a block — the arena's call).

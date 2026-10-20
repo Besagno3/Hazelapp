@@ -34,7 +34,7 @@ describe('StreakBadge', () => {
     // "🔥 5 days" on a phone ("days" from 360 px up), hidden from screen readers…
     const shown = screen.getByText((_, el) => el?.tagName === 'SPAN' && el.className.includes('sm:hidden') && el.textContent === '5 days');
     expect(shown.getAttribute('aria-hidden')).toBe('true');
-    expect(within(shown).getByText('days').className).toContain('min-[360px]:inline');
+    expect(within(shown).getByText('days').className).toContain('[@media(min-width:360px)]:inline');
     expect(screen.getByText('Streak: 5 days').className).toContain('sr-only');
     // The full words come back from `sm` up.
     expect(screen.getByText('5 days').parentElement!.className).toContain('hidden sm:block');

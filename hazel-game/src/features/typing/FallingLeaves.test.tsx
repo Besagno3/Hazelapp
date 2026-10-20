@@ -40,7 +40,7 @@ function catchLowest() {
   fireEvent.keyUp(window, { code, key: ch });
 }
 
-describe('🍂 Falling Leaves (#159 item 7)', () => {
+describe('🍂 Falling Leaves (#165 item 7)', () => {
   it('needs a keyboard, then lesson 1; the intro names the leaves that can fall', () => {
     useKeyboardStore.getState().reset();
     render(<FallingLeaves onBack={() => {}} />);

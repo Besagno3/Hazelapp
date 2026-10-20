@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useSaveStore } from '../../store/saveStore';
@@ -14,6 +14,7 @@ import { markSeen } from '../../lib/seen';
 import { isStarterId } from '../../content/starterQuestions';
 import { LoadingScreen, ErrorScreen } from '../../components/StatusScreens';
 import FlagButton from '../../components/FlagButton';
+import ScreenTopBar from '../../components/ScreenTopBar';
 import type { Question } from '../../types';
 
 /** A round as it was played, kept for its results screen. */
@@ -59,12 +60,30 @@ export default function QuizRound() {
     if (shownId) markSeen(shownId);
   }, [shownId]);
 
+  // On a sideways phone (740×360) or a small one (320×568) the 💡 explanation
+  // and Next fall below the fold once an answer is picked: bring Next into
+  // view, as QuestionCard does ('nearest' = no scroll when it already fits).
+  const nextButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (selected === null) return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    // Wait a frame so the explanation + button have laid out.
+    const raf = requestAnimationFrame(() => {
+      const btn = nextButton.current;
+      if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [selected]);
+
   if (finished) return <RoundResults round={finished} worldUnlocked={worldUnlocked} />;
-  if (loading) return <LoadingScreen label="Building your questions…" topic={topic} />;
+  // The top bar stays through the wait (15–30 s on a thin bank, #163) and a
+  // failure: Switch player is never out of reach.
+  if (loading) return <LoadingScreen label="Building your questions…" topic={topic} topBar={<ScreenTopBar />} />;
   if (error) {
     return (
       // A topic the server doesn't know yet (#135) fails the same way every time: no Try again.
       <ErrorScreen
+        topBar={<ScreenTopBar />}
         message={error}
         {...(error === TOPIC_NOT_READY
           ? { title: 'Coming soon!', emoji: '🚧', backLabel: 'Pick another topic' }
@@ -127,74 +146,80 @@ export default function QuizRound() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg">
-        <div className="flex justify-between text-sm text-gray-400 mb-4">
-          <span className="capitalize font-medium text-purple-600">
-            {topic} · Lvl {skillLevel}
-          </span>
-          <span>
-            Question {current + 1}/{total}
-          </span>
-        </div>
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
+      <ScreenTopBar />
+      <div className="flex-1 w-full flex items-center justify-center">
+        {/* A short landscape phone (740×360) tightens the card, so the answers
+            stay on screen under the top bar. */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-lg [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:py-4">
+          <div className="flex justify-between text-sm text-gray-400 mb-4 [@media(max-height:500px)]:mb-2">
+            <span className="capitalize font-medium text-purple-600">
+              {topic} · Lvl {skillLevel}
+            </span>
+            <span>
+              Question {current + 1}/{total}
+            </span>
+          </div>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={q.id}
-            initial={{ x: 40, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: -40, opacity: 0 }}
-          >
-            <h2 className="text-xl font-semibold mb-6">{q.text}</h2>
-            <div className="space-y-3">
-              {q.options.map((opt, idx) => {
-                let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 transition font-medium ';
-                if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
-                else if (idx === q.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
-                else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
-                else cls += 'border-gray-200 opacity-50';
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={q.id}
+              initial={{ x: 40, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -40, opacity: 0 }}
+            >
+              <h2 className="text-xl font-semibold mb-6 [@media(max-height:500px)]:mb-3">{q.text}</h2>
+              <div className="space-y-3 [@media(max-height:500px)]:space-y-2">
+                {q.options.map((opt, idx) => {
+                  let cls = 'w-full text-left border-2 rounded-lg px-4 py-3 [@media(max-height:500px)]:py-2.5 transition font-medium ';
+                  if (selected === null) cls += 'border-gray-200 hover:border-purple-400';
+                  else if (idx === q.correctIndex) cls += 'border-green-500 bg-green-50 text-green-700';
+                  else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
+                  else cls += 'border-gray-200 opacity-50';
 
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleAnswer(idx)}
-                    disabled={selected !== null}
-                    className={cls}
-                  >
-                    {opt}
-                  </button>
-                );
-              })}
-            </div>
-
-            {selected !== null && q.explanation && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
-              >
-                💡 {q.explanation}
-              </motion.p>
-            )}
-
-            {selected !== null && (
-              <div className="mt-3">
-                <FlagButton questionId={q.id} />
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleAnswer(idx)}
+                      disabled={selected !== null}
+                      className={cls}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
               </div>
-            )}
 
-            {selected !== null && (
-              <motion.button
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={goNext}
-                className="mt-5 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
-              >
-                {isLastQuestion ? 'See Results' : 'Next Question'}
-              </motion.button>
-            )}
-          </motion.div>
-        </AnimatePresence>
+              {selected !== null && q.explanation && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-4 text-sm text-gray-500 bg-gray-50 rounded-lg p-3"
+                >
+                  💡 {q.explanation}
+                </motion.p>
+              )}
+
+              {selected !== null && (
+                <div className="mt-3">
+                  <FlagButton questionId={q.id} />
+                </div>
+              )}
+
+              {selected !== null && (
+                <motion.button
+                  ref={nextButton}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={goNext}
+                  className="mt-5 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2.5 transition"
+                >
+                  {isLastQuestion ? 'See Results' : 'Next Question'}
+                </motion.button>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
@@ -210,69 +235,72 @@ function RoundResults({ round, worldUnlocked }: { round: FinishedRound; worldUnl
     .filter((m) => m.correct === false);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
-      <motion.div
-        initial={{ scale: 0.7, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
-      >
-        <div className="text-center">
-          <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
-          <h2 className="text-2xl font-bold mb-2">
-            {passed ? 'Round Passed!' : 'Keep Trying!'}
-          </h2>
-          <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
-        </div>
-
-        {missed.length > 0 && (
-          <div className="mb-6 text-left">
-            <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
-              What you missed
-            </h3>
-            <ul className="space-y-3">
-              {missed.map(({ question, picked }) => (
-                <li
-                  key={question.id}
-                  className="border border-gray-200 rounded-lg p-3 text-sm"
-                >
-                  <p className="font-medium text-gray-800 mb-2">{question.text}</p>
-                  {picked !== undefined && (
-                    <p className="text-red-600 mb-1">
-                      Your answer: <span className="font-medium">{question.options[picked]}</span>
-                    </p>
-                  )}
-                  <p className="text-green-700 mb-1">
-                    Correct:{' '}
-                    <span className="font-medium">
-                      {question.options[question.correctIndex]}
-                    </span>
-                  </p>
-                  {question.explanation && (
-                    <p className="text-gray-500 mt-1">💡 {question.explanation}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
+      <ScreenTopBar />
+      <div className="flex-1 w-full flex items-center justify-center">
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white rounded-2xl p-8 shadow-2xl max-w-lg w-full"
+        >
+          <div className="text-center">
+            <div className="text-6xl mb-4">{passed ? '🏆' : '😅'}</div>
+            <h2 className="text-2xl font-bold mb-2">
+              {passed ? 'Round Passed!' : 'Keep Trying!'}
+            </h2>
+            <p className="text-gray-500 mb-6">Score: {Math.round(score * 100)}%</p>
           </div>
-        )}
 
-        <div className="flex flex-col gap-2 items-center">
-          {worldUnlocked && (
-            <button
-              onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
-              className="w-full bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-6 py-2.5 transition"
-            >
-              🗺️ Enter the world of Lumina
-            </button>
+          {missed.length > 0 && (
+            <div className="mb-6 text-left">
+              <h3 className="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide">
+                What you missed
+              </h3>
+              <ul className="space-y-3">
+                {missed.map(({ question, picked }) => (
+                  <li
+                    key={question.id}
+                    className="border border-gray-200 rounded-lg p-3 text-sm"
+                  >
+                    <p className="font-medium text-gray-800 mb-2">{question.text}</p>
+                    {picked !== undefined && (
+                      <p className="text-red-600 mb-1">
+                        Your answer: <span className="font-medium">{question.options[picked]}</span>
+                      </p>
+                    )}
+                    <p className="text-green-700 mb-1">
+                      Correct:{' '}
+                      <span className="font-medium">
+                        {question.options[question.correctIndex]}
+                      </span>
+                    </p>
+                    {question.explanation && (
+                      <p className="text-gray-500 mt-1">💡 {question.explanation}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
-          <button
-            onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
-          >
-            Back to Topics
-          </button>
-        </div>
-      </motion.div>
+
+          <div className="flex flex-col gap-2 items-center">
+            {worldUnlocked && (
+              <button
+                onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
+                className="w-full bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-6 py-2.5 transition"
+              >
+                🗺️ Enter the world of Lumina
+              </button>
+            )}
+            <button
+              onClick={() => sendFlow({ type: 'EXIT_QUIZ' })}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-6 py-2 transition"
+            >
+              Back to Topics
+            </button>
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

@@ -295,6 +295,20 @@ export function spireComebackLine(falls: number): string | null {
     : 'The Spire remembers you tried. Two more candles — and the riddles are easier still.';
 }
 
+/**
+ * Said on the lose panel (#150): what the next climb will change, after a
+ * climb that began with `fallsBefore` falls remembered — one more candle and
+ * riddles a level lower, as `spireCandles` / `spireQuestionLevel` will make
+ * it. None once two falls are remembered: a third changes nothing more.
+ */
+export function spireNextClimbLine(fallsBefore: number): string | null {
+  const n = fallsCapped(fallsBefore);
+  if (n >= SPIRE_FALL_FLAGS.length) return null;
+  return n === 0
+    ? "Next time you climb, you'll have one more candle — and the riddles will be a little easier."
+    : "Next time you climb, you'll have another candle — and the riddles will be easier still.";
+}
+
 /** XP awarded for clearing the Spire and beating Umbra — the first time only (#109). */
 export const SPIRE_CLEAR_XP = 600;
 

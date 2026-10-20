@@ -173,9 +173,26 @@ export const DOCK_NEAR = 2;
  */
 export function boatAway(save: Pick<SaveData, 'boat' | 'vehicle' | 'flags'>): BoatSpot | null {
   if (!hasBoat(save.flags) || save.vehicle === 'boat' || save.boat === null) return null;
-  const { zoneId, x, y } = save.boat;
-  const home = zoneId === BOAT_HOME.zoneId && Math.max(Math.abs(x - BOAT_HOME.x), Math.abs(y - BOAT_HOME.y)) <= DOCK_NEAR;
-  return home ? null : save.boat;
+  return atDock(save.boat) ? null : save.boat;
+}
+
+/** Is a boat moored here home at Marlow's dock — within `DOCK_NEAR` cells of it? */
+export function atDock({ zoneId, x, y }: BoatSpot): boolean {
+  return zoneId === BOAT_HOME.zoneId && Math.max(Math.abs(x - BOAT_HOME.x), Math.abs(y - BOAT_HOME.y)) <= DOCK_NEAR;
+}
+
+/**
+ * Can a hero on foot at `from`, on the map the boat is moored on, walk up and
+ * climb into it (beside it, corners too) — gates and fog as they stand — and
+ * does it float on water that reaches Marlow's dock, so the dock's "sail
+ * east" is its way out too? Then a boat left down Dawnreach's coast is a
+ * walk away, and the way needs no Old Marlow (#159 r2).
+ */
+export function boatWalkable(boat: BoatSpot, from: { x: number; y: number }, flags: Record<string, boolean> | null): boolean {
+  if (boat.zoneId !== BOAT_HOME.zoneId) return false;
+  const z = ZONES[boat.zoneId];
+  if (!boardableFrom(reach(z, { from, flags, gates: 'flags' }), boat)) return false;
+  return reach(z, { from: boat, aboard: true, flags }).has(`${BOAT_HOME.x},${BOAT_HOME.y}`);
 }
 
 /**

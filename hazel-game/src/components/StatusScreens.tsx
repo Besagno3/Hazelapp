@@ -1,10 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
 import type { Topic } from '../types';
 import type { OutdatedReason } from '../store/saveStore';
 
 const FACT_ROTATION_MS = 4000;
+
+/**
+ * The full-screen backdrop. With a `topBar` (the quiz's level, streak and
+ * Switch player, `ScreenTopBar`) the bar sits at the top, where the screen it
+ * stands in for has it — so a long wait still has a way out — and the rest
+ * centres below it.
+ */
+function Backdrop({ topBar, className = '', children }: { topBar?: ReactNode; className?: string; children: ReactNode }) {
+  if (!topBar) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6 ${className}`}>
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-500 to-purple-600 px-4 pt-3 pb-6 sm:px-6 [@media(max-height:500px)]:pt-1">
+      {topBar}
+      <div className={`flex-1 w-full flex flex-col items-center justify-center py-6 ${className}`}>{children}</div>
+    </div>
+  );
+}
 
 /**
  * Full-screen loading state. When a `topic` is provided, rotates a kid-friendly
@@ -14,9 +36,12 @@ const FACT_ROTATION_MS = 4000;
 export function LoadingScreen({
   label = 'Loading…',
   topic,
+  topBar,
 }: {
   label?: string;
   topic?: Topic;
+  /** The screen's top bar, shown above the wait (see `Backdrop`). */
+  topBar?: ReactNode;
 }) {
   const pool = useMemo(() => (topic ? FUN_FACTS[topic] : GENERIC_FACTS), [topic]);
   // Start at a random fact each mount so consecutive loads don't repeat the same one.
@@ -31,7 +56,7 @@ export function LoadingScreen({
   const fact = pool[(start + step) % pool.length];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6">
+    <Backdrop topBar={topBar} className="text-white">
       <motion.div
         className="w-12 h-12 border-4 border-white/30 border-t-white rounded-full"
         animate={{ rotate: 360 }}
@@ -53,7 +78,7 @@ export function LoadingScreen({
           </motion.p>
         </AnimatePresence>
       </div>
-    </div>
+    </Backdrop>
   );
 }
 
@@ -95,6 +120,7 @@ export function ErrorScreen({
   emoji = '😕',
   retryLabel = 'Try again',
   backLabel = 'Back',
+  topBar,
 }: {
   message: string;
   onRetry?: () => void;
@@ -103,9 +129,11 @@ export function ErrorScreen({
   emoji?: string;
   retryLabel?: string;
   backLabel?: string;
+  /** The screen's top bar, shown above the card (see `Backdrop`). */
+  topBar?: ReactNode;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-500 to-purple-600 p-6">
+    <Backdrop topBar={topBar}>
       <div className="bg-white text-gray-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
         <div className="text-5xl mb-3" aria-hidden="true">
           {emoji}
@@ -136,6 +164,6 @@ export function ErrorScreen({
           )}
         </div>
       </div>
-    </div>
+    </Backdrop>
   );
 }
