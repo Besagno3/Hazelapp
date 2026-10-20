@@ -11,7 +11,7 @@ export const FUN_FACTS: Record<Topic, string[]> = {
     'Did you know? Zero is the only number that can’t be written as a Roman numeral.',
     'A “googol” is a 1 followed by 100 zeros — more than every atom in the universe.',
     'Add up every number from 1 to 100 and you get exactly 5,050.',
-    'In the 9 times table up to 9 × 10, the digits of every answer add up to 9 — like 27: 2 + 7 = 9!',
+    'In the 9 times table up to 9 times 10, the digits of every answer add up to 9 — like 27: 2 + 7 = 9!',
     'There are infinitely many prime numbers — and we’ll never run out of new ones.',
   ],
   science: [

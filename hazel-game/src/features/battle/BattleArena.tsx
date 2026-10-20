@@ -86,12 +86,15 @@ import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
 import { isStarterId } from '../../content/starterQuestions';
+import { BURST_LITTLE_MS, BURST_MS, FIRST_STRIKE_SHARE, LITTLE_HANDS_AGE, NAME_RACE_LITTLE_MS, NAME_RACE_MS, RACE_READY_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, SONG_LITTLE_MS, SONG_MS, burstWord, enemyWord, lettersLearned, nameRaceDue, nameRaceOpen, rollTypingBonus, songFor, typingUnlocked, type TypingBonus } from '../../content/typing';
+import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
 import { CommandMenu, CompanionMenu, ItemMenu, SpellMenu, SwapMenu } from './BattleMenus';
 import { BattleResult } from './BattleResult';
 import { DefendTimer } from './DefendTimer';
+import { TypeBurst } from './TypeBurst';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
 import { IMPACT_MS, useBattleFx } from './useBattleFx';
 
@@ -120,7 +123,11 @@ type Turn =
   | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
   | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
   | { kind: 'message'; text: string; next: () => void }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null }
+  /** The name race (#165 item 4): type the critter's name before it moves. */
+  | { kind: 'race'; word: string }
+  /** A boss winding up its power move, and a line of the song that breaks it (#165 item 6). */
+  | { kind: 'song'; line: string; move: string }
+  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
   | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
@@ -317,6 +324,20 @@ export default function BattleArena() {
   const peek = useRef(0);
   // What the enemy does on its NEXT turn (see lib/battleTurn nextIntent).
   const [intent, setIntent] = useState<EnemyIntent>('attack');
+  // Which line of a boss's song the next wind-up asks for (#165 item 6).
+  const songLineNo = useRef(0);
+  // The race / song card where the command menu sits: brought into view as it opens
+  // (review round 1: at 1024×768 its keyboard ran off the bottom of the window).
+  const typingCardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (turn.kind !== 'race' && turn.kind !== 'song') return;
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const raf = requestAnimationFrame(() => {
+      const el = typingCardRef.current;
+      if (typeof el?.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [turn.kind]);
   const enemyTurnNo = useRef(0);
   // Speed trigger (lib/battleTurn speedStep): quick correct answers in a row
   // raise this battle's question level. Refs, not state — the next question is
@@ -338,6 +359,16 @@ export default function BattleArena() {
   const [answeredKey, setAnsweredKey] = useState<string | null>(null);
   /** The question whose defend timer a Forget-Me-Knot's second try paused (#75 item 14e). */
   const [pausedKey, setPausedKey] = useState<string | null>(null);
+  // A ✍️ scribe burst (#165): the word to type after a right Attack or block
+  // answer, on the card it belongs to. Typed in time, an Attack's burst sets
+  // `scribeRef` for the strike that follows; a block's adds ◆ at once.
+  const [scribeBurst, setScribeBurst] = useState<{ key: string; mode: 'attack' | 'block'; word: string } | null>(null);
+  // Turns each time a burst settles, so the card focuses ▶ Go! then (review round 2: focus had fallen to the page).
+  const [scribeSettled, setScribeSettled] = useState(0);
+  // The song's line is typed or timed out, and its result is on screen (review round 2: "Let it come" stayed live for that beat).
+  const [songSettled, setSongSettled] = useState(false);
+  const scribeRef = useRef(false);
+  const keyboard = useKeyboardStore((s) => s.present);
   // Displayed HP while a blow is still in the air (null = show the store's).
   // Cosmetic only: the store already holds the real numbers.
   const [shownHp, setShownHp] = useState<{ p: number; e: number } | null>(null);
@@ -396,13 +427,21 @@ export default function BattleArena() {
     // A swift critter (#75 item 14h) takes the first turn: its blow, blocked by a
     // defend question as ever, comes before the hero's first command.
     const swift = enemy.behavior === 'swift';
-    if (lines.length === 0 && !swift) return;
+    // The name race (#165 item 4): one regular critter in three, with a keyboard and lesson 1.
+    // No race for a player whose defend countdown is off (📜 → ⚔️ Battle): a race is a clock;
+    // and none before every letter's lesson is cleared (`nameRaceOpen`).
+    const race = nameRaceDue(enemy, useKeyboardStore.getState().present && nameRaceOpen(save?.flags ?? {}) && save?.defendTimer !== false);
+    if (lines.length === 0 && !swift && !race) return;
     const chain = lines.reduceRight<() => void>(
       (next, line) => () => {
         line.shown?.();
         setTurn({ kind: 'message', text: line.text, next });
       },
-      swift ? () => setTurn({ kind: 'message', text: `⚡ ${enemy.name} darts in before you can move!`, next: enemyTurn }) : () => setTurn({ kind: 'command' }),
+      swift
+        ? () => setTurn({ kind: 'message', text: `⚡ ${enemy.name} darts in before you can move!`, next: enemyTurn })
+        : race
+          ? () => setTurn({ kind: 'race', word: enemyWord(enemy.name) })
+          : () => setTurn({ kind: 'command' }),
     );
     chain();
     // `enemyTurn` (a swift critter's first move) is made afresh each render; the
@@ -433,6 +472,10 @@ export default function BattleArena() {
   const viewEnemyHp = shownHp?.e ?? enemyHp;
   const canCastAny = spellQs.length > 0 && spells.some((s) => charge >= s.cost);
   const powerMove = powerMoveName(enemy.id);
+  // Scribe bursts need a real keyboard and the first typing lesson (#165); their clocks
+  // wait for every letter's lesson and the player's countdown setting (review round 2).
+  const scribe = keyboard && typingUnlocked(save.flags);
+  const typingClock = save.defendTimer && lettersLearned(save.flags);
   const charging = intent === 'power';
   const nextQuestion = () => {
     // A long battle goes round its questions again; each ask gets a fresh
@@ -450,6 +493,7 @@ export default function BattleArena() {
   /** Pose a question turn, spending Pip's peek on it if one is waiting. */
   const ask = (t: QuestionTurn) => {
     setTurn({ ...t, hide: peek.current, seq: ++askSeq.current });
+    scribeRef.current = false;
     helped.current = peek.current > 0;
     peek.current = 0;
     askedAt.current = nowMs();
@@ -596,6 +640,30 @@ export default function BattleArena() {
 
   // --- Turn resolution --------------------------------------------------------
 
+  /**
+   * A ✍️ scribe burst ended (#165): typed in time, the move it follows is
+   * powered up — an Attack hits `SCRIBE_ATTACK_MULT`× (read by
+   * `resolvePlayerQuestion` when ▶ Go! resolves it), a block adds
+   * `SCRIBE_BLOCK_CHARGE` ◆ now (the store is the truth, #70). Too late:
+   * nothing — the answer already counted.
+   */
+  function scribeDone(mode: 'attack' | 'block', ok: boolean) {
+    // ▶ Go! takes focus a beat after the word settles (review rounds 3–4: a kid still typing "count bat",
+    // or ending a word with Space or Enter by habit, sent that key to the button).
+    later(() => setScribeSettled((n) => n + 1), ok ? 300 : 600);
+    if (!ok) return;
+    sfx('streak');
+    if (mode === 'attack') {
+      scribeRef.current = true;
+      float("✍️ Scribe's power!", 'hero', 'text-amber-300');
+      return;
+    }
+    const s = combatState();
+    const gained = Math.min(CHARGE_MAX, s.charge + SCRIBE_BLOCK_CHARGE) - s.charge;
+    applyCombat({ ...s, charge: s.charge + gained });
+    float(gained > 0 ? `✍️ +${gained}◆` : '✍️ Perfect block!', 'hero', 'text-amber-300');
+  }
+
   function resolvePlayerQuestion(mode: 'attack' | 'guard', wasCorrect: boolean) {
     if (mode === 'guard') {
       if (wasCorrect) {
@@ -615,11 +683,16 @@ export default function BattleArena() {
     // Focus Tea (#80) or Battle Cry: a landed Attack hits TEA_DAMAGE_MULT× and spends the focus.
     const focus = applyFocus(now, boost(Math.round(attackDamage(wasCorrect, style, powerUps) * heart)));
     applyCombat(focus.state);
+    // A ✍️ scribe burst typed in time (#165): the strike hits harder.
+    const scribed = scribeRef.current;
+    scribeRef.current = false;
+    const dmg = scribed ? Math.round(focus.dmg * SCRIBE_ATTACK_MULT) : focus.dmg;
     const text =
       (wasCorrect ? `${avatar!.name} strikes true!` : 'A glancing blow…') +
       (heart > 1 ? ' 🦁 Lionheart — hits harder when hurt!' : '') +
-      focus.note;
-    heroStrike(focus.dmg, text, 'text-red-300', { sound: 'attack' });
+      focus.note +
+      (scribed ? " ✍️ Scribe's power — the word was true!" : '');
+    heroStrike(dmg, text, 'text-red-300', { sound: 'attack' });
   }
 
   /**
@@ -764,7 +837,8 @@ export default function BattleArena() {
       heal = 0,
       skipsTurn = false,
       superEffective = false,
-    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean },
+      then = enemyTurn,
+    }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean; then?: () => void },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
     const r = resolveHeroHit(combatState(), dmg, { isBoss: enemy!.isBoss, refundCharge });
@@ -785,7 +859,8 @@ export default function BattleArena() {
       say(
         `${text} The stony shield takes the blow — and SHATTERS! ${enemy!.name} is wide open now!` +
           (r.refunded > 0 ? ' The spell-light flows back to you — charge refunded!' : ''),
-        enemyTurn,
+        // What follows the blow (the name race's free strike hands the hero their turn, #165 item 4).
+        then,
       );
       return;
     }
@@ -801,7 +876,26 @@ export default function BattleArena() {
       say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
       return;
     }
-    say(text, enemyTurn);
+    // `then`: what follows the blow — the enemy's turn, or the hero's own (a first strike, #165 item 4).
+    say(text, then);
+  }
+
+  /**
+   * The name race ended (#165 item 4). Won: a free first blow at
+   * `FIRST_STRIKE_SHARE` of an Attack's power, then the hero's turn as usual.
+   * Lost: the critter darts in first — its turn, a defend question as ever.
+   */
+  function raceDone(ok: boolean) {
+    if (!ok) {
+      say(`⚡ ${enemy!.name} darts in before you can move!`, enemyTurn);
+      return;
+    }
+    sfx('streak');
+    const dmg = boost(Math.round(attackDamage(true, style, powerUps) * FIRST_STRIKE_SHARE));
+    heroStrike(dmg, `⚡ ${avatar!.name} names it first and strikes before it can blink! Now, your move.`, 'text-amber-300', {
+      sound: 'attack',
+      then: () => setTurn({ kind: 'command' }),
+    });
   }
 
   /** Boss enrage callout when the enemy's HP crosses into phase `p` (from any damage). */
@@ -822,13 +916,38 @@ export default function BattleArena() {
       sfx('charge');
       showBanner(`${enemy!.name} is gathering power for ${powerMove}!`, 2800, '💢');
       advanceIntent('charge');
-      say(
-        `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`,
-        () => setTurn({ kind: 'command' }),
-      );
+      // A boss with a song (#165 item 6): sing a line of it, with a keyboard, to break the move.
+      const song = scribe ? songFor(enemy!.id) : null;
+      if (song) {
+        setTurn({ kind: 'song', line: song.lines[songLineNo.current++ % song.lines.length], move: powerMove });
+        return;
+      }
+      say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
     }
     ask({ kind: 'enemy-question', question: nextQuestion() });
+  }
+
+  /** The warning as a power move is wound up: what's coming, and that Guard blocks it. */
+  function windUpText() {
+    return `${enemy!.name} is gathering power… ${powerMove} is coming next turn! 🛡️ Guard (or a Rainbow Ward) will block it completely.`;
+  }
+
+  /**
+   * The song line's clock ran out, or the line was typed in time (#165 item 6):
+   * in time, the wound-up move drops back to a plain blow (`nextIntent`'s
+   * "a charge is always followed by its power blow" has this one exception).
+   */
+  function songDone(ok: boolean) {
+    setSongSettled(false);
+    if (!ok) {
+      say(windUpText(), () => setTurn({ kind: 'command' }));
+      return;
+    }
+    sfx('streak');
+    setIntent('attack');
+    float('🎶', 'hero', 'text-amber-200');
+    say(songFor(enemy!.id)!.broken(enemy!.name, powerMove), () => setTurn({ kind: 'command' }));
   }
 
   /**
@@ -1026,7 +1145,18 @@ export default function BattleArena() {
     // and none asked for late may show there.
     fightOver.current = true;
     fx.clearBanners();
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge });
+    // The bonus scroll (#165 item 3): one win in three, with a keyboard, a name to type for a little extra.
+    const bonus = keyboard ? rollTypingBonus(avatar!.name, enemy!.name) : null;
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus });
+  }
+
+  /** The bonus scroll's name typed (#165 item 3): pay it. `TypingBonus` asks once. */
+  function claimBonus(bonus: TypingBonus) {
+    sfx('chest');
+    burst({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+    const r = bonus.reward;
+    if (r.kind === 'xp') void addXp(r.amount);
+    else updateSave((s) => (r.kind === 'coins' ? { ...s, coins: s.coins + r.amount } : { ...s, items: { ...s.items, [r.id]: s.items[r.id] + 1 } }));
   }
 
   function defeat() {
@@ -1228,6 +1358,64 @@ export default function BattleArena() {
           />
         )}
 
+        {turn.kind === 'race' && (
+          <div ref={typingCardRef} className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-3 shadow-2xl" data-testid="name-race">
+            <TypeBurst
+              key={turn.word}
+              word={turn.word}
+              holdRule={save.typingAnchor}
+              durationMs={age < LITTLE_HANDS_AGE ? NAME_RACE_LITTLE_MS : NAME_RACE_MS}
+              timed
+              readyMs={RACE_READY_MS}
+              label="⚡ Name it first to strike first!"
+              doneText="⚡ First strike is yours!"
+              lateText="Too slow!"
+              onEvent={(e) => {
+                if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
+              }}
+              // A beat to read the result, then the blow or the critter's move.
+              onResult={(ok) => {
+                // The last key's tick (the strike comes 700 ms later — round 6: the burst's own tick doubled the scribe's).
+                if (ok) sfx('select');
+                later(() => raceDone(ok), 700);
+              }}
+            />
+          </div>
+        )}
+
+        {turn.kind === 'song' && (
+          <div ref={typingCardRef} className="w-full max-w-xl bg-white text-gray-800 rounded-2xl p-3 shadow-2xl" data-testid="hush-song">
+            <TypeBurst
+              key={turn.line}
+              word={turn.line}
+              holdRule={save.typingAnchor}
+              durationMs={age < LITTLE_HANDS_AGE ? SONG_LITTLE_MS : SONG_MS}
+              timed={typingClock}
+              label={`💢 ${turn.move} — ${songFor(enemy.id)!.prompt}`}
+              doneText={songFor(enemy.id)!.done}
+              lateText={songFor(enemy.id)!.late}
+              onEvent={(e) => {
+                if (e === 'typed' || e === 'done') float('🎵', 'hero', 'text-amber-200');
+              }}
+              // A beat to read the result, then what the boss does next.
+              onResult={(ok) => {
+                setSongSettled(true);
+                if (ok) sfx('select');
+                later(() => songDone(ok), 700);
+              }}
+            />
+            {/* A kid who can't type the line needn't wait the clock out (review round 1): let the move come — Guard still
+                blocks it. Out of reach once the line is settled (review round 2), keeping its room so the card doesn't jump. */}
+            <button
+              onClick={() => songDone(false)}
+              disabled={songSettled}
+              className={`mt-2 w-full min-h-11 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg py-2 text-sm${songSettled ? ' invisible' : ''}`}
+            >
+              Let it come — I'll Guard it
+            </button>
+          </div>
+        )}
+
         {turn.kind === 'swap' && <SwapMenu party={party} active={companionId} flags={save?.flags} onSwap={swapTo} onBack={toCommand} />}
 
         {turn.kind === 'items' && (
@@ -1331,19 +1519,39 @@ export default function BattleArena() {
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
                 recordAnswer(correct, turn.question, picked);
+                // A ✍️ scribe burst (#165) after a right Attack or block answer.
+                if (correct && scribe && (turn.kind === 'enemy-question' || turn.mode === 'attack')) {
+                  setScribeBurst({ key: qKey, mode: turn.kind === 'enemy-question' ? 'block' : 'attack', word: burstWord(avatar.name, enemy.name) });
+                }
               }}
-              continueLabel="▶ Go!"
-              onContinue={(correct) =>
-                turn.kind === 'enemy-question'
-                  ? resolveEnemyQuestion(correct)
-                  : turn.mode === 'spell'
-                    ? resolveSpellQuestion(turn.spell, correct)
-                    : turn.mode === 'pair'
-                      ? resolvePair(turn.pair, correct)
-                      : turn.mode === 'companion'
-                        ? resolveCompanionStrike(correct)
-                        : resolvePlayerQuestion(turn.mode, correct)
+              afterAnswer={
+                scribeBurst && scribeBurst.key === qKey ? (
+                  <TypeBurst
+                  timed={typingClock}
+                    word={scribeBurst.word}
+                    holdRule={save.typingAnchor}
+                    durationMs={age < LITTLE_HANDS_AGE ? BURST_LITTLE_MS : BURST_MS}
+                    label={scribeBurst.mode === 'attack' ? '✍️ Type it for a harder hit!' : `✍️ Type it for +${SCRIBE_BLOCK_CHARGE} ◆!`}
+                    doneText={scribeBurst.mode === 'attack' ? '✍️ Done! Your hit will be harder.' : `✍️ Done! +${SCRIBE_BLOCK_CHARGE} ◆ is yours.`}
+                    // Every right key sparks on the hero: each press does something at once.
+                    onEvent={(e) => {
+                      if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
+                    }}
+                    onResult={(ok) => scribeDone(scribeBurst.mode, ok)}
+                  />
+                ) : undefined
               }
+              continueLabel="▶ Go!"
+              focusContinueKey={scribeSettled}
+              onContinue={(correct) => {
+                // ▶ Go! before the word is typed: no bonus, the move resolves as ever.
+                setScribeBurst(null);
+                if (turn.kind === 'enemy-question') resolveEnemyQuestion(correct);
+                else if (turn.mode === 'spell') resolveSpellQuestion(turn.spell, correct);
+                else if (turn.mode === 'pair') resolvePair(turn.pair, correct);
+                else if (turn.mode === 'companion') resolveCompanionStrike(correct);
+                else resolvePlayerQuestion(turn.mode, correct);
+              }}
             />
           </div>
         )}
@@ -1378,6 +1586,9 @@ export default function BattleArena() {
             shelter={turn.kind === 'defeat' ? turn.shelter : null}
             tip={turn.kind === 'defeat' ? defeatTip(enemy, roadTier(save?.flags ?? {})) : null}
             boatLine={turn.kind === 'defeat' ? turn.boatLine : null}
+            bonus={turn.kind === 'victory' ? turn.bonus : null}
+            holdRule={save.typingAnchor}
+            onClaimBonus={claimBonus}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
         )}

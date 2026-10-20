@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
@@ -13,6 +13,9 @@ import { gateFlag } from '../../content/zones';
 import { sfx } from '../../lib/audio';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
+import { useKeyboardStore } from '../../store/keyboardStore';
+import { LINE_HOLD_MS, PANGRAM_BONUS_COINS, pangramChest, pangramFor, scriptoriumOpen } from '../../content/typing';
+import { LineRun } from '../typing/TypingLesson';
 import { sendFlow } from '../../machines/gameFlow';
 import type { PathTarget, Question } from '../../types';
 import ModalLayer from '../../components/ModalLayer';
@@ -45,6 +48,42 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
   const [solved, setSolved] = useState(false);
   // A tale-stone's question answered wrong (15e review): it offers another, right here.
   const [missed, setMissed] = useState(false);
+  // A scribe's lock (#165 item 8): a pangram chest, with a keyboard and the
+  // capitals lesson, can be opened by typing its sentence instead — for a bonus.
+  const keyboard = useKeyboardStore((s) => s.present);
+  const [lockOpened, setLockOpened] = useState(false);
+  // The lock unfolds only when asked (review round 1: open, it buried the riddle at 800×600).
+  const [lockShown, setLockShown] = useState(false);
+  // Gone once the riddle has opened the chest (review round 1: the lock stayed, and paid its bonus on an open chest).
+  const scribeLock = target.kind === 'chest' && pangramChest(target.id) && keyboard && scriptoriumOpen(save?.flags ?? {}) && !solved;
+  // The riddle answered wrong (review round 4): the lock stays the way in, and says so.
+  const [answeredWrong, setAnsweredWrong] = useState(false);
+  // The sentence is typed and the chest is on its way (round 5: the riddle stayed answerable in the beat).
+  const [typed, setTyped] = useState(false);
+  // Set as an attribute, as `useInertOutside` does (round 7: React 19 reads `inert` as a boolean, where "" is false).
+  const riddleBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = riddleBox.current;
+    if (!el) return;
+    if (typed) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  }, [typed]);
+  const opening = useRef<number | null>(null);
+  useEffect(() => () => window.clearTimeout(opening.current ?? undefined), []);
+  function openByLock() {
+    update((s) => {
+      const opened = openChest(s, target.id);
+      // The bonus rides a real opening only (an already-open chest returns the save unchanged).
+      return opened === s ? s : { ...opened, coins: opened.coins + PANGRAM_BONUS_COINS };
+    });
+    // The chest springs after the line's beat (review round 4: a habitual Enter on the last key closed it unread).
+    setTyped(true);
+    opening.current = window.setTimeout(() => {
+      sfx('chest');
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, disableForReducedMotion: true });
+      setLockOpened(true);
+    }, LINE_HOLD_MS);
+  }
   const [attempt, setAttempt] = useState(0);
 
   // A tale-stone's riddle reads as a challenge on the path, not a treasure chest's (15e review).
@@ -84,12 +123,15 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       // no glow, no XP, no "ask me another" (15e rounds 2 and 4).
       const now = useSaveStore.getState().save;
       if (target.kind === 'riddle' && (!now || solveRiddle(now, target.id) === now)) return;
+      // The sentence already opened the chest (round 5): an answer in its beat changes nothing.
+      if (opening.current !== null) return;
       if (!correct) {
         if (target.kind === 'riddle') setMissed(true);
+        if (target.kind === 'chest') setAnsweredWrong(true);
         return;
       }
       setSolved(true);
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
+      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, disableForReducedMotion: true });
       // The way still opens on a starter question, but it pays no XP (#153).
       if (question && !isStarterId(question.id)) void addXp(perCorrect);
       if (target.kind === 'gate') {
@@ -112,7 +154,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       ? '🚧 The Gatekeeper blocks the path!'
       : target.kind === 'riddle'
         ? riddleWords(target.id).title
-        : '🎁 The chest asks a riddle!';
+        : lockOpened
+          ? '📜 The lock springs open!'
+          : '🎁 The chest asks a riddle!';
   const successText =
     target.kind === 'gate'
       ? 'The gate swings open!'
@@ -133,7 +177,13 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       // over a question still to answer, which has nothing to cancel.
       onEscape={error || (question && missed) ? walkAway : undefined}
       label={target.kind === 'gate' ? 'Gate question' : target.kind === 'riddle' ? riddleWords(target.id).label : 'Riddle chest'} className="fixed inset-0 z-40 overflow-y-auto bg-black/60 p-4">
-      <div className="min-h-full flex flex-col items-center justify-center">
+      {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the
+          HUD band — under it, with the lock up (round 4). */}
+      <div className={`min-h-full flex flex-col items-center justify-center pb-8 ${lockShown ? 'pt-24' : 'pt-8'}`}>
+        {/* The lock's opening, read out (round 6: the card arrived as new text, and only its button was heard). */}
+        <p className="sr-only" aria-live="polite">
+          {lockOpened ? `The lock springs open! Inside: ${chestRewardText(target.id).replace(/\s*🪙\s*$/, '')} A scribe's bonus: ${PANGRAM_BONUS_COINS} coins more.` : ''}
+        </p>
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -142,13 +192,56 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           {title}
         </motion.h2>
 
-        {!question && !error && (
+        {scribeLock && !lockOpened && (
+          <div className="w-full max-w-xl bg-indigo-950/95 border-4 border-amber-300/80 rounded-xl p-3 text-white shadow-2xl mb-4" data-testid="scribe-lock">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="flex-1 min-w-[12rem] text-sm">
+                <span className="font-bold text-amber-300">📜 A scribe's lock!</span>{' '}
+                <span className="text-white/80">
+                  {answeredWrong
+                    ? lockShown
+                      ? `Type its sentence — every letter of the alphabet is in it — and the chest opens, 🪙 ${PANGRAM_BONUS_COINS} on top.`
+                      : `The riddle got you — but a scribe can still open it: type its sentence for 🪙 ${PANGRAM_BONUS_COINS} on top.`
+                    : lockShown
+                      ? `Type its sentence — every letter of the alphabet is in it — for a bonus of 🪙 ${PANGRAM_BONUS_COINS}. The riddle below still works too.`
+                      : `Type its sentence for a bonus of 🪙 ${PANGRAM_BONUS_COINS}, or answer the riddle as ever.`}
+                </span>
+              </p>
+              {!lockShown && (
+                <button
+                  onClick={() => setLockShown(true)}
+                  className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2 text-sm min-h-11"
+                >
+                  ✍️ Type the sentence
+                </button>
+              )}
+            </div>
+            {lockShown && (
+              <div className="mt-2">
+                <LineRun text={pangramFor(target.id)} holdRule={save?.typingAnchor ?? true} onDone={openByLock} announce compact label="The lock's sentence" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {lockOpened && (
+          <div className="w-full max-w-xl bg-white rounded-2xl p-5 text-center shadow-2xl" data-testid="scribe-lock-open">
+            <p className="font-bold text-gray-800 mb-1">✨ Inside: {chestRewardText(target.id)}</p>
+            <p className="text-sm text-amber-700 font-semibold mb-1">A scribe's bonus: 🪙 {PANGRAM_BONUS_COINS} more!</p>
+            {wanted && <p className="text-sm text-gray-700 mb-2">{wanted}</p>}
+            <button autoFocus onClick={() => sendFlow({ type: 'CLOSE' })} className="mt-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl px-6 py-3 min-h-11">
+              Onward!
+            </button>
+          </div>
+        )}
+
+        {!lockOpened && !question && !error && (
           <div className="text-white/90 bg-white/10 rounded-xl px-6 py-4">
             Thinking of a good one… 🤔
           </div>
         )}
 
-        {error && (
+        {!lockOpened && error && (
           <div className="bg-white rounded-xl p-5 max-w-sm text-center">
             <p className="text-sm text-gray-600 mb-4">{error}</p>
             <div className="flex justify-center gap-3">
@@ -168,14 +261,17 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
           </div>
         )}
 
-        {question && (
+        {!lockOpened && question && (
+          <div ref={riddleBox} className={typed ? 'opacity-60 transition-opacity' : undefined}>
           <QuestionCard
             key={question.id}
             question={question}
             hints={hints}
             onUseHint={spendHint}
             onAnswered={onAnswered}
-            focusContinue
+            // Not while the lock is up (review round 2): a Space typed for the pangram would click the focused button and close
+            // the chest. Once the riddle is solved the lock is gone, and the carry-on button takes focus as ever (round 3).
+            focusContinue={!(scribeLock && lockShown)}
             continueLabel={solved ? `✨ ${successText}` : missed ? '🔄 Ask me another!' : 'Hmm… I’ll come back!'}
             // A tale-stone asks again on the spot (15e round 3) — no walking back up to it.
             onContinue={() => {
@@ -199,8 +295,9 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
                   : undefined
             }
           />
+          </div>
         )}
-        {question && missed && (
+        {!lockOpened && question && missed && (
           <button
             onClick={walkAway}
             className="mt-3 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-lg px-4 py-2 text-sm"

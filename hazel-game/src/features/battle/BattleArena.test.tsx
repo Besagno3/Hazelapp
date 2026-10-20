@@ -899,3 +899,610 @@ describe('starter questions never move the saved skill level (#153 review round 
     expect(screen.queryByText(/just got harder/)).toBeNull();
   });
 });
+
+// --- ✍️ Scribe bursts (#165 item 2) ----------------------------------------------
+const { useKeyboardStore } = await import('../../store/keyboardStore');
+const { BURST_MS, SCRIBE_ATTACK_MULT, SCRIBE_BLOCK_CHARGE, TYPING_LESSONS, anchorsFor, charKey, songFor, typingLessonFlag } = await import('../../content/typing');
+
+/**
+ * A keyboard seen and the first lesson cleared — the burst's two conditions.
+ * `lessons` clears that many lessons (the name race wants every letter's).
+ */
+function unlockTyping(hold = false, lessons = 1) {
+  useKeyboardStore.getState().seen();
+  const save = useSaveStore.getState().save!;
+  const cleared = Object.fromEntries(TYPING_LESSONS.slice(0, lessons).map((l) => [typingLessonFlag(l.id), true]));
+  useSaveStore.setState({ save: { ...save, typingAnchor: hold, flags: { ...save.flags, ...cleared } } });
+}
+/** Lessons through the one that completes the letters (`LETTERS_LESSON`): the clocks and the race open after it. */
+const ALL_LETTERS = TYPING_LESSONS.findIndex((l) => l.id === 'bottom-cxz') + 1;
+
+/** Type the burst's word (read off the card: the arena picks it at random). */
+function typeBurstWord() {
+  const word = screen.getByTestId('type-burst').querySelector('[data-line]')!.getAttribute('data-line')!;
+  for (const ch of word) {
+    const code = charKey(ch)!.key.code;
+    fireEvent.keyDown(window, { code, key: ch });
+    fireEvent.keyUp(window, { code, key: ch });
+  }
+  return word;
+}
+
+function attackAndAnswer() {
+  fireEvent.click(screen.getByText('Attack'));
+  fireEvent.click(screen.getByText('4'));
+}
+
+describe('✍️ scribe bursts (#165 item 2)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('no burst without a keyboard, nor before the first lesson is cleared', () => {
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+    cleanup();
+    useKeyboardStore.getState().seen();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+  });
+
+  it(`after a right Attack answer the burst appears; its word typed in time, the hit is ×${SCRIBE_ATTACK_MULT} and says so`, () => {
+    // The same first Attack without a burst, for the baseline.
+    render(<BattleArena />);
+    attackAndAnswer();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    const plain = 200 - useBattleStore.getState().enemyHp;
+    expect(plain).toBeGreaterThan(0);
+    cleanup();
+
+    useBattleStore.getState().reset();
+    // Full HP: the enemy's blow below mustn't wake Valor's Lionheart and muddle the second Attack's number.
+    useBattleStore.getState().start(enemy, 100, 100);
+    // The dice at 0.5: no name race on this battle's opening (item 4), and the critter attacks.
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    const word = typeBurstWord();
+    expect(['valor', 'ember', 'count bat']).toContain(word);
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Done!/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
+    expect(200 - useBattleStore.getState().enemyHp).toBe(Math.round(plain * SCRIBE_ATTACK_MULT));
+    // The next Attack starts clean: no power carried over.
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const before = useBattleStore.getState().enemyHp;
+    attackAndAnswer();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    expect(before - useBattleStore.getState().enemyHp).toBeLessThan(Math.round(plain * SCRIBE_ATTACK_MULT));
+  });
+
+  it('▶ Go! before the word is typed, or the clock running out, gives no bonus', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 100);
+    });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Time's up/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    expect(screen.getByText(/strikes true/)).toBeInTheDocument();
+  });
+
+  it('▶ Go! before the word is typed: the plain move, nothing late, and the next burst starts fresh (review round 1)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    // Talon: no Battle Cry focus and no Lionheart, so the two Attacks compare plainly.
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a3' } });
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 100, 100, heroOpening('balanced'));
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.queryByTestId('type-burst')).toBeNull();
+    expect(screen.queryByText(/the word was true/)).toBeNull();
+    const plain = 200 - useBattleStore.getState().enemyHp;
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 500);
+    });
+    // A wrong defend answer breaks the streak, so the next Attack's number is plain again.
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // A fresh burst on the next right Attack answer, typed through: the power applies to this one only.
+    const before = useBattleStore.getState().enemyHp;
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    typeBurstWord();
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
+    expect(before - useBattleStore.getState().enemyHp).toBe(Math.round(plain * SCRIBE_ATTACK_MULT));
+  });
+
+  it('before every letter\'s lesson, the burst runs with no clock (review round 2)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/No clock/);
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Type it for a harder hit/);
+    expect(screen.queryByRole('timer')).toBeNull();
+  });
+
+  it('a word typed in time hands ▶ Go! the focus after a short beat, so a trailing Space or Enter lands on nothing (review round 4)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    attackAndAnswer();
+    typeBurstWord();
+    const go = screen.getByText('▶ Go!');
+    expect(document.activeElement).not.toBe(go);
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(document.activeElement).toBe(go);
+  });
+
+  it('a word that runs out hands ▶ Go! the focus only after a longer beat (review round 3)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    attackAndAnswer();
+    expect(document.activeElement).toBe(screen.getByTestId('type-burst'));
+    act(() => {
+      vi.advanceTimersByTime(BURST_MS + 200);
+    });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Time's up/);
+    const go = screen.getByText('▶ Go!');
+    expect(document.activeElement).not.toBe(go);
+    act(() => {
+      vi.advanceTimersByTime(700);
+    });
+    expect(document.activeElement).toBe(go);
+  });
+
+  it('with the defend countdown off, the burst has no clock and the word still counts (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    render(<BattleArena />);
+    attackAndAnswer();
+    const burst = screen.getByTestId('type-burst');
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(burst).toHaveTextContent(/No clock/);
+    typeBurstWord();
+    expect(burst).toHaveTextContent(/Done!/);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/the word was true/)).toBeInTheDocument();
+  });
+
+  it(`a block followed by its word adds ${SCRIBE_BLOCK_CHARGE} ◆ at once`, () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    render(<BattleArena />);
+    // Guard → wrong → the enemy attacks → a right defend answer.
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('4'));
+    const charge = useBattleStore.getState().charge;
+    expect(screen.getByTestId('type-burst')).toBeInTheDocument();
+    typeBurstWord();
+    expect(useBattleStore.getState().charge).toBe(charge + SCRIBE_BLOCK_CHARGE);
+    fireEvent.click(screen.getByText('▶ Go!'));
+    expect(screen.getByText(/Count Bat attacks/)).toBeInTheDocument();
+    expect(useBattleStore.getState().charge).toBe(charge + SCRIBE_BLOCK_CHARGE);
+  });
+
+  it('with the home-row hold on, the burst asks for the other hand too', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(true);
+    render(<BattleArena />);
+    attackAndAnswer();
+    const word = screen.getByTestId('type-burst').querySelector('[data-line]')!.getAttribute('data-line')!;
+    const first = charKey(word[0])!.key.code;
+    fireEvent.keyDown(window, { code: first, key: word[0] });
+    expect(screen.getByTestId('type-burst')).toHaveTextContent(/Other hand home/);
+  });
+});
+
+// --- The bonus scroll (#165 item 3) -----------------------------------------------
+const { TYPING_BONUS_COINS, TYPING_BONUS_XP } = await import('../../content/typing');
+
+/** A critter one Attack beats, so the victory panel is a few clicks away. */
+function startWeakling() {
+  useBattleStore.getState().reset();
+  useBattleStore.getState().start({ ...enemy, maxHp: 10 }, 60, 100);
+}
+function winTheFight() {
+  fireEvent.click(screen.getByText('Attack'));
+  fireEvent.click(screen.getByText('4'));
+  fireEvent.click(screen.getByText('▶ Go!'));
+  fireEvent.click(screen.getByText(/tap to continue/));
+  expect(screen.getByText('Victory!')).toBeInTheDocument();
+}
+
+describe('the bonus scroll after a win (#165 item 3)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('one win in three, with a keyboard: type the name, claim the coins — once', () => {
+    // Every roll 0: the scroll is offered (0 < 1/3), it's the hero's name, the reward coins.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    useKeyboardStore.getState().seen();
+    const save = useSaveStore.getState().save!;
+    useSaveStore.setState({ save: { ...save, typingAnchor: false } });
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    const coinsAfterWin = useSaveStore.getState().save!.coins;
+    const scroll = screen.getByTestId('typing-bonus');
+    expect(scroll).toHaveTextContent(`Type your name to claim 🪙 ${TYPING_BONUS_COINS} coins`);
+    expect(screen.getByText('Type: Valor')).toBeInTheDocument();
+    for (const ch of 'Valor') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(scroll).toHaveTextContent(/Claimed/);
+    expect(useSaveStore.getState().save!.coins).toBe(coinsAfterWin + TYPING_BONUS_COINS);
+    // Typing it again pays nothing more.
+    for (const ch of 'Valor') fireEvent.keyDown(window, { code: charKey(ch)!.key.code, key: ch });
+    expect(useSaveStore.getState().save!.coins).toBe(coinsAfterWin + TYPING_BONUS_COINS);
+  });
+
+  it("an XP scroll pays XP; Ember's name with the hold on wants the other Shift for its capital", () => {
+    // On the win, the dice go: the drop (0.9 → none), then the scroll's offer 0.1 → yes, who 0.4 → Ember, reward 0.3 → XP.
+    const rolls = [0.9, 0.1, 0.4, 0.3];
+    const spy = vi.spyOn(Math, 'random').mockImplementation(() => 0.2);
+    useKeyboardStore.getState().seen();
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    startWeakling();
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('4'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    spy.mockImplementation(() => rolls.shift() ?? 0.2);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const scroll = screen.getByTestId('typing-bonus');
+    expect(scroll).toHaveTextContent(`Type Ember's name to claim ⭐ ${TYPING_BONUS_XP} XP`);
+    addXp.mockClear();
+    // "E" with the hold on: the right Shift must be held.
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'E' });
+    expect(scroll).toHaveTextContent(/Hold the RIGHT Shift/);
+    fireEvent.keyDown(window, { code: 'ShiftRight', key: 'Shift' });
+    fireEvent.keyDown(window, { code: 'KeyE', key: 'E' });
+    fireEvent.keyUp(window, { code: 'KeyE', key: 'E' });
+    fireEvent.keyUp(window, { code: 'ShiftRight', key: 'Shift' });
+    // The rest the touch-typing way: the other hand's bump key held for each letter.
+    for (const ch of 'mber') {
+      const anchor = anchorsFor(ch)[0];
+      fireEvent.keyDown(window, { code: anchor, key: anchor === 'KeyF' ? 'f' : 'j' });
+      fireEvent.keyDown(window, { code: charKey(ch)!.key.code, key: ch });
+      fireEvent.keyUp(window, { code: charKey(ch)!.key.code, key: ch });
+      fireEvent.keyUp(window, { code: anchor, key: anchor === 'KeyF' ? 'f' : 'j' });
+    }
+    expect(scroll).toHaveTextContent(/Claimed/);
+    expect(addXp).toHaveBeenCalledWith(TYPING_BONUS_XP);
+  });
+
+  it('no scroll without a keyboard, nor on the other two wins in three', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    expect(screen.queryByTestId('typing-bonus')).toBeNull();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    useKeyboardStore.getState().seen();
+    startWeakling();
+    render(<BattleArena />);
+    winTheFight();
+    expect(screen.queryByTestId('typing-bonus')).toBeNull();
+  });
+});
+
+// --- The name race (#165 item 4) ---------------------------------------------------
+const { NAME_RACE_MS, RACE_READY_MS, FIRST_STRIKE_SHARE } = await import('../../content/typing');
+const { attackDamage } = await import('../../lib/battleMath');
+
+describe('the name race as a battle opens (#165 item 4)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  it('one critter in three: name it in time and the hero strikes first, then takes their turn', () => {
+    // 0.3: the race is on (< 1/3); the enemy's first intent is an attack (≥ its charge chance).
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    expect(screen.queryByText('Attack')).toBeNull();
+    const race = screen.getByTestId('name-race');
+    expect(race).toHaveTextContent(/Name it first to strike first/);
+    expect(screen.getByText('Type: count bat')).toBeInTheDocument();
+    vi.useFakeTimers();
+    for (const ch of 'count bat') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(race).toHaveTextContent(/First strike is yours/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/names it first and strikes/)).toBeInTheDocument();
+    // Half an Attack's power (Valor's Battle Cry doubles only a landed Attack, not this).
+    expect(200 - useBattleStore.getState().enemyHp).toBe(Math.round(attackDamage(true, 'aggressive', {}) * FIRST_STRIKE_SHARE));
+    expect(useBattleStore.getState().playerHp).toBe(60);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it('too slow, and the critter darts in first: its turn, a defend question', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    vi.useFakeTimers();
+    render(<BattleArena />);
+    const race = screen.getByTestId('name-race');
+    // The ready beat first (its state lands when this act ends), then the clock.
+    expect(race).toHaveTextContent(/Ready…/);
+    act(() => {
+      vi.advanceTimersByTime(RACE_READY_MS + 50);
+    });
+    expect(race).not.toHaveTextContent(/Ready…/);
+    act(() => {
+      vi.advanceTimersByTime(NAME_RACE_MS + 200);
+    });
+    expect(race).toHaveTextContent(/Too slow/);
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/darts in before you can move/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText(/Count Bat attacks — answer to block/)).toBeInTheDocument();
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+  });
+
+  it('won against a shielded critter: the free blow shatters its shield, and the hero still takes their turn (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...enemy, id: 'relic-golem', instanceId: 'rg', name: 'Relic Golem', behavior: 'shielded' } as BattleEnemy, 60, 100);
+    render(<BattleArena />);
+    // The shielded callout line first, then the race.
+    for (let i = 0; i < 4 && !screen.queryByTestId('name-race'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByTestId('name-race')).toBeInTheDocument();
+    vi.useFakeTimers();
+    for (const ch of 'relic golem') {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/SHATTERS/)).toBeInTheDocument();
+    expect(useBattleStore.getState().enemyShielded).toBe(false);
+    expect(useBattleStore.getState().enemyHp).toBe(200);
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    expect(screen.queryByText(/answer to block/)).toBeNull();
+  });
+
+  it('no race for a player whose defend countdown is off (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    unlockTyping(false, ALL_LETTERS);
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+  });
+
+  it('no race on the other two in three, without a keyboard, before lesson 1, or against a boss', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    expect(screen.getByText('Attack')).toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+    vi.spyOn(Math, 'random').mockReturnValue(0.3);
+    useKeyboardStore.getState().reset();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), avatarId: 'a1' } });
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    // Lesson 1 alone is not enough either: the race waits for every letter's lesson (review round 1).
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(enemy, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+    cleanup();
+    unlockTyping(false, ALL_LETTERS);
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...enemy, id: 'null-fiend', name: 'The Null Fiend', isBoss: true, role: 'fiend' }, 60, 100);
+    render(<BattleArena />);
+    expect(screen.queryByTestId('name-race')).toBeNull();
+  });
+});
+
+// --- The song that breaks the hush (#165 item 6) ------------------------------------
+const { BOSS_SONGS, SONG_MS } = await import('../../content/typing');
+const { enemyAttack } = await import('../../lib/battleMath');
+const { POWER_MULTIPLIER } = await import('../../lib/battleTurn');
+
+describe('the song that breaks the hush (#165 item 6)', () => {
+  const hush = { ...enemy, id: 'hush-fiend', instanceId: 'hf', name: 'The Hush Fiend', isBoss: true, role: 'fiend', topic: 'words', level: 1, maxHp: 500 } as BattleEnemy;
+  const song = BOSS_SONGS['hush-fiend'];
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+    useKeyboardStore.getState().reset();
+  });
+
+  /** One round with nothing right (so no scribe burst): Guard, wrong; its blow, wrong. */
+  function roundOfWrongs() {
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+  }
+
+  /** The Fiend's monologue tapped through, two rounds, then the Guard that meets its third turn: the wind-up. */
+  function toTheWindUp() {
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start(hush, 100, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 8 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    roundOfWrongs();
+    roundOfWrongs();
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+  }
+
+  it("the Hush Fiend's wind-up offers a line of the song; sung in time, the Great Shush fizzles to a plain blow", () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    expect(box).toHaveTextContent(/Great Shush — sing to break it!/);
+    expect(screen.getByText(`Type: ${song.lines[0]}`)).toBeInTheDocument();
+    expect(screen.queryByText(/gathering power…/)).toBeNull();
+    // A kid who can't type the line can let it come (review round 1) — the button is there with the clock on.
+    expect(screen.getByText(/Let it come/)).toBeInTheDocument();
+    vi.useFakeTimers();
+    for (const ch of song.lines[0]) {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(box).toHaveTextContent(/the hush breaks/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/Great Shush fizzles/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    // Its next blow is a plain one, not ×2.
+    const before = useBattleStore.getState().playerHp;
+    roundOfWrongs();
+    expect(before - useBattleStore.getState().playerHp).toBe(enemyAttack(hush.level, true, 0));
+  });
+
+  it('too slow: the usual warning, and the Great Shush lands ×2 (Guard would still block it)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    vi.useFakeTimers();
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    act(() => {
+      vi.advanceTimersByTime(SONG_MS + 100);
+    });
+    expect(box).toHaveTextContent(/swallows your song/);
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/tap to continue/));
+    const before = useBattleStore.getState().playerHp;
+    roundOfWrongs();
+    expect(before - useBattleStore.getState().playerHp).toBe(enemyAttack(hush.level, true, 0) * POWER_MULTIPLIER);
+  });
+
+  it('with the defend countdown off: no clock on the song, and "Let it come" brings the plain warning (review round 1)', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping();
+    useSaveStore.setState({ save: { ...useSaveStore.getState().save!, defendTimer: false } });
+    toTheWindUp();
+    const box = screen.getByTestId('hush-song');
+    expect(screen.queryByRole('timer')).toBeNull();
+    expect(box).toHaveTextContent(/No clock/);
+    fireEvent.click(screen.getByText(/Let it come/));
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+  });
+
+  it('"Let it come" steps back once the line is sung, so the beat before the result cannot be double-booked (review round 2)', () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    unlockTyping(false, ALL_LETTERS);
+    toTheWindUp();
+    const letIt = screen.getByText(/Let it come/);
+    expect(letIt).toBeEnabled();
+    for (const ch of songFor('hush-fiend')!.lines[0]) {
+      const code = charKey(ch)!.key.code;
+      fireEvent.keyDown(window, { code, key: ch });
+      fireEvent.keyUp(window, { code, key: ch });
+    }
+    expect(letIt).toBeDisabled();
+    fireEvent.click(letIt);
+    expect(screen.queryByText(/gathering power…/)).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(screen.getByText(/whole island hums along/)).toBeInTheDocument();
+  });
+
+  it('without a keyboard, or against a boss with no song, the wind-up is the plain warning', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    toTheWindUp();
+    expect(screen.queryByTestId('hush-song')).toBeNull();
+    expect(screen.getByText(/gathering power…/)).toBeInTheDocument();
+    cleanup();
+    unlockTyping();
+    useBattleStore.getState().reset();
+    useBattleStore.getState().start({ ...hush, id: 'null-fiend', instanceId: 'nf', name: 'The Null Fiend', topic: 'math' } as BattleEnemy, 100, 100);
+    render(<BattleArena />);
+    for (let i = 0; i < 8 && !screen.queryByText('Attack'); i++) fireEvent.click(screen.getByText(/tap to continue/));
+    roundOfWrongs();
+    roundOfWrongs();
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.queryByTestId('hush-song')).toBeNull();
+    expect(screen.getByText(/Zero Crush is coming next turn/)).toBeInTheDocument();
+  });
+});

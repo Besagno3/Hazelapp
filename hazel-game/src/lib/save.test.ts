@@ -222,6 +222,13 @@ describe('normalizeSave', () => {
     expect(normalizeSave({ defendTimer: 'nope' }).defendTimer).toBe(true);
   });
 
+  it('the typing home-row hold is on by default; only an explicit false turns it off (#165)', () => {
+    expect(defaultSave().typingAnchor).toBe(true);
+    expect(normalizeSave({}).typingAnchor).toBe(true);
+    expect(normalizeSave({ typingAnchor: false }).typingAnchor).toBe(false);
+    expect(normalizeSave({ typingAnchor: 'nope' }).typingAnchor).toBe(true);
+  });
+
   it('keeps the chosen battle companion; older saves and unknown ids default to Ember', () => {
     expect(normalizeSave({ companionId: 'pip' }).companionId).toBe('pip');
     expect(normalizeSave({}).companionId).toBe('ember');

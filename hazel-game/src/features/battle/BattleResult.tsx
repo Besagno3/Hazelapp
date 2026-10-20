@@ -3,6 +3,8 @@ import { keyName, type GateKey } from '../../content/keys';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
+import type { TypingBonus as Bonus } from '../../content/typing';
+import { TypingBonus } from './TypingBonus';
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
 /** "a Count Bat", "an Oak Owl", "the Ringkeeper" — a name mid-sentence (#75 item 14f review: not "a The Ringkeeper"). */
@@ -28,6 +30,9 @@ export function BattleResult({
   shelter = null,
   tip = null,
   boatLine = null,
+  bonus = null,
+  holdRule = true,
+  onClaimBonus,
   onLeave,
 }: {
   result: 'victory' | 'defeat';
@@ -62,6 +67,11 @@ export function BattleResult({
    * from the sea (#75 item 14d), or round to an island town's beach (#114o).
    */
   boatLine?: string | null;
+  /** Victory: the bonus scroll (#165 item 3) — a name to type for a little extra, when one was rolled. */
+  bonus?: Bonus | null;
+  /** The home-row hold, as the player has it set. */
+  holdRule?: boolean;
+  onClaimBonus?: (bonus: Bonus) => void;
   onLeave: () => void;
 }) {
   const won = result === 'victory';
@@ -111,6 +121,7 @@ export function BattleResult({
               🎁 It dropped a {CONSUMABLES[drop].emoji} {CONSUMABLES[drop].name}!
             </p>
           )}
+          {bonus && onClaimBonus && <TypingBonus bonus={bonus} holdRule={holdRule} onClaim={() => onClaimBonus(bonus)} />}
         </>
       ) : (
         <>
