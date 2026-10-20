@@ -54,6 +54,8 @@ interface BattleStore {
   toughMet: number[];
   /** The "💤 Sleepy critters let you pass…" hint has been said this session (#114e). */
   sleeperHintSaid: boolean;
+  /** "📚 Librarian Sage has something for you…" has been said this session (#166). */
+  libraryNudgeSaid: boolean;
   /**
    * Where an escort (#75 item 14g, Posy) last stood, so a battle mid-walk
    * leaves her where she was — session only, and cleared whenever the walk ends.
@@ -67,6 +69,7 @@ interface BattleStore {
   recordLoss: (key: string) => void;
   meetTough: (tier: number) => void;
   saySleeperHint: () => void;
+  sayLibraryNudge: () => void;
   setEscortAt: (at: { x: number; y: number } | null) => void;
   endBattle: () => void;
   reset: () => void;
@@ -98,6 +101,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
   losses: {},
   toughMet: [],
   sleeperHintSaid: false,
+  libraryNudgeSaid: false,
   escortAt: null,
 
   start: (enemy, playerHp, playerMaxHp, opening = NO_OPENING) =>
@@ -144,6 +148,8 @@ export const useBattleStore = create<BattleStore>((set) => ({
 
   saySleeperHint: () => set({ sleeperHintSaid: true }),
 
+  sayLibraryNudge: () => set({ libraryNudgeSaid: true }),
+
   setEscortAt: (at) => set({ escortAt: at }),
 
   endBattle: () => set({ enemy: null }),
@@ -159,6 +165,7 @@ export const useBattleStore = create<BattleStore>((set) => ({
       losses: {},
       toughMet: [],
       sleeperHintSaid: false,
+      libraryNudgeSaid: false,
       escortAt: null,
     }),
 }));

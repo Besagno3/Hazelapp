@@ -606,6 +606,11 @@ zod, react-query. Add the package in the same change that first uses it.
   cleared, the shelf on the way back, a result card) its heading takes the
   focus (`tabIndex={-1}`, `focus:outline-none`), so a keyboard and a reader
   start at the top of what changed.
+  **Back to the Library (#166):** a kid back in the world (a sign-in, a kid
+  picked) who hasn't cleared lesson 1 is sent to Sage once a session
+  (`WorldScreen`'s `LIBRARY_NUDGE` toast; `battleStore.libraryNudgeSaid`),
+  a beat after arriving and waiting out a story, an overlay or a toast —
+  only once the intro has played, never to a glass keyboard.
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1108,6 +1113,20 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-20 — Back to the Library: a returning kid is sent to Librarian Sage (#166)
+The owner: now that typing is in, whenever someone logs back in a message
+should tell them Sage has something for them at the Library. `WorldScreen`
+shows "📚 Librarian Sage has something for you at the Library in Lumina
+Village — go and see him!" as a world toast (read out) a beat after the
+world opens, once a session per kid (`battleStore.libraryNudgeSaid`, reset by
+Switch player and sign-out), until the first typing lesson is cleared. It
+waits out a story, an overlay or a toast already up (retrying for up to
+30 s), counts as said once it's been up 2.5 s (a battle cutting it short
+means it's said again next time), plays only once the intro has been seen,
+and never on a glass keyboard. Tests: `WorldScreen.nudge.test` (+5,
+TC-1690); 1935 green, lint + tsc clean; `bench … hud` 8/8 and `bench …
+typing` 48/48 on the changed screen (the toast in the HUD shots).
 
 ### 2026-10-20 — Merge main into the touch-typing branch; touch typing is #165 (#165)
 The owner said merge. `main` had moved 16 commits (the issues audit, its
