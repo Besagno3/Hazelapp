@@ -163,6 +163,10 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
       {/* Padded top and bottom (review round 3): with the lock unfolded the column overflows, and the heading sat on the
           HUD band — under it, with the lock up (round 4). */}
       <div className={`min-h-full flex flex-col items-center justify-center pb-8 ${lockShown ? 'pt-24' : 'pt-8'}`}>
+        {/* The lock's opening, read out (round 6: the card arrived as new text, and only its button was heard). */}
+        <p className="sr-only" aria-live="polite">
+          {lockOpened ? `The lock springs open! Inside: ${chestRewardText(target.id)} A scribe's bonus: ${PANGRAM_BONUS_COINS} coins more.` : ''}
+        </p>
         <motion.h2
           initial={{ y: -16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -241,7 +245,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
         )}
 
         {!lockOpened && question && (
-          <div className={typed ? 'pointer-events-none opacity-60 transition-opacity' : undefined} aria-hidden={typed || undefined}>
+          <div {...((typed ? { inert: '' } : {}) as Record<string, string>)} className={typed ? 'opacity-60 transition-opacity' : undefined}>
           <QuestionCard
             key={question.id}
             question={question}

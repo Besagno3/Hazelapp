@@ -581,6 +581,11 @@ zod, react-query. Add the package in the same change that first uses it.
   focused boxes are named groups; the live task reads "Type this: …"; a
   typing clock (`what: 'to type'`) doesn't tick aloud; `shortWindow()`
   (under 700 px tall) drops the hands on the desk and the letter.
+  `keyboardStore.keysDown()` is the set of keys physically down (kept by
+  `watchKeyboard`'s capture-phase listeners); a run and a leaves round start
+  from it, so an anchor held across lines stays held. Each typing screen
+  keeps one live region across its states (the lesson, the desk, the leaves,
+  the lock's overlay, the letter) rather than mounting result text anew.
   **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
   (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
   scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
@@ -1054,6 +1059,28 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-20 — Touch typing review round 6: keys held across lines, results read out (#159)
+The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)
+and UX (2 medium, 6 low, 2 nits) reviewers over round 5's screenshots; all
+fixed.
+- **Code:** an anchor held through a line's beat was unknown to the next
+  line's run ("Hold J" while holding J) — `keyboardStore.keysDown` keeps
+  the keys physically down and a run starts from them; Caps Lock blamed
+  before "hold Shift" for a capital; the hint names "(!)" under the hold
+  too; the burst's last-key tick doubled the scribe's strike (now the race's
+  and song's only); the riddle under the lock's beat is `inert`; the badge
+  announced; an untimed burst's label read once.
+- **UX:** the leaves' result, the lock's opening and the sealed letter are
+  read out (one live region per component); 📚 Library beside the pen-pal
+  offer no longer spends the one-time line; the leaves round box is named;
+  a Space in a burst's beat scrolls nothing; "➡️ Next page" opens the page
+  that followed; the burst's margin belongs to the slot; "the semicolon key
+  (;)" and the marks named in the leaves list; the announcements complete;
+  "No bonus this time — the answer still counts."; "Too slow!"; "with a
+  thumb".
+- Tests: +4 (TC-1510, TC-1511); 1707 green, lint + tsc clean; `bench …
+  typing` rerun.
 
 ### 2026-10-19 — Touch typing review round 5: one Shift, named boxes, a line a reader can find (#159)
 The last of the five rounds. Fresh code (1 medium, 4 low, 2 nits) and UX

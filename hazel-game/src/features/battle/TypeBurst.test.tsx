@@ -48,7 +48,7 @@ describe('TypeBurst (#159 item 2)', () => {
     // The clock says so (review round 3: it said "In time").
     expect(screen.getByRole('timer')).toHaveTextContent(/Time's up/);
     expect(screen.getByRole('timer')).not.toHaveTextContent(/In time/);
-    expect(screen.getByRole('status')).toHaveTextContent(/Time's up/);
+    expect(screen.getByRole('status')).toHaveTextContent(/No bonus this time/);
     type('bat');
     expect(onResult).toHaveBeenCalledTimes(1);
   });

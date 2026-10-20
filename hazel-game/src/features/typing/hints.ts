@@ -80,7 +80,10 @@ export function keyHint(target: string | null, anchors: readonly string[] = [], 
   const shifted = !!char && !shiftHeld && charKey(char)?.shift === true;
   const letter = !!char && /[a-z]/i.test(char);
   const otherShift = key.hand === 'left' ? 'the right Shift' : 'the left Shift';
-  return `Press ${shifted ? `${otherShift} and ${describe(key.code)}${letter ? '' : ` (${char})`}` : describe(key.code)} with your ${key.hand} ${FINGER_WORDS[key.finger]}${
+  // The mark is named either way (round 6: under the hold "(!)" had gone with the Shift clause).
+  const mark = char && !letter && charKey(char)?.shift ? ` (${char})` : '';
+  const finger = key.finger === 'thumb' ? 'a thumb' : `your ${key.hand} ${FINGER_WORDS[key.finger]}`;
+  return `Press ${shifted ? `${otherShift} and ${describe(key.code)}${mark}` : `${describe(key.code)}${mark}`} with ${finger}${
     hold.length ? `, holding ${hold.map((a) => describe(a.code)).join(' or ')} with your other hand` : ''
   }.`;
 }

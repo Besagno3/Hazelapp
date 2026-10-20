@@ -158,3 +158,10 @@ describe('the wrong-Shift nudge on another layout (review round 5)', () => {
     expect(stepTyping(p, { code: 'KeyA', key: 'A', held: new Set(['KeyA']), holdRule: false }).event).toBe('caps');
   });
 });
+
+describe('a capital under Caps Lock (review round 6)', () => {
+  it('blames Caps Lock before asking for the Shift the kid is already holding', () => {
+    expect(nudgeText('caps', ['ShiftRight'], 'E', true)).toMatch(/Caps Lock is on/);
+    expect(nudgeText('caps', ['ShiftRight'], 'E', false)).toMatch(/E is a capital/);
+  });
+});

@@ -155,11 +155,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   }
   const choosing = isLast && !!quest?.choice?.length && picked === null;
 
+  // The pen-pal offer is on this line: the service button leaves it standing (round 6: 📚 Library spent the one-time ask).
+  const offering = isLast && canWrite;
   function openService() {
     applyLineFlag();
     // Leaving via the service button must still advance the quest step —
-    // otherwise "Learn" would strand a delivery mid-step.
-    if (quest?.finish) update(quest.finish);
+    // otherwise "Learn" would strand a delivery mid-step. Not past the pen-pal offer: the next talk makes it again.
+    if (quest?.finish && !offering) update(quest.finish);
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
   }
 
@@ -203,6 +205,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     return (
       <ModalLayer label={npcName(npc, flagsNow)} focusKey={`write-${String(writing)}`} className="fixed inset-0 z-40 flex items-end justify-center p-4 pb-10 bg-black/30">
         <div className="w-full max-w-xl max-h-[calc(100dvh-4rem)] overflow-y-auto bg-indigo-950/95 border-4 border-white/80 rounded-xl p-5 text-white shadow-2xl" data-testid="pen-pal">
+          {/* The envelope, read out (round 6). */}
+          <p className="sr-only" role="status">
+            {writing === 'done' ? pal.written : ''}
+          </p>
           <div className="flex items-center gap-2 mb-2">
             <CharacterPortrait spriteId={npcSpriteId(npc, flagsNow)} emoji={npcEmoji(npc, flagsNow)} scale={1.25} className="text-3xl" />
             <span className="font-bold text-amber-300">{npcName(npc, flagsNow)}</span>
@@ -281,7 +287,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
               // Umbra's finale is focused (16e review round 4): Enter through the talk mustn't close the climax.
               autoFocus={service === 'name'}
               onClick={openService}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+              // Beside the pen-pal offer the pen is the gold action (round 6).
+              className={
+                offering
+                  ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'
+                  : 'bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11'
+              }
             >
               {service === 'trial' && trialPassed ? `${taught?.emoji} How to cast` : SERVICE_BUTTON[service]}
             </button>

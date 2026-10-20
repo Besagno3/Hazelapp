@@ -11,7 +11,7 @@ describe('KeyboardDiagram (#159 review rounds 4–5)', () => {
     expect(keyText('Digit1')).toBe('!');
     expect(keyRect('ShiftRight').getAttribute('class')).toMatch(/fill-sky-400/);
     expect(keyRect('ShiftLeft').getAttribute('class')).not.toMatch(/amber/);
-    expect(screen.getByRole('img')).toHaveAccessibleName('Press the 1 key with your left little finger, holding the right Shift with your other hand.');
+    expect(screen.getByRole('img')).toHaveAccessibleName('Press the 1 key (!) with your left little finger, holding the right Shift with your other hand.');
   });
 
   it("with the hold off the other hand's Shift lights for a mark, and for a capital; the hint names it", () => {

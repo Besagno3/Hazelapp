@@ -60,7 +60,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   // never announced the new line, nor the result that replaced it.
   const stars = result ? typingStars(result.accuracy) : 0;
   const announce = result
-    ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ' You cleared this lesson before — no XP this time.'}`
+    ? `Lesson cleared! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${TYPING_LESSON_XP} XP.` : ' You cleared this lesson before — no XP this time.'}${result.badge ? " You earned the Scribe's Quill badge!" : ''}`
     : started
       ? `Line ${line + 1} of ${lesson.lines.length}: ${spellLine(lesson.lines[line])}`
       : `${lesson.title}. ${lesson.teaches}`;

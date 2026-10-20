@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { BURST_MS } from '../../content/typing';
-import { sfx } from '../../lib/audio';
 import { nudgeText, type TypingEvent, type TypingProgress } from '../../lib/typing';
 import { KeyboardDiagram } from '../typing/KeyboardDiagram';
 import { keyName, wrongKey } from '../typing/hints';
@@ -26,7 +25,7 @@ export function TypeBurst({
   onEvent,
   label = "✍️ Scribe's power — type it!",
   doneText = "✍️ Done! The scribe's power is yours.",
-  lateText = "Time's up — next time!",
+  lateText = 'No bonus this time — the answer still counts.',
 }: {
   word: string;
   holdRule: boolean;
@@ -75,15 +74,22 @@ export function TypeBurst({
     holdRule,
     active: state === 'typing',
     onEvent,
-    // The last key ticks at once (round 5: the race's and the song's strike comes 700 ms later).
-    onDone: () => {
-      sfx('select');
-      settle(true);
-    },
+    onDone: () => settle(true),
   });
   const nudge = state === 'typing' && run.last ? nudgeText(run.last.event, run.anchors, word[run.progress.index] ?? '', run.last.capsLock) : null;
   return (
-    <div ref={box} tabIndex={-1} role="group" aria-label={label} className="mt-3 rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3 outline-none" data-testid="type-burst">
+    <div
+      ref={box}
+      tabIndex={-1}
+      role="group"
+      aria-label={label}
+      // A Space in the beat after the word (round 6): the run has let go, the box still has focus — never a page scroll.
+      onKeyDown={(e) => {
+        if (state !== 'typing' && e.key === ' ') e.preventDefault();
+      }}
+      className="rounded-xl border-2 border-amber-300 bg-indigo-950 text-white p-3 outline-none"
+      data-testid="type-burst"
+    >
       {timed ? (
         <DefendTimer
           durationMs={durationMs}
@@ -96,14 +102,15 @@ export function TypeBurst({
         />
       ) : (
         <p className="mb-2 flex items-center justify-between gap-2 text-white font-bold text-sm uppercase tracking-widest">
-          <span className="min-w-0">{label}</span>
+          {/* The group's name already says it (round 6). */}
+          <span className="min-w-0" aria-hidden="true">{label}</span>
           <span className="shrink-0 normal-case tracking-normal text-xs font-semibold text-white/70">No clock — take your time</span>
         </p>
       )}
       <div className="py-2">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
-      <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
+      <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] [@media(max-width:639px)]:min-h-[2.5rem] text-sky-200">
         {/* Before the first key a screen reader hears the whole task (review round 3), then just the next key's name. */}
         {state === 'done' ? doneText : state === 'late' ? lateText : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type this: ${word}` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>

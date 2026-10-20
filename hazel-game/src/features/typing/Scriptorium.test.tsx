@@ -61,6 +61,27 @@ function typeLine(line: string) {
 const flags = () => useSaveStore.getState().save!.flags;
 
 describe('the Scriptorium (#159 item 5)', () => {
+  it('"Next page" opens the page that followed the one copied (review round 6)', () => {
+    useKeyboardStore.getState().seen();
+    render(<Scriptorium onBack={() => {}} />);
+    const pages = screen.getAllByRole('button').filter((b) => /lines?$/.test(b.textContent ?? ''));
+    expect(pages.length).toBeGreaterThan(2);
+    const third = pages[2].textContent!;
+    fireEvent.click(pages[1]);
+    // Copy the page line by line, reading each line off the screen.
+    for (let guard = 0; guard < 12 && !screen.queryByText('Page copied!'); guard++) {
+      const line = document.querySelector('[data-line]')!.getAttribute('data-line')!;
+      typeLine(line);
+      act(() => {
+        vi.advanceTimersByTime(LINE_HOLD_MS + 10);
+      });
+    }
+    expect(screen.getByText('Page copied!')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('➡️ Next page'));
+    const title = third.replace(/A true fact.*$/, '').replace(/From your shelf.*$/, '').replace(/^[^A-Za-z]+/, '').trim();
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent(title.slice(0, 20));
+  });
+
   it('asks for a keyboard first, then waits for the capitals lesson', () => {
     useKeyboardStore.getState().reset();
     render(<Scriptorium onBack={() => {}} />);

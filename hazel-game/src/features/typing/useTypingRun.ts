@@ -9,7 +9,7 @@ import {
   type TypingEvent,
   type TypingProgress,
 } from '../../lib/typing';
-import { useKeyboardStore } from '../../store/keyboardStore';
+import { keysDown, useKeyboardStore } from '../../store/keyboardStore';
 
 /**
  * A focused button, link or field owns its own keys (the world's rule,
@@ -54,9 +54,10 @@ export function useTypingRun({
   onDone?: (progress: TypingProgress) => void;
 }) {
   const [progress, setProgress] = useState<TypingProgress>(() => startTyping(text));
-  const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set());
+  // Keys already down as the run starts count as held (round 6: an anchor kept down through a line's beat).
+  const [held, setHeld] = useState<ReadonlySet<string>>(() => new Set(keysDown()));
   const [last, setLast] = useState<{ event: TypingEvent; code: string; seq: number; capsLock: boolean } | null>(null);
-  const heldRef = useRef<Set<string>>(new Set());
+  const heldRef = useRef<Set<string>>(new Set(keysDown()));
   // The listeners read the latest progress and callbacks through refs, kept
   // current in an effect (never written during render).
   const progressRef = useRef(progress);
@@ -81,7 +82,8 @@ export function useTypingRun({
       if (!fromPhysicalKeyboard(e)) return;
       if (!useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
       if (inField(e.target)) return;
-      if (!e.repeat) {
+      // A repeat of a key this run never saw go down is a press-down too (round 6).
+      if (!e.repeat || !heldRef.current.has(e.code)) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
       }

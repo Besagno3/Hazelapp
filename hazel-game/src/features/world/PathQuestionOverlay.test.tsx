@@ -195,9 +195,12 @@ describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#159 item 
     // The chest springs after the line's beat (review round 4): the last key never lands on "Onward!", and the
     // riddle answers nothing meanwhile (round 5).
     expect(screen.queryByTestId('scribe-lock-open')).toBeNull();
+    expect(screen.getByText('Right').closest('[inert]')).not.toBeNull();
     fireEvent.click(screen.getByText('Right'));
     expect(addXp).not.toHaveBeenCalled();
     await screen.findByTestId('scribe-lock-open');
+    // The opening is read out (round 6).
+    expect(screen.getByText(/The lock springs open! Inside:/)).toHaveAttribute('aria-live', 'polite');
     expect(lock).not.toBeInTheDocument();
     expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
     expect(screen.queryByText('Right')).toBeNull();

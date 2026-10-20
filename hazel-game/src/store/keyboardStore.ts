@@ -21,15 +21,33 @@ export const useKeyboardStore = create<KeyboardStore>((set) => ({
   reset: () => set({ present: false }),
 }));
 
+/** The physical keys down right now (review round 6): a run that starts mid-press (an anchor held through a line's beat) reads them. */
+const down = new Set<string>();
+export function keysDown(): ReadonlySet<string> {
+  return down;
+}
+
 /**
  * Listens for the first press from a physical keyboard (wired once, in
- * `App`). Returns the unsubscribe.
+ * `App`), and keeps `keysDown` current — in the capture phase, so a typing
+ * run's own listener sees it already written. Returns the unsubscribe.
  */
 export function watchKeyboard(): () => void {
   const onKey = (e: KeyboardEvent) => {
+    if (!fromPhysicalKeyboard(e)) return;
+    down.add(e.code);
     // Written once (review round 2: every key, WASD's auto-repeat included, wrote the store).
-    if (fromPhysicalKeyboard(e) && !useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
+    if (!useKeyboardStore.getState().present) useKeyboardStore.getState().seen();
   };
-  window.addEventListener('keydown', onKey);
-  return () => window.removeEventListener('keydown', onKey);
+  const onUp = (e: KeyboardEvent) => down.delete(e.code);
+  const onBlur = () => down.clear();
+  window.addEventListener('keydown', onKey, true);
+  window.addEventListener('keyup', onUp, true);
+  window.addEventListener('blur', onBlur);
+  return () => {
+    window.removeEventListener('keydown', onKey, true);
+    window.removeEventListener('keyup', onUp, true);
+    window.removeEventListener('blur', onBlur);
+    down.clear();
+  };
 }

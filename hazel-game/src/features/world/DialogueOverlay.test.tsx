@@ -301,6 +301,21 @@ describe("a line in the kid's own hand: pen-pal replies (#159 item 9)", async ()
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 
+  it('📚 Library beside the offer leaves the step for next time, and is the quieter button (review round 6)', () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    const library = screen.getByText('📚 Library');
+    expect(library.className).not.toMatch(/amber/);
+    fireEvent.click(library);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'library', npcId: 'hub-librarian' });
+    const save = useSaveStore.getState().save!;
+    expect(save.flags['quest-step:shush-deliver']).toBeUndefined();
+    expect(save.questItems).toEqual(['shush-letter']);
+  });
+
   it('a kid who reads on with Enter finds nothing focused beside the offer (review round 3)', () => {
     useKeyboardStore.getState().reset();
     useKeyboardStore.getState().seen();

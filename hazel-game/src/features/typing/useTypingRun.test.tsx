@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { useTypingRun } from './useTypingRun';
-import { useKeyboardStore } from '../../store/keyboardStore';
+import { useKeyboardStore, watchKeyboard } from '../../store/keyboardStore';
 
-function Probe({ text, active = true }: { text: string; active?: boolean }) {
-  const run = useTypingRun({ text, holdRule: false, active });
+function Probe({ text, active = true, holdRule = false }: { text: string; active?: boolean; holdRule?: boolean }) {
+  const run = useTypingRun({ text, holdRule, active });
   return (
     <div>
       <input aria-label="field" />
@@ -58,6 +58,19 @@ describe('useTypingRun (#159 review rounds 2–3)', () => {
     fireEvent.keyDown(window, { code: 'Digit1', key: '!' });
     fireEvent.keyDown(window, { code: 'KeyF', key: 'F', modifierCapsLock: true });
     expect(screen.getByTestId('caps')).toHaveTextContent('true');
+  });
+
+  it('an anchor already down as the run starts counts as held (review round 6)', () => {
+    const stop = watchKeyboard();
+    fireEvent.keyDown(window, { code: 'KeyJ', key: 'j' });
+    render(<Probe text="ff" holdRule />);
+    expect(screen.getByTestId('held')).toHaveTextContent('KeyJ');
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'f' });
+    expect(screen.getByTestId('index')).toHaveTextContent('1');
+    // Its auto-repeat is not a fresh press; a repeat of a key never seen going down is.
+    fireEvent.keyUp(window, { code: 'KeyF', key: 'f' });
+    fireEvent.keyUp(window, { code: 'KeyJ', key: 'j' });
+    stop();
   });
 
   it('a key still down when the run ends is let go of', () => {

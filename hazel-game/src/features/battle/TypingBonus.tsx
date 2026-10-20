@@ -50,8 +50,8 @@ export function TypingBonus({ bonus, holdRule, onClaim }: { bonus: Bonus; holdRu
       <div className="py-1">
         <TypingLine key={run.last?.event === 'wrong' ? run.last.seq : 'steady'} progress={run.progress} shake={run.last?.event === 'wrong'} big />
       </div>
-      <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] text-sky-200">
-        {claimed ? '✍️ Claimed!' : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type ${whose}: ${bonus.word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
+      <p role="status" className="text-xs font-semibold text-center min-h-[1.25rem] [@media(max-width:639px)]:min-h-[2.5rem] text-sky-200">
+        {claimed ? `✍️ Claimed: ${bonusWords(bonus.reward)}!` : (nudge ?? <span className="sr-only">{!run.last ? (primed ? `Type ${whose}: ${bonus.word}.` : '') : run.target ? keyName(run.target) : ''}</span>)}
       </p>
       {/* The keyboard stays once the name is typed, dimmed, so Onward! below doesn't jump (review round 5). */}
       <div className={claimed ? 'opacity-40' : undefined}>

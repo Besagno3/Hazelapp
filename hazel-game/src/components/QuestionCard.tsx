@@ -208,7 +208,7 @@ export default function QuestionCard({
       )}
       {selected === null && hints === 0 && hintNote && <p className="mt-2 text-sm font-semibold text-gray-600">{hintNote}</p>}
 
-      {selected !== null && afterAnswer}
+      {selected !== null && afterAnswer && <div className="mt-3">{afterAnswer}</div>}
 
       {selected !== null && selected !== question.correctIndex && (
         <motion.p

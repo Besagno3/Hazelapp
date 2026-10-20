@@ -1347,12 +1347,16 @@ export default function BattleArena() {
               readyMs={RACE_READY_MS}
               label="⚡ Name it first to strike first!"
               doneText="⚡ First strike is yours!"
-              lateText="Too slow — it darts in first!"
+              lateText="Too slow!"
               onEvent={(e) => {
                 if (e === 'typed' || e === 'done') float('✨', 'hero', 'text-amber-200');
               }}
               // A beat to read the result, then the blow or the critter's move.
-              onResult={(ok) => later(() => raceDone(ok), 700)}
+              onResult={(ok) => {
+                // The last key's tick (the strike comes 700 ms later — round 6: the burst's own tick doubled the scribe's).
+                if (ok) sfx('select');
+                later(() => raceDone(ok), 700);
+              }}
             />
           </div>
         )}
@@ -1374,6 +1378,7 @@ export default function BattleArena() {
               // A beat to read the result, then what the boss does next.
               onResult={(ok) => {
                 setSongSettled(true);
+                if (ok) sfx('select');
                 later(() => songDone(ok), 700);
               }}
             />

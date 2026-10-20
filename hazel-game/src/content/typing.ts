@@ -206,7 +206,7 @@ export const TYPING_LESSONS: readonly TypingLesson[] = [
     id: 'home-a',
     emoji: '🏠',
     title: 'A and the semicolon',
-    teaches: 'Little fingers are small but mighty: A on the left, the ; key on the right. Now you can type real words!',
+    teaches: 'Little fingers are small but mighty: A on the left, the semicolon key (;) on the right. Now you can type real words!',
     keys: ['KeyA', 'Semicolon'],
     lines: ['aaa ;;;', 'a; a; ;a ;a', 'sad lad dad', 'ask all fall;', 'a salad falls;'],
   },

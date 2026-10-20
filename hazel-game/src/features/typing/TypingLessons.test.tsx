@@ -175,7 +175,7 @@ describe('TypingLessons (#159)', () => {
     fireEvent.click(buttons[buttons.length - 1]);
     fireEvent.click(screen.getByText('⌨️ Start typing'));
     for (const line of last.lines) typeLine(line);
-    expect(screen.getByText(/Scribe's Quill badge/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Scribe's Quill badge/)).toHaveLength(2);
     expect(useSaveStore.getState().save!.badges).toEqual([TYPING_BADGE_ID]);
     // No "Next lesson" after the last one.
     expect(screen.queryByText('➡️ Next lesson')).toBeNull();

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { fireEvent } from '@testing-library/react';
-import { useKeyboardStore, watchKeyboard } from './keyboardStore';
+import { keysDown, useKeyboardStore, watchKeyboard } from './keyboardStore';
 
 beforeEach(() => useKeyboardStore.getState().reset());
 
@@ -18,6 +18,10 @@ describe('keyboardStore (#159)', () => {
     fireEvent.keyDown(window, { code: 'KeyB', key: 'b', repeat: true });
     expect(changed).not.toHaveBeenCalled();
     unsub();
+    // The keys down right now (review round 6): held across runs, let go on keyup.
+    expect([...keysDown()]).toContain('KeyB');
+    fireEvent.keyUp(window, { code: 'KeyB', key: 'b' });
+    expect([...keysDown()]).not.toContain('KeyB');
     useKeyboardStore.getState().reset();
     stop();
     fireEvent.keyDown(window, { code: 'KeyA', key: 'a' });

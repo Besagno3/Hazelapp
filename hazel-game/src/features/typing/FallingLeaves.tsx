@@ -5,7 +5,7 @@ import { LEAF_MILESTONES, LEAVES_TUNING, LEAVES_XP, leafPool, leavesAccuracy, le
 import { fromPhysicalKeyboard, nudgeText } from '../../lib/typing';
 import { sfx } from '../../lib/audio';
 import { cn } from '../../lib/utils';
-import { useKeyboardStore } from '../../store/keyboardStore';
+import { keysDown, useKeyboardStore } from '../../store/keyboardStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useSaveStore } from '../../store/saveStore';
 import { KeyboardDiagram } from './KeyboardDiagram';
@@ -64,7 +64,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     const down = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || !fromPhysicalKeyboard(e)) return;
       if (inField(e.target)) return;
-      if (!e.repeat) {
+      if (!e.repeat || !heldRef.current.has(e.code)) {
         heldRef.current = new Set(heldRef.current).add(e.code);
         setHeld(heldRef.current);
       }
@@ -150,22 +150,39 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     setState(fresh);
     setNudge(null);
     setReached([]);
+    // A bump key already down counts as held (round 6).
+    heldRef.current = new Set(keysDown());
+    setHeld(heldRef.current);
     setPhase('playing');
   }
 
+  const accuracy = Math.round(leavesAccuracy(state) * 100);
+  // Why the round ended (review round 3): the ground, the clock, or ⏹.
+  const ended =
+    state.missed >= LEAVES_TUNING.maxMissed
+      ? `${LEAVES_TUNING.maxMissed} leaves landed.`
+      : state.elapsedMs >= LEAVES_TUNING.roundMs
+        ? "Time's up!"
+        : 'Stopped early.';
+  const lowestNow = lowestLeaf(state);
+  // One live region across the round and its result (round 6: the result card arrived as new text and went unread).
+  const live = (
+    <p key="live" className="sr-only" role="status" data-testid="leaf-live">
+      {phase === 'over'
+        ? `${ended} You caught ${state.caught} ${state.caught === 1 ? 'leaf' : 'leaves'}, and ${accuracy}% of your keys were right.${reached.map((m) => ` ${m} in one round — ${LEAVES_XP} XP!`).join('')}`
+        : phase === 'playing'
+          ? `Caught ${state.caught}, missed ${state.missed}.${lowestNow ? ` Lowest leaf: ${keyName(lowestNow.code)}` : ''}`
+          : ''}
+    </p>
+  );
+
   if (phase === 'intro' || phase === 'over') {
     const done = phase === 'over';
-    const accuracy = Math.round(leavesAccuracy(state) * 100);
     const nextMilestone = LEAF_MILESTONES.find((m) => flags[leavesFlag(m)] !== true && !reached.includes(m));
-    // Why the round ended (review round 3): the ground, the clock, or ⏹.
-    const ended =
-      state.missed >= LEAVES_TUNING.maxMissed
-        ? `${LEAVES_TUNING.maxMissed} leaves landed.`
-        : state.elapsedMs >= LEAVES_TUNING.roundMs
-          ? "Time's up!"
-          : 'Stopped early.';
     const letters = pool.map((k) => k.ch).join(' ');
     return (
+      <>
+        {live}
       <div className="text-center">
         <div className="text-5xl mb-2" aria-hidden="true">
           🍂
@@ -173,7 +190,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
         <h2 className="text-xl font-extrabold mb-2">{done ? 'The leaves have settled!' : 'Falling Leaves'}</h2>
         {done ? (
           <>
-            <p className="text-sm text-white/80 mb-1" role="status">
+            <p className="text-sm text-white/80 mb-1">
               {ended}{' '}
               You caught <span className="font-bold text-amber-300">{state.caught}</span> {state.caught === 1 ? 'leaf' : 'leaves'}, and {accuracy}% of your keys were right.
               {accuracy === 100 && state.caught > 0 ? ' Not one wrong key!' : ''}
@@ -194,7 +211,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
               on the ground — or a minute gone — and the round ends."
             </p>
             <p className="text-xs text-white/60 mb-1">
-              Your letters so far: <span className="font-mono text-white/80">{letters}</span> — more with each lesson.
+              Your letters so far: <span className="font-mono text-white/80" aria-label={pool.map((k) => keyName(k.code)).join(', ')}>{letters}</span> — more with each lesson.
             </p>
             <p className="text-xs text-white/60 mb-4">
               {holdRule ? 'Keep your other hand on its bump key. ' : ''}10, 25 or 50 in one round: ⭐ {LEAVES_XP} XP each, once.
@@ -210,14 +227,17 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       </div>
+      </>
     );
   }
 
-  const lowest = lowestLeaf(state);
+  const lowest = lowestNow;
   const secondsLeft = Math.max(0, Math.ceil((LEAVES_TUNING.roundMs - state.elapsedMs) / 1000));
   return (
     // The round takes focus as it starts (review round 3: ▶ Play unmounted and focus fell to the page).
-    <div ref={field} tabIndex={-1} className="outline-none" data-testid="leaf-round">
+    <>
+      {live}
+    <div ref={field} tabIndex={-1} role="group" aria-label="Falling Leaves round" className="outline-none" data-testid="leaf-round">
       <div className="flex items-center justify-between gap-2 mb-2 text-sm">
         <h2 className="text-lg font-extrabold">🍂 Falling Leaves</h2>
         <span className="text-xs text-white/80" data-testid="leaf-tally">
@@ -252,12 +272,13 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
       </div>
       {/* Always mounted and this tall (a nudge never shoves the keyboard); a screen reader hears each nudge, else the lowest leaf's key. */}
       <p role="status" className="text-sm font-semibold text-sky-200 text-center mb-2 min-h-[1.5rem]">
-        {nudge ?? <span className="sr-only">{`Caught ${state.caught}, missed ${state.missed}.${lowest ? ` Lowest leaf: ${keyName(lowest.code)}` : ''}`}</span>}
+        {nudge}
       </p>
       <KeyboardDiagram compact target={lowest?.code ?? null} anchors={lowest && holdRule ? anchorsFor(lowest.ch) : []} held={held} />
       <button onClick={() => setPhase('over')} className="mt-3 w-full min-h-11 bg-white/15 hover:bg-white/25 border border-white/20 font-semibold rounded-lg py-2 text-sm">
         ⏹ Stop the round
       </button>
     </div>
+    </>
   );
 }

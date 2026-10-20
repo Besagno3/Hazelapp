@@ -32,6 +32,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const [result, setResult] = useState<{ accuracy: number; paid: boolean } | null>(null);
   // A finished line stays a beat before the next (review round 3), as in a lesson.
   const hold = useRef<number | null>(null);
+  const [activeAt, setActiveAt] = useState(0);
   useEffect(() => () => window.clearTimeout(hold.current ?? undefined), []);
 
   if (!keyboard) return <KeyboardGate title="The Scriptorium" onBack={onBack} />;
@@ -42,6 +43,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   function open(page: ScriptoriumPage) {
     // A beat still running from the last page would move this one on (review round 4: it could open a page past its last line).
     window.clearTimeout(hold.current ?? undefined);
+    setActiveAt(Math.max(0, pages.indexOf(page)));
     setActive(page);
     setLine(0);
     setTally({ hits: 0, misses: 0 });
@@ -97,7 +99,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const stars = result ? typingStars(result.accuracy) : 0;
   const announce =
     active && result
-      ? `Page copied! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${SCRIPTORIUM_XP} XP.` : ''}`
+      ? `Page copied! ${stars} of 3 stars. ${Math.round(result.accuracy * 100)} percent of your keys were right.${result.paid ? ` ${SCRIPTORIUM_XP} XP.` : ' This page was copied before — no XP this time.'}`
       : active
         ? `Line ${line + 1} of ${active.lines.length}: ${active.lines[line]}`
         : '';
@@ -108,7 +110,8 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   );
 
   if (active && result) {
-    const next = pages[0];
+    // The page that followed the one copied (round 6: "Next page" opened the top of the desk).
+    const next = pages[Math.min(activeAt, pages.length - 1)];
     return (
       <>
         {live}
