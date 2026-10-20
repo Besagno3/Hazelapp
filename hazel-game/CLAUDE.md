@@ -113,7 +113,7 @@ zod, react-query. Add the package in the same change that first uses it.
   another device opens it; 👪 Grown-ups marks a locked kid by name and says
   when a Save unlocked them, `lib/pinLock.ts`); the app only sees
   `has_pin`. The grown-up PIN / password gate is a lock in the UI only —
-  grown-up actions need just the family's session (#165). Picking a kid (`choose`) loads *their* profile and
+  grown-up actions need just the family's session (#167). Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
@@ -684,7 +684,7 @@ zod, react-query. Add the package in the same change that first uses it.
   afterwards never waits on the server (`signOutHere`, `familyStore`): when
   supabase-js keeps the session because `/logout` failed, the stored session
   is dropped (`forgetStoredSession`) and the sign-out asked again. Left open
-  (#165): for about a minute after a grown-up really signs in on the family
+  (#167): for about a minute after a grown-up really signs in on the family
   device, that stored session could close the account. Deploy: `supabase
   functions deploy delete-account` (no secrets beyond the injected
   `SUPABASE_*`).
@@ -1068,7 +1068,7 @@ on `passwordCheckClient` (`lib/supabase.ts`: memory only, never refreshed,
 its own storage key, no other tab told) and are signed out after;
 `delete-account` wants a password within **60 s**, refuses a token with no
 `amr` (logged loudly) and needs `password` in a bare-string `amr` (the
-minute after a real sign-in stays open — #165). After `login_not_deleted`,
+minute after a real sign-in stays open — #167). After `login_not_deleted`,
 "Keep my account" reloads the family (the privacy notice, not "＋ Add a
 player" without consent). A sign-out the server can't hear no longer leaves
 "Closing your account…" stuck (`signOutHere`: the stored session dropped,
@@ -1145,7 +1145,7 @@ didn't load. Tap "Try the stair again"."). Tests: `pin_limits.test.sql` and
 `close_account.test.sql`, a 30-call burst counts exactly 5, the function
 against a stand-in Supabase 20/20; 1805 → 1856 green, lint, `tsc -b`,
 `deno check` of both functions, all 23 migrations + 15 SQL tests on
-Postgres 16. Logged: #165 (the grown-ups gate is a UI lock only).
+Postgres 16. Logged: #167 (the grown-ups gate is a UI lock only).
 
 ### 2026-10-19 — #159 review round 2: saving is never a fight, the boat a walk away, Escape that always lands, sign-in words for every case
 Second `/saas-code-review` + `/saas-ux-review` pass over the whole PR (16

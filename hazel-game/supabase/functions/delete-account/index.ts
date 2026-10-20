@@ -23,7 +23,7 @@
 //      auth service's sign-in limit counts that grown-up's device — a
 //      sign-in from this function would share one limit with every family
 //      (#124b review). Never a 4-digit grown-up PIN, which a kid may know.
-//      Left open (#165): for that minute after a grown-up signs in on the
+//      Left open (#167): for that minute after a grown-up signs in on the
 //      family device, the session it keeps could close the account too.
 //   4. The family's data: `delete_family` (migration 0023, service role) —
 //      kids with their saves, seen questions, reports and PINs, the grown-up
@@ -68,7 +68,7 @@ export const CONFIRM_WORD = 'DELETE';
  * fresh sign-in on the token it's sent. It never sees the password. A minute:
  * the app asks within a second of signing in, and any other password
  * sign-in on the device (a grown-up signing in) can't close the account for
- * long (#124b review round 2, #165).
+ * long (#124b review round 2, #167).
  */
 export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */

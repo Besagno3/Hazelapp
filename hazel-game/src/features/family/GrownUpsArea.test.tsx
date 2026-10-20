@@ -95,7 +95,7 @@ describe('GrownUpsArea (#124)', () => {
   it('the password opens it without touching the device\'s own sign-in: checked on the one-off client, then signed out (#124b review round 2)', async () => {
     await unlock();
     expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'right' });
-    // No fresh-password session left on the device that could close the account (#165).
+    // No fresh-password session left on the device that could close the account (#167).
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
   });

@@ -51,7 +51,7 @@ describe('the sign-in this device keeps (#124b review round 2)', () => {
   });
 });
 
-describe('the password-check client keeps nothing (#124b review round 2, #165)', () => {
+describe('the password-check client keeps nothing (#124b review round 2, #167)', () => {
   it('is set up to keep nothing: memory only, never refreshed, its own name, no word to other tabs', () => {
     const check = internals(passwordCheckClient().auth);
     expect(check.persistSession).toBe(false);

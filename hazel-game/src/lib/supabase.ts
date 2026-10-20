@@ -40,7 +40,7 @@ let passwordCheck: SupabaseClient | null = null;
  * refreshed, never stored on the device and never told to other tabs (its
  * own storage name). So a password typed to check it's the grown-up never
  * leaves a fresh-password session on the family device — one that could
- * close the account (#124b review round 2, #165). Sign it out once used.
+ * close the account (#124b review round 2, #167). Sign it out once used.
  */
 export function passwordCheckClient(): SupabaseClient {
   passwordCheck ??= createClient(supabaseUrl, supabaseAnonKey, {

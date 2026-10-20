@@ -23,7 +23,7 @@ export const CONFIRM_WORD = 'DELETE';
  * fresh sign-in on the token it's sent. It never sees the password. A minute:
  * the app asks within a second of signing in, and any other password
  * sign-in on the device (a grown-up signing in) can't close the account for
- * long (#124b review round 2, #165).
+ * long (#124b review round 2, #167).
  */
 export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */

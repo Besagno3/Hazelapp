@@ -38,7 +38,7 @@ const primaryClass =
  * The password is checked on a client that keeps nothing
  * (`passwordCheckClient`), so opening 👪 Grown-ups never leaves a
  * fresh-password session on the device — one that could close the account
- * (#124b review round 2, #165).
+ * (#124b review round 2, #167).
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
