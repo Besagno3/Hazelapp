@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore, watchPageForSaves } from './store/saveStore';
+import { watchKeyboard } from './store/keyboardStore';
 import { useBattleStore } from './store/battleStore';
 import { musicScreen, useScreenMusic } from './lib/audio';
 import { dropSignupParam } from './lib/signupLink';
@@ -89,6 +90,8 @@ export default function App() {
   // A hidden or closing tab saves to the server at once; a tab back in view, or
   // another tab saving, checks it hasn't fallen behind (#151).
   useEffect(() => watchPageForSaves(), []);
+  // The first press from a real keyboard opens the typing features (#165).
+  useEffect(() => watchKeyboard(), []);
 
   // Already signed in when the public site's sign-up button brought them
   // here: drop its ?signup, or a later sign-out would open on sign-up (#146).

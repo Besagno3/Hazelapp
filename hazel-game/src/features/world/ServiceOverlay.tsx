@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import QuestionCard from '../../components/QuestionCard';
@@ -10,6 +10,11 @@ import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { ZONES, innOf } from '../../content/zones';
 import ShrineTrial from './ShrineTrial';
 import NameFinale from './NameFinale';
+import TypingLessons from '../typing/TypingLessons';
+import Scriptorium from '../typing/Scriptorium';
+import FallingLeaves from '../typing/FallingLeaves';
+import { SCRIPTORIUM_OPENS_AFTER, SCRIPTORIUM_XP, TYPING_LESSONS, pagesCopied, scriptoriumOpen, typingLessonsCleared, typingUnlocked } from '../../content/typing';
+import { useKeyboardStore } from '../../store/keyboardStore';
 import { shuffleAnswers } from '../../lib/questions';
 import { isStarterId } from '../../content/starterQuestions';
 import { useSaveStore } from '../../store/saveStore';
@@ -175,10 +180,45 @@ function Inn() {
 
 function Library() {
   const library = useSaveStore((s) => s.save?.library ?? []);
+  const flags = useSaveStore((s) => s.save?.flags ?? {});
   const update = useSaveStore((s) => s.update);
   const addXp = useProfileStore((s) => s.addXp);
   const [active, setActive] = useState<LibraryEntry | null>(null);
   const [solved, setSolved] = useState(false);
+  // Librarian Sage's typing lessons (#165) live in the Library too.
+  const [typing, setTyping] = useState(false);
+  // ...and the scriptorium's desk (#165 item 5), once the capitals lesson is cleared.
+  const [desk, setDesk] = useState(false);
+  // ...and the 🍂 Falling Leaves game (#165 item 7), from lesson 1.
+  const [leaves, setLeaves] = useState(false);
+  const keyboard = useKeyboardStore((s) => s.present);
+  // Back from a sub-screen, the shelf's heading takes the focus (review round 7: the button that led there is gone,
+  // so a keyboard lands at the top of the page).
+  const shelf = useRef<HTMLHeadingElement>(null);
+  const returned = useRef(false);
+  useEffect(() => {
+    if (typing || desk || leaves || !returned.current) return;
+    returned.current = false;
+    shelf.current?.focus();
+  }, [typing, desk, leaves]);
+  const back = (close: (open: boolean) => void) => () => {
+    returned.current = true;
+    close(false);
+  };
+  if (typing) return <TypingLessons onBack={back(setTyping)} />;
+  if (desk) return <Scriptorium onBack={back(setDesk)} />;
+  if (leaves) return <FallingLeaves onBack={back(setLeaves)} />;
+  const typed = typingLessonsCleared(flags);
+  const copied = pagesCopied(flags);
+  // Locked cards look locked (review round 2: all three were the same amber card); a glass keyboard is told up front.
+  const glass = !keyboard && typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true;
+  const deskLocked = !scriptoriumOpen(flags);
+  const leavesLocked = !typingUnlocked(flags);
+  const deskAt = TYPING_LESSONS.findIndex((l) => l.id === SCRIPTORIUM_OPENS_AFTER) + 1;
+  const card = (locked: boolean) =>
+    locked
+      ? 'w-full text-left flex items-center gap-3 bg-white/10 border border-white/15 rounded-xl p-3 mb-4 text-sm min-h-11 opacity-70 cursor-not-allowed'
+      : 'w-full text-left flex items-center gap-3 bg-amber-400/20 hover:bg-amber-400/30 border border-amber-300/40 rounded-xl p-3 mb-4 text-sm transition min-h-11';
 
   // Beaten: off the shelf and paid at once, as a gate or a trial pays — so
   // Leave or Escape before "Continue" never loses it (#159 r2).
@@ -220,7 +260,50 @@ function Library() {
 
   return (
     <div>
-      <h2 className="text-xl font-extrabold mb-1">📚 The Library</h2>
+      <h2 ref={shelf} tabIndex={-1} className="text-xl font-extrabold mb-1 focus:outline-none">
+        📚 The Library
+      </h2>
+      <button onClick={() => setTyping(true)} className={card(false)}>
+        <span className="text-2xl" aria-hidden="true">
+          ⌨️
+        </span>
+        <span className="flex-1">
+          <span className="font-bold text-amber-200">Typing lessons</span>
+          <span className="block text-xs text-white/70">
+            Learn to type like a scribe — ten fingers, eyes on the page.
+            {typed > 0 ? ` ${typed} of ${TYPING_LESSONS.length} cleared.` : ''}
+            {glass ? ' Needs a real keyboard.' : ''}
+          </span>
+        </span>
+      </button>
+      <button onClick={() => !deskLocked && setDesk(true)} aria-disabled={deskLocked} className={card(deskLocked)}>
+        <span className="text-2xl" aria-hidden="true">
+          {deskLocked ? '🔒' : '📜'}
+        </span>
+        <span className="flex-1">
+          <span className={deskLocked ? 'font-bold text-white/80' : 'font-bold text-amber-200'}>The Scriptorium</span>
+          <span className="block text-xs text-white/70">
+            {deskLocked
+              ? `Copy out whole pages. Clear typing lesson ${deskAt} (capitals) first.`
+              : `Copy out a page — why a question went wrong, or a true fact — for +${SCRIPTORIUM_XP} XP.${copied > 0 ? ` ${copied} copied.` : ''}`}
+            {glass && !deskLocked ? ' Needs a real keyboard.' : ''}
+          </span>
+        </span>
+      </button>
+      <button onClick={() => !leavesLocked && setLeaves(true)} aria-disabled={leavesLocked} className={card(leavesLocked)}>
+        <span className="text-2xl" aria-hidden="true">
+          {leavesLocked ? '🔒' : '🍂'}
+        </span>
+        <span className="flex-1">
+          <span className={leavesLocked ? 'font-bold text-white/80' : 'font-bold text-amber-200'}>Falling Leaves</span>
+          <span className="block text-xs text-white/70">
+            {leavesLocked
+              ? 'A game: catch the letters before their leaves land. Clear typing lesson 1 first.'
+              : "A game: catch the letters before their leaves land. The keys you've learned, at your pace."}
+            {glass && !leavesLocked ? ' Needs a real keyboard.' : ''}
+          </span>
+        </span>
+      </button>
       <p className="text-sm text-white/80 mb-4">
         Questions that once stumped you. Beat one for +{LIBRARY_XP} XP!
       </p>

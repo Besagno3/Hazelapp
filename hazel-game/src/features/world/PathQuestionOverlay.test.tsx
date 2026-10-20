@@ -34,6 +34,9 @@ const { defaultSave } = await import('../../lib/save');
 const { pathTargetId } = await import('../../content/zones');
 const { useProfileStore } = await import('../../store/profileStore');
 const { XP_PER_CORRECT } = await import('../../lib/level');
+const { useKeyboardStore } = await import('../../store/keyboardStore');
+const { PANGRAM_BONUS_COINS, charKey, pangramChest, pangramFor, typingLessonFlag } = await import('../../content/typing');
+const { CHEST_COINS } = await import('../../content/items');
 const { xpBonusPerCorrect } = await import('../../lib/powerups');
 
 const moonstoneChest: PathTarget = { kind: 'chest', id: pathTargetId('echo-mine', 'chest', 8, 7), topic: 'history', zoneId: 'echo-mine' };
@@ -181,6 +184,128 @@ describe("PathQuestionOverlay — a tale-stone's riddle (#75 item 15e)", () => {
     expect(screen.getByRole('status')).toHaveTextContent('');
     expect(screen.queryByRole('button', { name: /Ask me another/ })).toBeNull();
     expect(screen.getByRole('button', { name: /come back/ })).toBeInTheDocument();
+  });
+});
+
+describe("PathQuestionOverlay — a scribe's lock on a pangram chest (#165 item 8)", () => {
+  // The first Echo Mine cell whose chest id has a lock, and one without.
+  const ids = Array.from({ length: 40 }, (_, i) => pathTargetId('echo-mine', 'chest', i % 20, Math.floor(i / 20)));
+  const lockedChest: PathTarget = { kind: 'chest', id: ids.find(pangramChest)!, topic: 'history', zoneId: 'echo-mine' };
+  const plainLock: PathTarget = { kind: 'chest', id: ids.find((id) => !pangramChest(id))!, topic: 'history', zoneId: 'echo-mine' };
+  const capitals = { [typingLessonFlag('capitals')]: true };
+
+  beforeEach(() => useKeyboardStore.getState().reset());
+
+  it('with a keyboard and the capitals lesson, the sentence typed opens the chest with the bonus and no question answered', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    const addXp = vi.fn();
+    useProfileStore.setState({ addXp });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    const lock = screen.getByTestId('scribe-lock');
+    const sentence = pangramFor(lockedChest.id);
+    // An offer first (review round 1: unfolded, the lock buried the riddle); the sentence on asking.
+    expect(screen.queryByText(`Type: ${sentence}`)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    expect(screen.getByText(`Type: ${sentence}`)).toBeInTheDocument();
+    // The riddle is still there to answer instead.
+    expect(await screen.findByText('Right')).toBeInTheDocument();
+    for (const ch of sentence) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    // The chest springs after the line's beat (review round 4): the last key never lands on "Onward!", and the
+    // riddle answers nothing meanwhile (round 5).
+    expect(screen.queryByTestId('scribe-lock-open')).toBeNull();
+    expect(screen.getByText('Right').closest('[inert]')).not.toBeNull();
+    fireEvent.click(screen.getByText('Right'));
+    expect(addXp).not.toHaveBeenCalled();
+    await screen.findByTestId('scribe-lock-open');
+    // The opening is read out (round 6).
+    expect(screen.getByText(/The lock springs open! Inside:/)).toHaveAttribute('aria-live', 'polite');
+    expect(lock).not.toBeInTheDocument();
+    expect(screen.getByTestId('scribe-lock-open')).toHaveTextContent(`A scribe's bonus: 🪙 ${PANGRAM_BONUS_COINS} more!`);
+    expect(screen.queryByText('Right')).toBeNull();
+    expect(screen.getByRole('heading', { name: /The lock springs open/ })).toBeInTheDocument();
+    const save = useSaveStore.getState().save!;
+    expect(save.openedChests).toEqual([lockedChest.id]);
+    expect(save.coins).toBe(CHEST_COINS + PANGRAM_BONUS_COINS);
+    expect(addXp).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Onward!' })).toBeInTheDocument();
+  });
+
+  it('the riddle answered right takes the lock with it: no second opening, no bonus (review round 1)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.getByTestId('scribe-lock')).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Right'));
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    const save = useSaveStore.getState().save!;
+    expect(save.openedChests).toEqual([lockedChest.id]);
+    expect(save.coins).toBe(CHEST_COINS);
+  });
+
+  it('a wrong riddle answer focuses nothing while the lock is up, and the sentence still opens the chest (review round 2)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    fireEvent.click(await screen.findByText('Wrong A'));
+    // The lock says it is the way in now (review round 4).
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/and the chest opens, 🪙 15 on top/);
+    const back = screen.getByRole('button', { name: /come back/ });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.activeElement).not.toBe(back);
+    // A Space for the pangram's space is the line's, never the button's.
+    const sentence = pangramFor(lockedChest.id);
+    for (const ch of sentence) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    expect(await screen.findByTestId('scribe-lock-open')).toBeInTheDocument();
+    expect(useSaveStore.getState().save!.openedChests).toEqual([lockedChest.id]);
+  });
+
+  it('the lock unfolded, then the riddle answered right: the carry-on button takes focus as ever (review round 3)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    // The lock reads its whole sentence to a screen reader before the first key.
+    await waitFor(() => expect(screen.getByTestId('scribe-lock')).toHaveTextContent(`Type this: ${pangramFor(lockedChest.id)}`));
+    fireEvent.click(await screen.findByText('Right'));
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    const onward = screen.getByRole('button', { name: /pops open/ });
+    await waitFor(() => expect(document.activeElement).toBe(onward));
+  });
+
+  it('the riddle answered wrong with the lock folded: the lock says a scribe can still open it (review round 4)', async () => {
+    useKeyboardStore.getState().seen();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals, typingAnchor: false } });
+    render(<PathQuestionOverlay target={lockedChest} />);
+    fireEvent.click(await screen.findByText('Wrong B'));
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/The riddle got you — but a scribe can still open it/);
+    fireEvent.click(screen.getByRole('button', { name: /Type the sentence/ }));
+    expect(screen.getByTestId('scribe-lock')).toHaveTextContent(/and the chest opens/);
+  });
+
+  it('no lock without a keyboard, before the capitals lesson, or on a chest that has none', async () => {
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
+    const { unmount } = render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    unmount();
+    useKeyboardStore.getState().seen();
+    withFlags({});
+    const second = render(<PathQuestionOverlay target={lockedChest} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    second.unmount();
+    useSaveStore.setState({ save: { ...defaultSave(), flags: capitals } });
+    render(<PathQuestionOverlay target={plainLock} />);
+    expect(screen.queryByTestId('scribe-lock')).toBeNull();
+    expect(await screen.findByText('Right')).toBeInTheDocument();
   });
 });
 

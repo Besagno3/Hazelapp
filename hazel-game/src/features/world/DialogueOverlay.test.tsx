@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const sendFlow = vi.fn();
 vi.mock('../../machines/gameFlow', async (orig) => ({
@@ -265,6 +265,146 @@ describe('One More Name (#75 item 16b): the dog\'s name is the hero\'s to choose
     fireEvent.click(screen.getByText('Later'));
     expect(useSaveStore.getState().save!.flags['quest:unnamed-dog:done']).toBeUndefined();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+});
+
+describe("a line in the kid's own hand: pen-pal replies (#165 item 9)", async () => {
+  const { useKeyboardStore } = await import('../../store/keyboardStore');
+  const { PEN_PALS, charKey, penPalReplyFlag, typingLessonFlag } = await import('../../content/typing');
+  const pal = PEN_PALS[0];
+  const atTheLibrarian = (flags: Record<string, boolean>, typingAnchor = false) =>
+    useSaveStore.setState({
+      userId: null,
+      save: { ...defaultSave(), zoneId: 'lumina-village', questItems: ['shush-letter'], typingAnchor, flags: { 'quest:shush-letters:offered': true, ...flags } },
+      status: 'ready',
+      remoteError: null,
+    });
+  const capitals = { [typingLessonFlag('capitals')]: true };
+
+  it('Librarian Sage offers it on the last line with a keyboard and the capitals lesson; a line picked and typed hands the letter over with the kid\'s line in it', async () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    expect(screen.queryByText('✍️ Add a line of my own')).toBeNull();
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('✍️ Add a line of my own'));
+    expect(screen.getByTestId('pen-pal')).toHaveTextContent(pal.offer);
+    fireEvent.click(screen.getByText(`✍️ ${pal.replies[1]}`));
+    expect(screen.getByText(`Type: ${pal.replies[1]}`)).toBeInTheDocument();
+    // The task is read to a screen reader (review round 4), and "Maybe not" is a step away.
+    await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(`Type this: ${pal.replies[1]}`));
+    expect(screen.getByText('Maybe not')).toBeInTheDocument();
+    for (const ch of pal.replies[1]) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    // The envelope after the line's beat (review round 4): the last key never lands on "Got it!", and the
+    // buttons beside the line are out of reach meanwhile (round 5).
+    expect(screen.queryByText('✨ Got it!')).toBeNull();
+    expect(screen.getByText('Maybe not')).toBeDisabled();
+    expect(screen.getByText('Pick another line')).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(pal.written));
+    const save = useSaveStore.getState().save!;
+    expect(save.questItems).toEqual(['sage-letter']);
+    expect(save.flags['quest-step:shush-deliver']).toBe(true);
+    expect(save.flags[penPalReplyFlag(pal.questId, 1)]).toBe(true);
+    expect(sendFlow).not.toHaveBeenCalledWith({ type: 'CLOSE' });
+    fireEvent.click(screen.getByText('✨ Got it!'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('📚 Library beside the offer leaves the step for next time, and is the quieter button (review round 6)', () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    const library = screen.getByText('📚 Library');
+    expect(library.className).not.toMatch(/amber/);
+    fireEvent.click(library);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_SERVICE', service: 'library', npcId: 'hub-librarian' });
+    const save = useSaveStore.getState().save!;
+    expect(save.flags['quest-step:shush-deliver']).toBeUndefined();
+    expect(save.questItems).toEqual(['shush-letter']);
+  });
+
+  it('a kid who reads on with Enter finds nothing focused beside the offer (review round 3)', () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    const next = screen.getByText('▼ Next');
+    expect(document.activeElement).toBe(next);
+    fireEvent.click(next);
+    expect(screen.getByText('✍️ Add a line of my own')).toBeInTheDocument();
+    expect(document.activeElement?.tagName).not.toBe('BUTTON');
+  });
+
+  it('Escape is "Maybe not" while picking or typing, and "Got it!" once the envelope is sealed (#110o)', async () => {
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('✍️ Add a line of my own'));
+    fireEvent.click(screen.getByText(`✍️ ${pal.replies[0]}`));
+    expect(screen.getByText(`Type: ${pal.replies[0]}`)).toBeInTheDocument();
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(screen.queryByTestId('pen-pal')).toBeNull();
+    expect(screen.getByText('✨ Got it!')).toBeInTheDocument();
+    expect(sendFlow).not.toHaveBeenCalledWith({ type: 'CLOSE' });
+    fireEvent.click(screen.getByText('✍️ Add a line of my own'));
+    fireEvent.click(screen.getByText(`✍️ ${pal.replies[0]}`));
+    for (const ch of pal.replies[0]) {
+      const found = charKey(ch)!;
+      fireEvent.keyDown(window, { code: found.key.code, key: ch });
+      fireEvent.keyUp(window, { code: found.key.code, key: ch });
+    }
+    await waitFor(() => expect(screen.getByTestId('pen-pal')).toHaveTextContent(pal.written));
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('no offer without a keyboard or before the capitals lesson; "Maybe not" goes back to the letter', () => {
+    useKeyboardStore.getState().reset();
+    atTheLibrarian(capitals);
+    const first = render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.queryByText('✍️ Add a line of my own')).toBeNull();
+    first.unmount();
+    useKeyboardStore.getState().seen();
+    atTheLibrarian({});
+    const second = render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.queryByText('✍️ Add a line of my own')).toBeNull();
+    second.unmount();
+    atTheLibrarian(capitals);
+    render(<DialogueOverlay npcId="hub-librarian" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('✍️ Add a line of my own'));
+    fireEvent.click(screen.getByText('Maybe not'));
+    expect(screen.getByText('✨ Got it!')).toBeInTheDocument();
+    expect(useSaveStore.getState().save!.questItems).toEqual(['shush-letter']);
+  });
+
+  it("back at Shush, the kid's line is read out before the reward", () => {
+    useSaveStore.setState({
+      userId: null,
+      save: {
+        ...defaultSave(),
+        zoneId: 'quiet-quarter',
+        questItems: ['sage-letter'],
+        flags: { 'quest:shush-letters:offered': true, 'quest-step:shush-deliver': true, [penPalReplyFlag(pal.questId, 2)]: true },
+      },
+      status: 'ready',
+      remoteError: null,
+    });
+    render(<DialogueOverlay npcId="quiet-shush" />);
+    const said = readAll();
+    expect(said).toContain(pal.read(pal.replies[2]));
+    expect(said.indexOf(pal.replies[2])).toBeLessThan(said.indexOf('Reward'));
   });
 });
 

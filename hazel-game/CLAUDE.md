@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -559,6 +559,120 @@ zod, react-query. Add the package in the same change that first uses it.
   inn (`normalizeSave`). `StoryPanels` ignores a tap until the panel on
   screen has faded in, and it and `WakeFade` make the rest of the page
   `inert` while they're up (`hooks/useInertOutside`).
+- **Touch typing (#165, `features/typing/`, `content/typing.ts`, `lib/typing.ts`):**
+  Librarian Sage teaches it inside the Library's panel (📚 Library → ⌨️
+  Typing lessons): `TYPING_LESSONS`, 13 in the classic order (the home row
+  from the bump keys out, the top row, the bottom row, capitals with the other
+  hand's Shift, true-fact sentences), each open once the one before is
+  cleared (`typing:<id>` flags, `typingLessonOpen`), `TYPING_LESSON_XP` the
+  first time, the ✍️ Scribe's Quill badge (`TYPING_BADGE_ID`) for all of them.
+  Keys are known by their PHYSICAL code (`KEYBOARD_ROWS`, `KEY_BY_CODE`: the
+  standard finger for each) and matched by what they type (`charKey`);
+  `useTypingRun` listens on `window` (keydown/keyup, the keys held, Space and
+  characters `preventDefault`ed) and steps the pure `stepTyping`
+  (`lib/typing.ts`): typed / done / wrong (a miss) / hold / caps (nudges, not
+  misses) / none. **The home-row hold** (`anchorsFor`): the other hand holds
+  its bump key — J for a left-hand letter, F for a right-hand one — or its
+  Shift for a capital; nothing for the space bar; never Shift for a letter
+  (Windows' FilterKeys / Sticky Keys). A per-player save setting,
+  `SaveData.typingAnchor` (additive, on by default; 📜 Menu → ⌨️ Typing and
+  the lessons list). `KeyboardDiagram` draws the keyboard and two hands
+  (target gold, anchor blue, the finger lit); `TypingLine` the line.
+  `keyboardStore` (`watchKeyboard` in `App`) remembers the first press from a
+  physical keyboard this session (`fromPhysicalKeyboard`: a glass keyboard
+  names no code); the lessons ask for one first. New lessons go in
+  `TYPING_LESSONS` — `typing.test` checks a drill uses only keys taught by
+  then.
+  `useTypingRun` leaves Space to a focused button unless the line wants a
+  space next (`onControl`; a Space it takes, it takes on keyup too), and
+  never types over a focused text field (`inField`); `hints.ts` says the next
+  key in words for a screen reader (`keyHint`, the short `keyName` between
+  nudges) and which key to flash (`wrongKey`). The clocks on the bursts and
+  the song wait for every letter's lesson (`lettersLearned`, lesson 11
+  `LETTERS_LESSON`) and the player's countdown setting; `TypeBurst`'s
+  `readyMs` holds the clock a beat (`DefendTimer`'s `ready`: "Ready…", and
+  run out it says "⏰ Time's up"; urgency the last 5 s on a clock of 10 s and
+  over, a third of a shorter one — `features/battle/urgency.ts`);
+  `LITTLE_HANDS_AGE` (8) lengthens the race and the song; a name's hyphen
+  types as a space (`plainName`). A finished lesson or desk line stays
+  `LINE_HOLD_MS` before the next; `LineRun`'s `announce` reads the line to a
+  screen reader where no lesson live line does (the chest's lock, the letter)
+  and `compact` drops the hands; `spellLine` spells drill lines ("F F F, J J
+  J"); `TypeBurst` and `LineRun` take focus as they appear. The right key with
+  the wrong Shift ("1" for "!") is a `caps` nudge, never a miss (only when the
+  key really typed one of the lit key's characters); the diagram's
+  `targetChar` draws a shifted mark on its lit key and lights the other
+  hand's Shift when no Shift anchor is blue (`keyName` lives in
+  `content/typing.ts`). `TypingLine` reads as hidden text ("Type: …",
+  spelled for a drill via `spoken`) with `data-line` for the bench; the
+  focused boxes are named groups; the live task reads "Type this: …"; a
+  typing clock (`what: 'to type'`) doesn't tick aloud; `shortWindow()`
+  (under 700 px tall) drops the hands on the desk and the letter.
+  `keyboardStore.keysDown()` is the set of keys physically down (kept by
+  `watchKeyboard`'s capture-phase listeners); a run and a leaves round start
+  from it, so an anchor held across lines stays held. Each typing screen
+  keeps one live region across its states (the lesson, the desk, the leaves,
+  the lock's overlay, the letter) rather than mounting result text anew. Where a screen has no button to
+  land on (the desk's list, the keyboard gate, the lessons list once all are
+  cleared, the shelf on the way back, a result card) its heading takes the
+  focus (`tabIndex={-1}`, `focus:outline-none`), so a keyboard and a reader
+  start at the top of what changed.
+  **Back to the Library (#166):** a kid back in the world (a sign-in, a kid
+  picked) who hasn't cleared lesson 1 is sent to Sage once a session
+  (`WorldScreen`'s `LIBRARY_NUDGE` toast; `battleStore.libraryNudgeSaid`),
+  a beat after arriving and waiting out a story, an overlay or a toast —
+  only once the intro has played, never to a glass keyboard.
+  **In battle (item 2):** once a keyboard is seen and lesson 1 is cleared
+  (`typingUnlocked`), a right Attack or block answer is followed by a ✍️
+  scribe burst (`features/battle/TypeBurst.tsx`, in `QuestionCard`'s
+  `afterAnswer` slot): `burstWord` (the hero's, Ember's or the foe's name,
+  lowercase) against `BURST_MS` on the defend timer's bar; typed in time, an
+  Attack hits `SCRIBE_ATTACK_MULT`× (`scribeRef`, read when ▶ Go! resolves
+  it) and a block adds `SCRIBE_BLOCK_CHARGE` ◆ at once; too late or ▶ Go!
+  first, nothing. Each right key sparks on the hero.
+  **After a win (item 3):** with a keyboard seen, one win in three
+  (`rollTypingBonus`, `TYPING_BONUS_CHANCE`) adds a bonus scroll to the
+  victory panel (`features/battle/TypingBonus.tsx`, through `BattleResult`'s
+  `bonus` / `onClaimBonus`): the hero's, Ember's or the foe's name as it is
+  written, no clock, for coins, XP, a potion or a feather (`claimBonus` in
+  the arena pays it once, at the last key).
+  **As a battle opens (item 4):** one regular critter in three (`nameRaceDue`,
+  `NAME_RACE_CHANCE`; never a boss or a swift critter), once every letter's
+  lesson is cleared (`nameRaceOpen`) and only with the defend countdown on,
+  starts on a `race` turn: the critter's name (`enemyWord`) within
+  `NAME_RACE_MS` (`NAME_RACE_LITTLE_MS` under `LITTLE_HANDS_AGE`). Won, a free
+  blow at `FIRST_STRIKE_SHARE` then the hero's turn (`heroStrike`'s `then`);
+  lost, the critter darts in first (`enemyTurn`), as a swift one does.
+  **The scriptorium (item 5):** 📚 Library → 📜 The Scriptorium
+  (`features/typing/Scriptorium.tsx`): pages to copy out line by line
+  (`LineRun`, shared with the lessons) — the explanations of the shelf's
+  missed questions first, then the fun facts (`scriptoriumPages`,
+  `scribeText` makes a passage typeable or drops it, `pageLines` wraps it);
+  `SCRIPTORIUM_XP` once a page (`page:<id>` flags, `pagesCopied`); open once
+  the capitals lesson is cleared (`scriptoriumOpen`).
+  **The song that breaks the hush (item 6):** a boss in `BOSS_SONGS`
+  (`songFor`; the Hush Fiend) winds up its power move into a `song` turn
+  instead of the plain warning, with a keyboard and lesson 1: a line of the
+  song (one per wind-up, round and round) within `SONG_MS`. In time, the
+  move drops to a plain blow (`songDone` → `setIntent('attack')`); too slow,
+  the warning as ever — Guard still blocks it.
+  **🍂 Falling Leaves (item 7):** 📚 Library → 🍂 Falling Leaves
+  (`features/typing/FallingLeaves.tsx`, rules in `lib/leaves.ts`: `stepLeaves`
+  / `pressLeaf`, pure): letters from the keys the lessons have taught
+  (`leafPool`) drift down; the right key catches the lowest such leaf; three
+  on the ground or the clock end the round; milestones of 10 / 25 / 50 in a
+  round pay `LEAVES_XP` once (`leaves:<n>` flags).
+  **Pangram chests (item 8):** about one riddle-chest in four
+  (`pangramChest`, by its id) also has a scribe's lock: with a keyboard and
+  the capitals lesson, `PathQuestionOverlay` offers its pangram
+  (`pangramFor`, from `PANGRAMS`) above the riddle; typed, the chest opens
+  with `PANGRAM_BONUS_COINS` on top. The riddle stays on offer.
+  **Pen-pal replies (item 9):** a letter quest in `PEN_PALS` (Shush's) lets
+  the kid add a line in their own hand at its bring step: `DialogueOverlay`
+  offers it (a keyboard and the capitals lesson), one of a few lines picked
+  and typed; kept by its number (`penPalReplyFlag`, never free text) and
+  read back by the giver at the end (`penPalReadLine`). `QuestConversation`
+  carries its `questId` and `step` for it.
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1146,6 +1260,333 @@ didn't load. Tap "Try the stair again"."). Tests: `pin_limits.test.sql` and
 against a stand-in Supabase 20/20; 1805 → 1856 green, lint, `tsc -b`,
 `deno check` of both functions, all 23 migrations + 15 SQL tests on
 Postgres 16. Logged: #167 (the grown-ups gate is a UI lock only).
+### 2026-10-20 — Back to the Library: a returning kid is sent to Librarian Sage (#166)
+The owner: now that typing is in, whenever someone logs back in a message
+should tell them Sage has something for them at the Library. `WorldScreen`
+shows "📚 Librarian Sage has something for you at the Library in Lumina
+Village — go and see him!" as a world toast (read out) a beat after the
+world opens, once a session per kid (`battleStore.libraryNudgeSaid`, reset by
+Switch player and sign-out), until the first typing lesson is cleared. It
+waits out a story, an overlay or a toast already up (retrying for up to
+30 s), counts as said once it's been up 2.5 s (a battle cutting it short
+means it's said again next time), plays only once the intro has been seen,
+and never on a glass keyboard. Tests: `WorldScreen.nudge.test` (+5,
+TC-1690); 1935 green, lint + tsc clean; `bench … hud` 8/8 and `bench …
+typing` 48/48 on the changed screen (the toast in the HUD shots).
+
+### 2026-10-20 — Merge main into the touch-typing branch; touch typing is #165 (#165)
+The owner said merge. `main` had moved 16 commits (the issues audit, its
+review rounds 1–2, TypeScript `strict`, the flying bench) and had taken
+**#159** for the issues audit, so the touch-typing entry is **#165** from
+here (its commits still say #159; the ISSUES row says so) and its test cases
+are **TC-1646…TC-1688** (after main's TC-1645). Ten files conflicted:
+- `BattleArena`: `heroStrike` keeps main's `superEffective` and the typing
+  `then`; the victory clears main's banners (`fightOver`, `clearBanners`)
+  and rolls the bonus scroll.
+- `DialogueOverlay`: the pen-pal hooks beside main's `lineId`; the Next
+  button keeps main's `onwardRef` and the pen-pal `key`/`autoFocus`; the
+  pen-pal screen takes main's Escape convention (#110o) — "Maybe not" while
+  picking or typing, "Got it!" once sealed (a test).
+- `MenuOverlay`: typing and secret badges both; the bench's `stubbedApp`
+  takes `init` (typing) and `touch` (main); the four test files keep both
+  sides' describes; the three docs keep both sides' entries.
+- `strict`: `KeyboardDiagram`'s `FINGERS` excludes the thumb (`HEIGHTS` has
+  none).
+- 1930 tests green, lint + tsc + build clean; `bench … typing` 48/48,
+  `bench … battle` 5/5 on the merged tree.
+
+### 2026-10-20 — Touch typing review round 7: headings take the focus, keys read as the run attaches (#165)
+The second of the two extra rounds. Fresh code (5 low, 4 nits) and UX
+(1 medium, 6 low, 2 nits) reviewers over round 6's screenshots; all fixed.
+- **Code:** a run reads the keys down as its listeners attach, not at
+  render; `keyboardStore` never keeps a chord's key (no keyup under ⌘) and
+  lets go of everything when the tab is hidden; the leaves' marks are hidden
+  text, not an `aria-label` on a span; the leaves' result is read once the
+  tally is in; the riddle's `inert` is set as an attribute (React 19 reads
+  the prop as a boolean); the burst's clock label read once; the bonus
+  scroll's claimed line says the reward once.
+- **UX:** the Library's sub-screens no longer leave a keyboard at the top of
+  the page — the desk's heading, the gate's, the lessons list's (once every
+  lesson is cleared) and the shelf's on the way back take the focus; "Page
+  copied!" and "Lesson cleared!" are focused before their buttons; a long
+  desk title wraps (`line-clamp-2`); the leaves' wrong-key nudge names a
+  mark; a lesson's title is `text-base` on a phone; the leaves' copy drops
+  the finger check it never made; the lock's spoken opening ends cleanly;
+  the riddle's confetti respects reduced motion.
+- Tests: +4 (TC-1687, TC-1688); 1711 green, lint + tsc clean; `bench …
+  typing` rerun.
+
+### 2026-10-20 — Touch typing review round 6: keys held across lines, results read out (#165)
+The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)
+and UX (2 medium, 6 low, 2 nits) reviewers over round 5's screenshots; all
+fixed.
+- **Code:** an anchor held through a line's beat was unknown to the next
+  line's run ("Hold J" while holding J) — `keyboardStore.keysDown` keeps
+  the keys physically down and a run starts from them; Caps Lock blamed
+  before "hold Shift" for a capital; the hint names "(!)" under the hold
+  too; the burst's last-key tick doubled the scribe's strike (now the race's
+  and song's only); the riddle under the lock's beat is `inert`; the badge
+  announced; an untimed burst's label read once.
+- **UX:** the leaves' result, the lock's opening and the sealed letter are
+  read out (one live region per component); 📚 Library beside the pen-pal
+  offer no longer spends the one-time line; the leaves round box is named;
+  a Space in a burst's beat scrolls nothing; "➡️ Next page" opens the page
+  that followed; the burst's margin belongs to the slot; "the semicolon key
+  (;)" and the marks named in the leaves list; the announcements complete;
+  "No bonus this time — the answer still counts."; "Too slow!"; "with a
+  thumb".
+- Tests: +4 (TC-1685, TC-1686); 1707 green, lint + tsc clean; `bench …
+  typing` rerun.
+
+### 2026-10-19 — Touch typing review round 5: one Shift, named boxes, a line a reader can find (#165)
+The last of the five rounds. Fresh code (1 medium, 4 low, 2 nits) and UX
+(1 medium, 6 low, 2 nits) reviewers over round 4's screenshots; all fixed.
+- **Code:** round 4 lit the typing hand's Shift for a shifted mark under the
+  hold — the Shift the rule rejects (now the other hand's only, and none when
+  a Shift anchor is blue; a `KeyboardDiagram` test); the wrong-Shift nudge
+  misfired on a non-QWERTY layout; Caps Lock was blamed for a digit; the
+  letter's buttons and the chest's riddle stayed live in their beats; the
+  race's and song's last key was silent; a capital with the hold off had no
+  Shift cue. Both reviewers on the line: it is hidden text again (one
+  reading, navigable), the bench reads `data-line`.
+- **UX:** a replayed lesson says why there's no XP; the bonus scroll's
+  keyboard stays dimmed; a typing clock no longer ticks aloud (the keys are
+  the rhythm); the letter goes compact in a short window (`shortWindow`); the
+  lesson intro names the gold and blue keys; the focused boxes have names;
+  "⏳ 55s"; a drill line is spoken spelled on the line too; the live task
+  reads "Type this: …".
+- Tests: +4 (TC-1683, TC-1684); 1703 green, lint + tsc clean; `bench …
+  typing` rerun.
+
+### 2026-10-19 — Touch typing review round 4: the mark on its key, every last line lingers (#165)
+The owner asked for two more rounds. Fresh code (1 medium, 4 low, 2 nits)
+and UX (1 high, 3 medium, 8 low, 1 nit) reviewers over round 3's
+screenshots; all fixed.
+- **Code:** the desk's line-hold timer outlived "← Back to the pages" and
+  could move a page opened in the beat past its last line (a render crash);
+  a word typed in time handed ▶ Go! the focus on its last key (a 300 ms
+  beat, as the late path has); `spellLine` paused at every word of a
+  sentence; `QuestionCard` scrolled when only focus changed; "Type: …" fills
+  its live region a tick after mount; one tick a key (the run no longer
+  sounds the last key — the lesson's chime and the arena's strike do).
+- **UX:** a mark up on a key ("!", "?", "(") lit the plain key and pressing
+  it was a miss — now a nudge that names the key, the lit key shows the mark,
+  the Shifts light for it, `keyHint` says "Shift and the 1 key (!)", the
+  pen-pal lines lost their "!"; the letter reads "Type: …" to a screen
+  reader; the last line of a lesson, a page, the pangram and the letter
+  lingers `LINE_HOLD_MS` before its result card (a habitual Enter had closed
+  it unread; the pay is immediate); the lock's words after a wrong riddle;
+  the capitals lesson's hold tip; the leaves intro names the clock;
+  `BURST_LITTLE_MS` (15 s) under 8; the line read once; the chest's heading
+  under the HUD band; the desk compact under 700 px; "Maybe not" beside
+  "Pick another line".
+- Tests: +5 (TC-1681, TC-1682); 1699 green, lint + tsc clean; `bench …
+  typing` rerun.
+
+### 2026-10-19 — Touch typing review round 3: a clock that says time's up, lines that linger, a screen reader told the task (#165)
+The last of the three rounds: fresh code (1 high, 1 medium, 4 low, 3 nits)
+and UX (4 medium, 4 low, 7 lows, 2 nits) reviewers over 55 fresh screenshots;
+all fixed, two design questions left to the owner (ISSUES #165).
+- **Code:** a burst, race or song that ran out showed a green "✓ In time!"
+  (the timer now has a "⏰ Time's up" state; `TypeBurst` stops it only on a
+  typed word); with the lock unfolded a riddle answered right left focus on
+  the page; the race's "Ready…" beat was drawn as the Knot's "⏸ Paused"
+  (`DefendTimer` `ready`); an untimed burst never focused ▶ Go! (the burst
+  takes focus on mount); the leaves round left focus on the page; round 2's
+  urgency rule had shortened 10–14 s defend clocks for kids 13+ (the third
+  applies below 10 s only, `features/battle/urgency.ts`); a key down as a run
+  ended stayed "held"; "Typed in time"; leftovers of the `LITTLE_HANDS_AGE`
+  move.
+- **UX:** every typing moment outside the Library reads "Type: …" to a screen
+  reader before the first key (`LineRun` `announce`); a finished lesson or
+  desk line stays `LINE_HOLD_MS` all green with a brighter tick; the pen-pal
+  offer can't be Enter-ed past by a kid who advanced with Enter; the chest's
+  heading clears the HUD band and its lock is compact; honest leaves copy and
+  a result that says why the round ended; ▶ Go! waits a beat after a word
+  runs out; gentler leaf tilt; the desk shows the whole passage; drill lines
+  spelled for a screen reader (`spellLine`); the leaves count read aloud; a
+  shorter song label.
+- Tests: +13 (TC-1679, TC-1680); 1694 green, lint + tsc clean; `bench …
+  typing` rerun.
+
+### 2026-10-19 — Touch typing review round 2: clocks that wait, focus that follows, names that type (#165)
+Round 2 of three: fresh code (2 medium, 5 low, 2 nits) and UX (2 high, 7
+medium, 3 low) reviewers over the round-1 screenshots; all fixed.
+- **Code:** a hyphenated one-word name was cut mid-word ("cuttle-scrib" —
+  now a hyphen is a space and a long name is never cut, every enemy name
+  swept); after a wrong riddle answer a stray Space could click the focused
+  button and close a pangram chest mid-sentence (nothing focused while the
+  lock is up; the run takes Space's keyup too); Falling Leaves paid two
+  milestones with two racing writes and had no Caps Lock handling (a `caps`
+  nudge, a bare Space ignored); the keyboard store written on every key;
+  "Let it come" live during the beat after the line was sung; a pangram
+  ending in "!" (untaught); a run typing over a focused text field
+  (`inField`); `LITTLE_HANDS_AGE` moved to `content/typing.ts`.
+- **UX:** the bursts and the song ran clocks from lesson 1 (now untimed
+  until every letter's lesson, `lettersLearned` / `typingClock`); ▶ Go! is
+  focused as a burst settles (`QuestionCard` `focusContinueKey`) and a lesson
+  line takes focus as it appears; one live region per lesson and per desk
+  page; the next key read as a short name (`keyName`); the race gets a 1.2 s
+  "Ready…" beat (`RACE_READY_MS`, `TypeBurst` `readyMs`), 8 s / 12 s for
+  little hands, its urgency a third of the clock; the song 30 s under 8;
+  locked Library cards look locked; the hold switch by its tip; "← Back to
+  the lessons" / "⏹ Stop the round"; the keyboard stays dimmed after a burst
+  so ▶ Go! doesn't jump; bursts say what the word does; the pen-pal offer
+  can't be skipped by a held Enter; plainer song lines and copy.
+- Tests: +10 (TC-1677, TC-1678); lint + tsc clean; `bench … typing` rerun.
+
+### 2026-10-19 — Touch typing review round 1: Space, screen readers, cards that fit (#165)
+The owner asked for three rounds of code and UX review with every finding
+fixed. Round 1: a fresh code reviewer (3 medium, 5 low) and a fresh UX
+reviewer (4 high, 9 medium, 9 low) over 53 screenshots of the real app from
+the new `bench … typing` mode (TC-1676). All fixed but two kept:
+- **Code:** the scribe's lock stayed up after the riddle opened the chest
+  and paid its bonus again; a race won against a shielded critter still gave
+  it the first move; the bursts, race and song ran clocks for a player whose
+  defend countdown is off (now no race, no clock); Falling Leaves misread a
+  bare bump key as a wrong-hand nudge and kept a key held into the next
+  round; the caps nudge couldn't tell Caps Lock from a held Shift.
+- **UX:** Space on a focused button was swallowed while a line was up; a
+  screen reader heard neither the line, the next key nor a result; the song
+  and race cards ran off the bottom at 1024×768 with no way out of the 20 s
+  song; words split mid-word when a line wrapped; the keyboard jumped on a
+  nudge; the scribe's lock buried the riddle (now an offer first); pulses
+  under reduced motion; the next lesson below twelve ✅ rows (a ▶ Continue
+  button); the leaf that counts unmarked; the space bar bottom-left; the
+  race on F and J alone (now after every letter's lesson, 9 s for little
+  hands); plainer words throughout.
+- `features/typing/hints.ts` (`keyHint`, `wrongKey`), `onControl` in
+  `useTypingRun`, `TypeBurst`'s `timed`, `nameRaceOpen`.
+- Tests: +12 (TC-1674, TC-1675); lint + tsc clean.
+
+### 2026-10-19 — Touch typing IX: pen-pal replies (#165)
+A line in the kid's own hand, in Shush's letter.
+- **At Librarian Sage**, handing over Shush's letter with a keyboard and
+  the capitals lesson: ✍️ Add a line of my own — pick one of three lines
+  ("The cliffs are singing again!" …) and type it over the keyboard and
+  hands; the letter goes with it. **Back at Shush**, the line is read out
+  before the reward: "And a line in YOUR hand! …"
+- The line is kept by its number, never as text, so nothing a kid types
+  reaches the save or the server. Any letter quest gets one through
+  `PEN_PALS`.
+- Tests: +5 (`content/typing.test`, `DialogueOverlay.test`); 1663 green, lint + tsc
+  clean.
+
+### 2026-10-19 — Touch typing VIII: pangram chests (#165)
+A rare chest opened by typing a sentence.
+- **A scribe's lock** on about one riddle-chest in four (always the same
+  ones): with a keyboard and the capitals lesson, a box above the riddle
+  offers a pangram — "The quick brown fox jumps over the lazy dog." and
+  five more, every letter of the alphabet in each. Type it over the
+  keyboard and hands and the chest springs open with its coins (and key
+  item) plus a scribe's bonus of 15. The riddle stays on offer, so no chest
+  is ever locked to a kid without a keyboard.
+- Tests: +4 (`content/typing.test`, `PathQuestionOverlay.test`); 1658 green, lint +
+  tsc clean.
+
+### 2026-10-19 — Touch typing VII: 🍂 Falling Leaves (#165)
+A typing game in the Library, from lesson 1.
+- **Letters on leaves** drift down the field; press each one with the right
+  finger before its leaf lands (the keyboard under the field points at the
+  lowest). Only keys the kid's lessons have taught fall — f and j after
+  lesson 1, more with each — and the home-row hold applies as set. A wrong
+  key is a nudge; three leaves on the ground (or 60 s) end the round. Leaves
+  come a little faster the more are caught.
+- **Accuracy first:** the result is leaves caught and keys right; 10, 25 and
+  50 in one round each pay 20 XP, once — nothing to farm.
+- The rules are pure (`lib/leaves.ts`, table-tested); the screen drives
+  them with a 50 ms tick and the window's keys.
+- Tests: +11 (`lib/leaves.test`, new `FallingLeaves.test`,
+  `ServiceOverlay.test`); 1654 green, lint + tsc clean.
+
+### 2026-10-19 — Touch typing VI: the song that breaks the hush (#165)
+The Crystal of Voices gets its typing boss.
+- **The Hush Fiend's wind-up is a song:** every third turn it gathers power
+  for its Great Shush; with a keyboard and lesson 1 the warning becomes a
+  box in the command menu's place — a line of the first Sage's lullaby
+  ("hush now little ones and hear", four lines, one per wind-up) against a
+  20 s bar. Sung in time, "the hush breaks": the Great Shush fizzles and its
+  next blow is a plain one. Too slow, the usual warning — and Guard still
+  blocks it, so the song is never a penalty. Each key floats 🎵.
+- Any boss gets a song by adding it to `BOSS_SONGS`.
+- Tests: +4 (`BattleArena.test`, `content/typing.test`); 1644 green, lint + tsc clean.
+
+### 2026-10-19 — Touch typing V: the scriptorium (#165)
+Pages to copy out, in the Library.
+- **📜 The Scriptorium** (📚 Library, under the lessons): a scribe's desk
+  with up to six pages — first the "here's why" of questions on the kid's
+  shelf (the question named above the line: learning by writing), then the
+  loading screen's fun facts, one a topic. Each line is typed over the
+  keyboard and hands as in a lesson; a page copied pays 15 XP once, shows
+  stars for accuracy, and leaves the desk, which refills.
+- A page is made typeable (`scribeText`: curly quotes and dashes to their
+  plain keys) or left out (an accent, a degree sign); every fun fact passes.
+- Opens once the capitals lesson (12) is cleared — a page has big letters.
+  The Library's button and the 📜 Menu count the pages copied.
+- Tests: +9 (`content/typing.test`, new `Scriptorium.test`,
+  `ServiceOverlay.test`); 1640 green, lint + tsc clean.
+
+### 2026-10-19 — Touch typing IV: the name race (#165)
+The owner: name the critter for first strike, but random, so some critters
+get the first move.
+- **As a regular critter's battle opens**, with a keyboard and lesson 1,
+  one encounter in three starts on a race where the command menu sits: type
+  the critter's name in 6 s. Won, the hero strikes first for half an Attack's
+  power and then takes their turn. Too slow, the critter darts in before you
+  can move and its defend question comes first, as a swift critter's does.
+  Never a boss, never a swift critter.
+- `TypeBurst` takes its words (`label`, `doneText`, `lateText`);
+  `heroStrike` takes what follows the blow (`then`).
+- Tests: +4 (`BattleArena.test`, `content/typing.test`: `enemyWord`, `nameRaceDue`); 1631 green, lint + tsc clean.
+
+### 2026-10-19 — Touch typing III: the bonus scroll after a win (#165)
+Third of three — the owner's idea: a surprise after random battles.
+- **One won battle in three**, with a real keyboard seen (no lesson needed:
+  the keyboard and hands are drawn, so it teaches on its own), the victory
+  panel adds 📜 A bonus scroll: type the hero's name, Ember's or the foe's
+  — written as it is, so a capital wants the other hand's Shift — for 🪙 15
+  coins, ⭐ 20 XP, a Berry Potion or a Hint Feather. No clock. Onward!
+  without typing is fine.
+- Paid once, at the last key, with the chest sound and confetti
+  (`claimBonus`); `rollTypingBonus` takes its dice, so tests pick.
+- Tests: +5 (`TypingBonus.test`, `BattleArena.test`); lint + tsc clean.
+
+### 2026-10-19 — Touch typing II: ✍️ scribe bursts in battle (#165)
+Second of three: every keystroke does something, in a fight.
+- **After a right Attack or block answer** — with a real keyboard seen and
+  the first lesson cleared — a short word to type against a 10 s clock sits
+  under the answers (`TypeBurst`, in `QuestionCard`'s new `afterAnswer`
+  slot): the hero's name, Ember's or the foe's. Each right key ticks, lights
+  the next letter and sparks ✨ on the hero.
+- **Typed in time:** an Attack hits 1.25× ("✍️ Scribe's power — the word was
+  true!"); a block adds 1 ◆ the moment the word ends. ▶ Go! first or the
+  clock running out: the plain move — the answer already counted.
+- `DefendTimer` says what its seconds are for (`what`); the home-row hold
+  applies as set.
+- Tests: +9 (`TypeBurst.test`, `BattleArena.test`, `QuestionCard.test`);
+  lint + tsc clean.
+
+### 2026-10-19 — Touch typing I: Librarian Sage's typing lessons (#165)
+The owner and their brother: kids don't type any more, so the game teaches
+it. First of three: the lessons.
+- **In the Library** (📚 Library → ⌨️ Typing lessons, `features/typing/`):
+  13 lessons in the classic order — F J, D K, S L, A ;, E I, R U, T O, G H,
+  the corners, V N M B, C X Z , ., capitals with the other hand's Shift,
+  then true-fact sentences — each open once the one before is cleared
+  (`typing:<id>` flags), 30 XP the first time, 1–3 stars for accuracy, the
+  ✍️ Scribe's Quill badge for all 13. Librarian Sage's lines name them.
+- **The keyboard and the hands** (`KeyboardDiagram`): drawn from the
+  physical key map (`content/typing.ts`, the standard finger for every
+  key); the key to press glows gold, the finger for it lights on the hand.
+- **The home-row hold** (the owner's safeguard): the other hand must hold
+  its bump key — J for a left-hand letter, F for a right-hand one — or the
+  other Shift for a capital. A letter without it is a nudge, never a miss;
+  Caps Lock gets its own. Switched per player (`typingAnchor`, 📜 Menu →
+  ⌨️ Typing and the lessons list); under 8 the list suggests going slow.
+- **A real keyboard first:** `keyboardStore` / `watchKeyboard`; the lessons'
+  gate explains on a phone. Keys never leave the browser.
+- Tests: +47 (`content/typing.test`, `lib/typing.test`, `keyboardStore.test`,
+  `TypingLessons.test`, `save.test`); lint + tsc clean. Follow-ups #165.
 
 ### 2026-10-19 — #159 review round 2: saving is never a fight, the boat a walk away, Escape that always lands, sign-in words for every case
 Second `/saas-code-review` + `/saas-ux-review` pass over the whole PR (16

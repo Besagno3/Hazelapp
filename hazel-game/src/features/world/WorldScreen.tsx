@@ -116,6 +116,8 @@ import { useFinaleStore } from '../../store/finaleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
 import { useBattleStore } from '../../store/battleStore';
+import { useKeyboardStore } from '../../store/keyboardStore';
+import { typingUnlocked } from '../../content/typing';
 import { sendFlow, useFlow } from '../../machines/gameFlow';
 import { ownsKeys } from '../../lib/interact';
 
@@ -123,6 +125,16 @@ import { ownsKeys } from '../../lib/interact';
 const SLEEPER_HINT = '💤 Sleepy critters let you pass. They wake up when you move away.';
 /** …once it's been up this long (ms): long enough to read, not cut off by a battle. */
 const SLEEPER_HINT_READ_MS = 2500;
+/**
+ * Back in the world (a sign-in, a kid picked), a kid who hasn't cleared the
+ * first typing lesson is sent to Librarian Sage, once a session (#166) — a
+ * beat after arriving, waiting out a story, an overlay or a toast already up.
+ */
+export const LIBRARY_NUDGE = '📚 Librarian Sage has something for you at the Library in Lumina Village — go and see him!';
+const LIBRARY_NUDGE_DELAY_MS = 1500;
+const LIBRARY_NUDGE_RETRY_MS = 2000;
+/** Up to this long after arriving; past it, next session. */
+const LIBRARY_NUDGE_GIVE_UP_MS = 30000;
 /**
  * A HUD button's tap target reaches 44 px tall (an invisible ::after 8 px
  * above and below it) without making the HUD row taller — the map keeps its
@@ -454,6 +466,34 @@ export default function WorldScreen() {
     // Only on arriving somewhere new.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zoneId, visitedHere]);
+
+  // Back in the world, a kid who hasn't started the typing lessons is sent to
+  // Librarian Sage (#166): once a session (`battleStore`, so Switch player and
+  // sign-out start over), only once the intro has played (a first visit isn't
+  // a return), never to a glass keyboard (the Library's gate would turn them
+  // back), and counted as said once it's been up long enough to read.
+  useEffect(() => {
+    const started = Date.now();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const tryShow = () => {
+      timer = null;
+      const s = useSaveStore.getState().save;
+      if (!s || s.flags[INTRO_SEEN] !== true || typingUnlocked(s.flags) || useBattleStore.getState().libraryNudgeSaid) return;
+      const glass = !useKeyboardStore.getState().present && typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)')?.matches === true;
+      if (glass) return;
+      if (pausedRef.current || toastUp.current) {
+        if (Date.now() - started < LIBRARY_NUDGE_GIVE_UP_MS) timer = setTimeout(tryShow, LIBRARY_NUDGE_RETRY_MS);
+        return;
+      }
+      showToast(LIBRARY_NUDGE);
+      hintTimer.current = setTimeout(() => useBattleStore.getState().sayLibraryNudge(), SLEEPER_HINT_READ_MS);
+    };
+    timer = setTimeout(tryShow, LIBRARY_NUDGE_DELAY_MS);
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+    // On mount only: a return to the world.
+  }, []);
 
   // Arriving somewhere can move the story on (#75 item 14g: Posy comes over to
   // the Marsh once you do) — on every arrival, not only the first visit.
