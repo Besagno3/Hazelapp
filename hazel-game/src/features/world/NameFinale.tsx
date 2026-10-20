@@ -256,7 +256,7 @@ export default function NameFinale() {
 
       {phase.kind === 'error' && (
         <div className="text-center">
-          <p className="text-sm text-orange-300 mb-4">The Root shivers! {phase.message}</p>
+          <p role="alert" className="text-sm text-orange-300 mb-4">The Root shivers! {phase.message}</p>
           <button onClick={begin} className="min-h-11 bg-violet-500 hover:bg-violet-400 font-semibold rounded-lg px-5 py-2 text-sm">
             Try again
           </button>

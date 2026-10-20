@@ -133,7 +133,7 @@ export interface QuestionErrorContext {
  * What a kid reads when a screen's questions didn't come (#130 S6): a few
  * kind words and the button to tap — never the error's own text, which goes
  * to the console (`errorMessage`). The connection says so when it's the
- * trouble. The question service's real `{error, detail}` is logged where it's
+ * trouble, and asks a grown-up to check it — a kid can't fix the internet. The question service's real `{error, detail}` is logged where it's
  * asked (`resolveErrorMessage` in `lib/questions.ts`); since B5 a failed ask
  * is filled from the starter questions, so what reaches a screen is a batch
  * that still came back short, or a bug.
@@ -141,8 +141,8 @@ export interface QuestionErrorContext {
 export function questionErrorMessage(err: unknown, { what = 'questions', retry = 'Try again' }: QuestionErrorContext = {}): string {
   const tap = `tap "${retry}"`;
   const net = networkTrouble(err);
-  if (net === OFFLINE_MESSAGE) return `You're offline. Check your internet, then ${tap}.`;
-  if (net === NETWORK_MESSAGE) return `We couldn't reach Hazel Quest. Check your internet, then ${tap}.`;
+  if (net === OFFLINE_MESSAGE) return `You're offline. Ask a grown-up to check the internet, then ${tap}.`;
+  if (net === NETWORK_MESSAGE) return `We couldn't reach Hazel Quest. Ask a grown-up to check the internet, then ${tap}.`;
   return `The ${what} didn't load. Tap "${retry}".`;
 }
 

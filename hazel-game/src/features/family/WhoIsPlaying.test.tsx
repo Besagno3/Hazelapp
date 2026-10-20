@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 import type { PinVerdict } from '../../lib/pinLock';
 
-const { default: WhoIsPlaying } = await import('./WhoIsPlaying');
+const { default: WhoIsPlaying, KID_UNLOCK_HELP } = await import('./WhoIsPlaying');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { forgetAllLocks } = await import('../../lib/pinLock');
 
@@ -13,6 +13,7 @@ const choose = vi.fn();
 const setGrownUpsOpen = vi.fn();
 const verdict = (ok: boolean, triesLeft = 4, waitSeconds = 0): PinVerdict => ({ ok, triesLeft, waitSeconds, limited: true });
 const checkKidPin = vi.fn(async (_id: string, pin: string) => verdict(pin === '4821'));
+const pinLocks = vi.fn(async () => null as { kids: Record<string, number>; grownUp: number } | null);
 
 async function type(pin: string) {
   for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
@@ -20,7 +21,7 @@ async function type(pin: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen, checkKidPin });
+  useFamilyStore.setState({ kids: [sam, kit], choose, setGrownUpsOpen, checkKidPin, pinLocks });
 });
 
 afterEach(() => {
@@ -47,15 +48,21 @@ describe('WhoIsPlaying (#124)', () => {
     expect(choose).toHaveBeenCalledWith('kid-sam');
   });
 
-  it('a locked PIN (#124c): the kind line, a countdown, a hint for grown-ups — and only for that kid', async () => {
+  it('a locked PIN (#124c): the kind line, a countdown in words, a hint for grown-ups — and only for that kid', async () => {
     vi.useFakeTimers();
     checkKidPin.mockResolvedValueOnce(verdict(false, 0, 300));
     render(<WhoIsPlaying />);
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    expect(screen.getByText('Type your PIN.')).toBeInTheDocument();
     await type('1111');
-    expect(screen.getByRole('status')).toHaveTextContent('Too many tries — ask a grown-up, or wait 5 minutes.');
-    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 5:00');
-    expect(screen.getByText(/giving them a new PIN in 👪 Grown-ups unlocks it/)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 5 minutes');
+    // The subtitle doesn't say "Type your PIN." while no PIN can be typed.
+    expect(screen.getByText('Taking a short break.')).toBeInTheDocument();
+    expect(screen.queryByText('Type your PIN.')).toBeNull();
+    // The help says where, and that the same PIN is fine — it isn't a "new PIN" chore.
+    expect(screen.getByText(KID_UNLOCK_HELP)).toBeInTheDocument();
+    expect(KID_UNLOCK_HELP).toMatch(/tap Change by their name and type their PIN again — the same one is fine/);
     await type('4821');
     expect(checkKidPin).toHaveBeenCalledTimes(1);
     expect(choose).not.toHaveBeenCalled();
@@ -63,10 +70,43 @@ describe('WhoIsPlaying (#124)', () => {
     // Back to the tiles and in again: Sam's pad remembers; Kit's is open.
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
-    expect(screen.getByTestId('pin-lock')).toHaveTextContent(/Try again in 5:00/);
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent(/Try again in 5 minutes/);
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Kit' }));
     expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(screen.getByText('Type your PIN.')).toBeInTheDocument();
+  });
+
+  it("a grown-up who unlocked Sam on their phone: Sam's pad asks the database and opens (#124c review)", async () => {
+    checkKidPin.mockResolvedValueOnce(verdict(false, 0, 900));
+    render(<WhoIsPlaying />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    pinLocks.mockResolvedValue({ kids: { 'kid-sam': 900 }, grownUp: 0 });
+    await type('1111');
+    await act(async () => {});
+    expect(screen.getByTestId('pin-lock')).toBeInTheDocument();
+    // Meanwhile Sam's PIN is typed again in 👪 Grown-ups on another device.
+    pinLocks.mockResolvedValue({ kids: {}, grownUp: 0 });
+    fireEvent.click(screen.getByRole('button', { name: /not me/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    await act(async () => {});
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(screen.getByText('Type your PIN.')).toBeInTheDocument();
+    await type('4821');
+    expect(choose).toHaveBeenCalledWith('kid-sam');
+  });
+
+  it("the pad opens with its title focused, and a check that answers after \"That's not me\" lets nobody in", async () => {
+    let answer: (v: PinVerdict) => void = () => {};
+    checkKidPin.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    render(<WhoIsPlaying />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    expect(screen.getByRole('heading', { name: 'Hi, Sam!' })).toHaveFocus();
+    await type('4821');
+    fireEvent.click(screen.getByRole('button', { name: /not me/ }));
+    await act(async () => answer(verdict(true)));
+    expect(choose).not.toHaveBeenCalled();
+    expect(screen.getByText("Who's playing?")).toBeInTheDocument();
   });
 
   it("\"That's not me\" goes back to the tiles", () => {

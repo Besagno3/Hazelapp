@@ -63,6 +63,23 @@ describe('FlagButton', () => {
     }
   });
 
+  it("offline, a kid is asked to fetch a grown-up — and the line is read out (#130 S6 review)", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      flagQuestionMock.mockRejectedValue(new TypeError('Failed to fetch'));
+      render(<FlagButton questionId="q-2" />);
+      fireEvent.click(screen.getByRole('button', { name: /report this question/i }));
+      fireEvent.click(screen.getByRole('button', { name: /wrong answer/i }));
+      const status = screen.getByRole('status');
+      await waitFor(() =>
+        expect(status).toHaveTextContent("Your report didn't send. Ask a grown-up to check the internet, then tap a reason to try again."),
+      );
+      expect(screen.getByText(/Your report didn't send/)).toHaveClass('text-red-700');
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('shows nothing for a question that isn’t in the bank — a report couldn’t reach anyone (#153)', () => {
     const { container, rerender } = render(<FlagButton questionId="starter-math-easy-1" />);
     expect(container).toBeEmptyDOMElement();

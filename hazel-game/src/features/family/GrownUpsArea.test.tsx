@@ -29,6 +29,8 @@ const setGrownUpsOpen = vi.fn();
 const verdict = (ok: boolean, triesLeft = 4, waitSeconds = 0): PinVerdict => ({ ok, triesLeft, waitSeconds, limited: true });
 const checkParentPin = vi.fn(async (pin: string) => verdict(pin === '9090'));
 const setParentPin = vi.fn(async () => {});
+const updateKid = vi.fn(async () => {});
+const pinLocks = vi.fn(async () => null as { kids: Record<string, number>; grownUp: number } | null);
 
 async function type(pin: string) {
   for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
@@ -47,6 +49,9 @@ beforeEach(() => {
     setGrownUpsOpen,
     checkParentPin,
     setParentPin,
+    updateKid,
+    pinLocks,
+    userId: 'grown-up-1',
     reviewRequested: false,
   });
 });
@@ -174,14 +179,17 @@ describe('GrownUpsArea (#124)', () => {
     expect(await screen.findByText('Sam')).toBeInTheDocument();
   });
 
-  it('a locked grown-up PIN (#124c) says to use the password or wait — and the password still opens it', async () => {
+  it('a locked grown-up PIN (#124c) says to use the password or wait — the password becomes the main button, and still opens it', async () => {
     vi.useFakeTimers();
     useFamilyStore.setState({ hasParentPin: true });
     checkParentPin.mockResolvedValueOnce(verdict(false, 0, 60));
     render(<GrownUpsArea />);
+    expect(screen.getByRole('button', { name: 'Use my password instead' })).not.toHaveClass('bg-purple-600');
     await type('1111');
     expect(screen.getByRole('status')).toHaveTextContent('Too many tries. Use your password instead, or wait 1 minute.');
-    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 1:00');
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 1 minute');
+    // It's the way in now: no longer a faint grey link.
+    expect(screen.getByRole('button', { name: 'Use my password instead' })).toHaveClass('bg-purple-600');
     await type('9090');
     expect(checkParentPin).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
@@ -238,10 +246,48 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Set a PIN' }));
     fireEvent.change(screen.getByLabelText('Grown-up PIN'), { target: { value: '9090' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
-    expect(await screen.findByText('Could not save the PIN')).toBeInTheDocument();
-    expect(screen.queryByText(/42501|permission denied/)).toBeNull();
+    // Never the database's own words (#130 S6 review): a plain line of this screen's own.
+    expect(await screen.findByText("That PIN didn't save just now. Please try again.")).toBeInTheDocument();
+    expect(screen.queryByText(/Could not save the PIN|42501|permission denied/)).toBeNull();
     expect(warn).toHaveBeenCalledWith('Saving the grown-up PIN failed:', 'Could not save the PIN [42501] — permission denied');
     warn.mockRestore();
+  });
+
+  it("a player who won't remove says so in plain words, never the database's (#130 S6 review)", async () => {
+    removeKid.mockRejectedValueOnce({ message: 'update or delete on table "profiles" violates foreign key constraint', code: '23503' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    await unlock();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Sam for good' }));
+    expect(await screen.findByText("We couldn't remove Sam just now. Please try again.")).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent("We couldn't remove Sam just now.");
+    expect(screen.queryByText(/foreign key|23503/)).toBeNull();
+    expect(warn).toHaveBeenCalledWith('Removing a player failed:', expect.stringContaining('23503'));
+    warn.mockRestore();
+  });
+
+  it("a kid whose PIN is locked says so by their name, with how to unlock it; the list asks again after a Change (#124c review)", async () => {
+    pinLocks.mockResolvedValue({ kids: { 'kid-sam': 300 }, grownUp: 0 });
+    await unlock();
+    const note = await screen.findByText(/PIN locked after too many tries\. Tap Change and type their PIN again — the same one is fine — to unlock it now\./);
+    expect(note.closest('li')).toHaveTextContent('Sam');
+    expect(screen.getAllByText(/PIN locked after too many tries/)).toHaveLength(1);
+    // Sam's PIN typed again in Change: the database unlocks it, and the list asks again.
+    pinLocks.mockResolvedValue({ kids: {}, grownUp: 0 });
+    const calls = pinLocks.mock.calls.length;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[0]);
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4821' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateKid).toHaveBeenCalledWith('kid-sam', expect.objectContaining({ pin: '4821' })));
+    await screen.findByText('Sam');
+    await waitFor(() => expect(pinLocks.mock.calls.length).toBeGreaterThan(calls));
+    expect(screen.queryByText(/PIN locked after too many tries/)).toBeNull();
+  });
+
+  it('the Change form says typing the PIN again — even the same one — unlocks it', async () => {
+    await unlock();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[0]);
+    expect(screen.getByText('Locked out after too many tries? Type their PIN here — even the same one — and save to unlock it.')).toBeInTheDocument();
   });
 
   it('sets a grown-up PIN (4 numbers only)', async () => {

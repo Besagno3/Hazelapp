@@ -105,6 +105,8 @@ describe('ShrineTrial (#75 item 9)', () => {
       render(<ShrineTrial npcId="wayfarer-keeper" />);
       fireEvent.click(screen.getByText('🕯️ Begin the trial'));
       expect(await screen.findByText('The questions didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      // An alert, so a screen reader hears it as it appears (#124 review).
+      expect(screen.getByRole('alert')).toHaveTextContent("The questions didn't load.");
       expect(screen.queryByText(/relation|does not exist/)).toBeNull();
       expect(warn).toHaveBeenCalledWith('Shrine trial questions failed:', 'relation "questions" does not exist');
       fireEvent.click(screen.getByText('Try again'));

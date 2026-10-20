@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { authErrorMessage, errorMessage, friendlyMessage } from '../../lib/errors';
+import { authErrorMessage, errorMessage } from '../../lib/errors';
+import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
-import { GROWN_UP_LOCK, grownUpLockedText } from '../../lib/pinLock';
+import { grownUpLockKey, grownUpLockedText } from '../../lib/pinLock';
 import PasswordInput from '../../components/PasswordInput';
 import { useRetryWait, waitWords } from '../auth/useRetryWait';
 import CloseAccountPage, { CloseAccountSection } from './CloseAccount';
@@ -42,8 +43,12 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
   const hasParentPin = useFamilyStore((s) => s.hasParentPin);
   const checkParentPin = useFamilyStore((s) => s.checkParentPin);
+  const pinLocks = useFamilyStore((s) => s.pinLocks);
+  const userId = useFamilyStore((s) => s.userId);
   const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
   const [usePassword, setUsePassword] = useState(false);
+  // The grown-up PIN is locked: the password is the way in now, so it's the main button.
+  const [pinResting, setPinResting] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -105,10 +110,19 @@ function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
             if (verdict.ok) onUnlock();
             return verdict;
           }}
-          lockKey={GROWN_UP_LOCK}
+          lockKey={grownUpLockKey(userId)}
           lockedText={grownUpLockedText}
+          who="grown-up"
+          checkLock={async () => {
+            const locks = await pinLocks();
+            return locks === null ? null : locks.grownUp;
+          }}
+          onLockedChange={setPinResting}
         />
-        <button onClick={() => setUsePassword(true)} className={`${linkClass} text-gray-500`}>
+        <button
+          onClick={() => setUsePassword(true)}
+          className={pinResting ? `mt-2 w-full min-h-[44px] ${primaryClass}` : `${linkClass} text-gray-500`}
+        >
           Use my password instead
         </button>
         {back}
@@ -171,6 +185,11 @@ function GrownUpsHome() {
   const [editing, setEditing] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Kid | null>(null);
   const [closing, setClosing] = useState(false);
+  // Back from "Keep my account": focus goes back to the button that opened it.
+  const [backFromClosing, setBackFromClosing] = useState(false);
+  // Which kids' PINs the database has locked (#124c review): unlocking is done here.
+  const pinLocks = useFamilyStore((s) => s.pinLocks);
+  const [lockedKids, setLockedKids] = useState<Record<string, number>>({});
   // Arrived from a review alert's link: straight to the review page.
   const [reviewing, setReviewing] = useState(() => useFamilyStore.getState().reviewRequested);
   const [admin, setAdmin] = useState(false);
@@ -184,6 +203,19 @@ function GrownUpsHome() {
       live = false;
     };
   }, []);
+
+  // Asked again each time the list comes back (after a Change, a PIN typed again unlocks).
+  const listing = !editing && !removing && !closing && !reviewing;
+  useEffect(() => {
+    if (!listing) return;
+    let live = true;
+    void pinLocks().then((locks) => {
+      if (live) setLockedKids(locks?.kids ?? {});
+    });
+    return () => {
+      live = false;
+    };
+  }, [listing, pinLocks]);
 
   if (reviewing) {
     return (
@@ -216,7 +248,16 @@ function GrownUpsHome() {
 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
 
-  if (closing) return <CloseAccountPage onCancel={() => setClosing(false)} />;
+  if (closing) {
+    return (
+      <CloseAccountPage
+        onCancel={() => {
+          setClosing(false);
+          setBackFromClosing(true);
+        }}
+      />
+    );
+  }
 
   return (
     <FamilyCard wide title="👪 Grown-ups">
@@ -234,6 +275,12 @@ function GrownUpsHome() {
                 </p>
               </div>
             </div>
+            {lockedKids[k.id] > 0 && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900">
+                <span aria-hidden="true">🔒 </span>PIN locked after too many tries. Tap Change and type their PIN again —
+                the same one is fine — to unlock it now.
+              </p>
+            )}
             {/* Their own line, so a long nickname never squeezes them on a phone. */}
             <div className="flex justify-end gap-2">
               <button onClick={() => setEditing(k.id)} className="text-sm text-purple-600 hover:underline px-2 min-h-11">
@@ -281,7 +328,7 @@ function GrownUpsHome() {
       >
         Sign out
       </button>
-      <CloseAccountSection onOpen={() => setClosing(true)} />
+      <CloseAccountSection onOpen={() => setClosing(true)} focusOpener={backFromClosing} />
     </FamilyCard>
   );
 }
@@ -309,7 +356,7 @@ function ParentPin() {
       setNotice('Grown-up PIN saved.');
     } catch (err) {
       console.warn('Saving the grown-up PIN failed:', errorMessage(err));
-      setError(friendlyMessage(err));
+      setError(plainErrorOr(err, "That PIN didn't save just now. Please try again."));
     } finally {
       setSaving(false);
     }
@@ -334,7 +381,8 @@ function ParentPin() {
             onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH))}
             className={fieldClass}
           />
-          {error && <p className="text-red-500">{error}</p>}
+          {/* Always there, so a screen reader hears it as it appears. */}
+          <div role="status">{error && <p className="text-red-700">{error}</p>}</div>
           <div className="flex gap-2">
             <button type="submit" aria-disabled={saving} className={`flex-1 ${primaryClass}`}>
               {saving ? 'Saving…' : 'Save PIN'}
@@ -372,7 +420,7 @@ function RemoveKid({ kid, onDone }: { kid: Kid; onDone: () => void }) {
       onDone();
     } catch (err) {
       console.warn('Removing a player failed:', errorMessage(err));
-      setError(friendlyMessage(err));
+      setError(plainErrorOr(err, `We couldn't remove ${name} just now. Please try again.`));
       setBusy(false);
     }
   }
@@ -382,7 +430,10 @@ function RemoveKid({ kid, onDone }: { kid: Kid; onDone: () => void }) {
       <p className="text-sm text-gray-600 text-center">
         Their adventure, XP and saved game are deleted for good. This can't be undone.
       </p>
-      {error && <p className="mt-3 text-red-500 text-sm">{error}</p>}
+      {/* Always there, so a screen reader hears it as it appears. */}
+      <div role="status" className="mt-3 empty:mt-0 text-sm">
+        {error && <p className="text-red-700">{error}</p>}
+      </div>
       <button
         onClick={() => void handleRemove()}
         aria-disabled={busy}

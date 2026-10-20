@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { flagQuestion, inQuestionBank, type FlagReason } from '../lib/questions';
-import { errorMessage } from '../lib/errors';
+import { errorMessage, friendlyMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE } from '../lib/errors';
 
 interface FlagButtonProps {
   questionId: string;
@@ -11,6 +11,8 @@ interface FlagButtonProps {
  * open, so another tap tries again. The error itself goes to the console.
  */
 const REPORT_FAILED = "Your report didn't send. Tap a reason to try again.";
+/** …and when the internet is why: a grown-up checks it first. */
+const REPORT_OFFLINE = "Your report didn't send. Ask a grown-up to check the internet, then tap a reason to try again.";
 
 const REASONS: { id: FlagReason; label: string }[] = [
   // First: a question no child should see (B10) — it's held back at once.
@@ -48,7 +50,8 @@ export default function FlagButton({ questionId }: FlagButtonProps) {
       setOpen(false);
     } catch (e) {
       console.warn('Reporting a question failed:', errorMessage(e));
-      setError(REPORT_FAILED);
+      const words = friendlyMessage(e);
+      setError(words === OFFLINE_MESSAGE || words === NETWORK_MESSAGE ? REPORT_OFFLINE : REPORT_FAILED);
     } finally {
       setSubmitting(false);
     }
@@ -92,7 +95,8 @@ export default function FlagButton({ questionId }: FlagButtonProps) {
           </button>
         </div>
       )}
-      {error && <p className="mt-1 text-red-500">{error}</p>}
+      {/* There from the moment the reasons open (a report can only fail from there), so a screen reader hears it as it appears. */}
+      {open && <div role="status">{error && <p className="mt-1 text-red-700">{error}</p>}</div>}
     </div>
   );
 }

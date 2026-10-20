@@ -19,7 +19,8 @@ const MONTHS = [
  */
 function kidSaveMessage(err: unknown): string {
   const raw = errorMessage(err);
-  if (/kid_limit/.test(raw)) return 'A family can have up to 8 players. Remove one in 👪 Grown-ups to make room.';
+  // Said in 👪 Grown-ups, where the Remove buttons are one tap back.
+  if (/kid_limit/.test(raw)) return 'A family can have up to 8 players. Tap Cancel, then Remove by a player to make room.';
   if (/pin_format/.test(raw)) return `Their PIN is ${PIN_LENGTH} numbers.`;
   if (/display_name_length/.test(raw)) return `A nickname is 1 to ${MAX_KID_NAME} letters.`;
   return plainErrorOr(err, "That didn't save just now. Please try again.");
@@ -32,7 +33,8 @@ const fieldClass =
  * Add or change a kid (#124): a nickname, a birth date (it picks questions
  * that suit their age), the picture on their tile and their 4-digit PIN. A new
  * kid (or one without a PIN yet) needs a PIN; changing one, a blank PIN keeps
- * theirs. `onSubmit` throws with a message to show.
+ * theirs — and typing it, even the same one, unlocks a PIN the database has
+ * locked after too many tries (#124c). `onSubmit` throws with a message to show.
  */
 export default function KidForm({
   kid,
@@ -125,8 +127,10 @@ export default function KidForm({
           onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH))}
           className={fieldClass}
         />
-        <p className="text-xs text-gray-400 mt-1">
-          They type it to open their adventure — tell them! Keep it different from your own.
+        <p className="text-xs text-gray-500 mt-1">
+          {needsPin
+            ? 'They type it to open their adventure — tell them! Keep it different from your own.'
+            : 'Locked out after too many tries? Type their PIN here — even the same one — and save to unlock it.'}
         </p>
       </div>
       {/* Always there, so a screen reader hears each message as it appears. */}

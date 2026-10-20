@@ -24,12 +24,17 @@ const db = vi.hoisted(() => {
   const rpc = vi.fn(async () => ({ data: null, error: null }));
   return { chains, answer, from, rpc };
 });
-const auth = vi.hoisted(() => ({ signOut: vi.fn(async () => ({ error: null })) }));
+const auth = vi.hoisted(() => ({
+  signOut: vi.fn(async () => ({ error: null })),
+  signInWithPassword: vi.fn(async () => ({ data: { session: { access_token: 'fresh-token' } }, error: null })),
+  getUser: vi.fn(async () => ({ data: { user: { id: 'grown-up-1' } }, error: null })),
+}));
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock('../lib/supabase', () => ({ supabase: { from: db.from, rpc: db.rpc, auth, functions } }));
 
-const { useFamilyStore, familyScreen, familyLoadMessage } = await import('./familyStore');
-const { forgetAllLocks, GROWN_UP_LOCK, kidLockKey, lockLeft, rememberLock } = await import('../lib/pinLock');
+const { useFamilyStore, familyScreen, familyLoadMessage, signInAgain } = await import('./familyStore');
+const { forgetAllLocks, grownUpLockKey, kidLockKey, lockLeft, rememberLock } = await import('../lib/pinLock');
+const { useAuthStore } = await import('./authStore');
 const { takeAccountClosedNotice } = await import('../lib/closeAccount');
 const { NETWORK_MESSAGE, SIGNED_OUT_MESSAGE } = await import('../lib/errors');
 const { useProfileStore } = await import('./profileStore');
@@ -269,13 +274,52 @@ describe('useFamilyStore', () => {
   it('a new PIN forgets a lock this tab remembered (the database unlocks it too)', async () => {
     useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 }] });
     rememberLock(kidLockKey('kid-sam'), 300);
-    rememberLock(GROWN_UP_LOCK, 60);
+    rememberLock(grownUpLockKey('grown-up-1'), 60);
     db.answer.mockImplementation(() => ({ data: null, error: null }));
     await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sam', icon: 'fox', pin: '1234', birthYear: 2017, birthMonth: 3 });
     expect(lockLeft(kidLockKey('kid-sam'))).toBe(0);
     await useFamilyStore.getState().setParentPin('9090');
-    expect(lockLeft(GROWN_UP_LOCK)).toBe(0);
+    expect(lockLeft(grownUpLockKey('grown-up-1'))).toBe(0);
     forgetAllLocks();
+  });
+
+  it("a remembered grown-up lock is that login's alone, and signing out forgets every lock (#124c review)", () => {
+    rememberLock(grownUpLockKey('grown-up-a'), 3600);
+    rememberLock(kidLockKey('kid-sam'), 900);
+    expect(lockLeft(grownUpLockKey('grown-up-b'))).toBe(0);
+    expect(lockLeft(grownUpLockKey('grown-up-a'))).toBeGreaterThan(0);
+    // useAuthInit clears the family on sign-out.
+    useFamilyStore.getState().clear();
+    expect(lockLeft(grownUpLockKey('grown-up-a'))).toBe(0);
+    expect(lockLeft(kidLockKey('kid-sam'))).toBe(0);
+  });
+
+  it('pinLocks: what the database has locked now; null when it can\'t say (#124c review)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.rpc.mockResolvedValueOnce({ data: { kids: { 'kid-sam': 299.2, 'kid-kit': 0 }, grown_up: 60 }, error: null } as never);
+    expect(await useFamilyStore.getState().pinLocks()).toEqual({ kids: { 'kid-sam': 300 }, grownUp: 60 });
+    expect(db.rpc).toHaveBeenLastCalledWith('pin_lock_status');
+    db.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.pin_lock_status' } } as never);
+    expect(await useFamilyStore.getState().pinLocks()).toBeNull();
+    expect(warn).not.toHaveBeenCalled();
+    db.rpc.mockRejectedValueOnce(new TypeError('Failed to fetch') as never);
+    expect(await useFamilyStore.getState().pinLocks()).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('load: a run-out sign-in is marked, so the error screen offers "Sign in again"; signInAgain signs out here only', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.answer.mockImplementation(() => ({ data: null, error: { message: 'JWT expired', code: 'PGRST301' } }));
+    await useFamilyStore.getState().load('grown-up-1');
+    expect(useFamilyStore.getState()).toMatchObject({ status: 'error', sessionGone: true, error: SIGNED_OUT_MESSAGE });
+    db.answer.mockImplementation(() => ({ data: null, error: { message: 'boom', code: 'XX000' } }));
+    await useFamilyStore.getState().load('grown-up-1');
+    expect(useFamilyStore.getState()).toMatchObject({ status: 'error', sessionGone: false });
+    auth.signOut.mockClear();
+    await signInAgain();
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    warn.mockRestore();
   });
 
   it('closeAccount (#124b): the function closes it, then this device forgets the family and signs out', async () => {
@@ -284,9 +328,11 @@ describe('useFamilyStore', () => {
     localStorage.setItem('hazel-save-kid-sam', '{}');
     localStorage.setItem('hazel-profile-kid-kit', '{}');
     sessionStorage.setItem('hazel-active-kid-grown-up-1', 'kid-sam');
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
     functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
     await useFamilyStore.getState().closeAccount('hunter22');
-    expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { password: 'hunter22', confirm: 'DELETE' } });
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE' }, headers: { Authorization: 'Bearer fresh-token' } });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
     expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
@@ -299,12 +345,38 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().load('grown-up-1');
     localStorage.setItem('hazel-save-kid-sam', '{}');
     auth.signOut.mockClear();
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
     functions.invoke.mockResolvedValueOnce({
       data: null,
-      error: new FunctionsHttpError(new Response(JSON.stringify({ error: 'wrong_password' }), { status: 403 })),
+      error: new FunctionsHttpError(new Response(JSON.stringify({ error: 'data_not_deleted' }), { status: 500 })),
     });
-    await expect(useFamilyStore.getState().closeAccount('nope')).rejects.toMatchObject({ code: 'wrong_password' });
+    await expect(useFamilyStore.getState().closeAccount('hunter22')).rejects.toMatchObject({ code: 'data_not_deleted' });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBe('{}');
+    expect(useFamilyStore.getState().kids).toHaveLength(1);
+    expect(auth.signOut).not.toHaveBeenCalled();
+    expect(takeAccountClosedNotice()).toBeNull();
+  });
+
+  it('closeAccount: after login_not_deleted the family is gone here too — copies, kids, grown-up PIN, locks (#124b review)', async () => {
+    family('2026-10-10', [SAM, KIT], true);
+    await useFamilyStore.getState().load('grown-up-1');
+    localStorage.setItem('hazel-save-kid-sam', '{}');
+    localStorage.setItem('hazel-profile-kid-kit', '{}');
+    sessionStorage.setItem('hazel-active-kid-grown-up-1', 'kid-sam');
+    rememberLock(kidLockKey('kid-sam'), 900);
+    auth.signOut.mockClear();
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
+    functions.invoke.mockResolvedValueOnce({
+      data: null,
+      error: new FunctionsHttpError(new Response(JSON.stringify({ error: 'login_not_deleted' }), { status: 500 })),
+    });
+    await expect(useFamilyStore.getState().closeAccount('hunter22')).rejects.toMatchObject({ code: 'login_not_deleted' });
+    expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
+    expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
+    expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
+    expect(useFamilyStore.getState()).toMatchObject({ kids: [], activeKidId: null, hasParentPin: false, consentAt: '2026-10-10' });
+    expect(lockLeft(kidLockKey('kid-sam'))).toBe(0);
+    // Signed in still: "Close account for good" again finishes it.
     expect(auth.signOut).not.toHaveBeenCalled();
     expect(takeAccountClosedNotice()).toBeNull();
   });

@@ -1873,6 +1873,9 @@ on conflict (version) do nothing;
 -- tries_left: wrong tries left before the next lock (null: nothing counted —
 -- not your kid, or no PIN set). check_kid_pin / check_parent_pin keep their
 -- signatures for app tabs from before this: true / false, a locked PIN false.
+-- pin_lock_status() answers {"kids": {<kid id>: s, …}, "grown_up": s} — the
+-- seconds left on each of the caller's own locked PINs (0: the grown-up's
+-- isn't locked).
 
 -- 1) The counters live beside each hash, in tables no client can read or
 --    write (RLS on, no policies, no grants — 0014); re-stated here.
@@ -2123,6 +2126,39 @@ begin
   on conflict (id) do update set has_pin = true;
 end;
 $$;
+
+-- 6) What's locked right now, for the caller's own PINs only: each locked kid
+--    and the grown-up PIN, with the seconds left — nothing else (no hash, no
+--    counts, no way to try a PIN). The app's pad asks while it shows a lock,
+--    so a lock lifted elsewhere (a new PIN set on another device) opens it,
+--    and 👪 Grown-ups shows which kid is locked.
+create or replace function public.pin_lock_status()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'kids', coalesce((
+      select jsonb_object_agg(k.profile_id::text,
+                              greatest(1, ceil(extract(epoch from (k.locked_until - now()))))::integer)
+        from public.kid_pins k
+        join public.profiles p on p.id = k.profile_id
+       where p.parent_id = auth.uid()
+         and k.locked_until > now()
+    ), '{}'::jsonb),
+    'grown_up', coalesce((
+      select greatest(1, ceil(extract(epoch from (pp.locked_until - now()))))::integer
+        from public.parent_pins pp
+       where pp.id = auth.uid()
+         and pp.locked_until > now()
+    ), 0)
+  );
+$$;
+
+revoke execute on function public.pin_lock_status() from public, anon;
+grant execute on function public.pin_lock_status() to authenticated;
 
 revoke execute on function public.try_kid_pin(uuid, text) from public, anon;
 revoke execute on function public.try_parent_pin(text) from public, anon;

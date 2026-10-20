@@ -6,16 +6,22 @@ import fnSource from '../../supabase/functions/delete-account/index.ts?raw';
 import sharedSource from '../../supabase/functions/_shared/closeAccount.ts?raw';
 import questionsFnSource from '../../supabase/functions/generate-questions/index.ts?raw';
 import {
+  authCallRefused,
+  CLOCK_SLACK_S,
   CLOSE_ACCOUNT_ERRORS,
+  closeRequestRefusal,
   CONFIRM_WORD,
-  MAX_PASSWORD_LENGTH,
-  passwordRefusal,
-  readCloseRequest,
+  dbCallRefused,
+  jwtClaims,
+  loginGone,
+  REAUTH_WINDOW_S,
   refusal,
+  signedInFreshly,
 } from '../../supabase/functions/_shared/closeAccount';
 
 const invoke = vi.hoisted(() => vi.fn());
-vi.mock('./supabase', () => ({ supabase: { functions: { invoke } } }));
+const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), getUser: vi.fn() }));
+vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth } }));
 
 const {
   ACCOUNT_CLOSED_MESSAGE,
@@ -25,6 +31,7 @@ const {
   confirmTyped,
   noteAccountClosed,
   requestCloseAccount,
+  signInFailure,
   takeAccountClosedNotice,
 } = await import('./closeAccount');
 const { NETWORK_MESSAGE, OFFLINE_MESSAGE, TROUBLE_MESSAGE } = await import('./errors');
@@ -39,8 +46,18 @@ function httpError(status: number, body: unknown): FunctionsHttpError {
   return new FunctionsHttpError(new Response(text, { status }));
 }
 
+/** A token whose payload is `claims` (the signature isn't read: the auth service checks it first). */
+function token(claims: Record<string, unknown>): string {
+  const b64 = (o: unknown) => btoa(JSON.stringify(o)).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  return `${b64({ alg: 'HS256' })}.${b64(claims)}.sig`;
+}
+
+const signedIn = { data: { session: { access_token: 'fresh-token' }, user: { id: 'u1' } }, error: null };
+
 beforeEach(() => {
   invoke.mockReset();
+  auth.signInWithPassword.mockReset().mockResolvedValue(signedIn);
+  auth.getUser.mockReset().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   sessionStorage.clear();
   takeAccountClosedNotice();
 });
@@ -63,7 +80,7 @@ describe('the delete-account function (#124b)', () => {
     expect(pin(fnSource)).toBe(pin(questionsFnSource));
   });
 
-  it('checks the token, the password, then deletes the family and the login with the service role', () => {
+  it('checks the token, the confirm word and a fresh password sign-in, then deletes the family and the login with the service role', () => {
     const at = (needle: string) => {
       const i = fnSource.indexOf(needle);
       expect(i, needle).toBeGreaterThan(-1);
@@ -71,14 +88,15 @@ describe('the delete-account function (#124b)', () => {
     };
     const steps = [
       at('.auth.getUser(token)'),
-      at('readCloseRequest(body)'),
-      at('.auth.signInWithPassword({'),
+      at('closeRequestRefusal(body)'),
+      at('signedInFreshly(claims, user.last_sign_in_at,'),
       at("admin.rpc('delete_family', { p_parent: user.id })"),
       at('admin.auth.admin.deleteUser(user.id)'),
     ];
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
-    // The password is checked for the caller's own email, never one from the body.
-    expect(fnSource).toMatch(/email: user\.email,\s+password: ask\.password/);
+    // The token's claims are this very login's, and the function never signs in itself.
+    expect(fnSource).toMatch(/claims\?\.sub !== user\.id/);
+    expect(fnSource).not.toMatch(/signInWithPassword/);
     expect(fnSource).toMatch(/serverClient\(url, serviceKey\)/);
   });
 
@@ -91,22 +109,53 @@ describe('the delete-account function (#124b)', () => {
 });
 
 describe('checking the request (shared with the function)', () => {
-  it('wants the confirm word, then a password', () => {
-    expect(readCloseRequest({ confirm: CONFIRM_WORD, password: 'hunter22' })).toEqual({ password: 'hunter22' });
-    expect(readCloseRequest({ confirm: 'delete', password: 'x' })).toMatchObject({ error: 'confirm_required', status: 400 });
-    expect(readCloseRequest({ password: 'x' })).toMatchObject({ error: 'confirm_required' });
-    expect(readCloseRequest({ confirm: CONFIRM_WORD })).toMatchObject({ error: 'password_required', status: 400 });
-    expect(readCloseRequest({ confirm: CONFIRM_WORD, password: '' })).toMatchObject({ error: 'password_required' });
-    expect(readCloseRequest({ confirm: CONFIRM_WORD, password: 42 })).toMatchObject({ error: 'password_required' });
-    expect(readCloseRequest({ confirm: CONFIRM_WORD, password: 'x'.repeat(MAX_PASSWORD_LENGTH + 1) })).toMatchObject({ error: 'bad_request' });
-    for (const junk of [null, 'DELETE', [CONFIRM_WORD], 7]) expect(readCloseRequest(junk)).toMatchObject({ error: 'bad_request' });
+  it('wants the confirm word, exactly — and no password at all', () => {
+    expect(closeRequestRefusal({ confirm: CONFIRM_WORD })).toBeNull();
+    expect(closeRequestRefusal({ confirm: 'delete' })).toMatchObject({ error: 'confirm_required', status: 400 });
+    expect(closeRequestRefusal({})).toMatchObject({ error: 'confirm_required' });
+    for (const junk of [null, 'DELETE', [CONFIRM_WORD], 7]) expect(closeRequestRefusal(junk)).toMatchObject({ error: 'bad_request' });
   });
 
-  it("reads the auth service's refusal of the password", () => {
-    expect(passwordRefusal({ status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' })).toMatchObject({ error: 'wrong_password', status: 403 });
-    expect(passwordRefusal({ status: 400, message: 'Invalid login credentials' })).toMatchObject({ error: 'wrong_password' });
-    expect(passwordRefusal({ status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' })).toMatchObject({ error: 'too_many_tries', status: 429 });
-    expect(passwordRefusal({ status: 500, message: 'Database error' })).toMatchObject({ error: 'password_check_failed', status: 502 });
+  it('reads a token\'s claims (base64url, any padding) and nothing that isn\'t one', () => {
+    expect(jwtClaims(token({ sub: 'u1', amr: [{ method: 'password', timestamp: 1 }] }))).toEqual({ sub: 'u1', amr: [{ method: 'password', timestamp: 1 }] });
+    expect(jwtClaims(token({ sub: 'ü?>' }))?.sub).toBeTypeOf('string');
+    for (const junk of ['', 'abc', 'a.!!!.c', `a.${btoa('[1,2]')}.c`]) expect(jwtClaims(junk)).toBeNull();
+  });
+
+  it('a password typed in the last 5 minutes, by the token\'s own amr — a refresh or another method isn\'t one', () => {
+    const now = 1_800_000_000;
+    const amr = (method: string, ago: number) => ({ amr: [{ method, timestamp: now - ago }] });
+    expect(signedInFreshly(amr('password', 10), undefined, now)).toBe(true);
+    expect(signedInFreshly(amr('password', REAUTH_WINDOW_S), undefined, now)).toBe(true);
+    expect(signedInFreshly(amr('password', REAUTH_WINDOW_S + 1), undefined, now)).toBe(false);
+    expect(signedInFreshly(amr('password', -CLOCK_SLACK_S), undefined, now)).toBe(true);
+    expect(signedInFreshly(amr('password', -CLOCK_SLACK_S - 1), undefined, now)).toBe(false);
+    expect(signedInFreshly(amr('otp', 10), undefined, now)).toBe(false);
+    expect(signedInFreshly(amr('magiclink', 0), new Date(now * 1000).toISOString(), now)).toBe(false);
+    // An older password entry and a fresh one: the fresh one counts.
+    expect(signedInFreshly({ amr: [{ method: 'password', timestamp: now - 9000 }, { method: 'password', timestamp: now - 5 }] }, undefined, now)).toBe(true);
+  });
+
+  it('with no amr list (or bare strings from a custom hook) it falls back to the last sign-in — never iat', () => {
+    const now = 1_800_000_000;
+    const recent = new Date((now - 30) * 1000).toISOString();
+    const old = new Date((now - 3600) * 1000).toISOString();
+    expect(signedInFreshly({}, recent, now)).toBe(true);
+    expect(signedInFreshly({ amr: ['password'] }, recent, now)).toBe(true);
+    expect(signedInFreshly({ amr: [] }, old, now)).toBe(false);
+    expect(signedInFreshly({ iat: now }, old, now)).toBe(false);
+    expect(signedInFreshly(null, undefined, now)).toBe(false);
+    expect(signedInFreshly({}, 'not a date', now)).toBe(false);
+  });
+
+  it('tells a refusal (nothing done) from a lost reply (maybe done)', () => {
+    for (const code of ['XX000', '57014', '23503', 'P0001', 'PGRST202', 'PGRST301']) expect(dbCallRefused({ code }), code).toBe(true);
+    for (const code of ['', undefined, null, 'oops']) expect(dbCallRefused({ code }), String(code)).toBe(false);
+    for (const status of [400, 403, 422, 500, 501]) expect(authCallRefused({ status }), String(status)).toBe(true);
+    for (const status of [0, undefined, 502, 503, 504]) expect(authCallRefused({ status }), String(status)).toBe(false);
+    expect(loginGone({ status: 404 })).toBe(true);
+    expect(loginGone({ status: 403, code: 'user_not_found' })).toBe(true);
+    expect(loginGone({ status: 403, code: 'bad_jwt' })).toBe(false);
   });
 
   it('every refusal has a status and a sentence', () => {
@@ -116,6 +165,8 @@ describe('checking the request (shared with the function)', () => {
       expect(r.detail, code).toMatch(/\.$/);
     }
     expect(refusal('not_signed_in').status).toBe(401);
+    expect(refusal('already_closed').status).toBe(410);
+    expect(refusal('reauth_required').status).toBe(403);
     expect(refusal('login_not_deleted').status).toBe(500);
   });
 });
@@ -130,49 +181,97 @@ describe('closing an account from the app', () => {
     expect(confirmTyped('DELETE IT')).toBe(false);
   });
 
-  it('sends the password and the confirm word to delete-account', async () => {
+  it('signs in again with the password, then sends only the confirm word with that fresh token', async () => {
     invoke.mockResolvedValue({ data: { ok: true, kids: 2 }, error: null });
-    await expect(requestCloseAccount('hunter22')).resolves.toEqual({ kids: 2 });
-    expect(invoke).toHaveBeenCalledWith('delete-account', { body: { password: 'hunter22', confirm: CONFIRM_WORD } });
+    await expect(requestCloseAccount('mum@example.com', 'hunter22')).resolves.toEqual({ kids: 2, alreadyClosed: false });
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: CONFIRM_WORD }, headers: { Authorization: 'Bearer fresh-token' } });
+    expect(auth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]);
   });
 
-  it("an answer without ok isn't a closed account", async () => {
+  it('a login with no email has no password to check', async () => {
+    await expect(requestCloseAccount('', 'x')).rejects.toMatchObject({ code: 'no_password_login' });
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("the password check's refusals never reach the function", async () => {
+    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
+    await expect(requestCloseAccount('m@e.com', 'nope')).rejects.toMatchObject({ code: 'wrong_password' });
+    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' } });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'too_many_tries' });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('a refused password on a login that no longer exists was a close whose answer got lost: done', async () => {
+    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
+    auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: { status: 403, code: 'user_not_found', message: 'User from sub claim in JWT does not exist' } });
+    await expect(requestCloseAccount('m@e.com', 'right')).resolves.toEqual({ kids: 0, alreadyClosed: true });
+    expect(invoke).not.toHaveBeenCalled();
+  });
+
+  it('the function saying it was already closed is done too', async () => {
+    invoke.mockResolvedValue({ data: null, error: httpError(410, { error: 'already_closed' }) });
+    await expect(requestCloseAccount('m@e.com', 'right')).resolves.toEqual({ kids: 0, alreadyClosed: true });
+  });
+
+  it("an answer without ok can't be called closed — or not closed", async () => {
     invoke.mockResolvedValue({ data: {}, error: null });
-    await expect(requestCloseAccount('x')).rejects.toMatchObject({ code: 'unknown' });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'outcome_unknown' });
   });
 
   it("turns the function's refusal into its own words", async () => {
-    invoke.mockResolvedValue({ data: null, error: httpError(403, { error: 'wrong_password', detail: "That password isn't right." }) });
-    const err = await requestCloseAccount('nope').catch((e: unknown) => e);
+    invoke.mockResolvedValue({ data: null, error: httpError(403, { error: 'reauth_required', detail: 'Type your password again, just before closing the account.' }) });
+    const err = await requestCloseAccount('m@e.com', 'x').catch((e: unknown) => e);
     expect(err).toBeInstanceOf(CloseAccountFailure);
-    expect(err).toMatchObject({ code: 'wrong_password', message: "That password isn't right. Check it and try again. Nothing was deleted." });
-    expect((err as InstanceType<typeof CloseAccountFailure>).log).toBe("delete-account 403: wrong_password — That password isn't right.");
+    expect(err).toMatchObject({ code: 'reauth_required', message: `We couldn't confirm it's you just now. Tap "Close account for good" to try again. Nothing was deleted.` });
+    expect((err as InstanceType<typeof CloseAccountFailure>).log).toBe('delete-account 403: reauth_required — Type your password again, just before closing the account.');
   });
 
-  it('reads every kind of failure', async () => {
-    expect((await closeFailure(httpError(429, { error: 'too_many_tries' }))).code).toBe('too_many_tries');
+  it("reads every kind of failure — a reply that never came is 'can't tell', not 'nothing deleted'", async () => {
     expect((await closeFailure(httpError(500, { error: 'login_not_deleted' }))).code).toBe('login_not_deleted');
-    // The gateway's own refusal of a dead token.
+    expect((await closeFailure(httpError(502, { error: 'outcome_unknown' }))).code).toBe('outcome_unknown');
+    // The gateway's own refusal of a dead token: the function never ran.
     expect((await closeFailure(httpError(401, { code: 401, message: 'Invalid JWT' }))).code).toBe('not_signed_in');
-    expect((await closeFailure(httpError(502, '<html>Bad gateway</html>'))).code).toBe('trouble');
-    expect((await closeFailure(httpError(418, { error: 'teapot' }))).code).toBe('unknown');
-    expect((await closeFailure(new FunctionsFetchError(new TypeError('Failed to fetch')))).code).toBe('network');
-    expect((await closeFailure(new FunctionsRelayError({}))).code).toBe('trouble');
+    expect((await closeFailure(httpError(502, '<html>Bad gateway</html>'))).code).toBe('outcome_unknown');
+    expect((await closeFailure(httpError(404, { message: 'Function not found' }))).code).toBe('bad_request');
+    expect((await closeFailure(new FunctionsFetchError(new TypeError('Failed to fetch')))).code).toBe('lost_touch');
+    expect((await closeFailure(new FunctionsRelayError({}))).code).toBe('outcome_unknown');
     vi.stubGlobal('navigator', { ...navigator, onLine: false });
-    expect((await closeFailure(new FunctionsFetchError(new TypeError('Failed to fetch')))).code).toBe('offline');
+    expect((await closeFailure(new FunctionsFetchError(new TypeError('Failed to fetch')))).code).toBe('lost_touch');
   });
 
-  it('says plainly what happened, and whether anything was deleted', () => {
-    expect(closeAccountMessage('offline')).toBe(OFFLINE_MESSAGE);
-    expect(closeAccountMessage('network')).toBe(NETWORK_MESSAGE);
-    expect(closeAccountMessage('trouble')).toBe(TROUBLE_MESSAGE);
-    for (const code of ['wrong_password', 'too_many_tries', 'not_signed_in', 'data_not_deleted', 'password_check_failed', 'unknown'] as const) {
+  it("reads the password check's failures (nothing sent yet)", () => {
+    expect(signInFailure({ name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' }).code).toBe('wrong_password');
+    expect(signInFailure({ status: 400, message: 'Invalid login credentials' }).code).toBe('wrong_password');
+    expect(signInFailure({ status: 429, message: 'Request rate limit reached' }).code).toBe('too_many_tries');
+    expect(signInFailure({ name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' }).code).toBe('network');
+    expect(signInFailure({ name: 'AuthRetryableFetchError', status: 503, message: '' }).code).toBe('trouble');
+    expect(signInFailure({ name: 'AuthApiError', status: 500, message: 'Database error' }).code).toBe('trouble');
+    expect(signInFailure({ name: 'AuthApiError', status: 400, code: 'email_not_confirmed', message: 'Email not confirmed' }).code).toBe('password_check_failed');
+    vi.stubGlobal('navigator', { ...navigator, onLine: false });
+    expect(signInFailure(new TypeError('Failed to fetch')).code).toBe('offline');
+  });
+
+  it('says plainly what happened — "Nothing was deleted" only where this try deleted nothing', () => {
+    expect(closeAccountMessage('offline')).toBe(`${OFFLINE_MESSAGE} Nothing was deleted.`);
+    expect(closeAccountMessage('network')).toBe(`${NETWORK_MESSAGE} Nothing was deleted.`);
+    expect(closeAccountMessage('trouble')).toBe(`${TROUBLE_MESSAGE} Nothing was deleted.`);
+    for (const code of ['wrong_password', 'too_many_tries', 'password_check_failed', 'not_signed_in', 'reauth_required', 'auth_unavailable', 'data_not_deleted', 'bad_request'] as const) {
       expect(closeAccountMessage(code), code).toMatch(/Nothing was deleted/);
+    }
+    // Where it can't know, it says so — and never that nothing was deleted, or that the data is gone.
+    for (const code of ['outcome_unknown', 'lost_touch'] as const) {
+      expect(closeAccountMessage(code), code).toMatch(/can't tell if your account was closed|couldn't tell if your account was closed/);
+      expect(closeAccountMessage(code), code).not.toMatch(/Nothing was deleted|are deleted/);
+      expect(closeAccountMessage(code), code).toMatch(/safe to repeat/);
     }
     expect(closeAccountMessage('login_not_deleted')).toMatch(/players and their games are deleted.*again to finish/);
     expect(closeAccountMessage('confirm_required')).toBe(`Type ${CONFIRM_WORD} in the box to confirm.`);
+    // While the privacy notice is a draft, no pointing at its placeholder address.
+    expect(closeAccountMessage('no_password_login')).not.toMatch(/email us|privacy notice/i);
     // No code or jargon on screen.
-    for (const code of [...CLOSE_ACCOUNT_ERRORS, 'unknown'] as const) expect(closeAccountMessage(code)).not.toMatch(/_|JWT|status/);
+    const all: Parameters<typeof closeAccountMessage>[0][] = [...CLOSE_ACCOUNT_ERRORS, 'password_required', 'no_password_login', 'wrong_password', 'too_many_tries', 'password_check_failed', 'offline', 'network', 'trouble', 'lost_touch'];
+    for (const code of all) expect(closeAccountMessage(code)).not.toMatch(/_|JWT|status|amr/);
   });
 
   it('the sign-in page hears once that the account is gone', () => {

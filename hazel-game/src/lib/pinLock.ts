@@ -1,4 +1,5 @@
 import { plainErrorOr } from './familyErrors';
+import { NETWORK_MESSAGE, OFFLINE_MESSAGE, sessionRanOut } from './errors';
 
 /**
  * A PIN try, as the database answers it (#124c, migration 0022): `try_kid_pin`
@@ -54,15 +55,9 @@ export function waitLength(secs: number): string {
   return `${h} ${h === 1 ? 'hour' : 'hours'}`;
 }
 
-/** The countdown on the pad: "4:05", "0:09". */
-export function countdownClock(secs: number): string {
-  const s = Math.max(0, Math.ceil(secs));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
-/** A kid's PIN, locked (#124c): short and kind, and says who can help. */
+/** A kid's PIN, locked (#124c): short and kind — a break, not a telling-off — and says who can help. */
 export function kidLockedText(wait: string): string {
-  return `Too many tries — ask a grown-up, or wait ${wait}.`;
+  return `That's a lot of tries! Take a break for ${wait}, or ask a grown-up.`;
 }
 
 /** The grown-up's PIN, locked: their password always works. */
@@ -76,30 +71,69 @@ export const PIN_READY_TEXT = 'You can try again now.';
 /** Said when the check itself didn't happen (not a wrong try). */
 export const PIN_CHECK_FAILED = "We couldn't check that PIN just now. Please try again.";
 
+/** A kid's pad when the family's sign-in has run out: a grown-up has to sign in again. */
+export const KID_SIGNED_OUT = 'The sign-in ran out. Ask a grown-up to sign in again.';
+
+/** Whose pad it is: a kid's words say who can help; a grown-up's are plain. */
+export type PinPadFor = 'kid' | 'grown-up';
+
 /**
  * Words for a PIN check that failed: the connection's or the server's trouble
  * when that's it, a run-out sign-in, else `PIN_CHECK_FAILED` — never the
- * database's own words. Log `errorMessage(err)` beside it.
+ * database's own words. A kid is asked to fetch a grown-up for what only a
+ * grown-up can fix (the internet, signing in). Log `errorMessage(err)` beside it.
  */
-export function pinCheckMessage(err: unknown): string {
-  return plainErrorOr(err, PIN_CHECK_FAILED);
+export function pinCheckMessage(err: unknown, who: PinPadFor = 'kid'): string {
+  const words = plainErrorOr(err, PIN_CHECK_FAILED);
+  if (who === 'grown-up') return words;
+  if (sessionRanOut(err)) return KID_SIGNED_OUT;
+  if (words === OFFLINE_MESSAGE) return "You're offline. Ask a grown-up to check the internet, then try again.";
+  if (words === NETWORK_MESSAGE) return "We couldn't reach Hazel Quest. Ask a grown-up to check the internet, then try again.";
+  return words;
 }
 
-/** Read out with a wrong try when few are left: "2 more tries before a rest." */
+/** Read out with a wrong try when few are left: "2 more tries, then a short break." */
 export function triesLeftText(n: number): string {
-  return `${n} more ${n === 1 ? 'try' : 'tries'} before a rest.`;
+  return `${n} more ${n === 1 ? 'try' : 'tries'}, then a short break.`;
+}
+
+/** What's locked right now, by the database's count (`pin_lock_status`, migration 0022): seconds left. */
+export interface PinLocks {
+  /** Each locked kid's id → seconds left (an unlocked kid isn't listed). */
+  kids: Record<string, number>;
+  /** Seconds left on the grown-up PIN (0: not locked). */
+  grownUp: number;
+}
+
+/** `pin_lock_status`'s answer, read safely (junk reads as nothing locked). */
+export function pinLocksFrom(data: unknown): PinLocks {
+  const o = (typeof data === 'object' && data !== null && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+  const secs = (v: unknown) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.ceil(n) : 0;
+  };
+  const kids: Record<string, number> = {};
+  if (typeof o.kids === 'object' && o.kids !== null && !Array.isArray(o.kids)) {
+    for (const [id, v] of Object.entries(o.kids as Record<string, unknown>)) if (secs(v) > 0) kids[id] = secs(v);
+  }
+  return { kids, grownUp: secs(o.grown_up) };
 }
 
 /**
- * Locks this tab has heard about, by PIN (`kidLockKey` / `GROWN_UP_LOCK`), so
- * a pad opened again shows the wait at once instead of after a try. Only a
- * convenience: the database is what enforces it, and a reload forgets these.
+ * Locks this tab has heard about, by PIN (`kidLockKey` / `grownUpLockKey`),
+ * so a pad opened again shows the wait at once instead of after a try. Only a
+ * hint for the first moment: the database is what enforces it, and the pad
+ * asks it again (`pin_lock_status`) — so a lock lifted on another device
+ * never keeps the pad shut. A reload or a sign-out forgets these.
  */
 const locks = new Map<string, number>();
 
-export const GROWN_UP_LOCK = 'grown-up';
 export function kidLockKey(kidId: string): string {
   return `kid:${kidId}`;
+}
+/** The grown-up PIN's lock, per login: one grown-up's lock is never another's. */
+export function grownUpLockKey(userId: string | null): string {
+  return `grown-up:${userId ?? ''}`;
 }
 
 export function rememberLock(key: string, waitSeconds: number, now = Date.now()): void {
@@ -120,6 +154,7 @@ export function forgetLock(key: string): void {
   locks.delete(key);
 }
 
+/** Signed out (or the account closed): no lock is remembered for the next login. */
 export function forgetAllLocks(): void {
   locks.clear();
 }

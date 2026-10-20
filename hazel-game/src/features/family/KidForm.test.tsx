@@ -79,7 +79,7 @@ describe('KidForm (#124)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
       expect(await screen.findByText(words)).toBeInTheDocument();
     };
-    await said(Object.assign(new Error('kid_limit: a family account can have up to 8 players'), { code: 'P0001' }), 'A family can have up to 8 players. Remove one in 👪 Grown-ups to make room.');
+    await said(Object.assign(new Error('kid_limit: a family account can have up to 8 players'), { code: 'P0001' }), 'A family can have up to 8 players. Tap Cancel, then Remove by a player to make room.');
     await said({ message: 'new row violates check constraint "profiles_display_name_length"', code: '23514' }, 'A nickname is 1 to 20 letters.');
     await said({ message: 'permission denied for table profiles', code: '42501' }, "That didn't save just now. Please try again.");
     expect(screen.queryByText(/42501|permission denied|kid_limit/)).toBeNull();

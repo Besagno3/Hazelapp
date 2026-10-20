@@ -222,6 +222,7 @@ describe('PathQuestionOverlay — a question that fails to load (#130 S6)', () =
       served.fail = new Error('Edge Function returned a non-2xx status code');
       render(<PathQuestionOverlay target={plainChest} />);
       expect(await screen.findByText('The question didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent("The question didn't load.");
       expect(screen.queryByText(/non-2xx|Edge Function/)).toBeNull();
       expect(screen.getByRole('button', { name: 'Walk away' })).toBeInTheDocument();
       expect(warn).toHaveBeenCalledWith('Path question failed:', 'Edge Function returned a non-2xx status code');

@@ -47,8 +47,12 @@ export default function AuthPage() {
   const [linkError] = useState(() => linkErrorFrom(window.location));
   // Keyed per message, so the same words said twice are read out twice.
   const [error, setError] = useLiveMessage(linkError ? authErrorMessage(linkError, { where: 'link' }) : null);
-  // Just closed the account from 👪 Grown-ups (#124b): say so, once.
-  const [notice, setNotice] = useState<string | null>(() => takeAccountClosedNotice());
+  // Just closed the account from 👪 Grown-ups (#124b): a banner at the top,
+  // focused as the page opens so it's heard (a live region wouldn't read what
+  // it opens with), once.
+  const [closedNotice, setClosedNotice] = useState<string | null>(() => takeAccountClosedNotice());
+  const closedBanner = useRef<HTMLHeadingElement>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   // The address a confirmation link went to: "Check your inbox" replaces the form.
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -71,6 +75,12 @@ export default function AuthPage() {
   // ?signup is read once: drop it from the address, so signing out later
   // (or a reload) opens Sign in as usual.
   useEffect(() => dropSignupParam(), []);
+
+  useEffect(() => {
+    if (closedNotice) closedBanner.current?.focus();
+    // Only as the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // The link's error is on screen now: off the address, the whole of it in the console.
   useEffect(() => {
@@ -122,6 +132,7 @@ export default function AuthPage() {
     if (loading || resetWaiting) return;
     setError(null);
     setNotice(null);
+    setClosedNotice(null);
     setUnconfirmed(null);
 
     if (isForgot) {
@@ -195,6 +206,17 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 to-blue-500">
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <h1 className="text-3xl font-bold text-center text-purple-700 mb-2">Hazel Quest</h1>
+
+        {closedNotice && (
+          <h2
+            ref={closedBanner}
+            tabIndex={-1}
+            className="mt-3 mb-4 rounded-xl border border-green-300 bg-green-50 px-4 py-3 text-center text-base font-semibold text-green-800 focus:outline-none"
+          >
+            <span aria-hidden>✅ </span>
+            {closedNotice}
+          </h2>
+        )}
 
         {sentTo ? (
           <div className="text-center">

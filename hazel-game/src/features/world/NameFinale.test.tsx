@@ -138,6 +138,8 @@ describe("Umbra Remembered's finale (#75 item 16e)", () => {
       await act(() => new Promise((r) => setTimeout(r, 260)));
       fireEvent.click(screen.getByRole('button', { name: /Answer it|Try again/ }));
       expect(await screen.findByText('The Root shivers! The questions didn\'t load. Tap "Try again".')).toBeInTheDocument();
+      // An alert, so a screen reader hears it as it appears (#124 review).
+      expect(screen.getByRole('alert')).toHaveTextContent('The Root shivers!');
       expect(screen.queryByText(/riddles came back/)).toBeNull();
       expect(warn).toHaveBeenCalledWith('Name finale questions failed:', expect.stringContaining('riddles came back'));
       vi.mocked(fetchQuestions).mockImplementation(asked);

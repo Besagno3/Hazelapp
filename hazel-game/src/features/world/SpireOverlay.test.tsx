@@ -142,6 +142,7 @@ describe('a floor whose riddles fail to load (#130 S6)', () => {
       render(<SpireOverlay />);
       await readUntil('Try the stair again');
       expect(screen.getByText('The Spire shudders! The riddles didn\'t load. Tap "Try the stair again".')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('The Spire shudders!');
       expect(screen.queryByText(/riddles came back/)).toBeNull();
       expect(warn).toHaveBeenCalledWith('Spire floor questions failed:', expect.stringContaining('riddles came back for this floor'));
       expect(screen.getByRole('button', { name: 'Leave the Spire' })).toBeInTheDocument();

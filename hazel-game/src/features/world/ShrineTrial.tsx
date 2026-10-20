@@ -191,7 +191,7 @@ function TrialRun({ spell, onLearned }: { spell: FieldSpell; onLearned: () => vo
 
       {error && (
         <div className="bg-white/10 rounded-xl p-4 text-center">
-          <p className="text-sm text-white/80 mb-3">{error}</p>
+          <p role="alert" className="text-sm text-white/80 mb-3">{error}</p>
           <button
             onClick={() => setBatch((b) => b + 1)}
             className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-2 text-sm"

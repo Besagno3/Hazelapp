@@ -213,6 +213,59 @@ begin
     'the right grown-up PIN clears its counters';
 end $$;
 
+-- 5b) What's locked now (pin_lock_status): the caller's own locked PINs and
+--     the seconds left — nothing else, and nobody else's.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+set local role authenticated;
+do $$
+declare
+  sam constant uuid := '00000000-0000-0000-0000-000000005a02';
+  v jsonb;
+begin
+  v := public.pin_lock_status();
+  assert v = '{"kids": {}, "grown_up": 0}'::jsonb, format('nothing is locked yet (%s)', v);
+  for i in 1..5 loop perform public.try_kid_pin(sam, '0000'); end loop;
+  for i in 1..5 loop perform public.try_parent_pin('1234'); end loop;
+  v := public.pin_lock_status();
+  assert (v -> 'kids' ->> sam::text)::int = 60, format('Sam is locked for a minute (%s)', v);
+  assert (v ->> 'grown_up')::int = 60, format('so is the grown-up PIN (%s)', v);
+  assert (select count(*) from jsonb_object_keys(v -> 'kids')) = 1, format('only the locked kid is listed (%s)', v);
+  assert (select count(*) from jsonb_object_keys(v)) = 2, format('seconds left and nothing else (%s)', v);
+end $$;
+reset role;
+
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b3', true);
+set local role authenticated;
+do $$
+declare
+  v jsonb := public.pin_lock_status();
+begin
+  assert v = '{"kids": {}, "grown_up": 0}'::jsonb, format('another family''s locks are never shown (%s)', v);
+end $$;
+reset role;
+
+-- A new PIN (set anywhere — another device too) takes the lock off at once,
+-- which is what the pad's re-check reads.
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+set local role authenticated;
+do $$
+declare
+  v jsonb;
+begin
+  perform public.set_kid_pin('00000000-0000-0000-0000-000000005a02', '4821');
+  perform public.set_parent_pin('9090');
+  v := public.pin_lock_status();
+  assert v = '{"kids": {}, "grown_up": 0}'::jsonb, format('a new PIN unlocks, and the status says so (%s)', v);
+end $$;
+reset role;
+
+do $$
+begin
+  assert (select provolatile = 's' and prosecdef from pg_proc
+           where pronamespace = 'public'::regnamespace and proname = 'pin_lock_status'),
+    'the status is a read-only, security definer function';
+end $$;
+
 -- 6) No client reads or changes the counters, or calls the helpers.
 set local role authenticated;
 do $$
@@ -261,6 +314,12 @@ begin
   exception when others then refused := sqlerrm;
   end;
   assert refused like '%permission denied%', 'a signed-out caller can''t try a PIN';
+  refused := null;
+  begin
+    perform public.pin_lock_status();
+  exception when others then refused := sqlerrm;
+  end;
+  assert refused like '%permission denied%', 'a signed-out caller can''t ask what''s locked';
 end $$;
 reset role;
 

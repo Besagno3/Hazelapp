@@ -100,13 +100,13 @@ describe('questionErrorMessage (#130 S6): a kid’s screen whose questions didn�
     );
   });
 
-  it('says when the connection is the trouble, and what to tap after', () => {
+  it('says when the connection is the trouble — asking a grown-up to check it, a kid can\'t — and what to tap after', () => {
     expect(questionErrorMessage(new TypeError('Failed to fetch'), { retry: 'Try the stair again' })).toBe(
-      'We couldn\'t reach Hazel Quest. Check your internet, then tap "Try the stair again".',
+      'We couldn\'t reach Hazel Quest. Ask a grown-up to check the internet, then tap "Try the stair again".',
     );
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     try {
-      expect(questionErrorMessage(new Error('anything'))).toBe('You\'re offline. Check your internet, then tap "Try again".');
+      expect(questionErrorMessage(new Error('anything'))).toBe('You\'re offline. Ask a grown-up to check the internet, then tap "Try again".');
     } finally {
       online.mockRestore();
     }

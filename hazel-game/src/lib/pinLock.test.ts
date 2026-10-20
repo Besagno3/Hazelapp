@@ -1,21 +1,23 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  countdownClock,
   forgetAllLocks,
   forgetLock,
   functionMissing,
   grownUpLockedText,
+  grownUpLockKey,
+  KID_SIGNED_OUT,
   kidLockedText,
   kidLockKey,
   lockLeft,
   pinCheckMessage,
   PIN_CHECK_FAILED,
+  pinLocksFrom,
   pinVerdict,
   rememberLock,
   triesLeftText,
   waitLength,
 } from './pinLock';
-import { NETWORK_MESSAGE, SIGNED_OUT_MESSAGE } from './errors';
+import { NETWORK_MESSAGE, OFFLINE_MESSAGE, SIGNED_OUT_MESSAGE } from './errors';
 // The database's ladder, read as text: the words the pad says must match it.
 import migration0022 from '../../supabase/migrations/0022_pin_attempt_limit.sql?raw';
 
@@ -67,25 +69,44 @@ describe('the words and the countdown', () => {
     expect([60, 300, 900, 3600].map(waitLength)).toEqual(['1 minute', '5 minutes', '15 minutes', '1 hour']);
   });
 
-  it('counts down as m:ss', () => {
-    expect(countdownClock(300)).toBe('5:00');
-    expect(countdownClock(245)).toBe('4:05');
-    expect(countdownClock(9)).toBe('0:09');
-    expect(countdownClock(3600)).toBe('60:00');
-    expect(countdownClock(-2)).toBe('0:00');
+  it('says the wait in words, never as a clock (a young kid can read "5:00" as a time of day)', () => {
+    expect(waitLength(300)).toBe('5 minutes');
+    expect(waitLength(241)).toBe('5 minutes');
+    expect(waitLength(240)).toBe('4 minutes');
+    expect(waitLength(60)).toBe('1 minute');
+    expect(waitLength(45)).toBe('45 seconds');
+    expect(waitLength(1)).toBe('1 second');
+    expect(waitLength(3600)).toBe('1 hour');
+    expect(waitLength(3540)).toBe('59 minutes');
   });
 
-  it('kid and grown-up lines', () => {
-    expect(kidLockedText('5 minutes')).toBe('Too many tries — ask a grown-up, or wait 5 minutes.');
+  it('kid and grown-up lines: one kind word for a lock — a break, not a telling-off', () => {
+    expect(kidLockedText('5 minutes')).toBe("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
     expect(grownUpLockedText('1 minute')).toBe('Too many tries. Use your password instead, or wait 1 minute.');
-    expect(triesLeftText(2)).toBe('2 more tries before a rest.');
-    expect(triesLeftText(1)).toBe('1 more try before a rest.');
+    expect(triesLeftText(2)).toBe('2 more tries, then a short break.');
+    expect(triesLeftText(1)).toBe('1 more try, then a short break.');
   });
 
-  it('a check that failed never shows the database’s words', () => {
-    expect(pinCheckMessage(new Error('Failed to fetch'))).toBe(NETWORK_MESSAGE);
-    expect(pinCheckMessage({ message: 'JWT expired', code: 'PGRST301' })).toBe(SIGNED_OUT_MESSAGE);
+  it('a check that failed never shows the database’s words — and a kid is asked to fetch a grown-up for what only one can fix', () => {
+    expect(pinCheckMessage(new Error('Failed to fetch'), 'grown-up')).toBe(NETWORK_MESSAGE);
+    expect(pinCheckMessage({ message: 'JWT expired', code: 'PGRST301' }, 'grown-up')).toBe(SIGNED_OUT_MESSAGE);
     expect(pinCheckMessage({ message: 'permission denied for function try_kid_pin', code: '42501' })).toBe(PIN_CHECK_FAILED);
+    expect(pinCheckMessage(new Error('Failed to fetch'))).toBe("We couldn't reach Hazel Quest. Ask a grown-up to check the internet, then try again.");
+    expect(pinCheckMessage({ message: 'JWT expired', code: 'PGRST301' })).toBe(KID_SIGNED_OUT);
+    const was = navigator.onLine;
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+    try {
+      expect(pinCheckMessage(new Error('anything'), 'grown-up')).toBe(OFFLINE_MESSAGE);
+      expect(pinCheckMessage(new Error('anything'))).toBe("You're offline. Ask a grown-up to check the internet, then try again.");
+    } finally {
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => was });
+    }
+  });
+
+  it("reads which PINs the database has locked (pin_lock_status), junk as nothing", () => {
+    expect(pinLocksFrom({ kids: { a: 59.2, b: 0, c: 'x' }, grown_up: 3600 })).toEqual({ kids: { a: 60 }, grownUp: 3600 });
+    expect(pinLocksFrom({ kids: {}, grown_up: 0 })).toEqual({ kids: {}, grownUp: 0 });
+    for (const junk of [null, 'x', [], { kids: [1] }]) expect(pinLocksFrom(junk)).toEqual({ kids: {}, grownUp: 0 });
   });
 });
 
@@ -103,5 +124,12 @@ describe('locks this tab remembers', () => {
     expect(lockLeft(key, 2_000_000)).toBe(0);
     rememberLock(key, 0, 2_000_000);
     expect(lockLeft(key, 2_000_000)).toBe(0);
+  });
+
+  it("a grown-up PIN's lock is kept per login", () => {
+    rememberLock(grownUpLockKey('grown-up-a'), 60, 1_000_000);
+    expect(lockLeft(grownUpLockKey('grown-up-a'), 1_000_000)).toBe(60);
+    expect(lockLeft(grownUpLockKey('grown-up-b'), 1_000_000)).toBe(0);
+    expect(lockLeft(grownUpLockKey(null), 1_000_000)).toBe(0);
   });
 });

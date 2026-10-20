@@ -155,7 +155,7 @@ export default function PathQuestionOverlay({ target }: { target: PathTarget }) 
 
         {error && (
           <div className="bg-white rounded-xl p-5 max-w-sm text-center">
-            <p className="text-sm text-gray-600 mb-4">{error}</p>
+            <p role="alert" className="text-sm text-gray-600 mb-4">{error}</p>
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setAttempt((a) => a + 1)}

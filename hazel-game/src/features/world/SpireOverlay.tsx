@@ -532,7 +532,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
         {phase.kind === 'error' && floorIndex !== null && (
           <div className="text-center">
-            <p className="text-sm text-orange-300 mb-4">The Spire shudders! {phase.message}</p>
+            <p role="alert" className="text-sm text-orange-300 mb-4">The Spire shudders! {phase.message}</p>
             <div className="flex gap-2 justify-center">
               <button
                 onClick={() => loadFloor(floorIndex)}
