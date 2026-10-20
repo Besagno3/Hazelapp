@@ -8,7 +8,9 @@ const auth = vi.hoisted(() => ({
   signOut: vi.fn(),
   resetPasswordForEmail: vi.fn(),
 }));
-vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
+// The gate checks the password on a one-off client that keeps nothing (#124b review round 2).
+const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
+vi.mock('../../lib/supabase', () => ({ supabase: { auth }, passwordCheckClient: () => ({ auth: checkAuth }) }));
 const review = vi.hoisted(() => ({ isAdmin: vi.fn(), fetchReviewQueue: vi.fn() }));
 vi.mock('../../lib/review', async (original) => ({
   ...(await original<typeof import('../../lib/review')>()),
@@ -20,7 +22,7 @@ const { default: GrownUpsArea } = await import('./GrownUpsArea');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
-const { forgetAllLocks } = await import('../../lib/pinLock');
+const { forgetAllLocks, GROWN_UP_LOCKED_TEXT } = await import('../../lib/pinLock');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
@@ -38,6 +40,8 @@ async function type(pin: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  checkAuth.signOut.mockResolvedValue({ error: null });
+  auth.signOut.mockResolvedValue({ error: null });
   review.isAdmin.mockResolvedValue(false);
   review.fetchReviewQueue.mockResolvedValue([]);
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
@@ -62,27 +66,43 @@ afterEach(() => {
 });
 
 async function unlock() {
-  auth.signInWithPassword.mockResolvedValue({ error: null });
+  checkAuth.signInWithPassword.mockResolvedValue({ error: null });
   render(<GrownUpsArea />);
   fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
   fireEvent.click(screen.getByRole('button', { name: 'Open' }));
   await screen.findByText('Sam');
 }
 
+/** The page's own status line (the area's sr-only live region is another). */
+const pageStatus = () => screen.getAllByRole('status').find((el) => !el.classList.contains('sr-only'))!;
+
 describe('GrownUpsArea (#124)', () => {
   it("stays shut without the grown-up's password", async () => {
-    auth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
+    checkAuth.signInWithPassword.mockResolvedValue({ error: { message: 'Invalid login credentials' } });
     render(<GrownUpsArea />);
     expect(screen.getByText(/mum@example\.com/)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'guess' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     // In plain words, not the raw error (#130 S6) — and only about what's here:
     // no email field, and the link reads "Forgot it?" (#130 S6 review).
-    const status = screen.getByRole('status');
+    const status = pageStatus();
     await waitFor(() => expect(status).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" below.'));
     expect(screen.queryByText('Invalid login credentials')).toBeNull();
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'guess' });
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'guess' });
     expect(screen.queryByText('Sam')).not.toBeInTheDocument();
+  });
+
+  it('the password opens it without touching the device\'s own sign-in: checked on the one-off client, then signed out (#124b review round 2)', async () => {
+    await unlock();
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'right' });
+    // No fresh-password session left on the device that could close the account (#165).
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('opens with its title focused (#124 review round 2)', () => {
+    render(<GrownUpsArea />);
+    expect(screen.getByRole('heading', { name: '👪 Grown-ups' })).toHaveFocus();
   });
 
   it('a forgotten password gets a reset link; Back returns to Who’s playing', async () => {
@@ -108,9 +128,9 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.click(link);
     expect(auth.resetPasswordForEmail).toHaveBeenCalledTimes(1);
     await act(async () => send({ error: { code: 'over_email_send_rate_limit', message: 'email rate limit exceeded', status: 429 } }));
-    expect(screen.getByRole('status')).toHaveTextContent(/try again in about an hour/);
+    expect(pageStatus()).toHaveTextContent(/try again in about an hour/);
     // Nothing was sent, so nothing to look for in spam (#159 review round 2).
-    expect(screen.getByRole('status')).not.toHaveTextContent(/spam/);
+    expect(pageStatus()).not.toHaveTextContent(/spam/);
     expect(link).toHaveFocus();
     expect(link).toHaveTextContent('Forgot it? Email me a reset link');
   });
@@ -125,7 +145,7 @@ describe('GrownUpsArea (#124)', () => {
     link.focus();
     fireEvent.click(link);
     await act(async () => {});
-    expect(screen.getByRole('status')).toHaveTextContent('Too many tries for now. Please wait 37 seconds, then try again.');
+    expect(pageStatus()).toHaveTextContent('Too many tries for now. Please wait 37 seconds, then try again.');
     expect(link).toHaveAccessibleName('Email me a reset link in 37 seconds');
     expect(link).toHaveTextContent('Email me a reset link in 37s');
     expect(link).toHaveAttribute('aria-disabled', 'true');
@@ -142,7 +162,7 @@ describe('GrownUpsArea (#124)', () => {
 
   it('Open waits with aria-disabled, keeping focus; the gate\'s links are 44 px tap targets (#159 review round 2)', async () => {
     let answer: (v: { error: unknown }) => void = () => {};
-    auth.signInWithPassword.mockReturnValue(new Promise((r) => (answer = r)));
+    checkAuth.signInWithPassword.mockReturnValue(new Promise((r) => (answer = r)));
     render(<GrownUpsArea />);
     for (const name of [/Forgot it/, /Back to Who/]) expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'guess' } });
@@ -154,7 +174,7 @@ describe('GrownUpsArea (#124)', () => {
     expect(open).not.toBeDisabled();
     expect(open).toHaveFocus();
     fireEvent.click(open);
-    expect(auth.signInWithPassword).toHaveBeenCalledOnce();
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledOnce();
     await act(async () => answer({ error: { code: 'invalid_credentials', message: 'Invalid login credentials' } }));
     expect(open).toHaveTextContent('Open');
   });
@@ -171,7 +191,7 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByText('Type your grown-up PIN.')).toBeInTheDocument();
     await type('1111');
     expect(screen.queryByText('Sam')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/Not quite/);
+    expect(pageStatus()).toHaveTextContent(/Not quite/);
     fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Use my grown-up PIN instead' }));
@@ -186,14 +206,17 @@ describe('GrownUpsArea (#124)', () => {
     render(<GrownUpsArea />);
     expect(screen.getByRole('button', { name: 'Use my password instead' })).not.toHaveClass('bg-purple-600');
     await type('1111');
-    expect(screen.getByRole('status')).toHaveTextContent('Too many tries. Use your password instead, or wait 1 minute.');
+    expect(pageStatus()).toHaveTextContent(GROWN_UP_LOCKED_TEXT);
     expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 1 minute');
+    // The subtitle stops asking for a PIN that can't be typed (#124c review round 2).
+    expect(screen.getByText('Use your password for now.')).toBeInTheDocument();
+    expect(screen.queryByText('Type your grown-up PIN.')).toBeNull();
     // It's the way in now: no longer a faint grey link.
     expect(screen.getByRole('button', { name: 'Use my password instead' })).toHaveClass('bg-purple-600');
     await type('9090');
     expect(checkParentPin).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
-    auth.signInWithPassword.mockResolvedValue({ error: null });
+    checkAuth.signInWithPassword.mockResolvedValue({ error: null });
     fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
@@ -260,7 +283,7 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Remove Sam for good' }));
     expect(await screen.findByText("We couldn't remove Sam just now. Please try again.")).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent("We couldn't remove Sam just now.");
+    expect(pageStatus()).toHaveTextContent("We couldn't remove Sam just now.");
     expect(screen.queryByText(/foreign key|23503/)).toBeNull();
     expect(warn).toHaveBeenCalledWith('Removing a player failed:', expect.stringContaining('23503'));
     warn.mockRestore();
@@ -282,6 +305,65 @@ describe('GrownUpsArea (#124)', () => {
     await screen.findByText('Sam');
     await waitFor(() => expect(pinLocks.mock.calls.length).toBeGreaterThan(calls));
     expect(screen.queryByText(/PIN locked after too many tries/)).toBeNull();
+  });
+
+  it('unlocking says so on the kid\'s row, read out, with focus back on their Change button (#124c review round 2)', async () => {
+    pinLocks.mockResolvedValue({ kids: { 'kid-sam': 300 }, grownUp: 0 });
+    await unlock();
+    await screen.findByText(/PIN locked after too many tries/);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[0]);
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '4821' } });
+    // The list's own re-ask hasn't answered yet: the 🔒 note goes at once anyway — the save unlocked it.
+    pinLocks.mockReturnValueOnce(new Promise(() => {}));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const note = (await screen.findAllByText('Sam can try their PIN again now.')).find((el) => el.closest('li'));
+    expect(note?.closest('li')).toHaveTextContent('Sam');
+    // Read out by the area's own live region, there all along — not one that appears with the words.
+    const region = screen.getAllByRole('status').find((el) => el.textContent === 'Sam can try their PIN again now.');
+    expect(region).toHaveClass('sr-only');
+    expect(screen.queryByText(/PIN locked after too many tries/)).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Change' })[0]).toHaveFocus();
+    // Gone once the list is left again.
+    fireEvent.click(screen.getByRole('button', { name: /Add a player/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryAllByText('Sam can try their PIN again now.').filter((el) => el.closest('li'))).toHaveLength(0);
+    expect(screen.getByRole('button', { name: /Add a player/ })).toHaveFocus();
+  });
+
+  it('a Change that typed no PIN says nothing about unlocking', async () => {
+    pinLocks.mockResolvedValue({ kids: { 'kid-sam': 300 }, grownUp: 0 });
+    await unlock();
+    await screen.findByText(/PIN locked after too many tries/);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateKid).toHaveBeenCalled());
+    await screen.findByText('Sam');
+    expect(screen.queryByText(/can try their PIN again now/)).toBeNull();
+  });
+
+  it('"Your sign-in ran out" on Remove and the grown-up PIN comes with the "Sign in again" button (#130 S6 review round 2)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const dead = { message: 'JWT expired', code: 'PGRST301' };
+    await unlock();
+    removeKid.mockRejectedValueOnce(dead);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Sam for good' }));
+    expect(await screen.findByText('Your sign-in ran out — please sign in again.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    await act(async () => {});
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Sam' }));
+    setParentPin.mockRejectedValueOnce(dead);
+    fireEvent.click(screen.getByRole('button', { name: 'Set a PIN' }));
+    fireEvent.change(screen.getByLabelText('Grown-up PIN'), { target: { value: '9090' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
+    expect(await screen.findByText('Your sign-in ran out — please sign in again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    // Any other failure doesn't offer it.
+    setParentPin.mockRejectedValueOnce(new Error('Failed to fetch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save PIN' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Sign in again' })).toBeNull());
+    warn.mockRestore();
   });
 
   it('the Change form says typing the PIN again — even the same one — unlocks it', async () => {
@@ -319,7 +401,7 @@ describe('GrownUpsArea (#124)', () => {
 
   it('a review link (?review) opens the review page once Grown-ups is unlocked, never before (#147)', async () => {
     useFamilyStore.setState({ reviewRequested: true });
-    auth.signInWithPassword.mockResolvedValue({ error: null });
+    checkAuth.signInWithPassword.mockResolvedValue({ error: null });
     render(<GrownUpsArea />);
     expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
     expect(review.fetchReviewQueue).not.toHaveBeenCalled();

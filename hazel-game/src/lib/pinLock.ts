@@ -55,15 +55,15 @@ export function waitLength(secs: number): string {
   return `${h} ${h === 1 ? 'hour' : 'hours'}`;
 }
 
-/** A kid's PIN, locked (#124c): short and kind — a break, not a telling-off — and says who can help. */
-export function kidLockedText(wait: string): string {
-  return `That's a lot of tries! Take a break for ${wait}, or ask a grown-up.`;
-}
+/**
+ * A kid's PIN, locked (#124c): short and kind — a break, not a telling-off —
+ * and says who can help. No time in it: the countdown under it says how long,
+ * and a time said once would go stale beside it (#124c review round 2).
+ */
+export const KID_LOCKED_TEXT = "That's a lot of tries! Take a short break, or ask a grown-up.";
 
-/** The grown-up's PIN, locked: their password always works. */
-export function grownUpLockedText(wait: string): string {
-  return `Too many tries. Use your password instead, or wait ${wait}.`;
-}
+/** The grown-up's PIN, locked: their password always works (the countdown says how long the PIN waits). */
+export const GROWN_UP_LOCKED_TEXT = 'Too many tries. Use your password instead, or wait and try the PIN again.';
 
 /** Said when a lock runs out. */
 export const PIN_READY_TEXT = 'You can try again now.';

@@ -15,18 +15,17 @@ export function useAuthInit() {
   const setInitialized = useAuthStore((s) => s.setInitialized);
 
   useEffect(() => {
-    let userId: string | null = null;
-
     function sync(session: Session | null) {
       setSession(session);
       if (session) {
-        // Token refreshes fire this too — only reload on an actual user change.
-        if (session.user.id !== userId) {
-          userId = session.user.id;
+        // Token refreshes fire this too — only reload on an actual user
+        // change. The family store says whose family is loaded, so one
+        // cleared without an event (a sign-out the server never heard,
+        // `signOutHere`) loads again on the next sign-in.
+        if (session.user.id !== useFamilyStore.getState().userId) {
           void useFamilyStore.getState().load(session.user.id);
         }
       } else {
-        userId = null;
         useFamilyStore.getState().clear();
         putAwayGame();
       }

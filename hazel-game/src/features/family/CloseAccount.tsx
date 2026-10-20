@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { errorMessage } from '../../lib/errors';
 import { CloseAccountFailure, closeAccountMessage, CONFIRM_WORD, confirmTyped, type CloseFailureCode } from '../../lib/closeAccount';
 import { useAuthStore } from '../../store/authStore';
@@ -6,6 +6,7 @@ import { useFamilyStore } from '../../store/familyStore';
 import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import FamilyCard from './FamilyCard';
+import ResetLinkButton from './ResetLinkButton';
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 aria-[invalid=true]:border-red-500';
@@ -20,16 +21,10 @@ function andList(items: string[]): string {
 /**
  * The last section of 👪 Grown-ups (#124b): closing the whole account. Folded
  * to one line and a button, so it's never in the way; the button opens
- * `CloseAccountPage`.
+ * `CloseAccountPage`. Back from "Keep my account", the list puts focus back
+ * on it (`data-return`), that once.
  */
-export function CloseAccountSection({ onOpen, focusOpener = false }: { onOpen: () => void; focusOpener?: boolean }) {
-  const opener = useRef<HTMLButtonElement>(null);
-  // Back from "Keep my account": focus (and the page) return to this button.
-  useEffect(() => {
-    if (!focusOpener) return;
-    opener.current?.focus({ preventScroll: true });
-    opener.current?.scrollIntoView?.({ block: 'center' });
-  }, [focusOpener]);
+export function CloseAccountSection({ onOpen }: { onOpen: () => void }) {
   return (
     <section aria-labelledby="close-account-heading" className="mt-8 border-t border-gray-200 pt-4 text-sm">
       <h2 id="close-account-heading" className="font-semibold text-gray-700">
@@ -38,7 +33,7 @@ export function CloseAccountSection({ onOpen, focusOpener = false }: { onOpen: (
       <p className="mt-0.5 text-xs text-gray-600">
         Delete this account, every player on it and all their games, for good.
       </p>
-      <button ref={opener} onClick={onOpen} className="mt-1 min-h-11 px-0 text-red-700 hover:underline">
+      <button data-return="close" onClick={onOpen} className="mt-1 min-h-11 px-0 text-red-700 hover:underline">
         Close account…
       </button>
     </section>
@@ -51,9 +46,10 @@ export function CloseAccountSection({ onOpen, focusOpener = false }: { onOpen: (
  * word DELETE, then signs in again with the password and asks the server,
  * which checks the word and the fresh sign-in (`delete-account`). It opens at
  * the top with its title focused, so the list of what goes is read first; a
- * refusal about a box marks that box and puts the keyboard back in it. On
- * success the grown-up is signed out and the sign-in page says "Your account
- * and all its data are gone."
+ * refusal about a box marks that box and puts the keyboard back in it. A
+ * grown-up who only uses the PIN gets the gate's reset link under the
+ * password box. On success the grown-up is signed out and the sign-in page
+ * says "Your account and all its data are gone."
  */
 
 /** Which box a refusal is about, so it's marked and focused. */
@@ -65,12 +61,19 @@ function fieldFor(code: CloseFailureCode): 'password' | 'confirm' | null {
 export default function CloseAccountPage({ onCancel }: { onCancel: () => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
   const kids = useFamilyStore((s) => s.kids);
+  const userId = useFamilyStore((s) => s.userId);
   const closeAccount = useFamilyStore((s) => s.closeAccount);
   const [password, setPassword] = useState('');
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   // Keyed, so the same words said twice are read out twice.
   const [error, setError] = useLiveMessage();
+  // A reset link on its way (said in green where the refusals go).
+  const [notice, setNotice] = useLiveMessage();
+  // The family's data went though the login stayed (`login_not_deleted`):
+  // the server has no players and no consent now, so leaving reloads the
+  // family — the privacy notice comes first again (#124b review round 2).
+  const familyGone = useRef(false);
   // The box the last refusal was about (marked aria-invalid, described by the message).
   const [badField, setBadField] = useState<'password' | 'confirm' | null>(null);
   const passwordId = useId();
@@ -81,6 +84,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
   const names = kids.map((k) => k.name ?? 'Player');
 
   function refuse(code: CloseFailureCode, text = closeAccountMessage(code)) {
+    setNotice(null);
     setError(text);
     const field = fieldFor(code);
     setBadField(field);
@@ -96,6 +100,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
     if (!password) return refuse('password_required');
     if (!confirmTyped(typed)) return refuse('confirm_required');
     setError(null);
+    setNotice(null);
     setBadField(null);
     setBusy(true);
     try {
@@ -106,6 +111,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
       // Plain words on screen, the whole story in the console (#130 S6).
       if (err instanceof CloseAccountFailure) {
         console.warn('Closing the account failed:', err.log);
+        if (err.code === 'login_not_deleted') familyGone.current = true;
         refuse(err.code, err.message);
       } else {
         console.warn('Closing the account failed:', errorMessage(err));
@@ -157,6 +163,18 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
             aria-describedby={badField === 'password' ? statusId : undefined}
             className={fieldClass}
           />
+          {email && (
+            <ResetLinkButton
+              email={email}
+              onStart={() => {
+                setError(null);
+                setNotice(null);
+              }}
+              onSent={setNotice}
+              onFailed={setError}
+              className="text-purple-600"
+            />
+          )}
         </div>
         <div>
           <label htmlFor={confirmId} className={labelClass}>
@@ -183,6 +201,11 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
               {error.text}
             </p>
           )}
+          {notice && (
+            <p key={notice.key} className="text-green-700">
+              {notice.text}
+            </p>
+          )}
         </div>
         <button
           type="submit"
@@ -194,7 +217,12 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
       </form>
       <button
         onClick={() => {
-          if (!busy) onCancel();
+          if (busy) return;
+          if (familyGone.current && userId) {
+            void useFamilyStore.getState().load(userId);
+            return;
+          }
+          onCancel();
         }}
         aria-disabled={busy}
         className="mt-2 w-full min-h-11 text-center text-sm text-purple-600 hover:underline aria-disabled:cursor-default aria-disabled:no-underline aria-disabled:opacity-50"

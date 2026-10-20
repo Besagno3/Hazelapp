@@ -5,7 +5,7 @@ import type { PinVerdict } from '../../lib/pinLock';
 
 const { default: WhoIsPlaying, KID_UNLOCK_HELP } = await import('./WhoIsPlaying');
 const { useFamilyStore } = await import('../../store/familyStore');
-const { forgetAllLocks } = await import('../../lib/pinLock');
+const { forgetAllLocks, KID_LOCKED_TEXT } = await import('../../lib/pinLock');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: true, birthYear: 2019, birthMonth: 8 };
@@ -55,7 +55,7 @@ describe('WhoIsPlaying (#124)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
     expect(screen.getByText('Type your PIN.')).toBeInTheDocument();
     await type('1111');
-    expect(screen.getByRole('status')).toHaveTextContent("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
     expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 5 minutes');
     // The subtitle doesn't say "Type your PIN." while no PIN can be typed.
     expect(screen.getByText('Taking a short break.')).toBeInTheDocument();
@@ -67,9 +67,11 @@ describe('WhoIsPlaying (#124)', () => {
     expect(checkKidPin).toHaveBeenCalledTimes(1);
     expect(choose).not.toHaveBeenCalled();
 
-    // Back to the tiles and in again: Sam's pad remembers; Kit's is open.
+    // Back to the tiles and in again: Sam's pad remembers (once the database
+    // has been asked — this one can't say); Kit's is open.
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    await act(async () => {});
     expect(screen.getByTestId('pin-lock')).toHaveTextContent(/Try again in 5 minutes/);
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Kit' }));
@@ -89,6 +91,10 @@ describe('WhoIsPlaying (#124)', () => {
     pinLocks.mockResolvedValue({ kids: {}, grownUp: 0 });
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Sam' }));
+    // Reopened, the old lock isn't shown or read out while the database is asked (#124c review round 2).
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(screen.getByRole('status')).not.toHaveTextContent(KID_LOCKED_TEXT);
+    expect(screen.queryByText('Taking a short break.')).toBeNull();
     await act(async () => {});
     expect(screen.queryByTestId('pin-lock')).toBeNull();
     expect(screen.getByText('Type your PIN.')).toBeInTheDocument();

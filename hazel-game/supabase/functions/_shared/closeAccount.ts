@@ -18,10 +18,14 @@ export const CONFIRM_WORD = 'DELETE';
  * How recently the caller must have typed their password (seconds). The app
  * signs in again with it right before it asks — from the grown-up's own
  * browser, so the auth service's sign-in limit counts that device, never
- * every family at once (#124b review) — and the function checks that fresh
- * sign-in on the token it's sent. It never sees the password.
+ * every family at once (#124b review), and on a client that keeps nothing,
+ * so that sign-in never lands on the device — and the function checks that
+ * fresh sign-in on the token it's sent. It never sees the password. A minute:
+ * the app asks within a second of signing in, and any other password
+ * sign-in on the device (a grown-up signing in) can't close the account for
+ * long (#124b review round 2, #165).
  */
-export const REAUTH_WINDOW_S = 300;
+export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */
 export const CLOCK_SLACK_S = 60;
 
@@ -91,15 +95,19 @@ export function jwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+/** Method names that mean a password: Supabase's own, and RFC 8176's. */
+const PASSWORD_METHODS = ['password', 'pwd'];
+
 /**
  * Whether the caller typed their password just now (within
  * `REAUTH_WINDOW_S`). Supabase lists how a session signed in under `amr` —
  * `[{ method: 'password', timestamp }]`, in seconds — and keeps it through
  * token refreshes, so a refreshed token still shows the sign-in's own time.
  * Another method (a magic link, a refresh of an old session) isn't a fresh
- * password. An auth service that sends no such list (none, or bare strings
- * from a custom hook) falls back to when the login last signed in
- * (`last_sign_in_at`). Never `iat`, which every refresh renews.
+ * password. A custom hook that sends bare method names must name a password,
+ * and then the login's last sign-in (`last_sign_in_at`) must be just now; a
+ * token with no `amr` at all says nothing about how it signed in, so it's
+ * refused (#124b review round 2). Never `iat`, which every refresh renews.
  */
 export function signedInFreshly(
   claims: Record<string, unknown> | null,
@@ -108,14 +116,23 @@ export function signedInFreshly(
 ): boolean {
   const fresh = (at: number) => at <= nowS + CLOCK_SLACK_S && nowS - at <= REAUTH_WINDOW_S;
   const amr = claims?.amr;
-  const entries = (Array.isArray(amr) ? amr : []).filter(
+  // No list at all: nothing says how this token signed in.
+  if (!Array.isArray(amr) || amr.length === 0) return false;
+  const entries = amr.filter(
     (e): e is Record<string, unknown> => typeof e === 'object' && e !== null && typeof (e as Record<string, unknown>).method === 'string',
   );
   if (entries.length > 0) {
     return entries.some((e) => e.method === 'password' && typeof e.timestamp === 'number' && fresh(e.timestamp));
   }
+  if (!amr.some((m) => typeof m === 'string' && PASSWORD_METHODS.includes(m))) return false;
   const last = lastSignInAt ? Date.parse(lastSignInAt) / 1000 : NaN;
   return Number.isFinite(last) && fresh(last);
+}
+
+/** The token says nothing about how it signed in (no `amr` list, or an empty one): an auth set-up to log loudly. */
+export function amrMissing(claims: Record<string, unknown> | null): boolean {
+  const amr = claims?.amr;
+  return !Array.isArray(amr) || amr.length === 0;
 }
 
 /**

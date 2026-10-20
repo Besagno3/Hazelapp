@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { isPin, KID_BIRTH_YEARS, KID_ICONS, MAX_KID_NAME, PIN_LENGTH } from '../../content/family';
 import PasswordInput from '../../components/PasswordInput';
 import PicturePicker from './PicturePicker';
+import SignInAgainButton from './SignInAgainButton';
 import type { Kid, KidInput } from '../../types';
 
 const MONTHS = [
@@ -54,6 +55,8 @@ export default function KidForm({
   const [pin, setPin] = useState('');
   const needsPin = !kid?.hasPin;
   const [error, setError] = useState<string | null>(null);
+  // The save failed because the sign-in ran out: the words ask to sign in again, so the button's here.
+  const [signedOut, setSignedOut] = useState(false);
   const [saving, setSaving] = useState(false);
   // An older kid's birth year stays pickable when changing them.
   const years = kid && !KID_BIRTH_YEARS.includes(kid.birthYear) ? [...KID_BIRTH_YEARS, kid.birthYear] : KID_BIRTH_YEARS;
@@ -63,6 +66,7 @@ export default function KidForm({
     // The button is aria-disabled while it saves: a tap or Enter then stops here.
     if (saving) return;
     setError(null);
+    setSignedOut(false);
     const trimmed = name.trim();
     if (!trimmed) return setError('Give them a nickname.');
     if (!month || !year) return setError('Pick their birth month and year.');
@@ -75,6 +79,7 @@ export default function KidForm({
       // Plain words on screen, the whole error in the console (#130 S6).
       console.warn('Saving a player failed:', errorMessage(err));
       setError(kidSaveMessage(err));
+      setSignedOut(sessionRanOut(err));
     } finally {
       setSaving(false);
     }
@@ -137,6 +142,7 @@ export default function KidForm({
       <div role="status" className="text-sm text-red-700">
         {error && <p>{error}</p>}
       </div>
+      {signedOut && <SignInAgainButton />}
       <button
         type="submit"
         aria-disabled={saving}

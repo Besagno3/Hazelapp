@@ -7,8 +7,8 @@ import type { PinVerdict } from '../../lib/pinLock';
 const auth = vi.hoisted(() => ({ signOut: vi.fn(async () => ({ error: null })) }));
 vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
 
-const { default: PinPad, PIN_TRIES, PIN_BREAK_MS, LOCK_RECHECK_MS } = await import('./PinPad');
-const { forgetAllLocks, kidLockKey, lockLeft, rememberLock, PIN_CHECK_FAILED, PIN_READY_TEXT, KID_SIGNED_OUT } = await import('../../lib/pinLock');
+const { default: PinPad, PIN_TRIES, PIN_BREAK_MS, LOCK_RECHECK_MS, TAP_RECHECK_MS, CONFIRM_LOCK_MS } = await import('./PinPad');
+const { forgetAllLocks, kidLockKey, lockLeft, rememberLock, PIN_CHECK_FAILED, PIN_READY_TEXT, KID_SIGNED_OUT, KID_LOCKED_TEXT } = await import('../../lib/pinLock');
 const { SIGNED_OUT_MESSAGE } = await import('../../lib/errors');
 
 const dots = () => screen.getByRole('img').getAttribute('aria-label');
@@ -60,7 +60,8 @@ describe('PinPad (#124)', () => {
     const onSubmit = vi.fn(async () => false);
     render(<PinPad onSubmit={onSubmit} />);
     for (let i = 0; i < PIN_TRIES; i++) await type('0000');
-    expect(screen.getByRole('status')).toHaveTextContent("That's a lot of tries! Take a break for 30 seconds, or ask a grown-up.");
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 30 seconds');
     expect(key('1')).toHaveAttribute('aria-disabled', 'true');
     expect(key('1')).not.toBeDisabled();
     await type('1111');
@@ -81,7 +82,7 @@ describe('PinPad: a PIN the database has locked (#124c)', () => {
     const one = key('1');
     one.focus();
     await type('0000');
-    expect(screen.getByRole('status')).toHaveTextContent("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
     expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 5 minutes');
     // Waiting with aria-disabled keeps the keyboard's place.
     expect(one).toHaveAttribute('aria-disabled', 'true');
@@ -109,13 +110,14 @@ describe('PinPad: a PIN the database has locked (#124c)', () => {
     render(
       <PinPad
         onSubmit={async () => lockedFor(60)}
-        lockedText={(w) => `Too many tries. Use your password instead, or wait ${w}.`}
+        lockedText="Too many tries. Use your password instead."
         lockedHelp="A new PIN unlocks it."
       />,
     );
     expect(screen.queryByText('A new PIN unlocks it.')).toBeNull();
     await type('9999');
-    expect(screen.getByRole('status')).toHaveTextContent('Too many tries. Use your password instead, or wait 1 minute.');
+    expect(screen.getByRole('status')).toHaveTextContent('Too many tries. Use your password instead.');
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 1 minute');
     expect(screen.getByText('A new PIN unlocks it.')).toBeInTheDocument();
   });
 
@@ -129,7 +131,7 @@ describe('PinPad: a PIN the database has locked (#124c)', () => {
 
     await act(async () => vi.advanceTimersByTime(30_000));
     render(<PinPad onSubmit={onSubmit} lockKey={lockKey} />);
-    expect(screen.getByRole('status')).toHaveTextContent('Take a break for 15 minutes');
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
     expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 15 minutes');
     await type('4821');
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -183,13 +185,21 @@ function FirstPaint({ children, seen }: { children: ReactNode; seen: (text: stri
 }
 
 describe('PinPad: the database decides when a lock ends (#124c review)', () => {
-  it('a lock lifted elsewhere (a new PIN set on another device) opens a reopened pad at once', async () => {
+  it('a lock lifted elsewhere (a new PIN set on another device) opens a reopened pad — never showing or saying the old lock first (#124c review round 2)', async () => {
     const lockKey = kidLockKey('kid-sam');
     rememberLock(lockKey, 900);
-    const checkLock = vi.fn(async () => 0);
-    render(<PinPad onSubmit={async () => true} lockKey={lockKey} checkLock={checkLock} />);
+    let answer: (secs: number) => void = () => {};
+    const checkLock = vi.fn(() => new Promise<number>((r) => (answer = r)));
+    const onLockedChange = vi.fn();
+    render(<PinPad onSubmit={async () => true} lockKey={lockKey} checkLock={checkLock} onLockedChange={onLockedChange} />);
     await act(async () => {});
+    // Asked first: "Checking…", no lock shown, nothing about a break said, the screen around it not told.
+    expect(screen.getByRole('status')).toHaveTextContent('Checking…');
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(onLockedChange).not.toHaveBeenCalledWith(true);
+    await act(async () => answer(0));
     expect(checkLock).toHaveBeenCalledTimes(1);
+    expect(onLockedChange).not.toHaveBeenCalledWith(true);
     expect(screen.queryByTestId('pin-lock')).toBeNull();
     expect(screen.getByRole('status')).toHaveTextContent(PIN_READY_TEXT);
     expect(key('1')).toHaveAttribute('aria-disabled', 'false');
@@ -253,7 +263,7 @@ describe('PinPad: the database decides when a lock ends (#124c review)', () => {
     // Empty as it appears (a live region doesn't read what it starts with)…
     expect(seen).toHaveBeenCalledWith('');
     // …then the words arrive, and are read out.
-    expect(screen.getByRole('status')).toHaveTextContent("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
   });
 
   it('tells the screen around it when it locks and opens', async () => {
@@ -267,13 +277,15 @@ describe('PinPad: the database decides when a lock ends (#124c review)', () => {
     expect(onLockedChange).toHaveBeenLastCalledWith(false);
   });
 
-  it('a run-out sign-in offers "Sign in again" — a kid is told to fetch a grown-up — and it signs out here', async () => {
+  it('a run-out sign-in offers "Sign in again" — on a kid\'s pad, for a grown-up — and it signs out here', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const dead = { message: 'JWT expired', code: 'PGRST301' };
     const { unmount } = render(<PinPad onSubmit={() => Promise.reject(dead)} />);
     await type('1234');
     expect(screen.getByRole('status')).toHaveTextContent(KID_SIGNED_OUT);
-    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    // The kid reads "Ask a grown-up…": the button says whose job it is (#130 S6 review round 2).
+    expect(screen.queryByRole('button', { name: 'Sign in again' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Grown-ups: sign in again' }));
     await act(async () => {});
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     unmount();
@@ -286,8 +298,102 @@ describe('PinPad: the database decides when a lock ends (#124c review)', () => {
     // Any other failure doesn't offer it.
     render(<PinPad onSubmit={() => Promise.reject(new Error('Failed to fetch'))} />);
     await type('1234');
-    expect(screen.queryByRole('button', { name: 'Sign in again' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /sign in again/i })).toBeNull();
     warn.mockRestore();
   });
 });
 
+
+describe('PinPad: review round 2 — one wait, asked first, a tap asks, keys a finger finds (#124c)', () => {
+  it('a remembered lock still held: shown and said only once the database answers', async () => {
+    const lockKey = kidLockKey('kid-sam');
+    rememberLock(lockKey, 900);
+    let answer: (secs: number) => void = () => {};
+    const checkLock = vi.fn(() => new Promise<number>((r) => (answer = r)));
+    const onLockedChange = vi.fn();
+    render(<PinPad onSubmit={async () => true} lockKey={lockKey} checkLock={checkLock} onLockedChange={onLockedChange} />);
+    await act(async () => {});
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(key('1')).toHaveAttribute('aria-disabled', 'true');
+    await act(async () => answer(600));
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 10 minutes');
+    expect(onLockedChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it('no answer in time: the lock it remembers shows after a moment — and a late "open" still opens it', async () => {
+    vi.useFakeTimers();
+    const lockKey = kidLockKey('kid-sam');
+    rememberLock(lockKey, 900);
+    let answer: (secs: number) => void = () => {};
+    render(<PinPad onSubmit={async () => true} lockKey={lockKey} checkLock={() => new Promise<number>((r) => (answer = r))} />);
+    await act(async () => vi.advanceTimersByTime(CONFIRM_LOCK_MS - 100));
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    await act(async () => vi.advanceTimersByTime(200));
+    expect(screen.getByRole('status')).toHaveTextContent(KID_LOCKED_TEXT);
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 15 minutes');
+    await act(async () => answer(0));
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(PIN_READY_TEXT);
+  });
+
+  it('the sentence never names a time, so it never contradicts the countdown as it moves on', async () => {
+    vi.useFakeTimers();
+    // The database's lock: 10 minutes from now, counting down like a real one.
+    const until = Date.now() + 600_000;
+    const checkLock = vi.fn(async () => Math.max(0, Math.ceil((until - Date.now()) / 1000)));
+    render(<PinPad onSubmit={async () => lockedFor(300)} checkLock={checkLock} />);
+    await type('0000');
+    await act(async () => {});
+    // The database's own count (10 minutes) replaced the one the try answered (5): only the countdown says it.
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 10 minutes');
+    await act(async () => vi.advanceTimersByTime(7 * 60_000));
+    expect(screen.getByTestId('pin-lock')).toHaveTextContent('Try again in 3 minutes');
+    expect(screen.getByRole('status').textContent).not.toMatch(/\d|minute/);
+  });
+
+  it('a tap on a locked key asks the database again (once every few seconds) — the pad opens if the lock was lifted', async () => {
+    vi.useFakeTimers();
+    const answers = [900, 900, 0];
+    const checkLock = vi.fn(async () => answers.shift() ?? 0);
+    const onSubmit = vi.fn(async () => lockedFor(900));
+    render(<PinPad onSubmit={onSubmit} checkLock={checkLock} />);
+    await type('0000');
+    await act(async () => {});
+    expect(checkLock).toHaveBeenCalledTimes(1);
+    // Asked on the lock a moment ago: a tap now waits its turn.
+    await type('1');
+    expect(checkLock).toHaveBeenCalledTimes(1);
+    await act(async () => vi.advanceTimersByTime(TAP_RECHECK_MS));
+    await type('1');
+    expect(checkLock).toHaveBeenCalledTimes(2);
+    // Two taps in a row ask once.
+    await type('2');
+    expect(checkLock).toHaveBeenCalledTimes(2);
+    await act(async () => vi.advanceTimersByTime(TAP_RECHECK_MS));
+    // ⌫ asks too — and this time the grown-up has unlocked it.
+    await act(async () => fireEvent.click(key('Delete')));
+    expect(checkLock).toHaveBeenCalledTimes(3);
+    expect(screen.queryByTestId('pin-lock')).toBeNull();
+    expect(screen.getByRole('status')).toHaveTextContent(PIN_READY_TEXT);
+    // The tap that asked typed nothing.
+    expect(dots()).toBe('0 of 4 digits');
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it('while locked the keys leave the Tab order (one focused keeps its place); on a phone on its side they are 44 px tall', async () => {
+    vi.useFakeTimers();
+    render(<PinPad onSubmit={async () => lockedFor(60)} />);
+    expect(key('5')).not.toHaveAttribute('tabindex');
+    const one = key('1');
+    one.focus();
+    await type('0000');
+    expect(key('5')).toHaveAttribute('tabindex', '-1');
+    expect(one).toHaveFocus();
+    // h-11 = 44 px on a short screen (it was h-10, 40 px).
+    expect(key('5').className).toContain('[@media(max-height:500px)]:h-11');
+    expect(key('5').className).not.toContain('[@media(max-height:500px)]:h-10');
+    await act(async () => vi.advanceTimersByTime(60_000));
+    expect(key('5')).not.toHaveAttribute('tabindex');
+  });
+});

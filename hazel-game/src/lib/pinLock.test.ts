@@ -3,10 +3,10 @@ import {
   forgetAllLocks,
   forgetLock,
   functionMissing,
-  grownUpLockedText,
+  GROWN_UP_LOCKED_TEXT,
   grownUpLockKey,
+  KID_LOCKED_TEXT,
   KID_SIGNED_OUT,
-  kidLockedText,
   kidLockKey,
   lockLeft,
   pinCheckMessage,
@@ -81,8 +81,10 @@ describe('the words and the countdown', () => {
   });
 
   it('kid and grown-up lines: one kind word for a lock — a break, not a telling-off', () => {
-    expect(kidLockedText('5 minutes')).toBe("That's a lot of tries! Take a break for 5 minutes, or ask a grown-up.");
-    expect(grownUpLockedText('1 minute')).toBe('Too many tries. Use your password instead, or wait 1 minute.');
+    expect(KID_LOCKED_TEXT).toBe("That's a lot of tries! Take a short break, or ask a grown-up.");
+    expect(GROWN_UP_LOCKED_TEXT).toBe('Too many tries. Use your password instead, or wait and try the PIN again.');
+    // No time in either: the countdown says how long, so the two never disagree (#124c review round 2).
+    for (const words of [KID_LOCKED_TEXT, GROWN_UP_LOCKED_TEXT]) expect(words).not.toMatch(/\d|minute|second|hour/);
     expect(triesLeftText(2)).toBe('2 more tries, then a short break.');
     expect(triesLeftText(1)).toBe('1 more try, then a short break.');
   });

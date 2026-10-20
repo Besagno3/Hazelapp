@@ -4,7 +4,7 @@ import { PIN_LENGTH } from '../../content/family';
 import { cn } from '../../lib/utils';
 import {
   forgetLock,
-  kidLockedText,
+  KID_LOCKED_TEXT,
   lockLeft,
   pinCheckMessage,
   pinVerdict,
@@ -15,8 +15,8 @@ import {
   type PinPadFor,
   type PinVerdict,
 } from '../../lib/pinLock';
-import { signInAgain } from '../../store/familyStore';
 import { useLiveMessage } from '../auth/useLiveMessage';
+import SignInAgainButton from './SignInAgainButton';
 
 /** Wrong PINs in a row before a rest, when the database counts nothing (before migration 0022). */
 export const PIN_TRIES = 5;
@@ -28,6 +28,18 @@ export const PIN_BREAK_MS = 30_000;
  * PIN set on another device lifts the lock, and the pad must not outlive it.
  */
 export const LOCK_RECHECK_MS = 15_000;
+/**
+ * A tap on a locked pad asks the database again, at most this often: the
+ * grown-up may have just unlocked it on their phone and said "try now"
+ * (#124c review round 2).
+ */
+export const TAP_RECHECK_MS = 3_000;
+/**
+ * Opened on a lock it remembered, the pad asks the database before it shows
+ * (or says) the lock, so a lock lifted elsewhere just opens — it shows the
+ * lock it remembers if no answer comes in this long.
+ */
+export const CONFIRM_LOCK_MS = 1_500;
 /** Say how many tries are left once this few remain. */
 const WARN_AT = 2;
 
@@ -43,23 +55,26 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', '⌫'];
  *
  * The database locks a PIN after 5 wrong tries in a row (1, then 5, then 15
  * minutes, then an hour — migration 0022): the pad then says so in plain
- * words (`lockedText`), counts the wait down in words ("5 minutes"), and
- * takes no digits until it's over. `lockKey` remembers the lock for this tab,
- * so opening the pad again shows the wait at once — but the database decides:
- * `checkLock` asks it on opening, when the tab comes back and every
- * `LOCK_RECHECK_MS`, and a lock lifted elsewhere (a grown-up setting the PIN
- * again on their phone) opens the pad. Against an older database (a bare
- * true / false) the pad keeps its own brake: 5 wrong in a row rests it for
- * 30 s. A check that fails because the sign-in ran out offers "Sign in
- * again". Typing digits on a keyboard works too; keys wait with
- * `aria-disabled`, so the keyboard keeps its place. On a phone on its side
- * the pad and its words sit side by side.
+ * words (`lockedText`, with no time in it), counts the wait down in words
+ * ("5 minutes" — the one place the time is said), and takes no digits until
+ * it's over. `lockKey` remembers the lock for this tab, but the database
+ * decides: opened again on a remembered lock, the pad asks it first
+ * (`checkLock`, "Checking…") and shows the lock only if it still holds; it
+ * asks again when the tab comes back, every `LOCK_RECHECK_MS` and when a
+ * locked key is tapped (`TAP_RECHECK_MS`), and a lock lifted elsewhere (a
+ * grown-up setting the PIN again on their phone) opens the pad. Against an
+ * older database (a bare true / false) the pad keeps its own brake: 5 wrong
+ * in a row rests it for 30 s. A check that fails because the sign-in ran out
+ * offers "Sign in again" (on a kid's pad, for a grown-up). Typing digits on a
+ * keyboard works too; keys wait with `aria-disabled`, so the keyboard keeps
+ * its place, and while locked they leave the Tab order. On a phone on its
+ * side the pad and its words sit side by side, keys 44 px tall.
  */
 export default function PinPad({
   onSubmit,
   wrongText = 'Not quite — try again!',
   forgotText,
-  lockedText = kidLockedText,
+  lockedText = KID_LOCKED_TEXT,
   lockedHelp,
   lockKey,
   checkLock,
@@ -70,8 +85,8 @@ export default function PinPad({
   wrongText?: string;
   /** Said after `wrongText` on a wrong try, unless the tries-left warning takes its place. */
   forgotText?: string;
-  /** The words for a locked PIN, given how long to wait ("5 minutes"). */
-  lockedText?: (wait: string) => string;
+  /** The words for a locked PIN (the countdown under them says how long). */
+  lockedText?: string;
   /** A smaller line under the countdown while locked (who can help). */
   lockedHelp?: string;
   /** Which PIN this is (`kidLockKey(id)` / `grownUpLockKey(userId)`), to remember a lock. */
@@ -93,9 +108,13 @@ export default function PinPad({
   });
   // The lock came from the database (a remembered one always did), so the database can lift it.
   const [serverLock, setServerLock] = useState(() => lockUntil !== null);
+  // Opened on a lock it remembered: the database is asked before the lock is shown or said.
+  const [confirming, setConfirming] = useState(() => lockUntil !== null && checkLock !== undefined);
   const [now, setNow] = useState(() => Date.now());
   const left = lockUntil === null ? 0 : Math.max(0, Math.ceil((lockUntil - now) / 1000));
   const locked = left > 0;
+  // What the pad shows: the lock, once it's known to hold.
+  const shownLock = locked && !confirming;
   // Keyed, so the same words said twice ("Not quite…") are read out twice. It
   // starts empty: a live region doesn't read what it opens with.
   const [message, setMessage] = useLiveMessage();
@@ -104,28 +123,51 @@ export default function PinPad({
   // The latest callbacks, for effects that shouldn't re-run when a parent passes new ones.
   const checkLockRef = useRef(checkLock);
   const onLockedChangeRef = useRef(onLockedChange);
+  const confirmingRef = useRef(confirming);
   useEffect(() => {
     checkLockRef.current = checkLock;
     onLockedChangeRef.current = onLockedChange;
+    confirmingRef.current = confirming;
   });
-  const opening = useRef(locked ? lockedText(waitLength(left)) : null);
+  // When the database was last asked, so taps on a locked pad ask it only so often.
+  const lastAsked = useRef(0);
+  // The running re-check's own ask, for a tap on a locked key.
+  const askSoon = useRef<(() => void) | null>(null);
+  const opening = useRef(shownLock ? lockedText : null);
 
-  // Opened on a lock it remembered: say so as it opens, so a screen reader hears it.
+  // Opened on a lock it remembered (and nobody to ask): say so as it opens, so a screen reader hears it.
   useEffect(() => {
     if (opening.current) setMessage(opening.current);
   }, [setMessage]);
 
   useEffect(() => {
-    onLockedChangeRef.current?.(locked);
-  }, [locked]);
+    onLockedChangeRef.current?.(shownLock);
+  }, [shownLock]);
+
+  /** The database still holds the remembered lock (or can't say, or took too long): show it now. */
+  function showLock() {
+    confirmingRef.current = false;
+    setConfirming(false);
+    setMessage(lockedText);
+  }
 
   function openPad() {
     setLockUntil(null);
     setServerLock(false);
+    setConfirming(false);
     setWrongs(0);
     if (lockKey) forgetLock(lockKey);
     setMessage(PIN_READY_TEXT);
   }
+
+  // No answer in time: the lock it remembers shows (a later answer can still open it).
+  useEffect(() => {
+    if (!confirming || !locked) return;
+    const t = window.setTimeout(showLock, CONFIRM_LOCK_MS);
+    return () => window.clearTimeout(t);
+    // showLock is this pad's own; the waiting is what re-runs it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirming, locked]);
 
   // Count the lock down, and open the pad again when it's over.
   useEffect(() => {
@@ -135,6 +177,7 @@ export default function PinPad({
       () => {
         setLockUntil(null);
         setServerLock(false);
+        setConfirming(false);
         setWrongs(0);
         setMessage(PIN_READY_TEXT);
       },
@@ -147,24 +190,31 @@ export default function PinPad({
   }, [lockUntil, setMessage]);
 
   // While the database holds this PIN locked, ask it again: now, whenever the
-  // tab comes back, and every LOCK_RECHECK_MS. A remembered deadline never
-  // outlives the database's own answer.
+  // tab comes back, every LOCK_RECHECK_MS and when a locked key is tapped. A
+  // remembered deadline never outlives the database's own answer.
   useEffect(() => {
     if (!locked || !serverLock) return;
     let live = true;
     const ask = async () => {
       const check = checkLockRef.current;
       if (!check) return;
+      lastAsked.current = Date.now();
       const secs = await check().catch(() => null);
-      if (!live || secs === null) return;
-      if (secs <= 0) {
+      if (!live) return;
+      if (secs !== null && secs <= 0) {
         openPad();
         return;
       }
-      const at = Date.now();
-      setNow(at);
-      setLockUntil(at + secs * 1000);
-      if (lockKey) rememberLock(lockKey, secs, at);
+      if (secs !== null) {
+        const at = Date.now();
+        setNow(at);
+        setLockUntil(at + secs * 1000);
+        if (lockKey) rememberLock(lockKey, secs, at);
+      }
+      if (confirmingRef.current) showLock();
+    };
+    askSoon.current = () => {
+      if (Date.now() - lastAsked.current >= TAP_RECHECK_MS) void ask();
     };
     void ask();
     const every = window.setInterval(() => void ask(), LOCK_RECHECK_MS);
@@ -175,11 +225,12 @@ export default function PinPad({
     document.addEventListener('visibilitychange', back);
     return () => {
       live = false;
+      askSoon.current = null;
       window.clearInterval(every);
       window.removeEventListener('focus', back);
       document.removeEventListener('visibilitychange', back);
     };
-    // openPad / lockKey are this pad's own; the lock's state is what re-runs it.
+    // openPad / showLock / lockKey are this pad's own; the lock's state is what re-runs it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked, serverLock]);
 
@@ -189,7 +240,7 @@ export default function PinPad({
     setLockUntil(at + secs * 1000);
     setServerLock(fromServer);
     if (fromServer && lockKey) rememberLock(lockKey, secs, at);
-    setMessage(lockedText(waitLength(secs)));
+    setMessage(lockedText);
   }
 
   function wrongWords(triesLeft: number | null): string {
@@ -198,6 +249,8 @@ export default function PinPad({
   }
 
   async function press(d: string) {
+    // A tap on a locked pad: maybe it was just unlocked elsewhere — ask (now and then).
+    if (locked) askSoon.current?.();
     if (busy || locked) return;
     const next = (digits + d).slice(0, PIN_LENGTH);
     setDigits(next);
@@ -232,6 +285,7 @@ export default function PinPad({
   }
 
   function back() {
+    if (locked) askSoon.current?.();
     if (!busy && !locked) setDigits((d) => d.slice(0, -1));
   }
 
@@ -249,14 +303,14 @@ export default function PinPad({
   return (
     <div className="[@media(max-height:500px)]:flex [@media(max-height:500px)]:items-center [@media(max-height:500px)]:gap-5">
       <div className="[@media(max-height:500px)]:w-56 [@media(max-height:500px)]:shrink-0">
-        <div className="flex justify-center gap-3 mb-4 [@media(max-height:500px)]:mb-2" role="img" aria-label={`${digits.length} of ${PIN_LENGTH} digits`}>
+        <div className="flex justify-center gap-3 mb-4 [@media(max-height:500px)]:mb-1" role="img" aria-label={`${digits.length} of ${PIN_LENGTH} digits`}>
           {Array.from({ length: PIN_LENGTH }, (_, i) => (
             <span
               key={i}
               className={cn(
                 'h-4 w-4 rounded-full border-2 border-purple-500 transition',
                 i < digits.length ? 'bg-purple-500' : 'bg-transparent',
-                locked && 'border-gray-300',
+                shownLock && 'border-gray-300',
               )}
             />
           ))}
@@ -271,8 +325,10 @@ export default function PinPad({
                 type="button"
                 onClick={() => (k === '⌫' ? back() : void press(k))}
                 aria-disabled={busy || locked}
+                // Locked for minutes: the keyboard goes straight past them (one already focused keeps its place).
+                tabIndex={shownLock ? -1 : undefined}
                 aria-label={k === '⌫' ? 'Delete' : k}
-                className="h-14 [@media(max-height:500px)]:h-10 rounded-2xl bg-purple-50 hover:bg-purple-100 text-2xl font-semibold text-purple-800 transition aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-purple-50"
+                className="h-14 [@media(max-height:500px)]:h-11 rounded-2xl bg-purple-50 hover:bg-purple-100 text-2xl font-semibold text-purple-800 transition aria-disabled:cursor-default aria-disabled:opacity-40 aria-disabled:hover:bg-purple-50"
               >
                 {k}
               </button>
@@ -283,18 +339,13 @@ export default function PinPad({
       <div className="[@media(max-height:500px)]:min-w-0 [@media(max-height:500px)]:flex-1">
         {/* Always there, so each message is read out as it appears. */}
         <div role="status" className="mt-3 min-h-10 text-center text-sm text-amber-800 [@media(max-height:500px)]:mt-0">
-          {busy ? <p>Checking…</p> : message && <p key={message.key}>{message.text}</p>}
+          {busy || confirming ? <p>Checking…</p> : message && <p key={message.key}>{message.text}</p>}
         </div>
         {signedOut && !busy && (
-          <button
-            type="button"
-            onClick={() => void signInAgain()}
-            className="mt-2 w-full min-h-11 rounded-lg bg-purple-600 font-semibold text-white transition hover:bg-purple-700"
-          >
-            Sign in again
-          </button>
+          // A kid can't sign in: the button says whose job it is.
+          <SignInAgainButton label={who === 'kid' ? 'Grown-ups: sign in again' : 'Sign in again'} />
         )}
-        {locked && (
+        {shownLock && (
           // Not a live region: a screen reader would read every second.
           <div className="text-center" data-testid="pin-lock">
             <p className="text-lg font-bold text-purple-800">

@@ -6,6 +6,7 @@ import fnSource from '../../supabase/functions/delete-account/index.ts?raw';
 import sharedSource from '../../supabase/functions/_shared/closeAccount.ts?raw';
 import questionsFnSource from '../../supabase/functions/generate-questions/index.ts?raw';
 import {
+  amrMissing,
   authCallRefused,
   CLOCK_SLACK_S,
   CLOSE_ACCOUNT_ERRORS,
@@ -20,8 +21,10 @@ import {
 } from '../../supabase/functions/_shared/closeAccount';
 
 const invoke = vi.hoisted(() => vi.fn());
+// The device's own client (its stored session) and the one-off client the password is checked on.
 const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), getUser: vi.fn() }));
-vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth } }));
+const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
+vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth }, passwordCheckClient: () => ({ auth: checkAuth }) }));
 
 const {
   ACCOUNT_CLOSED_MESSAGE,
@@ -56,7 +59,9 @@ const signedIn = { data: { session: { access_token: 'fresh-token' }, user: { id:
 
 beforeEach(() => {
   invoke.mockReset();
-  auth.signInWithPassword.mockReset().mockResolvedValue(signedIn);
+  auth.signInWithPassword.mockReset();
+  checkAuth.signInWithPassword.mockReset().mockResolvedValue(signedIn);
+  checkAuth.signOut.mockReset().mockResolvedValue({ error: null });
   auth.getUser.mockReset().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   sessionStorage.clear();
   takeAccountClosedNotice();
@@ -96,6 +101,8 @@ describe('the delete-account function (#124b)', () => {
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
     // The token's claims are this very login's, and the function never signs in itself.
     expect(fnSource).toMatch(/claims\?\.sub !== user\.id/);
+    // A token with no amr is refused AND logged loudly (an auth set-up to fix, #124b review round 2).
+    expect(fnSource).toMatch(/if \(amrMissing\(claims\)\) \{\s*console\.error\(/);
     expect(fnSource).not.toMatch(/signInWithPassword/);
     expect(fnSource).toMatch(/serverClient\(url, serviceKey\)/);
   });
@@ -122,9 +129,14 @@ describe('checking the request (shared with the function)', () => {
     for (const junk of ['', 'abc', 'a.!!!.c', `a.${btoa('[1,2]')}.c`]) expect(jwtClaims(junk)).toBeNull();
   });
 
-  it('a password typed in the last 5 minutes, by the token\'s own amr — a refresh or another method isn\'t one', () => {
+  it('a password typed in the last minute, by the token\'s own amr — a refresh or another method isn\'t one', () => {
     const now = 1_800_000_000;
     const amr = (method: string, ago: number) => ({ amr: [{ method, timestamp: now - ago }] });
+    // A minute at most: any other password sign-in on the device (a grown-up
+    // signing in) mustn't be able to close the account for long (#124b review round 2).
+    expect(REAUTH_WINDOW_S).toBeLessThanOrEqual(60);
+    expect(signedInFreshly(amr('password', 240), undefined, now)).toBe(false);
+    expect(signedInFreshly(amr('password', 61), undefined, now)).toBe(false);
     expect(signedInFreshly(amr('password', 10), undefined, now)).toBe(true);
     expect(signedInFreshly(amr('password', REAUTH_WINDOW_S), undefined, now)).toBe(true);
     expect(signedInFreshly(amr('password', REAUTH_WINDOW_S + 1), undefined, now)).toBe(false);
@@ -136,16 +148,28 @@ describe('checking the request (shared with the function)', () => {
     expect(signedInFreshly({ amr: [{ method: 'password', timestamp: now - 9000 }, { method: 'password', timestamp: now - 5 }] }, undefined, now)).toBe(true);
   });
 
-  it('with no amr list (or bare strings from a custom hook) it falls back to the last sign-in — never iat', () => {
+  it('bare method names (a custom hook) must name a password, then the last sign-in must be just now; no amr at all is refused — never iat', () => {
     const now = 1_800_000_000;
     const recent = new Date((now - 30) * 1000).toISOString();
     const old = new Date((now - 3600) * 1000).toISOString();
-    expect(signedInFreshly({}, recent, now)).toBe(true);
     expect(signedInFreshly({ amr: ['password'] }, recent, now)).toBe(true);
-    expect(signedInFreshly({ amr: [] }, old, now)).toBe(false);
+    expect(signedInFreshly({ amr: ['pwd', 'mfa'] }, recent, now)).toBe(true);
+    expect(signedInFreshly({ amr: ['password'] }, old, now)).toBe(false);
+    // Another method, signed in a moment ago (a magic link, maybe on another device): not a password.
+    expect(signedInFreshly({ amr: ['otp'] }, recent, now)).toBe(false);
+    // Nothing says how this token signed in: refused, however recent the login's last sign-in (#124b review round 2).
+    expect(signedInFreshly({}, recent, now)).toBe(false);
+    expect(signedInFreshly({ amr: [] }, recent, now)).toBe(false);
+    expect(signedInFreshly({ amr: 'password' }, recent, now)).toBe(false);
     expect(signedInFreshly({ iat: now }, old, now)).toBe(false);
-    expect(signedInFreshly(null, undefined, now)).toBe(false);
-    expect(signedInFreshly({}, 'not a date', now)).toBe(false);
+    expect(signedInFreshly(null, recent, now)).toBe(false);
+    expect(signedInFreshly({ amr: ['password'] }, 'not a date', now)).toBe(false);
+    // …and the function can tell that case apart, to log it loudly.
+    expect(amrMissing({})).toBe(true);
+    expect(amrMissing({ amr: [] })).toBe(true);
+    expect(amrMissing(null)).toBe(true);
+    expect(amrMissing({ amr: ['otp'] })).toBe(false);
+    expect(amrMissing({ amr: [{ method: 'password', timestamp: now }] })).toBe(false);
   });
 
   it('tells a refusal (nothing done) from a lost reply (maybe done)', () => {
@@ -181,29 +205,51 @@ describe('closing an account from the app', () => {
     expect(confirmTyped('DELETE IT')).toBe(false);
   });
 
-  it('signs in again with the password, then sends only the confirm word with that fresh token', async () => {
+  it('signs in again with the password on the one-off client, then sends only the confirm word with that fresh token', async () => {
     invoke.mockResolvedValue({ data: { ok: true, kids: 2 }, error: null });
     await expect(requestCloseAccount('mum@example.com', 'hunter22')).resolves.toEqual({ kids: 2, alreadyClosed: false });
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    // Never the device's own client: its storage (and other tabs) never get a fresh-password session (#124b review round 2).
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: CONFIRM_WORD }, headers: { Authorization: 'Bearer fresh-token' } });
-    expect(auth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]);
+    expect(checkAuth.signInWithPassword.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]);
+    // Closed: the login and its sessions are gone, nothing to sign out.
+    expect(checkAuth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('a close that didn\'t go through signs the check\'s sign-in out at once — it isn\'t kept for anything else', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(403, { error: 'reauth_required' }) });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'reauth_required' });
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    checkAuth.signOut.mockClear();
+    invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new TypeError('Failed to fetch')) });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'lost_touch' });
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    // A sign-out that fails is only logged: the refusal is what the grown-up hears.
+    checkAuth.signOut.mockClear().mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(500, { error: 'data_not_deleted' }) });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'data_not_deleted' });
+    await Promise.resolve();
+    expect(warn).toHaveBeenCalledWith('Signing out the password check:', expect.stringContaining('Failed to fetch'));
+    warn.mockRestore();
   });
 
   it('a login with no email has no password to check', async () => {
     await expect(requestCloseAccount('', 'x')).rejects.toMatchObject({ code: 'no_password_login' });
-    expect(auth.signInWithPassword).not.toHaveBeenCalled();
+    expect(checkAuth.signInWithPassword).not.toHaveBeenCalled();
   });
 
   it("the password check's refusals never reach the function", async () => {
-    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
+    checkAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
     await expect(requestCloseAccount('m@e.com', 'nope')).rejects.toMatchObject({ code: 'wrong_password' });
-    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' } });
+    checkAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 429, code: 'over_request_rate_limit', message: 'Request rate limit reached' } });
     await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'too_many_tries' });
     expect(invoke).not.toHaveBeenCalled();
   });
 
   it('a refused password on a login that no longer exists was a close whose answer got lost: done', async () => {
-    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
+    checkAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null }, error: { name: 'AuthApiError', status: 400, code: 'invalid_credentials', message: 'Invalid login credentials' } });
     auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: { status: 403, code: 'user_not_found', message: 'User from sub claim in JWT does not exist' } });
     await expect(requestCloseAccount('m@e.com', 'right')).resolves.toEqual({ kids: 0, alreadyClosed: true });
     expect(invoke).not.toHaveBeenCalled();

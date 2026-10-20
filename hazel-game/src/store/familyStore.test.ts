@@ -25,14 +25,24 @@ const db = vi.hoisted(() => {
   return { chains, answer, from, rpc };
 });
 const auth = vi.hoisted(() => ({
-  signOut: vi.fn(async () => ({ error: null })),
-  signInWithPassword: vi.fn(async () => ({ data: { session: { access_token: 'fresh-token' } }, error: null })),
+  signOut: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
+  signInWithPassword: vi.fn(),
   getUser: vi.fn(async () => ({ data: { user: { id: 'grown-up-1' } }, error: null })),
 }));
+// The one-off client the close checks the password on (#124b review round 2).
+const checkAuth = vi.hoisted(() => ({
+  signInWithPassword: vi.fn(async () => ({ data: { session: { access_token: 'fresh-token' } }, error: null })),
+  signOut: vi.fn(async () => ({ error: null })),
+}));
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
-vi.mock('../lib/supabase', () => ({ supabase: { from: db.from, rpc: db.rpc, auth, functions } }));
+const forgetStoredSession = vi.hoisted(() => vi.fn());
+vi.mock('../lib/supabase', () => ({
+  supabase: { from: db.from, rpc: db.rpc, auth, functions },
+  passwordCheckClient: () => ({ auth: checkAuth }),
+  forgetStoredSession,
+}));
 
-const { useFamilyStore, familyScreen, familyLoadMessage, signInAgain } = await import('./familyStore');
+const { useFamilyStore, familyScreen, familyLoadMessage, signInAgain, signOutHere } = await import('./familyStore');
 const { forgetAllLocks, grownUpLockKey, kidLockKey, lockLeft, rememberLock } = await import('../lib/pinLock');
 const { useAuthStore } = await import('./authStore');
 const { takeAccountClosedNotice } = await import('../lib/closeAccount');
@@ -331,7 +341,8 @@ describe('useFamilyStore', () => {
     useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
     functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
     await useFamilyStore.getState().closeAccount('hunter22');
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE' }, headers: { Authorization: 'Bearer fresh-token' } });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
@@ -379,6 +390,53 @@ describe('useFamilyStore', () => {
     // Signed in still: "Close account for good" again finishes it.
     expect(auth.signOut).not.toHaveBeenCalled();
     expect(takeAccountClosedNotice()).toBeNull();
+  });
+
+  it('closeAccount: a sign-out the server can\'t hear still signs out here — never stuck on "Closing your account…" (#124b review round 2)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
+    functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 1 }, error: null });
+    auth.signOut.mockClear();
+    forgetStoredSession.mockClear();
+    // supabase-js keeps the session when /logout fails; with it dropped, the second ask needs no server.
+    auth.signOut.mockResolvedValueOnce({ error: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' } });
+    await useFamilyStore.getState().closeAccount('hunter22');
+    expect(forgetStoredSession).toHaveBeenCalledTimes(1);
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+    expect(auth.signOut.mock.invocationCallOrder[1]).toBeGreaterThan(forgetStoredSession.mock.invocationCallOrder[0]);
+    expect(takeAccountClosedNotice()).toBe('Your account and all its data are gone.');
+    warn.mockRestore();
+  });
+
+  it('signOutHere: signed out here whatever happens — the stored session dropped, and if even that fails, the stores cleared by hand', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    auth.signOut.mockClear();
+    forgetStoredSession.mockClear();
+    // All well: one ask, nothing dropped by hand.
+    await signOutHere('Testing');
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(forgetStoredSession).not.toHaveBeenCalled();
+    // Both asks fail (a thrown error too): the auth and family stores are cleared here.
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useAuthStore.setState({ user: { id: 'grown-up-1' } as never, session: { access_token: 'x' } as never });
+    auth.signOut.mockClear().mockResolvedValueOnce({ error: { status: 503, message: 'Service Unavailable' } }).mockRejectedValueOnce(new Error('storage broken'));
+    await signOutHere('Testing');
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+    expect(forgetStoredSession).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({ user: null, session: null });
+    expect(useFamilyStore.getState()).toMatchObject({ userId: null, status: 'idle', kids: [] });
+    expect(clearSave).toHaveBeenCalled();
+    // "Sign in again" (App's error screen, the pads, the family forms) goes the same way.
+    auth.signOut.mockClear().mockResolvedValueOnce({ error: { status: 429, message: 'Too many requests' } });
+    forgetStoredSession.mockClear();
+    await signInAgain();
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(forgetStoredSession).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
   });
 
   it("removeKid: deletes the kid and the copies of their game on this device", async () => {

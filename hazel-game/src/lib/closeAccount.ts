@@ -1,5 +1,5 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { passwordCheckClient, supabase } from './supabase';
 import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE, TROUBLE_MESSAGE } from './errors';
 import { PRIVACY_IS_DRAFT } from '../content/family';
 import {
@@ -162,15 +162,21 @@ async function loginIsGone(): Promise<boolean> {
 /**
  * Close the signed-in grown-up's account: sign in again with `password`
  * (from this browser, so the auth service's sign-in limit is this device's
- * own), then ask the function with that fresh sign-in. Resolves once the
- * family and the login are gone — `alreadyClosed` when they already were —
- * and throws a `CloseAccountFailure` otherwise.
+ * own), then ask the function with that fresh sign-in. The sign-in is made
+ * on `passwordCheckClient`, which keeps nothing — it never lands in this
+ * device's storage or other tabs, so no try leaves a session that could
+ * close the account later — and it's signed out again unless the close went
+ * through, when the login and its sessions are gone anyway (#124b review
+ * round 2). Resolves once the family and the login are gone —
+ * `alreadyClosed` when they already were — and throws a
+ * `CloseAccountFailure` otherwise.
  */
 export async function requestCloseAccount(email: string, password: string): Promise<{ kids: number; alreadyClosed: boolean }> {
   if (!email) throw new CloseAccountFailure('no_password_login', 'this login has no email to sign in with');
-  let signedIn: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+  const check = passwordCheckClient().auth;
+  let signedIn: Awaited<ReturnType<typeof check.signInWithPassword>>;
   try {
-    signedIn = await supabase.auth.signInWithPassword({ email, password });
+    signedIn = await check.signInWithPassword({ email, password });
   } catch (err) {
     throw signInFailure(err);
   }
@@ -180,26 +186,40 @@ export async function requestCloseAccount(email: string, password: string): Prom
     throw failure;
   }
   const token = signedIn.data.session?.access_token;
-  if (!token) throw new CloseAccountFailure('password_check_failed', 'signing in again gave no session');
-
-  let result: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+  let closed = false;
   try {
-    result = await supabase.functions.invoke('delete-account', {
-      body: { confirm: CONFIRM_WORD },
-      // This sign-in's own token: its `amr` says the password was typed just now.
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (err) {
-    throw await closeFailure(err);
+    if (!token) throw new CloseAccountFailure('password_check_failed', 'signing in again gave no session');
+    let result: Awaited<ReturnType<typeof supabase.functions.invoke>>;
+    try {
+      result = await supabase.functions.invoke('delete-account', {
+        body: { confirm: CONFIRM_WORD },
+        // This sign-in's own token: its `amr` says the password was typed just now.
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (err) {
+      throw await closeFailure(err);
+    }
+    if (result.error) {
+      const failure = await closeFailure(result.error);
+      if (failure.code === 'already_closed') {
+        closed = true;
+        return { kids: 0, alreadyClosed: true };
+      }
+      throw failure;
+    }
+    const data = (result.data ?? {}) as { ok?: unknown; kids?: unknown };
+    if (data.ok !== true) throw new CloseAccountFailure('outcome_unknown', `delete-account answered without ok: ${errorMessage(data)}`);
+    closed = true;
+    return { kids: typeof data.kids === 'number' ? data.kids : 0, alreadyClosed: false };
+  } finally {
+    // Not kept a moment longer than it's needed (and never waited on: the answer is what matters).
+    if (!closed) {
+      void check.signOut({ scope: 'local' }).then(
+        ({ error }) => error && console.warn('Signing out the password check:', errorMessage(error)),
+        (err: unknown) => console.warn('Signing out the password check:', errorMessage(err)),
+      );
+    }
   }
-  if (result.error) {
-    const failure = await closeFailure(result.error);
-    if (failure.code === 'already_closed') return { kids: 0, alreadyClosed: true };
-    throw failure;
-  }
-  const data = (result.data ?? {}) as { ok?: unknown; kids?: unknown };
-  if (data.ok !== true) throw new CloseAccountFailure('outcome_unknown', `delete-account answered without ok: ${errorMessage(data)}`);
-  return { kids: typeof data.kids === 'number' ? data.kids : 0, alreadyClosed: false };
 }
 
 /** The line the sign-in page shows once the account is closed. */

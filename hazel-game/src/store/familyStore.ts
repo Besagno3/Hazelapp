@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { forgetStoredSession, supabase } from '../lib/supabase';
 import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE, sessionRanOut } from '../lib/errors';
 import { plainErrorOr } from '../lib/familyErrors';
 import {
@@ -144,13 +144,38 @@ function forgetFamilyHere(userId: string | null, kids: Kid[]): void {
 }
 
 /**
- * Sign out on this device only — what a dead sign-in needs (there's nothing
- * to tell the server, and asking it could fail and leave the tab stuck). The
- * app then shows the sign-in page.
+ * Sign out on this device, whatever the server says (#124b review round 2).
+ * supabase-js asks the server to end the session even for a local sign-out,
+ * and when that call fails (offline, a 5xx, a 429) it keeps the session — the
+ * screen waiting for the sign-in page would wait for ever. So then the stored
+ * session is dropped here and the sign-out asked again: with no session left
+ * it needs no server, and tells the app (SIGNED_OUT) as usual. Should even
+ * that fail, the stores are cleared by hand.
+ */
+export async function signOutHere(why: string): Promise<void> {
+  const signOut = () =>
+    supabase.auth.signOut({ scope: 'local' }).then(
+      ({ error }) => error as unknown,
+      (err: unknown) => err ?? new Error('sign-out failed'),
+    );
+  const first = await signOut();
+  if (!first) return;
+  console.warn(`${why}:`, errorMessage(first));
+  forgetStoredSession();
+  const again = await signOut();
+  if (!again) return;
+  console.warn(`${why} (here only):`, errorMessage(again));
+  useAuthStore.getState().clearSession();
+  useFamilyStore.getState().clear();
+  putAwayGame();
+}
+
+/**
+ * Sign out on this device only — what a dead sign-in needs; the app then
+ * shows the sign-in page. Never stuck on the server's answer (`signOutHere`).
  */
 export async function signInAgain(): Promise<void> {
-  const { error } = await supabase.auth.signOut({ scope: 'local' });
-  if (error) console.warn('Signing out to sign in again:', errorMessage(error));
+  await signOutHere('Signing out to sign in again');
 }
 
 /** Put away the game in progress: profile, save, battle, flow. */
@@ -351,9 +376,8 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     // Gone on the server (or already was): the copies on this device go too.
     forgetFamilyHere(userId, kids);
     noteAccountClosed();
-    // The login is gone, so there's nothing to tell the server: sign out here.
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) console.warn('Signing out after closing the account:', errorMessage(error));
+    // The login is gone: sign out here, even if the server can't be told.
+    await signOutHere('Signing out after closing the account');
   },
 
   choose: (id) => {

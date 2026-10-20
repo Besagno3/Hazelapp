@@ -12,9 +12,16 @@ const auth = vi.hoisted(() => ({
   signUp: vi.fn(),
   resend: vi.fn(),
 }));
+// The one-off client every password check signs in on (the gate's and the close's, #124b review round 2).
+const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
 const rpc = vi.hoisted(() => vi.fn());
-vi.mock('../../lib/supabase', () => ({ supabase: { auth, functions, rpc } }));
+const forgetStoredSession = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/supabase', () => ({
+  supabase: { auth, functions, rpc },
+  passwordCheckClient: () => ({ auth: checkAuth }),
+  forgetStoredSession,
+}));
 vi.mock('../../lib/review', async (original) => ({
   ...(await original<typeof import('../../lib/review')>()),
   isAdmin: vi.fn(async () => false),
@@ -44,7 +51,8 @@ beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  auth.signInWithPassword.mockResolvedValue(signedIn);
+  checkAuth.signInWithPassword.mockResolvedValue(signedIn);
+  checkAuth.signOut.mockResolvedValue({ error: null });
   auth.signOut.mockResolvedValue({ error: null });
   auth.getUser.mockResolvedValue({ data: { user: { id: 'grown-up-1' } }, error: null });
   rpc.mockResolvedValue({ data: { kids: {}, grown_up: 0 }, error: null });
@@ -75,6 +83,9 @@ function fill(password: string, typed: string) {
 }
 
 const submit = () => screen.getByRole('button', { name: /Close account for good|Closing your account/ });
+
+/** The page's own status line (the area's sr-only live region is another). */
+const pageStatus = () => screen.getAllByRole('status').find((el) => !el.classList.contains('sr-only'))!;
 
 describe('Close account in 👪 Grown-ups (#124b)', () => {
   it('sits at the bottom of Grown-ups, after Sign out', async () => {
@@ -122,7 +133,7 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     const password = screen.getByLabelText('Your password (not your grown-up PIN)');
     const confirm = screen.getByLabelText('Type DELETE to confirm');
     fireEvent.click(submit());
-    const status = screen.getByRole('status');
+    const status = pageStatus();
     expect(status).toHaveTextContent('Enter your password to close your account.');
     expect(password).toHaveAttribute('aria-invalid', 'true');
     expect(password).toHaveAttribute('aria-describedby', status.id);
@@ -146,11 +157,13 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
   it('checks the password by signing in again from this browser; the function gets that fresh sign-in, never the password (#124b review)', async () => {
     functions.invoke.mockReturnValue(new Promise(() => {}));
     await openCloseAccount();
-    auth.signInWithPassword.mockClear();
+    checkAuth.signInWithPassword.mockClear();
     fill('hunter22', 'delete');
     fireEvent.click(submit());
     await act(async () => {});
-    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
+    // Never on the device's own client — neither the gate's check nor the close's (#124b review round 2).
+    expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', {
       body: { confirm: 'DELETE' },
       headers: { Authorization: 'Bearer fresh-token' },
@@ -159,7 +172,7 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
 
   it('a wrong password is said plainly, the box is marked and selected, and nothing is sent or signed out', async () => {
     await openCloseAccount();
-    auth.signInWithPassword.mockResolvedValueOnce(wrongPassword);
+    checkAuth.signInWithPassword.mockResolvedValueOnce(wrongPassword);
     fill('nope', 'DELETE');
     fireEvent.click(submit());
     expect(await screen.findByText("That password isn't right. Check it and try again. Nothing was deleted.")).toBeInTheDocument();
@@ -189,7 +202,7 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
 
   it('a sign-in that couldn\'t reach the server says so — nothing was sent, so nothing was deleted', async () => {
     await openCloseAccount();
-    auth.signInWithPassword.mockResolvedValueOnce({ data: { session: null, user: null }, error: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' } });
+    checkAuth.signInWithPassword.mockResolvedValueOnce({ data: { session: null, user: null }, error: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' } });
     fill('hunter22', 'delete');
     fireEvent.click(submit());
     expect(await screen.findByText("We couldn't reach Hazel Quest. Check your internet connection, then try again. Nothing was deleted.")).toBeInTheDocument();
@@ -211,14 +224,67 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(useFamilyStore.getState().kids).toEqual([]);
     expect(useFamilyStore.getState().consentAt).toBe('2026-10-10T10:00:00Z');
     expect(auth.signOut).not.toHaveBeenCalled();
+    // Leaving: the family is loaded again, so the app shows what the server
+    // holds — no players and no consent, so the privacy notice first, never
+    // "＋ Add a player" under a consent that's gone (#124b review round 2).
+    const load = vi.fn(async () => {});
+    useFamilyStore.setState({ load });
     fireEvent.click(screen.getByRole('button', { name: 'Keep my account' }));
+    expect(load).toHaveBeenCalledWith('grown-up-1');
     expect(screen.queryByText('Sam')).toBeNull();
     expect(screen.queryByText('Kit')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Add a player/ })).toBeNull();
+  });
+
+  it('any other refusal: "Keep my account" just goes back to the list, nothing reloaded', async () => {
+    functions.invoke.mockResolvedValueOnce(refusedWith(500, { error: 'data_not_deleted' }));
+    await openCloseAccount();
+    fill('hunter22', 'delete');
+    fireEvent.click(submit());
+    await screen.findByText(/We couldn't close your account just now/);
+    const load = vi.fn(async () => {});
+    useFamilyStore.setState({ load });
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my account' }));
+    expect(load).not.toHaveBeenCalled();
+    expect(screen.getByText('Sam')).toBeInTheDocument();
+  });
+
+  it("a grown-up who only uses the PIN can get a reset link right under the password box (#124b review round 2)", async () => {
+    auth.resetPasswordForEmail.mockResolvedValue({ error: null });
+    await openCloseAccount();
+    const link = screen.getByRole('button', { name: 'Forgot it? Email me a reset link' });
+    expect(screen.getByLabelText('Your password (not your grown-up PIN)').compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(link).toHaveClass('min-h-11');
+    fireEvent.click(link);
+    expect(await screen.findByText('A reset link is on its way to mum@example.com.')).toBeInTheDocument();
+    expect(pageStatus()).toHaveTextContent('A reset link is on its way to mum@example.com.');
+    expect(auth.resetPasswordForEmail).toHaveBeenCalledWith('mum@example.com', expect.objectContaining({ redirectTo: expect.any(String) }));
+    expect(functions.invoke).not.toHaveBeenCalled();
+    // A refused one says so, and counts its wait down.
+    auth.resetPasswordForEmail.mockResolvedValueOnce({ error: { code: 'over_email_send_rate_limit', message: 'For security purposes, you can only request this after 37 seconds.', status: 429 } });
+    fireEvent.click(link);
+    expect(await screen.findByText('Too many tries for now. Please wait 37 seconds, then try again.')).toBeInTheDocument();
+    expect(link).toHaveAccessibleName('Email me a reset link in 37 seconds');
+  });
+
+  it('after "Keep my account" focus returns to "Close account…" — once: the next return goes to its own button (#124b review round 2)', async () => {
+    await openCloseAccount();
+    fireEvent.click(screen.getByRole('button', { name: 'Keep my account' }));
+    expect(screen.getByRole('button', { name: 'Close account…' })).toHaveFocus();
+    // Change Sam, then Cancel: back to Sam's Change button, not the red one at the bottom.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Change' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getAllByRole('button', { name: 'Change' })[0]).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Close account…' })).not.toHaveFocus();
+    // Remove Kit, then Keep Kit: back to Kit's Remove button.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove' })[1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Kit' }));
+    expect(screen.getAllByRole('button', { name: 'Remove' })[1]).toHaveFocus();
   });
 
   it('an account a lost answer already closed: the retry finds the login gone and finishes as closed', async () => {
     await openCloseAccount();
-    auth.signInWithPassword.mockResolvedValueOnce(wrongPassword);
+    checkAuth.signInWithPassword.mockResolvedValueOnce(wrongPassword);
     auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: { name: 'AuthApiError', status: 403, code: 'user_not_found', message: 'User from sub claim in JWT does not exist' } });
     fill('hunter22', 'delete');
     fireEvent.click(submit());
@@ -269,5 +335,19 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     first.unmount();
     render(<AuthPage />);
     expect(screen.queryByText(/Your account and all its data are gone\./)).toBeNull();
+  });
+
+  it("closed, but the server couldn't hear the sign-out: signed out here anyway — never stuck on \"Closing your account…\" (#124b review round 2)", async () => {
+    functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
+    // supabase-js's local sign-out still asks the server, and keeps the session when that fails.
+    auth.signOut.mockResolvedValueOnce({ error: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' } });
+    await openCloseAccount();
+    fill('hunter22', 'delete');
+    fireEvent.click(submit());
+    await act(async () => {});
+    // The stored session dropped here, then signed out again — no server needed, so the app hears SIGNED_OUT.
+    expect(forgetStoredSession).toHaveBeenCalledTimes(1);
+    expect(auth.signOut).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith('Signing out after closing the account:', expect.stringContaining('Failed to fetch'));
   });
 });

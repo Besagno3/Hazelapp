@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import type { Kid } from '../../types';
+
+// "Sign in again" signs out through the Supabase client.
+const auth = vi.hoisted(() => ({ signOut: vi.fn(async () => ({ error: null })) }));
+vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
 
 const { default: KidForm } = await import('./KidForm');
 const { KID_BIRTH_YEARS } = await import('../../content/family');
@@ -84,6 +88,25 @@ describe('KidForm (#124)', () => {
     await said({ message: 'permission denied for table profiles', code: '42501' }, "That didn't save just now. Please try again.");
     expect(screen.queryByText(/42501|permission denied|kid_limit/)).toBeNull();
     expect(warn).toHaveBeenCalledWith('Saving a player failed:', 'permission denied for table profiles [42501]');
+    warn.mockRestore();
+  });
+
+  it('"Your sign-in ran out" comes with the "Sign in again" button (#130 S6 review round 2)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onSubmit = vi.fn(async () => {
+      throw Object.assign(new Error('JWT expired'), { code: 'PGRST301' });
+    });
+    render(<KidForm submitLabel="Add player" onSubmit={onSubmit} />);
+    fill();
+    fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
+    expect(await screen.findByText('Your sign-in ran out — please sign in again.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in again' }));
+    await act(async () => {});
+    expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    // Another failure: no button.
+    onSubmit.mockRejectedValueOnce(new Error('Failed to fetch'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Sign in again' })).toBeNull());
     warn.mockRestore();
   });
 

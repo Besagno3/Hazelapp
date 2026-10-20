@@ -24,7 +24,10 @@ create extension if not exists dblink schema ci_dblink;
 -- password too when it has one (psql 15+'s \getenv).
 \set pgpass ''
 \getenv pgpass PGPASSWORD
+-- Quietly: the password never goes into the log (#124 review round 2).
+\o /dev/null
 select set_config('ci.pgpass', :'pgpass', false);
+\o
 
 -- A leftover from a run that stopped halfway goes first.
 delete from auth.users where id = '00000000-0000-0000-0000-0000000000c4';

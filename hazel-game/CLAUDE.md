@@ -106,10 +106,12 @@ zod, react-query. Add the package in the same change that first uses it.
   **limited** (migration 0022, #124c): `try_kid_pin` / `try_parent_pin` count
   wrong tries; 5 in a row lock the PIN for 1, 5, 15, then 60 minutes; the
   right PIN, a new PIN or a day without a wrong try starts over; `PinPad`
-  says how long and counts it down in words, and while it shows a lock asks
-  the database again (`pin_lock_status`: on opening, when the tab comes back,
-  every 15 s), so a PIN typed again on another device opens it; 👪 Grown-ups
-  marks a locked kid by name, `lib/pinLock.ts`); the app only sees
+  says it in words with no time and counts the wait down (the one place the
+  time is said), and while it holds a lock asks the database again
+  (`pin_lock_status`: before showing a remembered lock, when the tab comes
+  back, every 15 s and on a tap, at most every 3 s), so a PIN typed again on
+  another device opens it; 👪 Grown-ups marks a locked kid by name and says
+  when a Save unlocked them, `lib/pinLock.ts`); the app only sees
   `has_pin`. The grown-up PIN / password gate is a lock in the UI only —
   grown-up actions need just the family's session (#165). Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
@@ -660,20 +662,32 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Closing an account (#124b):** the app signs in again with the typed
   password (`signInWithPassword` from the grown-up's own browser, so Supabase's
   sign-in limit counts that device — never one shared limit for every family,
-  #124b review), then calls `delete-account` (single file;
-  `_shared/closeAccount.ts` canonical, drift-checked by `closeAccount.test.ts`)
-  with that fresh token and `{confirm: 'DELETE'}` — never the password. The
-  function checks the token (`auth.getUser`), the confirm word and that the
-  token's `amr` claim says "password" within 5 minutes (`signedInFreshly`;
-  without an `amr` list it falls back to `last_sign_in_at`, never `iat`), runs
+  #124b review — on `passwordCheckClient` in `lib/supabase.ts`, a client that
+  keeps nothing: memory only, never refreshed, its own storage key, no other
+  tab told; signed out again unless the close went through; the 👪 gate checks
+  the password on it too, #124b review round 2), then calls `delete-account`
+  (single file; `_shared/closeAccount.ts` canonical, drift-checked by
+  `closeAccount.test.ts`) with that fresh token and `{confirm: 'DELETE'}` —
+  never the password. The function checks the token (`auth.getUser`), the
+  confirm word and that the token's `amr` claim says "password" within a
+  minute (`signedInFreshly`; bare-string `amr` must name a password and then
+  `last_sign_in_at` must be just now; no `amr` at all is refused and logged
+  loudly; never `iat`), runs
   `delete_family` (migration 0023, service role only — the whole family in one
   transaction; today's spent question budget stays without a name, #152) and
   `auth.admin.deleteUser`; refusals are JSON `{error, detail}` codes the app
   words itself (`lib/closeAccount.ts`), each true however it came about: a lost
   reply is `outcome_unknown` ("we can't tell — safe to repeat"), a login
   already gone is `already_closed` (done), and "Nothing was deleted" only when
-  that try deleted nothing. Deploy: `supabase functions deploy delete-account`
-  (no secrets beyond the injected `SUPABASE_*`).
+  that try deleted nothing. After `login_not_deleted`, leaving the page
+  reloads the family (the privacy notice comes first again). Signing out
+  afterwards never waits on the server (`signOutHere`, `familyStore`): when
+  supabase-js keeps the session because `/logout` failed, the stored session
+  is dropped (`forgetStoredSession`) and the sign-out asked again. Left open
+  (#165): for about a minute after a grown-up really signs in on the family
+  device, that stored session could close the account. Deploy: `supabase
+  functions deploy delete-account` (no secrets beyond the injected
+  `SUPABASE_*`).
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
@@ -942,9 +956,11 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   retry })` (a kid offline is asked to fetch a grown-up to check the
   internet); family screens use `plainErrorOr(err, fallback)`
   (`lib/familyErrors.ts`). Words that say "sign in again" come with the
-  button that does it: `App`'s family error and both PIN pads offer "Sign in
-  again" (`signInAgain` in `familyStore`, a sign-out on this device) when the
-  sign-in ran out (`sessionGone`, `sessionRanOut`). No screen shows `errorMessage` now — the crash
+  button that does it: `App`'s family error, both PIN pads (a kid's reads
+  "Grown-ups: sign in again"), KidForm, Remove and the grown-up PIN form offer
+  "Sign in again" (`SignInAgainButton` → `signInAgain` in `familyStore`, a
+  sign-out on this device that never waits on the server, `signOutHere`) when
+  the sign-in ran out (`sessionGone`, `sessionRanOut`). No screen shows `errorMessage` now — the crash
   screen's folded details and the menu's cloud-save `title`s are on purpose
   (#130 S6).
 - For `supabase.functions.invoke` failures, use `resolveErrorMessage` (async)
@@ -1041,6 +1057,38 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-20 — Safe to share review round 2: closing needs the password typed just now, one wait said once, focus that goes back where it was (#124b, #124c, #130 S6)
+Fixes for `/saas-code-review` (4) and `/saas-ux-review` (6 + notes) of PR
+#84. **Closing an account:** any password sign-in in the last 5 minutes —
+a grown-up's ordinary sign-in, or opening 👪 Grown-ups by password — left a
+token on the family device that could close the account without the
+password typed. The close's re-sign-in and the gate's password check now run
+on `passwordCheckClient` (`lib/supabase.ts`: memory only, never refreshed,
+its own storage key, no other tab told) and are signed out after;
+`delete-account` wants a password within **60 s**, refuses a token with no
+`amr` (logged loudly) and needs `password` in a bare-string `amr` (the
+minute after a real sign-in stays open — #165). After `login_not_deleted`,
+"Keep my account" reloads the family (the privacy notice, not "＋ Add a
+player" without consent). A sign-out the server can't hear no longer leaves
+"Closing your account…" stuck (`signOutHere`: the stored session dropped,
+then signed out again with no server needed; "Sign in again" too), and
+`useAuthInit` follows the family store's `userId`. Close account has the
+gate's reset link (`ResetLinkButton`). **PINs:** the lock sentence names no
+time — the countdown is the one place it's said; a reopened pad asks before
+it shows a remembered lock ("Checking…"); a tap on a locked key asks again;
+locked keys leave the Tab order and are 44 px on a sideways phone (the lock
+still fits at 740×360); the gate says "Use your password for now." while
+its PIN rests. **Grown-ups list:** back from any page, focus and the page go
+to the button that left it, once (no more jumping to "Close account…");
+unlocking says "🔓 Sam can try their PIN again now." on the row and through
+the area's live region; the gate, Change and Remove focus their titles.
+**Plain errors:** "Sign in again" on KidForm, Remove and the grown-up PIN
+form (`SignInAgainButton`); the kid pad's reads "Grown-ups: sign in again".
+The CI lock test no longer prints the DB password. Tests 1891 → 1915 (each
+fix mutation-checked); all 23 migrations + 16 SQL tests; the function against
+a stand-in 36/36 (round 1's fails 7); rendered at 320×568, 740×360 and
+1024×768 (28 checks each).
 
 ### 2026-10-19 — Safe to share review round 1: the database decides when a pad opens, closing never shares a sign-in limit, every refusal true (#124b, #124c, #130 S6)
 Fixes for `/saas-code-review` (6) and `/saas-ux-review` (13 + notes) of PR
