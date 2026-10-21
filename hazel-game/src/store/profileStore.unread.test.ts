@@ -34,6 +34,7 @@ const { useSaveStore } = await import('./saveStore');
 const { defaultSave } = await import('../lib/save');
 const { todayIso, isoOffset } = await import('../lib/streak');
 const { profileKey } = await import('../lib/profile');
+const { playDayRecords } = await import('../lib/playDays');
 
 const YEAR = new Date().getFullYear();
 const TODAY = todayIso();
@@ -136,18 +137,21 @@ describe("a profile that wasn't read writes nothing derived from it (#29 review 
     expect(updates().at(-1)).toMatchObject({ skill_levels: { math: 7, science: 6, history: 6 } });
   });
 
-  it('levels worked out from a made-up start never go over the real row — not even upwards', async () => {
+  it('a level worked out from a made-up start goes onto the real row as a step, never as a value; power-ups from it stay dropped (#176)', async () => {
     reads.push(FAILED);
     await useProfileStore.getState().loadProfile('kid-1', birth);
-    await useProfileStore.getState().setSkillLevel('science', 8); // from the age start (5), not her real 6
+    await useProfileStore.getState().setSkillLevel('science', 8); // from the age start (5): up 3, not "level 8"
     await useProfileStore.getState().addPowerUp('attack');
     later();
     reads.push({ data: { ...ROW, skill_levels: { math: 7, science: 3 } }, error: null });
     await useProfileStore.getState().addXp(5);
     await vi.waitFor(() => expect(useProfileStore.getState().unread).toBeNull());
-    expect(useProfileStore.getState().profile).toMatchObject({ skillLevels: { math: 7, science: 3 }, powerUps: { attack: 3 } });
+    // Her real science (3) moved up the 3 she climbed — never the made-up 8; Math untouched.
+    expect(useProfileStore.getState().profile).toMatchObject({ skillLevels: { math: 7, science: 6 }, powerUps: { attack: 3 } });
     await vi.waitFor(() => expect(updates()).toHaveLength(1));
-    expect(updates()[0]).toMatchObject({ skill_levels: { math: 7, science: 3 }, power_ups: { attack: 3 } });
+    expect(updates()[0]).toMatchObject({ skill_levels: { math: 7, science: 6 }, power_ups: { attack: 3 } });
+    // A topic the row had: no start noted for it (it started long ago).
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({});
   });
 
   it("with this device's copy, levels moved since count once the row is read (the higher wins, as on any load)", async () => {
@@ -215,5 +219,132 @@ describe("a profile that wasn't read writes nothing derived from it (#29 review 
     await pending;
     expect(useProfileStore.getState().profile).toBeNull();
     expect(writes).toEqual([]);
+  });
+});
+
+describe('a row that wasn\'t read is asked for again, and the levels played meanwhile carry over as steps (#176)', () => {
+  const timers = () => vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+
+  it('read again on a timer — a kid who only walks the world gets the real profile too', async () => {
+    timers();
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    reads.push(FAILED, { data: ROW, error: null });
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS - 1);
+    expect(reads).toHaveLength(2); // not yet
+    await vi.advanceTimersByTimeAsync(1);
+    expect(reads).toHaveLength(1); // asked, failed again: still unread, and asked again later
+    expect(useProfileStore.getState().unread).not.toBeNull();
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    expect(reads).toEqual([]);
+    expect(useProfileStore.getState().unread).toBeNull();
+    expect(useProfileStore.getState().profile).toMatchObject({ xp: 5000, skillLevels: { math: 7, science: 6 } });
+    expect(updates()).toHaveLength(1);
+  });
+
+  it('read again the moment the device is back online', async () => {
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    reads.push({ data: ROW, error: null });
+    window.dispatchEvent(new Event('online')); // well within RETRY_READ_MS
+    await vi.waitFor(() => expect(useProfileStore.getState().unread).toBeNull());
+    expect(useProfileStore.getState().profile).toMatchObject({ xp: 5000 });
+  });
+
+  it('once read, or once the game is put away, nothing asks again — not the timer, not coming online', async () => {
+    timers();
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    useProfileStore.getState().clearProfile();
+    reads.push({ data: ROW, error: null });
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(3 * RETRY_READ_MS);
+    expect(reads).toHaveLength(1);
+    // Read on load: no timer, no listener.
+    reads.length = 0;
+    reads.push({ data: ROW, error: null });
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    reads.push({ data: ROW, error: null });
+    window.dispatchEvent(new Event('online'));
+    await vi.advanceTimersByTimeAsync(3 * RETRY_READ_MS);
+    expect(reads).toHaveLength(1);
+  });
+
+  it('each topic moves from the real level by its net step — down as well as up, within 1–10', async () => {
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth); // age 10: every topic starts at 5 here
+    await useProfileStore.getState().setSkillLevel('math', 3); // down 2
+    await useProfileStore.getState().setSkillLevel('science', 7);
+    await useProfileStore.getState().setSkillLevel('science', 8); // up 3 in all
+    await useProfileStore.getState().setSkillLevel('words', 4); // down 1
+    later();
+    reads.push({ data: { ...ROW, skill_levels: { math: 2, science: 5, words: 6 } }, error: null });
+    await useProfileStore.getState().addXp(5);
+    await vi.waitFor(() => expect(useProfileStore.getState().unread).toBeNull());
+    // Math 2 − 2 stops at 1; science 5 + 3 = 8; words 6 − 1 = 5.
+    expect(useProfileStore.getState().profile?.skillLevels).toEqual({ math: 1, science: 8, words: 5 });
+    await vi.waitFor(() => expect(updates()).toHaveLength(1));
+    expect(updates()[0]).toMatchObject({ skill_levels: { math: 1, science: 8, words: 5 } });
+  });
+
+  it('a step never runs past the top level', async () => {
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await useProfileStore.getState().setSkillLevel('science', 8); // up 3 from the made-up 5
+    later();
+    reads.push({ data: { ...ROW, skill_levels: { science: 9 } }, error: null });
+    await useProfileStore.getState().retryRead();
+    expect(useProfileStore.getState().profile?.skillLevels).toEqual({ science: 10 });
+  });
+
+  it("a kid picked while the last one's row is still unread: the old kid's timer reads nothing", async () => {
+    timers();
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    let answer: (v: Answer) => void = () => {};
+    reads.push(new Promise<Answer>((r) => (answer = r)));
+    const loading = useProfileStore.getState().loadProfile('kid-2', birth);
+    reads.push({ data: ROW, error: null }); // only kid-1's retry could take this
+    await vi.advanceTimersByTimeAsync(2 * RETRY_READ_MS);
+    expect(reads).toHaveLength(1);
+    answer({ data: { ...ROW, id: 'kid-2' }, error: null });
+    await loading;
+    expect(useProfileStore.getState().profile?.id).toBe('kid-2');
+  });
+
+  it('a topic first played meanwhile that the row has no level for keeps its level, and its start is noted then', async () => {
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await useProfileStore.getState().setSkillLevel('history', 6); // played from 5, the start for 10
+    await useProfileStore.getState().setSkillLevel('math', 6);
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({}); // not while unread
+    later();
+    reads.push({ data: ROW, error: null }); // math 7, science 6 — no history
+    await useProfileStore.getState().addXp(5);
+    await vi.waitFor(() => expect(useProfileStore.getState().unread).toBeNull());
+    const p = useProfileStore.getState().profile!;
+    expect(p.skillLevels).toEqual({ math: 8, science: 6, history: 6 });
+    // History's made-up start was its real start; Math's (years ago) isn't noted.
+    expect(p.skillStarts).toEqual({ history: { level: 5, age: 10 } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10 } });
+    await vi.waitFor(() => expect(updates()).toHaveLength(1));
+    expect(updates()[0]).toMatchObject({ skill_levels: { math: 8, science: 6, history: 6 }, skill_starts: { history: { level: 5, age: 10 } } });
+  });
+
+  it("today's XP and answers are noted while unread; the level only once the row is read (#169, #173)", async () => {
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await useProfileStore.getState().addXp(30); // real XP, whatever the profile
+    useProfileStore.getState().noteAnswer({ id: 'bank-q', topic: 'math' }, true);
+    await useProfileStore.getState().setSkillLevel('math', 6); // up 1 from the made-up 5
+    expect(playDayRecords('kid-1')).toEqual([{ day: TODAY, xp: 30, minutes: 0, topics: { math: { a: 1, r: 1 } } }]);
+    later();
+    reads.push({ data: ROW, error: null });
+    await useProfileStore.getState().retryRead();
+    expect(useProfileStore.getState().profile?.skillLevels.math).toBe(8);
+    // Math's level today is the real one, 7 + 1.
+    expect(playDayRecords('kid-1')[0].topics).toEqual({ math: { a: 1, r: 1, l: 8 } });
+    useProfileStore.getState().noteAnswer({ id: 'bank-q2', topic: 'science' }, false);
+    expect(playDayRecords('kid-1')[0].topics.science).toEqual({ a: 1, r: 0, l: 6 });
   });
 });

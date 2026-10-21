@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// The database, as the page reads it: one canned answer per table.
-const answers = vi.hoisted(() => ({} as Record<string, { data: unknown; error: unknown }>));
+// The database, as the page reads it: one canned answer per table — or per read, from what it selects.
+type Answer = { data: unknown; error: unknown };
+const answers = vi.hoisted(() => ({} as Record<string, Answer | ((select: string) => Answer)>));
 const calls = vi.hoisted(() => [] as { table: string; select: string; filters: [string, string, unknown][] }[]);
 vi.mock('./supabase', () => ({
   supabase: {
@@ -12,8 +13,10 @@ vi.mock('./supabase', () => ({
         select: (cols: string) => ((call.select = cols), chain),
         in: (col: string, v: unknown) => (call.filters.push(['in', col, v]), chain),
         gte: (col: string, v: unknown) => (call.filters.push(['gte', col, v]), chain),
-        then: (ok: (r: unknown) => unknown, bad?: (e: unknown) => unknown) =>
-          Promise.resolve(answers[table] ?? { data: [], error: null }).then(ok, bad),
+        then: (ok: (r: unknown) => unknown, bad?: (e: unknown) => unknown) => {
+          const a = answers[table];
+          return Promise.resolve((typeof a === 'function' ? a(call.select) : a) ?? { data: [], error: null }).then(ok, bad);
+        },
       };
       return chain;
     },
@@ -21,17 +24,27 @@ vi.mock('./supabase', () => ({
 }));
 
 const {
+  ENOUGH_ANSWERS,
+  HISTORY_COLUMNS,
+  HISTORY_DAYS,
   PROGRESS_COLUMNS,
   SEVERAL_MISSED,
+  bestXpDay,
   climbedText,
+  countedFromText,
+  dayRange,
   dayWords,
   fetchFamilyProgress,
   glance,
   hasPlayed,
   levelBand,
   levelSummary,
+  minutesText,
+  minutesWords,
   missedQuestions,
+  missingColumn,
   nameList,
+  playDayFromRow,
   practiseText,
   recentDays,
   sharedStart,
@@ -41,7 +54,11 @@ const {
   streakSummary,
   topicLevels,
   topicMeaning,
+  topicStartsOf,
+  topicWeeks,
+  topicWeekText,
   typingSummary,
+  xpWeeks,
 } = await import('./progress');
 const { ageToStartLevel } = await import('./age');
 const { ALL_TOPIC_INFO } = await import('../content/topics');
@@ -62,23 +79,82 @@ beforeEach(() => {
 });
 
 describe('reading a family (#29)', () => {
-  it('reads every kid in three queries — only progress columns, never a birth date or a PIN', async () => {
-    answers.profiles = { data: [midActTwoRow('k1', TODAY), newKidRow('k2')], error: null };
+  it('reads every kid in four queries — only progress columns, never a birth date or a PIN — and five weeks of their play (#169–#174)', async () => {
+    answers.profiles = { data: [{ ...midActTwoRow('k1', TODAY), skill_starts: { math: { level: 2, age: 7 } } }, newKidRow('k2')], error: null };
     answers.saves = { data: [{ profile_id: 'k1', data: midActTwoSave() }], error: null };
-    answers.play_days = { data: [{ profile_id: 'k1', day: '2026-10-20' }, { profile_id: 'k1', day: '2026-10-18' }], error: null };
+    answers.play_days = {
+      data: [
+        { profile_id: 'k1', day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } } },
+        { profile_id: 'k1', day: '2026-10-01', xp: 40, minutes: 5, topics: {} },
+        { profile_id: 'k1', day: '2026-10-18', xp: 0, minutes: 0, topics: {} },
+      ],
+      error: null,
+    };
+    answers.play_history_since = { data: [{ profile_id: 'k1', since: '2026-09-30' }, { profile_id: 'k2', since: 'soon' }], error: null };
     const got = await fetchFamilyProgress(['k1', 'k2', 'k3'], TODAY);
-    expect(calls.map((c) => c.table)).toEqual(['profiles', 'saves', 'play_days']);
-    expect(calls[0].select).toBe(PROGRESS_COLUMNS);
+    expect(calls.map((c) => c.table)).toEqual(['profiles', 'saves', 'play_days', 'play_history_since']);
+    expect(calls[0].select).toBe(`${PROGRESS_COLUMNS}, skill_starts`);
     expect(PROGRESS_COLUMNS).not.toMatch(/birth|pin|name/);
     expect(calls[0].filters).toEqual([['in', 'id', ['k1', 'k2', 'k3']]]);
-    // The last week only.
-    expect(calls[2].filters).toContainEqual(['gte', 'day', '2026-10-15']);
+    // Five weeks (what migration 0026 keeps), with the day's play.
+    expect(calls[2].select).toBe(HISTORY_COLUMNS);
+    expect(calls[2].filters).toContainEqual(['gte', 'day', '2026-09-17']);
+    expect(HISTORY_DAYS).toBe(35);
     expect(got.k1.stats?.xp).toBe(2340);
+    expect(got.k1.stats?.skillStarts).toEqual({ math: { level: 2, age: 7 } });
     expect(got.k1.save?.worldUnlocked).toBe(true);
+    // The week's days from it, as before; the history oldest first.
     expect(got.k1.playDays).toEqual(['2026-10-20', '2026-10-18']);
-    expect(got.k2).toEqual({ stats: expect.objectContaining({ xp: 0 }), save: null, playDays: [] });
+    expect(got.k1.history?.map((d) => d.day)).toEqual(['2026-10-01', '2026-10-18', '2026-10-20']);
+    expect(got.k1.history?.at(-1)).toEqual({ day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } } });
+    expect(got.k1.countedSince).toBe('2026-09-30');
+    // Not a date: no "counted from".
+    expect(got.k2).toEqual({ stats: expect.objectContaining({ xp: 0 }), save: null, playDays: [], history: [], countedSince: null });
     // A kid the database didn't return (none of this family's) is just empty.
-    expect(got.k3).toEqual({ stats: null, save: null, playDays: [] });
+    expect(got.k3).toEqual({ stats: null, save: null, playDays: [], history: [], countedSince: null });
+  });
+
+  it('a database without migration 0026: the profiles without starts, the last week\'s days alone — as before it (#169–#174)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    answers.profiles = (select) =>
+      select.includes('skill_starts')
+        ? { data: null, error: { message: 'column profiles.skill_starts does not exist', code: '42703' } }
+        : { data: [midActTwoRow('k1', TODAY)], error: null };
+    answers.play_days = (select) =>
+      select.includes('xp')
+        ? { data: null, error: { message: 'column play_days.xp does not exist', code: '42703' } }
+        : { data: [{ profile_id: 'k1', day: '2026-10-20' }], error: null };
+    answers.play_history_since = { data: null, error: { message: "Could not find the table 'public.play_history_since' in the schema cache", code: 'PGRST205' } };
+    const got = await fetchFamilyProgress(['k1'], TODAY);
+    expect(calls.map((c) => `${c.table} ${c.select}`)).toEqual([
+      `profiles ${PROGRESS_COLUMNS}, skill_starts`,
+      'saves profile_id, data',
+      `play_days ${HISTORY_COLUMNS}`,
+      'play_history_since profile_id, since',
+      `profiles ${PROGRESS_COLUMNS}`,
+      'play_days profile_id, day',
+    ]);
+    // The week only, as before 0026.
+    expect(calls[5].filters).toContainEqual(['gte', 'day', '2026-10-15']);
+    expect(got.k1).toMatchObject({ playDays: ['2026-10-20'], history: null, countedSince: null });
+    expect(got.k1.stats?.xp).toBe(2340);
+    expect(got.k1.stats).not.toHaveProperty('skillStarts');
+    expect(warn.mock.calls.map((c) => c.join(' ')).join(' | ')).toContain('PGRST205');
+    // The retry's own failure is the page's to say.
+    answers.profiles = (select) =>
+      select.includes('skill_starts')
+        ? { data: null, error: { message: 'column profiles.skill_starts does not exist', code: '42703' } }
+        : { data: null, error: { message: 'JWT expired', code: 'PGRST301' } };
+    await expect(fetchFamilyProgress(['k1'], TODAY)).rejects.toMatchObject({ code: 'PGRST301' });
+  });
+
+  it('a missing column is told from any other refusal', () => {
+    expect(missingColumn({ code: '42703', message: 'column play_days.xp does not exist' })).toBe(true);
+    expect(missingColumn({ code: 'PGRST204', message: "Could not find the 'skill_starts' column of 'profiles' in the schema cache" })).toBe(true);
+    expect(missingColumn({ message: 'column profiles.skill_starts does not exist' })).toBe(true);
+    for (const e of [{ code: '42P01', message: 'relation "public.play_days" does not exist' }, { code: '500', message: 'boom' }, null, 'x']) {
+      expect(missingColumn(e)).toBe(false);
+    }
   });
 
   it('a failed profiles or saves read throws an Error that keeps its code; nothing is asked for no kids', async () => {
@@ -92,14 +168,19 @@ describe('reading a family (#29)', () => {
     expect(calls).toEqual([]);
   });
 
-  it('a failed play-days read (no migration 0025) leaves the week out and logs the real error', async () => {
+  it('a failed play-days read (no migration 0025, or any other refusal) leaves the week and the history out and logs the real error', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     answers.profiles = { data: [midActTwoRow('k1', TODAY)], error: null };
     answers.play_days = { data: null, error: { message: 'relation "public.play_days" does not exist', code: '42P01' } };
     const got = await fetchFamilyProgress(['k1'], TODAY);
     expect(got.k1.playDays).toBeNull();
+    expect(got.k1.history).toBeNull();
     expect(got.k1.stats).not.toBeNull();
     expect(warn.mock.calls[0].join(' ')).toContain('42P01');
+    // Not a missing column: no second read.
+    expect(calls.filter((c) => c.table === 'play_days')).toHaveLength(1);
+    answers.play_days = { data: null, error: { message: 'canceling statement due to statement timeout', code: '57014' } };
+    expect(await fetchFamilyProgress(['k1'], TODAY)).toMatchObject({ k1: { playDays: null, history: null } });
   });
 
   it('junk in a row never reaches the page', () => {
@@ -115,6 +196,57 @@ describe('reading a family (#29)', () => {
     });
     expect(s).toEqual({ skillLevels: { math: 6 }, xp: 0, currentStreak: 0, longestStreak: 2, lastPlayedOn: null });
     expect(statsFromRow({ ...newKidRow('k'), skill_levels: [3, 4] }).skillLevels).toEqual({});
+  });
+
+  it('junk in skill_starts never reaches the page: known topics, whole levels 1–10 and ages 3–18 only (#174)', () => {
+    const starts = statsFromRow({
+      ...newKidRow('k'),
+      skill_starts: {
+        math: { level: 3, age: 8 },
+        science: { level: 0, age: 8 },
+        words: { level: 4, age: 2 },
+        history: { level: 2.5, age: 7 },
+        nature: { level: '3', age: 7 },
+        cooking: { level: 3, age: 8 },
+        space: null,
+        music: { level: 10, age: 18 },
+      },
+    }).skillStarts;
+    expect(starts).toEqual({ math: { level: 3, age: 8 }, music: { level: 10, age: 18 } });
+    expect(statsFromRow({ ...newKidRow('k'), skill_starts: [1] }).skillStarts).toEqual({});
+  });
+
+  it("junk in a day's play never reaches the page: a real day, numbers in range, r ≤ a, known topics (#169, #172, #173)", () => {
+    expect(
+      playDayFromRow({
+        profile_id: 'k',
+        day: '2026-10-20',
+        xp: 100_001,
+        minutes: -3,
+        extra: 'x',
+        topics: {
+          math: { a: 10, r: 7, l: 6, x: 1 },
+          science: { a: 3, r: 4 },
+          words: { a: 2.5, r: 1 },
+          history: { a: 4, r: 4, l: 11 },
+          nature: { a: 10_001, r: 1 },
+          cooking: { a: 1, r: 1 },
+          space: 'lots',
+          music: { a: 0, r: 0, l: 3 },
+        },
+      }),
+    ).toEqual({ day: '2026-10-20', xp: 0, minutes: 0, topics: { math: { a: 10, r: 7, l: 6 }, history: { a: 4, r: 4 }, music: { a: 0, r: 0, l: 3 } } });
+    expect(playDayFromRow({ day: '2026-10-20', xp: 40, minutes: 1440, topics: [1, 2] })).toEqual({ day: '2026-10-20', xp: 40, minutes: 1440, topics: {} });
+    for (const row of [null, { day: 'today' }, { day: 20261020 }, { xp: 4 }]) expect(playDayFromRow(row)).toBeNull();
+  });
+
+  it('a topic starts where the profile says first, then where the save noted it (#174)', () => {
+    const save = { ...defaultSave(), topicStarts: { math: { level: 4, age: 9 }, words: { level: 2, age: 7 } } };
+    const stats = { ...statsFromRow(newKidRow('k')), skillStarts: { math: { level: 3, age: 8 } } };
+    expect(topicStartsOf({ stats, save })).toEqual({ math: { level: 3, age: 8 }, words: { level: 2, age: 7 } });
+    expect(topicStartsOf({ stats: statsFromRow(newKidRow('k')), save })).toEqual(save.topicStarts);
+    expect(topicStartsOf({ stats, save: null })).toEqual({ math: { level: 3, age: 8 } });
+    expect(topicStartsOf({ stats: null, save: null })).toEqual({});
   });
 });
 
@@ -217,12 +349,185 @@ describe('streak, last played and the last week', () => {
     const week = recentDays(TODAY, [TODAY], TODAY, 6);
     expect(week.map((d) => d.played)).toEqual([false, true, true, true, true, true, true]);
     // One kind of played day (round 3): nothing on a day says how it's known.
-    expect(Object.keys(week[1]).sort()).toEqual(['iso', 'long', 'played', 'short', 'today']);
+    expect(Object.keys(week[1]).sort()).toEqual(['counted', 'iso', 'long', 'minutes', 'played', 'short', 'today', 'xp']);
+    expect(week[1]).toMatchObject({ played: true, xp: null, minutes: null });
     // Ending yesterday, it still holds: those days, not today.
     expect(recentDays(TODAY, [], '2026-10-20', 3).map((d) => d.played)).toEqual([false, false, false, true, true, true, false]);
     // A streak that ended two days ago says nothing: the saved number waits for their next game to reset.
     expect(recentDays(TODAY, ['2026-10-19'], '2026-10-19', 5).filter((d) => d.played).map((d) => d.iso)).toEqual(['2026-10-19']);
     expect(recentDays(TODAY, ['2026-10-18', TODAY], TODAY, 4).find((d) => d.iso === '2026-10-18')).toMatchObject({ played: true });
+  });
+});
+
+describe('each day\'s play: XP, minutes, counted from (#169, #170, #172)', () => {
+  const rec = (day: string, xp: number, minutes: number, topics = {}) => ({ day, xp, minutes, topics });
+
+  it('XP and minutes only from a day whose play was noted — a day noted by an older app, or only proven by the streak, says it was played, never 0', () => {
+    const history = [rec('2026-10-15', 120, 25), rec('2026-10-17', 0, 0), rec('2026-10-19', 0, 3, { math: { a: 2, r: 1 } }), rec('2026-10-20', 0, 0, { music: { a: 0, r: 0, l: 3 } })];
+    const week = recentDays(TODAY, ['2026-10-15', '2026-10-17', '2026-10-19', '2026-10-20'], TODAY, 2, { history });
+    expect(week.map((d) => [d.played, d.xp, d.minutes])).toEqual([
+      [true, 120, 25],
+      [false, null, null],
+      // Noted with nothing at all: an app from before 0026 (or the column defaults) — played, how much unknown.
+      [true, null, null],
+      [false, null, null],
+      // Minutes and an answer but no XP: a real 0.
+      [true, 0, 3],
+      // Only a level noted: still a day the new app noted.
+      [true, 0, 0],
+      // The streak proves today; nothing noted for it.
+      [true, null, null],
+    ]);
+    expect(week.every((d) => d.counted)).toBe(true);
+    // No history (a database without 0026): nothing about XP or minutes.
+    expect(recentDays(TODAY, ['2026-10-15'], null).every((d) => d.xp === null && d.minutes === null)).toBe(true);
+  });
+
+  it("a day ahead (the kid's device a time zone ahead) joins today's play", () => {
+    const week = recentDays(TODAY, [], null, 0, { history: [rec(TODAY, 30, 10), rec('2026-10-22', 20, 5)] });
+    expect(week.at(-1)).toMatchObject({ today: true, played: true, xp: 50, minutes: 15 });
+  });
+
+  it('before the first day ever noted, a day reads "not recorded" — said once, under the chart (#170)', () => {
+    const week = recentDays(TODAY, ['2026-10-20'], '2026-10-20', 0, { countedSince: '2026-10-19', history: [] });
+    expect(week.map((d) => d.counted)).toEqual([false, false, false, false, true, true, true]);
+    expect(countedFromText(week)).toBe("Counted from Monday 19 October — earlier days weren't recorded.");
+    // The streak still proves its days, counted or not.
+    const streak = recentDays(TODAY, [TODAY], TODAY, 4, { countedSince: TODAY });
+    expect(streak.map((d) => [d.played, d.counted])).toEqual([[false, false], [false, false], [false, false], [true, false], [true, false], [true, false], [true, true]]);
+    // From the first shown day, before it, or not known: no note.
+    expect(countedFromText(recentDays(TODAY, [], null, 0, { countedSince: '2026-10-15' }))).toBeNull();
+    expect(countedFromText(recentDays(TODAY, [], null, 0, { countedSince: '2026-09-01' }))).toBeNull();
+    expect(countedFromText(recentDays(TODAY, [], null, 0, { countedSince: null }))).toBeNull();
+    // A first day ahead (their device a time zone ahead) is today.
+    expect(countedFromText(recentDays(TODAY, [], null, 0, { countedSince: '2026-10-22' }))).toBe("Counted from Wednesday 21 October — earlier days weren't recorded.");
+  });
+
+  it('minutes as a grown-up says them: under a minute, a few, to the nearest 5, hours', () => {
+    expect([0, 1, 4, 5, 7, 38, 57, 58, 60, 80, 122, 125].map(minutesWords)).toEqual([
+      'under a minute',
+      'a few minutes',
+      'a few minutes',
+      'about 5 minutes',
+      'about 5 minutes',
+      'about 40 minutes',
+      'about 55 minutes',
+      'about 1 hour',
+      'about 1 hour',
+      'about 1 hour 20 minutes',
+      'about 2 hours',
+      'about 2 hours 5 minutes',
+    ]);
+  });
+
+  it("the ⏱️ line: the week's minutes from the days whose play was noted — and when it wasn't (#172)", () => {
+    const day = (played: boolean, minutes: number | null) => ({ played, minutes }) as Parameters<typeof minutesText>[0][number];
+    expect(minutesText([day(true, 25), day(true, 13), day(false, null)])).toBe('About 40 minutes of play in the last 7 days.');
+    expect(minutesText([day(true, 3)])).toBe('A few minutes of play in the last 7 days.');
+    expect(minutesText([day(true, 50), day(true, 30), day(true, null)])).toBe('About 1 hour 20 minutes of play in the last 7 days — not recorded on 1 day they played.');
+    expect(minutesText([day(true, 10), day(true, null), day(true, null)])).toMatch(/— not recorded on 2 days they played\.$/);
+    expect(minutesText([day(true, null)])).toBe("How long they played wasn't recorded on that day.");
+    expect(minutesText([day(true, null), day(true, null)])).toBe("How long they played wasn't recorded on those 2 days.");
+    expect(minutesText([day(false, null)])).toBeNull();
+  });
+
+  it('XP over 4 weeks: a row per week, oldest first, its dates and its XP in words — never a 0 that was not noted (#169)', () => {
+    const history = [rec('2026-09-25', 40, 5), rec('2026-10-05', 0, 0), rec('2026-10-14', 300, 30), rec('2026-10-15', 0, 2, { math: { a: 1, r: 0 } }), rec('2026-10-20', 180, 20), rec('2026-10-21', 60, 10)];
+    const days = recentDays(TODAY, [], TODAY, 1, { history, countedSince: '2026-09-25', days: 28 });
+    expect(days).toHaveLength(28);
+    expect(days[0].iso).toBe('2026-09-24');
+    const weeks = xpWeeks(days);
+    expect(weeks.map((w) => [w.label, w.total])).toEqual([
+      // Thursday 24 September came before the first day noted; the 25th earned 40.
+      ['24–30 September', '40 XP'],
+      // Played on the 5th, by an app that didn't note its XP.
+      ['1–7 October', 'XP not recorded'],
+      ['8–14 October', '300 XP'],
+      // A real 0 on the 15th, with 240 later.
+      ['15–21 October', '240 XP'],
+    ]);
+    expect(weeks.every((w) => w.days.length === 7)).toBe(true);
+    expect(countedFromText(days)).toBe("Counted from Friday 25 September — earlier days weren't recorded.");
+    expect(bestXpDay(days)).toMatchObject({ iso: '2026-10-14', xp: 300 });
+    // A week without play, and one wholly before counting began.
+    const quiet = xpWeeks(recentDays(TODAY, [], null, 0, { history: [], countedSince: '2026-10-08', days: 28 }));
+    expect(quiet.map((w) => w.total)).toEqual(['Not recorded', 'Not recorded', 'No play noted', 'No play noted']);
+    expect(bestXpDay(recentDays(TODAY, [], null, 0, { history: [], days: 28 }))).toBeNull();
+    // Big numbers one way.
+    expect(xpWeeks(recentDays(TODAY, [], null, 0, { history: [rec(TODAY, 12_500, 60)], days: 28 })).at(-1)?.total).toBe('12,500 XP');
+  });
+
+  it('week dates in plain words, across a month too', () => {
+    expect(dayRange('2026-10-15', '2026-10-21')).toBe('15–21 October');
+    expect(dayRange('2026-09-29', '2026-10-05')).toBe('29 September – 5 October');
+    expect(dayRange('2025-12-29', '2026-01-04')).toBe('29 December – 4 January');
+  });
+});
+
+describe('accuracy and change per topic (#173)', () => {
+  const rec = (day: string, topics: Record<string, { a: number; r: number; l?: number }>) => ({ day, xp: 10, minutes: 5, topics });
+
+  it("the last 7 days' answers, and the level at the end of the latest day noted 8–14 days back", () => {
+    const history = [
+      rec('2026-10-07', { math: { a: 4, r: 4, l: 9 } }), // 14 days back: too old
+      rec('2026-10-08', { math: { a: 4, r: 2, l: 4 }, science: { a: 2, r: 2, l: 6 } }), // 13 back
+      rec('2026-10-14', { math: { a: 3, r: 3, l: 5 }, words: { a: 2, r: 1 } }), // 7 back: the week before
+      rec('2026-10-15', { math: { a: 6, r: 5, l: 6 } }), // 6 back: this week
+      rec('2026-10-21', { math: { a: 4, r: 2 }, space: { a: 0, r: 0, l: 3 } }),
+      rec('2026-10-22', { math: { a: 1, r: 1 } }), // a day ahead counts
+    ];
+    expect(topicWeeks(history, TODAY)).toEqual({
+      math: { asked: 11, right: 8, levelLastWeek: 5 },
+      science: { asked: 0, right: 0, levelLastWeek: 6 },
+      words: { asked: 0, right: 0, levelLastWeek: null },
+      space: { asked: 0, right: 0, levelLastWeek: null },
+    });
+    expect(topicWeeks(null, TODAY)).toEqual({});
+  });
+
+  it('each topic row: "Last 7 days: 7 of 10 right · Up 1 since last week" — only what the days hold', () => {
+    const weeks = { math: { asked: 10, right: 7, levelLastWeek: 5 }, science: { asked: 0, right: 0, levelLastWeek: 8 }, words: { asked: 3, right: 3, levelLastWeek: 6 }, music: { asked: 2, right: 1, levelLastWeek: 3 } };
+    const levels = topicLevels({ math: 6, science: 7, words: 6 }, 9, {}, weeks);
+    const by = Object.fromEntries(levels.map((t) => [t.id, t]));
+    expect(by.math).toMatchObject({ answers: { asked: 10, right: 7 }, sinceLastWeek: 1 });
+    expect(topicWeekText(by.math)).toBe('Last 7 days: 7 of 10 right · Up 1 since last week');
+    expect(topicWeekText(by.science)).toBe('Down 1 since last week');
+    expect(topicWeekText(by.words)).toBe('Last 7 days: 3 of 3 right · Same as last week');
+    // Not moved yet (no level saved): its answers, never a change.
+    expect(by.music).toMatchObject({ measured: false, answers: { asked: 2, right: 1 }, sinceLastWeek: null });
+    // Nothing noted: nothing said.
+    expect(by.history).toMatchObject({ answers: null, sinceLastWeek: null });
+    expect(topicWeekText(by.history)).toBeNull();
+    // The level now is clamped like the row shows it.
+    expect(topicLevels({ math: 14 }, 9, {}, { math: { asked: 0, right: 0, levelLastWeek: 8 } })[0].sinceLastWeek).toBe(2);
+  });
+
+  it('a topic under half right with enough answers joins what to practise, grouped by why, each named once', () => {
+    const weeks = { math: { asked: 6, right: 2, levelLastWeek: null }, science: { asked: 4, right: 0, levelLastWeek: null }, words: { asked: 10, right: 5, levelLastWeek: null }, creativity: { asked: 8, right: 3, levelLastWeek: null } };
+    const starts = { creativity: { level: 4, age: 9 } };
+    const levels = topicLevels({ math: 5, creativity: 3 }, 9, starts, weeks);
+    const g = glance(null, levels, []);
+    // Science: too few answers; Words: half right is not under half.
+    expect(g.lowRight).toEqual([
+      { label: 'Math', asked: 6, right: 2 },
+      { label: 'Creativity', asked: 8, right: 3 },
+    ]);
+    expect(ENOUGH_ANSWERS).toBe(5);
+    expect(practiseText(g)).toBe(
+      'To practise together — below where they started, under half right in the last 7 days: Creativity (3 of 8 right) · under half right in the last 7 days: Math (2 of 6 right).',
+    );
+    const t = (label: string) => ({ label }) as Parameters<typeof practiseText>[0]['belowStart'][number];
+    expect(
+      practiseText({
+        belowStart: [t('Engineering'), t('Creativity')],
+        missedByTopic: [{ label: 'Math', count: 4 }, { label: 'Creativity', count: 3 }, { label: 'Space', count: 3 }],
+        lowRight: [{ label: 'Space', asked: 5, right: 1 }, { label: 'Creativity', asked: 7, right: 2 }, { label: 'Music', asked: 9, right: 4 }],
+      }),
+    ).toBe(
+      'To practise together — below where they started, under half right in the last 7 days, with questions waiting: Creativity (2 of 7 right, 3 waiting) · ' +
+        'under half right in the last 7 days, with questions waiting: Space (1 of 5 right, 3 waiting) · below where they started: Engineering · ' +
+        'under half right in the last 7 days: Music (4 of 9 right) · questions waiting at the Library: Math (4).',
+    );
   });
 });
 
@@ -387,8 +692,8 @@ describe('at a glance (review rounds 1–3)', () => {
 
   it('nothing invented: no week without the table, no climb without a noted start, nothing from what was never saved', () => {
     const g = glance(null, topicLevels({ math: 4 }, 9, { math: { level: 4, age: 9 } }), []);
-    expect(g).toEqual({ playedDays: null, climbed: [], ranked: false, belowStart: [], missedByTopic: [], missedCount: 0 });
-    expect(glance(null, null, null)).toEqual({ playedDays: null, climbed: [], ranked: false, belowStart: [], missedByTopic: [], missedCount: 0 });
+    expect(g).toEqual({ playedDays: null, climbed: [], ranked: false, belowStart: [], missedByTopic: [], missedCount: 0, lowRight: [] });
+    expect(glance(null, null, null)).toEqual({ playedDays: null, climbed: [], ranked: false, belowStart: [], missedByTopic: [], missedCount: 0, lowRight: [] });
     expect(climbedText([], true)).toBeNull();
     expect(climbedText([], false)).toBeNull();
   });

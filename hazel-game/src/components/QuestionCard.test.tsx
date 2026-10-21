@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import QuestionCard from './QuestionCard';
+import { useProfileStore } from '../store/profileStore';
 import type { Question } from '../types';
 
 vi.mock('../lib/audio', () => ({ sfx: vi.fn() }));
@@ -117,5 +118,24 @@ describe('QuestionCard — a slot under the options once answered (#165)', () =>
     expect(screen.queryByText('a scribe burst')).toBeNull();
     fireEvent.click(screen.getByText('2'));
     expect(screen.getByText('a scribe burst')).toBeInTheDocument();
+  });
+});
+
+describe("QuestionCard — the final pick counts for the kid's day (#173)", () => {
+  it('a pick is noted once, right or wrong; a Forget-Me-Knot cross-out is not a pick', () => {
+    const noteAnswer = vi.fn();
+    useProfileStore.setState({ noteAnswer });
+    const { unmount } = render(<QuestionCard question={q} secondChance onSecondChance={() => {}} onAnswered={() => {}} onContinue={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: '5' })); // crossed out: picks again
+    expect(noteAnswer).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: '4' }));
+    expect(noteAnswer).toHaveBeenCalledTimes(1);
+    expect(noteAnswer).toHaveBeenCalledWith(q, true);
+    unmount();
+    render(<QuestionCard question={{ ...q, id: 'q3' }} onAnswered={() => {}} onContinue={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: '6' }));
+    fireEvent.click(screen.getByRole('button', { name: '7' })); // answered already: nothing more
+    expect(noteAnswer).toHaveBeenCalledTimes(2);
+    expect(noteAnswer).toHaveBeenLastCalledWith({ ...q, id: 'q3' }, false);
   });
 });

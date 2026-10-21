@@ -42,6 +42,7 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
     expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: { level: 4, age: 9 } });
     expect(useSaveStore.getState().save?.revision).toBe(11);
     expect(useProfileStore.getState().profile?.skillLevels).toEqual({ math: 6 });
+    expect(useProfileStore.getState().profile?.skillStarts).toEqual({ math: { level: 4, age: 9 } }); // on the profile too (#174)
   });
 
   it('later saves of that topic never move its start — a birthday, a climb or a drop', async () => {
@@ -68,6 +69,8 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
     await useProfileStore.getState().setSkillLevel('math', 4);
     expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: { level: 2, age: 7 } });
     expect(useSaveStore.getState().save?.revision).toBe(10);
+    // …and it's the start the profile notes too (#174) — never "level 4 at 9".
+    expect(useProfileStore.getState().profile?.skillStarts).toEqual({ math: { level: 2, age: 7 } });
   });
 
   it("never into another kid's save (a Switch player mid-write)", async () => {

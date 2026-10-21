@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mergeProfiles, readLocalProfile, writeLocalProfile, profileKey } from './profile';
+import { mergeProfiles, readLocalProfile, writeLocalProfile, profileKey, skillStartsFrom } from './profile';
 import type { Profile } from '../types';
 
 function makeProfile(over: Partial<Profile> = {}): Profile {
@@ -98,5 +98,33 @@ describe('mergeProfiles', () => {
     // The same last day: the longer streak (a device that noted more of it).
     const sameDay = makeProfile({ currentStreak: 3, longestStreak: 3, lastPlayedOn: '2026-10-20' });
     expect(mergeProfiles(server, sameDay)).toMatchObject({ currentStreak: 3, lastPlayedOn: '2026-10-20' });
+  });
+});
+
+describe("topic starts on the profile (#174)", () => {
+  it('read from skill_starts: known topics only (own keys), a whole level 1–10 and age 3–18 — the rest left out', () => {
+    expect(
+      skillStartsFrom({
+        math: { level: 2, age: 7 },
+        science: { level: 10, age: 18 },
+        words: { level: 0, age: 9 },
+        music: { level: 3, age: 2 },
+        nature: { level: 2.5, age: 7 },
+        space: 'level 2',
+        constructor: { level: 1, age: 5 },
+        dragons: { level: 1, age: 5 },
+      }),
+    ).toEqual({ math: { level: 2, age: 7 }, science: { level: 10, age: 18 } });
+    expect(skillStartsFrom(null)).toEqual({});
+    expect(skillStartsFrom([{ level: 1, age: 5 }])).toEqual({});
+  });
+
+  it("mergeProfiles keeps every start either copy noted — the server's on a clash; junk in this device's copy left out", () => {
+    const remote = makeProfile({ skillStarts: { math: { level: 2, age: 7 } } });
+    const local = makeProfile({ skillStarts: { math: { level: 4, age: 9 }, science: { level: 3, age: 8 }, words: { level: 0, age: 9 } } });
+    expect(mergeProfiles(remote, local).skillStarts).toEqual({ math: { level: 2, age: 7 }, science: { level: 3, age: 8 } });
+    expect(mergeProfiles(makeProfile(), local).skillStarts).toEqual({ math: { level: 4, age: 9 }, science: { level: 3, age: 8 } });
+    // Neither copy has any: none (a profile from a database without the column stays as it was).
+    expect(mergeProfiles(makeProfile(), makeProfile())).not.toHaveProperty('skillStarts');
   });
 });

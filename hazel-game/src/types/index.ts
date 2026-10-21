@@ -194,6 +194,36 @@ export interface Profile {
   longestStreak: number;
   /** YYYY-MM-DD (local) of the player's last activity, or null if never played. */
   lastPlayedOn: string | null;
+  /**
+   * Where each topic really started — the level for the kid's age and that
+   * age — noted the first time the topic's level is saved (`profiles.skill_starts`,
+   * migration 0026, #174; the server keeps the first). Absent on a profile read
+   * from a database without the column; the save's `topicStarts` stands in.
+   */
+  skillStarts?: Partial<Record<Topic, TopicStart>>;
+}
+
+/** One topic's answers on one day (#173): `a` asked, `r` right (bank questions only), `l` the topic's level at the day's end. */
+export interface TopicTally {
+  a: number;
+  r: number;
+  l?: number;
+}
+
+/**
+ * One kid's play on one calendar day (their device's), for 👪 Grown-ups →
+ * 📈 Progress (#169, #172, #173; migration 0026): kept on the device as it
+ * grows and sent to `note_play_history`, the server keeping the larger total.
+ */
+export interface PlayDayRecord {
+  /** `YYYY-MM-DD`. */
+  day: string;
+  /** XP earned that day. */
+  xp: number;
+  /** Active minutes played that day (a visible tab with input in the last minute). */
+  minutes: number;
+  /** Answers per topic id. */
+  topics: Partial<Record<string, TopicTally>>;
 }
 
 /**

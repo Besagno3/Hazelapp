@@ -36,6 +36,7 @@ export default function QuizRound() {
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
+  const noteAnswer = useProfileStore((s) => s.noteAnswer);
   const powerUps = useProfileStore((s) => s.profile?.powerUps) ?? {};
   /** Held once the round ends (Act I review B3): the results show this
    *  round's questions, whatever the question hook does under them. */
@@ -116,6 +117,8 @@ export default function QuizRound() {
     setSelected(idx);
     setAnswers((a) => [...a, idx === q.correctIndex]);
     setPicks((p) => [...p, idx]);
+    // Counted for 📈 Progress's answers per topic (#173; bank questions only).
+    noteAnswer(q, idx === q.correctIndex);
   }
 
   function finishRound() {

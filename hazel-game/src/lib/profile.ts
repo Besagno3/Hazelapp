@@ -1,4 +1,4 @@
-import type { PowerUps, Profile, SkillLevels } from '../types';
+import { CRYSTAL_TOPIC_IDS, EXTRA_TOPIC_IDS, type PowerUps, type Profile, type SkillLevels, type Topic, type TopicStart } from '../types';
 import { furthestLevel, levelState } from './level';
 
 /**
@@ -32,6 +32,27 @@ export function writeLocalProfile(profile: Profile): void {
   } catch {
     // Private mode / quota — in-memory play still works this session.
   }
+}
+
+const TOPIC_IDS: readonly string[] = [...CRYSTAL_TOPIC_IDS, ...EXTRA_TOPIC_IDS];
+
+/**
+ * A kid's topic starts as read from `profiles.skill_starts` (migration 0026,
+ * #174): only known topics (own keys — never `constructor`), each a whole
+ * level 1–10 and a whole age 3–18, as the database keeps them; anything else
+ * is left out, so the page makes no claim on it.
+ */
+export function skillStartsFrom(raw: unknown): Partial<Record<Topic, TopicStart>> {
+  const out: Partial<Record<Topic, TopicStart>> = {};
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
+  for (const [topic, v] of Object.entries(raw)) {
+    if (!TOPIC_IDS.includes(topic) || typeof v !== 'object' || v === null) continue;
+    const { level, age } = v as Record<string, unknown>;
+    if (!Number.isInteger(level) || !Number.isInteger(age)) continue;
+    if ((level as number) < 1 || (level as number) > 10 || (age as number) < 3 || (age as number) > 18) continue;
+    out[topic as Topic] = { level: level as number, age: age as number };
+  }
+  return out;
 }
 
 function maxByKey<T extends Record<string, number>>(a: T, b: T): T {
@@ -73,5 +94,11 @@ export function mergeProfiles(remote: Profile, local: Profile | null): Profile {
     currentStreak: streakFrom.currentStreak,
     longestStreak: Math.max(remote.longestStreak, local.longestStreak),
     lastPlayedOn: streakFrom.lastPlayedOn,
+    // Where each topic started (#174): every start either copy noted (this
+    // device's checked, as it's read back from storage); on a clash the
+    // server's, which keeps the first one written.
+    ...(remote.skillStarts || local.skillStarts
+      ? { skillStarts: { ...skillStartsFrom(local.skillStarts), ...remote.skillStarts } }
+      : {}),
   };
 }

@@ -1506,3 +1506,28 @@ describe('the song that breaks the hush (#165 item 6)', () => {
     expect(screen.getByText(/Zero Crush is coming next turn/)).toBeInTheDocument();
   });
 });
+
+describe("BattleArena — a defend question that runs out counts as a miss in the kid's day (#173)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('the timeout is noted as a wrong answer to that question', () => {
+    vi.useFakeTimers();
+    const noteAnswer = vi.fn();
+    useProfileStore.setState({ noteAnswer });
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Guard'));
+    fireEvent.click(screen.getByText('5'));
+    fireEvent.click(screen.getByText('▶ Go!'));
+    fireEvent.click(screen.getByText(/tap to continue/));
+    expect(screen.getByRole('timer')).toBeInTheDocument();
+    noteAnswer.mockClear(); // the Guard's own answer went through the card
+    act(() => {
+      vi.advanceTimersByTime(40_000);
+    });
+    expect(screen.getByText(/Time's up!/)).toBeInTheDocument();
+    expect(noteAnswer).toHaveBeenCalledTimes(1);
+    expect(noteAnswer).toHaveBeenCalledWith(expect.objectContaining({ id: 'q1', topic: 'math' }), false);
+  });
+});

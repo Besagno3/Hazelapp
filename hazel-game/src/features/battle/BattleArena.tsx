@@ -961,6 +961,7 @@ export default function BattleArena() {
     setAnswers((a) => [...a, false]);
     answerCount.current += 1;
     if (!isStarterId(q.id)) rampAnswers.current.push(false);
+    useProfileStore.getState().noteAnswer(q, false); // a miss in 📈 Progress's tally too (#173)
     setStreak(0);
     misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
     resolveEnemyQuestion(false, true);

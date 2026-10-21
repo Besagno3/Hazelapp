@@ -58,6 +58,7 @@ const { flowActor, sendFlow } = await import('../../machines/gameFlow');
 const asked = () => invoke.mock.calls.map((c) => c[1].body as { count: number; skillLevel: number; cacheOnly?: boolean });
 
 const addXp = vi.fn();
+const noteAnswer = vi.fn();
 
 function start(passedRounds: number, worldUnlocked: boolean) {
   useSaveStore.setState({
@@ -72,6 +73,7 @@ function start(passedRounds: number, worldUnlocked: boolean) {
     addXp,
     setSkillLevel: vi.fn(),
     recordActivity: vi.fn(),
+    noteAnswer,
   });
 }
 
@@ -96,6 +98,7 @@ async function playRound(right: boolean[]) {
 
 beforeEach(() => {
   addXp.mockReset();
+  noteAnswer.mockReset();
   markSeen.mockClear();
   warm.mockClear();
   hangQuick.on = false;
@@ -714,5 +717,19 @@ describe('QuizRound — review round 2 (#163)', () => {
     const fact = screen.getByText('Did you know?').parentElement!;
     expect(fact).toHaveTextContent(/^🌟 Did you know\?/);
     expect(fact).not.toHaveTextContent('💡');
+  });
+});
+
+describe("QuizRound — each answer counts for the kid's day (#173)", () => {
+  it('every pick is noted with the question it answered, right or wrong, once', async () => {
+    start(3, true);
+    await playRound([true, false, true, true, false]);
+    expect(noteAnswer.mock.calls.map(([question, correct]) => [question.id, correct])).toEqual([
+      ['q-0', true],
+      ['q-1', false],
+      ['q-2', true],
+      ['q-3', true],
+      ['q-4', false],
+    ]);
   });
 });

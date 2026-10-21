@@ -93,14 +93,16 @@ begin
     'nothing about Sam changed';
   assert (select count(*) from public.profiles where parent_id = '00000000-0000-0000-0000-0000000000a6') = 1, 'no player added or removed';
 
-  -- The kid's own play needs no grown-up.
+  -- The kid's own play needs no grown-up (where a topic started too, 0026).
   update public.profiles set xp = xp + 10, level = 2, level_xp = 5, skill_levels = '{"math": 4}'::jsonb,
+         skill_starts = '{"math": {"level": 4, "age": 9}}'::jsonb,
          power_ups = '{"strike": 1}'::jsonb, current_streak = 2, longest_streak = 2, last_played_on = current_date,
          updated_at = now()
    where id = sam;
   -- The app's push-back of a merged profile sets every column, unchanged ones too.
   update public.profiles set id = sam, birth_year = 2017, birth_month = 3, xp = xp + 1 where id = sam;
   assert (select xp from public.profiles where id = sam) = 11, 'XP saved';
+  assert (select skill_starts from public.profiles where id = sam) = '{"math": {"level": 4, "age": 9}}'::jsonb, 'the start saved';
   insert into public.saves (profile_id, data) values (sam, '{"version": 3, "revision": 1}');
   update public.saves set data = '{"version": 3, "revision": 2}' where profile_id = sam;
   assert (select (data ->> 'revision')::int from public.saves where profile_id = sam) = 2, 'the game saved';
@@ -632,7 +634,8 @@ reset role;
 -- 8) Every profiles column is classified (#167 review round 1): the gate
 --    lists the kid's play columns, so anything else is a grown-up's. A new
 --    column fails here until it's put on one list — profiles_kid_play_columns()
---    in the migration, or the grown-up list below.
+--    in the migration, or the grown-up list below. (0026 put `skill_starts`,
+--    where each topic started, #174, on the kid's list.)
 do $$
 declare
   grown_up constant text[] := array['id', 'parent_id', 'display_name', 'icon', 'birth_year', 'birth_month', 'has_pin', 'created_at'];

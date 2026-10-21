@@ -37,3 +37,20 @@ describe('the privacy notice and 👪 Grown-ups locking again (#167)', () => {
     expect(choices).toMatch(/change the email and password you sign in with there/);
   });
 });
+
+describe('the privacy notice and the play history (#169–#174)', () => {
+  it('names what is noted each day, and that it goes after five weeks — as long as the database and the page keep it', async () => {
+    const { default: migration0026 } = await import('../../supabase/migrations/0026_progress_history.sql?raw');
+    const { HISTORY_DAYS } = await import('../lib/progress');
+    const collect = PRIVACY_NOTICE.find((s) => s.heading === 'What we collect')?.body ?? '';
+    expect(collect).toMatch(/a note of each day they play: how long they played, the XP they earned, and how many questions of each topic they got right and wrong that day/);
+    expect(collect).toMatch(/the level each topic started at/);
+    const keep = PRIVACY_NOTICE.find((s) => s.heading === 'How long we keep it')?.body ?? '';
+    expect(keep).toMatch(/the note of each day they play, which is deleted after five weeks/);
+    expect(keep).toMatch(/the date of the first day noted is kept/);
+    expect(HISTORY_DAYS).toBe(5 * 7);
+    // The purge and the read policy (0026) at the same five weeks.
+    expect(Number(migration0026.match(/where o\.day < current_date - (\d+)/)?.[1])).toBe(HISTORY_DAYS);
+    expect(Number(migration0026.match(/day >= current_date - (\d+)/)?.[1])).toBe(HISTORY_DAYS);
+  });
+});
