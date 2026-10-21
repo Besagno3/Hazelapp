@@ -5,7 +5,7 @@ import QuestionCard from '../../components/QuestionCard';
 import { Candles } from '../../components/Candles';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { loadGauntlet, shuffle } from '../../lib/gauntlet';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, questionErrorMessage } from '../../lib/errors';
 import { clampLevel, playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
@@ -137,7 +137,11 @@ export default function NameFinale() {
         setQuestions(pool);
         setPhase({ kind: 'question', index: 0 });
       })
-      .catch((err) => setPhase({ kind: 'error', message: errorMessage(err) }));
+      .catch((err) => {
+        // Plain words for the kid; the whole error for whoever fixes it (#130 S6).
+        console.warn('Name finale questions failed:', errorMessage(err));
+        setPhase({ kind: 'error', message: questionErrorMessage(err) });
+      });
   }
 
   function onAnswered(ok: boolean, q: Question, picked: number) {
@@ -252,7 +256,7 @@ export default function NameFinale() {
 
       {phase.kind === 'error' && (
         <div className="text-center">
-          <p className="text-sm text-orange-300 mb-4">The Root shivers: {phase.message}</p>
+          <p role="alert" className="text-sm text-orange-300 mb-4">The Root shivers! {phase.message}</p>
           <button onClick={begin} className="min-h-11 bg-violet-500 hover:bg-violet-400 font-semibold rounded-lg px-5 py-2 text-sm">
             Try again
           </button>

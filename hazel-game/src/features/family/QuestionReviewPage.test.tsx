@@ -74,13 +74,26 @@ describe('QuestionReviewPage (#147)', () => {
     expect(await screen.findByText('1 question waiting')).toBeInTheDocument();
   });
 
-  it('a decision that fails stays on the card, with why', async () => {
-    review.reviewQuestion.mockRejectedValue(new Error("Couldn't save that — timeout"));
+  it('a decision that fails stays on the card, in plain words — the raw error goes to the console (#130 S6)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    review.reviewQuestion.mockRejectedValue(new Error("Couldn't save that — canceling statement due to statement timeout [57014]"));
     render(<QuestionReviewPage onBack={onBack} />);
     await screen.findByText('2 questions waiting');
     fireEvent.click(within(card('Which planet is red?')).getByRole('button', { name: '✅ Release' }));
-    expect(await within(card('Which planet is red?')).findByText("Couldn't save that — timeout")).toBeInTheDocument();
+    expect(await within(card('Which planet is red?')).findByText("Couldn't save that just now. Please try again.")).toBeInTheDocument();
+    expect(screen.queryByText(/57014|statement timeout/)).toBeNull();
+    expect(warn).toHaveBeenCalledWith('Saving a review decision failed:', "Couldn't save that — canceling statement due to statement timeout [57014]");
     expect(screen.getByText('2 questions waiting')).toBeInTheDocument();
+    warn.mockRestore();
+  });
+
+  it('a queue that fails to load says so plainly, with Try again', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    review.fetchReviewQueue.mockRejectedValueOnce(new Error("Couldn't load the review queue — relation does not exist [42P01]"));
+    render(<QuestionReviewPage onBack={onBack} />);
+    expect(await screen.findByText(`Couldn't load the review queue just now. Tap "Try again".`)).toBeInTheDocument();
+    expect(screen.queryByText(/42P01/)).toBeNull();
+    vi.mocked(console.warn).mockRestore();
   });
 
   it('a queue that can’t load says why and offers Try again; someone who isn’t an admin is told so', async () => {

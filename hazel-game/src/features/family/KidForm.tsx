@@ -1,14 +1,31 @@
 import { useState } from 'react';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, sessionRanOut } from '../../lib/errors';
+import { plainErrorOr } from '../../lib/familyErrors';
 import { isPin, KID_BIRTH_YEARS, KID_ICONS, MAX_KID_NAME, PIN_LENGTH } from '../../content/family';
 import PasswordInput from '../../components/PasswordInput';
 import PicturePicker from './PicturePicker';
+import SignInAgainButton from './SignInAgainButton';
 import type { Kid, KidInput } from '../../types';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+
+/**
+ * Why a kid didn't save, in words a grown-up can act on (#130 S6): the
+ * database's own refusals (8 players, the PIN's shape, the nickname's length),
+ * the connection's trouble, else a plain "didn't save" — never the raw error,
+ * which goes to the console.
+ */
+function kidSaveMessage(err: unknown): string {
+  const raw = errorMessage(err);
+  // Said in 👪 Grown-ups, where the Remove buttons are one tap back.
+  if (/kid_limit/.test(raw)) return 'A family can have up to 8 players. Tap Cancel, then Remove by a player to make room.';
+  if (/pin_format/.test(raw)) return `Their PIN is ${PIN_LENGTH} numbers.`;
+  if (/display_name_length/.test(raw)) return `A nickname is 1 to ${MAX_KID_NAME} letters.`;
+  return plainErrorOr(err, "That didn't save just now. Please try again.");
+}
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
@@ -17,7 +34,8 @@ const fieldClass =
  * Add or change a kid (#124): a nickname, a birth date (it picks questions
  * that suit their age), the picture on their tile and their 4-digit PIN. A new
  * kid (or one without a PIN yet) needs a PIN; changing one, a blank PIN keeps
- * theirs. `onSubmit` throws with a message to show.
+ * theirs — and typing it, even the same one, unlocks a PIN the database has
+ * locked after too many tries (#124c). `onSubmit` throws with a message to show.
  */
 export default function KidForm({
   kid,
@@ -37,13 +55,18 @@ export default function KidForm({
   const [pin, setPin] = useState('');
   const needsPin = !kid?.hasPin;
   const [error, setError] = useState<string | null>(null);
+  // The save failed because the sign-in ran out: the words ask to sign in again, so the button's here.
+  const [signedOut, setSignedOut] = useState(false);
   const [saving, setSaving] = useState(false);
   // An older kid's birth year stays pickable when changing them.
   const years = kid && !KID_BIRTH_YEARS.includes(kid.birthYear) ? [...KID_BIRTH_YEARS, kid.birthYear] : KID_BIRTH_YEARS;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The button is aria-disabled while it saves: a tap or Enter then stops here.
+    if (saving) return;
     setError(null);
+    setSignedOut(false);
     const trimmed = name.trim();
     if (!trimmed) return setError('Give them a nickname.');
     if (!month || !year) return setError('Pick their birth month and year.');
@@ -53,7 +76,10 @@ export default function KidForm({
     try {
       await onSubmit({ name: trimmed, icon, pin: pin || undefined, birthYear: Number(year), birthMonth: Number(month) });
     } catch (err) {
-      setError(errorMessage(err));
+      // Plain words on screen, the whole error in the console (#130 S6).
+      console.warn('Saving a player failed:', errorMessage(err));
+      setError(kidSaveMessage(err));
+      setSignedOut(sessionRanOut(err));
     } finally {
       setSaving(false);
     }
@@ -106,15 +132,21 @@ export default function KidForm({
           onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, PIN_LENGTH))}
           className={fieldClass}
         />
-        <p className="text-xs text-gray-400 mt-1">
-          They type it to open their adventure — tell them! Keep it different from your own.
+        <p className="text-xs text-gray-500 mt-1">
+          {needsPin
+            ? 'They type it to open their adventure — tell them! Keep it different from your own.'
+            : 'Locked out after too many tries? Type their PIN here — even the same one — and save to unlock it.'}
         </p>
       </div>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
+      {/* Always there, so a screen reader hears each message as it appears. */}
+      <div role="status" className="text-sm text-red-700">
+        {error && <p>{error}</p>}
+      </div>
+      {signedOut && <SignInAgainButton />}
       <button
         type="submit"
-        disabled={saving}
-        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition disabled:opacity-50"
+        aria-disabled={saving}
+        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
       >
         {saving ? 'Saving…' : submitLabel}
       </button>
