@@ -1,6 +1,6 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import { escortsBack } from '../content/questFlags';
-import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
+import { CRYSTAL_TOPIC_IDS, EXTRA_TOPIC_IDS, type CrystalTopic, type LibraryEntry, type SaveData, type Topic, type TopicStart, type ZoneId } from '../types';
 import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
 import { canFlyOver } from './travel';
@@ -221,7 +221,38 @@ export function defaultSave(): SaveData {
     lastRest: null,
     boat: null,
     vehicle: 'foot',
+    topicStarts: {},
   };
+}
+
+const TOPIC_IDS: readonly string[] = [...CRYSTAL_TOPIC_IDS, ...EXTRA_TOPIC_IDS];
+
+/**
+ * A save's topic starts (#29 review round 2): only known topics (own keys —
+ * never `constructor`), each a whole level 1–10 and a whole age 0–120;
+ * anything else is left out, so the page makes no claim on it.
+ */
+function topicStartsFrom(raw: unknown): Partial<Record<Topic, TopicStart>> {
+  if (!isRecord(raw)) return {};
+  const out: Partial<Record<Topic, TopicStart>> = {};
+  for (const [topic, v] of Object.entries(raw)) {
+    if (!TOPIC_IDS.includes(topic) || !isRecord(v)) continue;
+    const { level, age } = v as Record<string, unknown>;
+    if (!Number.isInteger(level) || !Number.isInteger(age)) continue;
+    if ((level as number) < 1 || (level as number) > 10 || (age as number) < 0 || (age as number) > 120) continue;
+    out[topic as Topic] = { level: level as number, age: age as number };
+  }
+  return out;
+}
+
+/**
+ * A save with `topic`'s start noted (#29 review round 2) — the same save when
+ * it already has one (the first one stays: it's where the topic began), so
+ * nothing changes and no revision is spent.
+ */
+export function withTopicStart(save: SaveData, topic: Topic, start: TopicStart): SaveData {
+  if (save.topicStarts[topic]) return save;
+  return { ...save, topicStarts: { ...save.topicStarts, [topic]: start } };
 }
 
 /**
@@ -307,6 +338,8 @@ export function normalizeSave(raw: unknown): SaveData {
         ? { zoneId: r.boat.zoneId, x: r.boat.x, y: r.boat.y }
         : null,
     vehicle: afloat !== null ? 'boat' : flying ? 'ember' : 'foot',
+    // Where each topic's level started (#29 review round 2) — additive: none in an older save.
+    topicStarts: topicStartsFrom(r.topicStarts),
   };
   // Between the Spire's finale and Act II the hero is asleep at the Sleepy
   // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy

@@ -24,6 +24,17 @@ describe('ErrorScreen', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
+  it('is heard as it appears: its title takes the focus, and new words are read from a live region (#29 review round 2)', () => {
+    const { rerender } = render(<ErrorScreen title="The world didn't load" message='Tap "Try again" to go back in.' onRetry={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: "The world didn't load" })).toHaveFocus();
+    const live = screen.getByRole('status');
+    expect(live).toHaveTextContent('Tap "Try again" to go back in.');
+    rerender(<ErrorScreen title="The world didn't load" message="You're offline." onRetry={vi.fn()} />);
+    // The same region, new words: a screen reader reads them out.
+    expect(screen.getByRole('status')).toBe(live);
+    expect(live).toHaveTextContent("You're offline.");
+  });
+
   it('omits the retry when none is given', () => {
     render(<ErrorScreen message="Oops" />);
     expect(screen.queryByRole('button')).toBeNull();

@@ -23,7 +23,7 @@ vi.mock('./supabase', () => ({
 const {
   PROGRESS_COLUMNS,
   SEVERAL_MISSED,
-  STARTING_WORDS,
+  climbedText,
   dayWords,
   fetchFamilyProgress,
   glance,
@@ -32,6 +32,7 @@ const {
   levelSummary,
   missedQuestions,
   nameList,
+  practiseText,
   recentDays,
   statsFromRow,
   storyAct,
@@ -151,13 +152,13 @@ describe('streak, last played and the last week', () => {
   const stats = { currentStreak: 3, longestStreak: 7, lastPlayedOn: '2026-10-20' };
 
   it('a streak counts while they played today or yesterday', () => {
-    expect(streakSummary(stats, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Yesterday', lastPlayedAgo: null });
+    expect(streakSummary(stats, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Yesterday', lastPlayedAgo: null, clockAhead: false });
     expect(streakSummary({ ...stats, lastPlayedOn: TODAY }, TODAY)).toMatchObject({ current: 3, lastPlayed: 'Today' });
   });
 
   it('a missed day breaks it — never the stale saved number — and the best is kept', () => {
-    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-19' }, TODAY)).toEqual({ current: 0, best: 7, lastPlayed: 'Monday', lastPlayedAgo: null });
-    expect(streakSummary(null, TODAY)).toEqual({ current: 0, best: 0, lastPlayed: null, lastPlayedAgo: null });
+    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-19' }, TODAY)).toEqual({ current: 0, best: 7, lastPlayed: 'Monday', lastPlayedAgo: null, clockAhead: false });
+    expect(streakSummary(null, TODAY)).toEqual({ current: 0, best: 0, lastPlayed: null, lastPlayedAgo: null, clockAhead: false });
   });
 
   it('a week or more since they played says how long, not just a date (review round 1)', () => {
@@ -167,11 +168,28 @@ describe('streak, last played and the last week', () => {
 
   it("the kid's device a time zone ahead: their today reads Today, the streak holds, the week marks today (review round 1)", () => {
     const ahead = { ...stats, lastPlayedOn: '2026-10-22' };
-    expect(streakSummary(ahead, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Today', lastPlayedAgo: null });
+    expect(streakSummary(ahead, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Today', lastPlayedAgo: null, clockAhead: false });
     expect(dayWords('2026-10-22', TODAY)).toBe('Today');
     const week = recentDays(TODAY, ['2026-10-22'], '2026-10-22');
     expect(week.at(-1)).toMatchObject({ today: true, played: true });
     expect(week.filter((d) => d.played)).toHaveLength(1);
+  });
+
+  it('a date more than a day ahead is a clock set wrong: not "Today", no live streak, no day in the week (review round 2)', () => {
+    // The server caps play days at a day ahead (0025); only the profile's own last day can do this.
+    for (const last of ['2026-10-23', '2099-12-31']) {
+      expect(streakSummary({ currentStreak: 999, longestStreak: 7, lastPlayedOn: last }, TODAY)).toEqual({
+        current: 0,
+        best: 7,
+        lastPlayed: null,
+        lastPlayedAgo: null,
+        clockAhead: true,
+      });
+      const week = recentDays(TODAY, [last], last, 999);
+      expect(week.some((d) => d.played)).toBe(false);
+    }
+    expect(dayWords('2026-10-23', TODAY)).toBe('23 October');
+    expect(dayWords('2099-12-31', TODAY)).toBe('31 December 2099');
   });
 
   it('days in plain words', () => {
@@ -186,11 +204,25 @@ describe('streak, last played and the last week', () => {
     const week = recentDays(TODAY, ['2026-10-18', '2026-10-15', '2026-10-01'], '2026-10-20');
     expect(week.map((d) => d.iso)).toEqual(['2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18', '2026-10-19', '2026-10-20', '2026-10-21']);
     expect(week.map((d) => d.played)).toEqual([true, false, false, true, false, true, false]);
+    expect(week.some((d) => d.fromStreak)).toBe(false);
     expect(week.map((d) => d.short)).toEqual(['Thu', 'Fri', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed']);
     expect(week[6]).toMatchObject({ today: true, long: 'Wednesday 21 October' });
     expect(week.filter((d) => d.today)).toHaveLength(1);
     // Nothing noted and nothing played: no day is invented.
     expect(recentDays(TODAY, [], null).some((d) => d.played)).toBe(false);
+  });
+
+  it("a live streak shows the days it proves, marked as the streak's — never a stale one (review round 2)", () => {
+    // Only today noted (the first week after 0025, or a day whose note didn't send), a 6-day streak.
+    const week = recentDays(TODAY, [TODAY], TODAY, 6);
+    expect(week.map((d) => d.played)).toEqual([false, true, true, true, true, true, true]);
+    expect(week.map((d) => d.fromStreak)).toEqual([false, true, true, true, true, true, false]);
+    // Ending yesterday, it still holds: those days, not today.
+    expect(recentDays(TODAY, [], '2026-10-20', 3).map((d) => d.played)).toEqual([false, false, false, true, true, true, false]);
+    // A streak that ended two days ago says nothing: the saved number waits for their next game to reset.
+    expect(recentDays(TODAY, ['2026-10-19'], '2026-10-19', 5).filter((d) => d.played).map((d) => d.iso)).toEqual(['2026-10-19']);
+    // A noted day stays noted (not "from the streak").
+    expect(recentDays(TODAY, ['2026-10-18', TODAY], TODAY, 4).find((d) => d.iso === '2026-10-18')).toMatchObject({ played: true, fromStreak: false });
   });
 });
 
@@ -199,72 +231,118 @@ describe('question level by topic', () => {
     expect([1, 3, 4, 6, 7, 8, 9, 10].map(levelBand)).toEqual(['easy', 'easy', 'right', 'right', 'stretch', 'stretch', 'top', 'top']);
   });
 
-  it('every topic, in the game order — measured levels, starting levels for the rest, junk clamped', () => {
-    const levels = topicLevels({ math: 6, science: 8, history: 12, nature: 0.4, space: Number.NaN }, 9);
+  it('every topic, in the game order — measured levels against their noted start, junk clamped, the rest at the start for their age now', () => {
+    const levels = topicLevels(
+      { math: 6, science: 8, history: 12, nature: 0.4, space: Number.NaN },
+      9,
+      { math: { level: 3, age: 8 }, science: { level: 4, age: 9 }, history: { level: 4, age: 9 }, nature: { level: 2, age: 7 }, music: { level: 1, age: 6 } },
+    );
     expect(levels.map((t) => t.id)).toEqual(ALL_TOPIC_INFO.map((t) => t.id));
     expect(levels).toHaveLength(10);
     const by = Object.fromEntries(levels.map((t) => [t.id, t]));
-    // A 9-year-old starts every topic at 4 — the game's own rule (ageToStartLevel).
-    expect(levels.every((t) => t.start === 4)).toBe(true);
-    expect(by.math).toMatchObject({ label: 'Math', level: 6, measured: true, meaning: '2 above their starting level' });
-    expect(by.science).toMatchObject({ level: 8, meaning: '4 above their starting level — a stretch for their age' });
-    expect(by.history).toMatchObject({ level: 10, meaning: '6 above their starting level — for the strongest at their age' });
-    expect(by.nature).toMatchObject({ level: 1, meaning: 'Below their starting level — a good one to practise together' });
-    expect(by.music).toMatchObject({ label: 'Music', level: 4, measured: false, meaning: STARTING_WORDS });
-    expect(by.space).toMatchObject({ level: 4, measured: false });
+    expect(by.math).toMatchObject({ label: 'Math', level: 6, measured: true, start: { level: 3, age: 8 }, meaning: 'Up 3 from level 3, where they started at age 8' });
+    expect(by.science).toMatchObject({ level: 8, meaning: 'Up 4 from level 4, where they started at age 9 — a stretch for their age' });
+    expect(by.history).toMatchObject({ level: 10, meaning: 'Up 6 from level 4, where they started at age 9 — for the strongest at their age' });
+    expect(by.nature).toMatchObject({ level: 1, meaning: 'Below level 2, where they started at age 7 — a good one to practise together' });
+    // Not moved yet: at the start for a 9-year-old (4), no start of its own and no words (the page groups them).
+    expect(by.music).toMatchObject({ label: 'Music', level: 4, measured: false, start: null, meaning: null });
+    expect(by.space).toMatchObject({ level: 4, measured: false, start: null });
   });
 
-  it("young players start low on purpose: a 6- or 7-year-old's levels read against their own start, never as below their age (review round 1)", () => {
-    // A 6-year-old starts at 1, a 7-year-old at 2 (#156).
-    const bo = topicLevels({ math: 1 }, 6);
-    expect(bo[0]).toMatchObject({ id: 'math', level: 1, start: 1, meaning: 'At their starting level' });
+  it('a birthday moves nothing: a topic held (or climbed) since they were younger never reads "below" (review round 2)', () => {
+    // Born November 2017: Math noted at 8 (start 3) and held there.
+    const starts = { math: { level: 3, age: 8 } };
+    expect(topicLevels({ math: 3 }, 8, starts)[0].meaning).toBe('At level 3, where they started at age 8');
+    expect(topicLevels({ math: 3 }, 9, starts)[0].meaning).toBe('At level 3, where they started at age 8');
+    // Ada, 9, started every topic at 6 (level 1) and climbed to 2–3: up, never below.
+    const ada = topicLevels({ math: 3, words: 2 }, 9, { math: { level: 1, age: 6 }, words: { level: 1, age: 6 } });
+    expect(ada.filter((t) => t.measured).map((t) => t.meaning)).toEqual(['Up 2 from level 1, where they started at age 6', 'Up 1 from level 1, where they started at age 6']);
+    expect(glance(null, ada, []).belowStart).toEqual([]);
+  });
+
+  it('no noted start (saved before the game noted them, or a teen from before #156): no above / below claim, only the top bands', () => {
+    // A 15-year-old seeded at 10 under the old rule, never moved: "level 10 of 10", what its questions are — not "4 above".
+    const teen = topicLevels({ math: 10, science: 7, words: 5, history: 2 }, 15);
+    const by = Object.fromEntries(teen.map((t) => [t.id, t]));
+    expect(by.math).toMatchObject({ level: 10, start: null, meaning: 'For the strongest at their age' });
+    expect(by.science.meaning).toBe('A stretch for their age');
+    expect(by.words.meaning).toBeNull();
+    expect(by.history.meaning).toBeNull();
+    expect(glance(null, teen, [])).toMatchObject({ climbed: [], belowStart: [] });
+    for (let level = 1; level <= 10; level++) expect(topicMeaning(level, null) ?? '').not.toMatch(/above|below|start/i);
+  });
+
+  it('young players start low on purpose: a 6- or 7-year-old reads against the start the game noted for them (review round 1)', () => {
+    const bo = topicLevels({ math: 1 }, 6, { math: { level: 1, age: 6 } });
+    expect(bo[0]).toMatchObject({ id: 'math', level: 1, meaning: 'At level 1, where they started at age 6' });
     expect(bo.find((t) => t.id === 'science')).toMatchObject({ level: 1, measured: false });
-    const kit = topicLevels({ math: 3, science: 2 }, 7);
-    expect(kit.find((t) => t.id === 'math')?.meaning).toBe('1 above their starting level');
-    expect(kit.find((t) => t.id === 'science')?.meaning).toBe('At their starting level');
-    // Nothing a young player reaches by playing reads "easy" or "below" unless it really is below their start.
+    const kit = topicLevels({ math: 3, science: 2 }, 7, { math: { level: 2, age: 7 }, science: { level: 2, age: 7 } });
+    expect(kit.find((t) => t.id === 'math')?.meaning).toBe('Up 1 from level 2, where they started at age 7');
+    expect(kit.find((t) => t.id === 'science')?.meaning).toBe('At level 2, where they started at age 7');
     for (const [age, level] of [[6, 1], [6, 3], [7, 2], [8, 3], [8, 5]] as const) {
-      const meaning = topicMeaning(level, ageToStartLevel(age));
-      expect(meaning).not.toMatch(/easy|below/i);
+      expect(topicMeaning(level, { level: ageToStartLevel(age), age })).not.toMatch(/easy|below/i);
     }
-    expect(topicMeaning(2, ageToStartLevel(8))).toMatch(/^Below their starting level/);
+    expect(topicMeaning(2, { level: ageToStartLevel(8), age: 8 })).toMatch(/^Below level 3/);
   });
 
-  it('a teen at the top bands says so; nothing claims a level went down (the data keeps no history)', () => {
-    expect(topicMeaning(6, 6)).toBe('At their starting level');
-    expect(topicMeaning(7, 6)).toBe('1 above their starting level — a stretch for their age');
-    expect(topicMeaning(10, 6)).toBe('4 above their starting level — for the strongest at their age');
-    for (let start = 1; start <= 6; start++) for (let level = 1; level <= 10; level++) expect(topicMeaning(level, start)).not.toMatch(/down|dropped|fell|harder/i);
+  it('nothing claims a level went down (the data keeps no history)', () => {
+    for (let start = 1; start <= 6; start++) {
+      for (let level = 1; level <= 10; level++) expect(topicMeaning(level, { level: start, age: start + 5 }) ?? '').not.toMatch(/down|dropped|fell|harder/i);
+    }
   });
 });
 
-describe('at a glance (review round 1)', () => {
+describe('at a glance (review rounds 1–2)', () => {
   it('names lists the way a grown-up reads them', () => {
     expect(nameList([])).toBe('');
     expect(nameList(['Math'])).toBe('Math');
     expect(nameList(['Math', 'Science'])).toBe('Math and Science');
     expect(nameList(['Math', 'Science', 'Space'])).toBe('Math, Science and 1 more');
     expect(nameList(['Math', 'Science', 'Space'], 3)).toBe('Math, Science and Space');
+    expect(nameList(['A', 'B', 'C', 'D', 'E'], Infinity)).toBe('A, B, C, D and E');
   });
 
-  it('days played, the furthest topic, what to practise together and the questions waiting — all from what is stored', () => {
+  it('days played, the most progress, what to practise together and the questions waiting — all from what is stored', () => {
     const week = recentDays(TODAY, ['2026-10-18', '2026-10-15'], '2026-10-20');
-    const levels = topicLevels({ math: 6, science: 9, engineering: 3, creativity: 2, nature: 9 }, 9);
+    const starts = { math: { level: 4, age: 9 }, science: { level: 4, age: 9 }, engineering: { level: 4, age: 9 }, creativity: { level: 4, age: 9 }, nature: { level: 4, age: 9 } };
+    const levels = topicLevels({ math: 6, science: 9, engineering: 3, creativity: 2, nature: 9, space: 1 }, 9, starts);
     const library = [...EIGHT_MISSED, EIGHT_MISSED[0], EIGHT_MISSED[0]].map((e, i) => ({ ...e, question: { ...e.question, id: `q${i}` } }));
     const missed = missedQuestions({ ...defaultSave(), library });
     const g = glance(week, levels, missed);
     expect(g.playedDays).toBe(3);
-    expect(g.furthest.map((t) => t.label)).toEqual(['Science', 'Nature & Animals']);
+    expect(g.streakDays).toBe(0);
+    expect(g.climbed.map((t) => t.label)).toEqual(['Science', 'Nature & Animals']);
+    // Space (1) has no noted start: it's in neither list.
     expect(g.belowStart.map((t) => t.label)).toEqual(['Engineering', 'Creativity']);
     // Three Math questions waiting (several); one of each other topic isn't.
     expect(g.missedByTopic).toEqual([{ label: 'Math', count: SEVERAL_MISSED }]);
     expect(g.missedCount).toBe(10);
+    expect(climbedText(g.climbed)).toBe('Most progress: Science and Nature & Animals — up 5 levels each since they started.');
+    expect(climbedText(g.climbed.slice(0, 1))).toBe('Most progress: Science — up from level 4 to 9 since they started.');
   });
 
-  it('nothing invented: no week without the table, no "furthest" at the starting level, nothing from what was never saved', () => {
-    const g = glance(null, topicLevels({ math: 4 }, 9), []);
-    expect(g).toEqual({ playedDays: null, furthest: [], belowStart: [], missedByTopic: [], missedCount: 0 });
-    expect(glance(null, null, null)).toEqual({ playedDays: null, furthest: [], belowStart: [], missedByTopic: [], missedCount: 0 });
+  it('what to practise, grouped by why, every topic named (review round 2)', () => {
+    const t = (label: string) => ({ label }) as Parameters<typeof practiseText>[0]['belowStart'][number];
+    expect(
+      practiseText({
+        belowStart: [t('Engineering'), t('Creativity'), t('Music'), t('Space')],
+        missedByTopic: [{ label: 'Math', count: 4 }, { label: 'Science', count: 3 }],
+      }),
+    ).toBe('To practise together — below where they started: Engineering, Creativity, Music and Space · questions waiting at the Library: Math (4) and Science (3).');
+    expect(practiseText({ belowStart: [], missedByTopic: [{ label: 'Math', count: 3 }] })).toBe('To practise together — questions waiting at the Library: Math (3).');
+    expect(practiseText({ belowStart: [], missedByTopic: [] })).toBeNull();
+  });
+
+  it('nothing invented: no week without the table, no climb without a noted start, nothing from what was never saved', () => {
+    const g = glance(null, topicLevels({ math: 4 }, 9, { math: { level: 4, age: 9 } }), []);
+    expect(g).toEqual({ playedDays: null, streakDays: 0, climbed: [], belowStart: [], missedByTopic: [], missedCount: 0 });
+    expect(glance(null, null, null)).toEqual({ playedDays: null, streakDays: 0, climbed: [], belowStart: [], missedByTopic: [], missedCount: 0 });
+    expect(climbedText([])).toBeNull();
+  });
+
+  it('the days only a streak shows are counted, and said', () => {
+    const g = glance(recentDays(TODAY, [TODAY], TODAY, 6), null, null);
+    expect(g).toMatchObject({ playedDays: 6, streakDays: 5 });
   });
 });
 

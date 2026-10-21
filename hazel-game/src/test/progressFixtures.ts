@@ -61,6 +61,15 @@ export function midActTwoSave(): SaveData {
       'leaves:10': true,
     },
     library: EIGHT_MISSED,
+    // Where each topic started, as the game notes it (#29 review round 2): Math at 8, four more at 9;
+    // Time & History was played before the game noted starts, so it has none.
+    topicStarts: {
+      math: { level: 3, age: 8 },
+      science: { level: 4, age: 9 },
+      engineering: { level: 4, age: 9 },
+      creativity: { level: 4, age: 9 },
+      nature: { level: 4, age: 9 },
+    },
   };
 }
 

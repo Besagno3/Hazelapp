@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 import type { PinVerdict } from '../../lib/pinLock';
 
-const { default: WhoIsPlaying, KID_UNLOCK_HELP } = await import('./WhoIsPlaying');
+const { default: WhoIsPlaying, KID_UNLOCK_HELP, PROGRESS_RELOADED_NOTE } = await import('./WhoIsPlaying');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { forgetAllLocks, KID_LOCKED_TEXT } = await import('../../lib/pinLock');
 
@@ -121,6 +121,19 @@ describe('WhoIsPlaying (#124)', () => {
     fireEvent.click(screen.getByRole('button', { name: /not me/ }));
     expect(screen.getByText("Who's playing?")).toBeInTheDocument();
     expect(choose).not.toHaveBeenCalled();
+  });
+
+  it('after 📈 Progress reloaded the game for a new version: what happened and the way back, focused, once (#29 review round 2)', () => {
+    sessionStorage.setItem('hazel-reloaded-for', 'progress');
+    const { unmount } = render(<WhoIsPlaying />);
+    const note = screen.getByText(PROGRESS_RELOADED_NOTE);
+    expect(note.textContent).toBe('🔄 We reloaded Hazel Quest to fetch its newest version for 📈 Progress. Open 👪 Grown-ups again to see it.');
+    expect(note).toHaveFocus();
+    expect(sessionStorage.getItem('hazel-reloaded-for')).toBeNull();
+    unmount();
+    // Said once: the next visit is quiet.
+    render(<WhoIsPlaying />);
+    expect(screen.queryByText(PROGRESS_RELOADED_NOTE)).toBeNull();
   });
 
   it('👪 Grown-ups opens the grown-ups area', () => {

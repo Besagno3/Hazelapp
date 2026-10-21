@@ -1,16 +1,17 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type Ref } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
-import { playerAge, MAX_SKILL_LEVEL } from '../../lib/age';
+import { ageToStartLevel, playerAge, MAX_SKILL_LEVEL } from '../../lib/age';
 import { todayIso } from '../../lib/streak';
 import { cn } from '../../lib/utils';
 import {
+  climbedText,
   fetchFamilyProgress,
   glance,
   hasPlayed,
   levelSummary,
   missedQuestions,
-  nameList,
+  practiseText,
   recentDays,
   storySummary,
   streakSummary,
@@ -36,15 +37,16 @@ import type { Kid } from '../../types';
  * The page's chart colours (#29, the dataviz method; validated with its
  * palette script against the card's white surface — see ISSUES #29):
  * one sequential hue for magnitude (blue 450 on its own 100 step as the
- * track: 4.42:1 on white, 3.34:1 on the track) and the de-emphasis grey for a
- * starting level no round has measured (its own lighter grey as the track)
- * and a crystal not restored yet (3.59:1 on white).
- * Every bar has its value in words beside it, so colour never carries it alone.
+ * track: 4.42:1 on white, 3.34:1 on the track), its 250 step for a day only
+ * a streak shows (#29 review round 2), and the de-emphasis grey ring for a
+ * crystal not restored yet (3.59:1 on white). Topics not moved yet have no
+ * bar (review round 2). Every bar has its value in words beside it, so colour
+ * never carries it alone.
  */
 const FILL = 'bg-[#2a78d6]';
 const TRACK = 'bg-[#cde2fb]';
-const FILL_MUTED = 'bg-[#898781]';
-const TRACK_MUTED = 'bg-[#e1e0d9]';
+/** A day only their streak shows (#29 review round 2): the same hue a step lighter (blue 250, 2.06:1 on white), a dark ✓ on it. */
+const FILL_STREAK = 'bg-[#86b6ef]';
 
 /** How many missed questions show before "Show all". */
 const MISSED_FIRST = 3;
@@ -55,8 +57,16 @@ const days = (n: number) => `${n} ${n === 1 ? 'day' : 'days'}`;
 /** Every number on the page, one way: "1,100", "48,210" (#29 review round 1). */
 const fmt = (n: number) => n.toLocaleString('en');
 
-/** What a section shows when the part of the account it reads hasn't been saved (#29 review round 1). */
-const NOT_SAVED = 'Nothing about this has been saved to your account yet. It shows here once their game saves it.';
+/**
+ * What the page says, once under the kid's name, when a part of the account
+ * it reads hasn't been saved (#29 review rounds 1–2: it said the same
+ * sentence in each section) — those sections are left out.
+ */
+function notSavedLine(stats: boolean, save: boolean): string | null {
+  const what = [!stats && 'player level and question levels', !save && 'story, questions to practise and touch typing'].filter(Boolean);
+  if (what.length === 0) return null;
+  return `Nothing about their ${what.join(' or their ')} has been saved to your account yet. It shows here once their game saves it.`;
+}
 
 /**
  * 👪 Grown-ups → 📈 Progress (#29): how each kid is doing — a few lines at a
@@ -216,23 +226,27 @@ function KidProgress({ kid, data, today, headingRef }: { kid: Kid; data: KidProg
       </div>
     );
   }
-  const levels = data.stats ? topicLevels(data.stats.skillLevels, playerAge(kid)) : null;
+  const age = playerAge(kid);
+  const levels = data.stats ? topicLevels(data.stats.skillLevels, age, data.save?.topicStarts ?? {}) : null;
   const story = data.save ? storySummary(data.save) : null;
   const missed = data.save ? missedQuestions(data.save) : null;
-  const week = data.playDays ? recentDays(today, data.playDays, data.stats?.lastPlayedOn ?? null) : null;
+  const week = data.playDays ? recentDays(today, data.playDays, data.stats?.lastPlayedOn ?? null, data.stats?.currentStreak ?? 0) : null;
   const streak = data.stats ? streakSummary(data.stats, today) : null;
+  const notSaved = notSavedLine(!!data.stats, !!data.save);
   return (
     <div>
       <h2 ref={headingRef} tabIndex={-1} className="text-lg font-bold text-gray-900 focus:outline-none">
         {name}'s progress
       </h2>
-      <AtAGlance glance={glance(week, levels, missed)} lastPlayed={streak?.lastPlayed ?? null} levelsKnown={levels !== null || missed !== null} />
+      {notSaved && <p className="mt-1 text-sm text-gray-700">{notSaved}</p>}
+      {/* "Nothing stands out" only when both what it judges are known (#29 review round 2: either was enough). */}
+      <AtAGlance glance={glance(week, levels, missed)} lastPlayed={streak?.lastPlayed ?? null} judged={levels !== null && missed !== null} />
       <div className="mt-6 space-y-6">
-        <LevelSection name={name} data={data} week={week} today={today} />
-        <TopicSection name={name} levels={levels} />
-        <StorySection name={name} story={story} />
-        <MissedSection name={name} missed={missed} />
-        <TypingSection name={name} typing={data.save ? typingSummary(data.save) : null} />
+        {(data.stats || week) && <LevelSection name={name} data={data} week={week} today={today} />}
+        {levels && <TopicSection name={name} levels={levels} ageStart={ageToStartLevel(age)} />}
+        {story && <StorySection name={name} story={story} />}
+        {missed && <MissedSection name={name} missed={missed} />}
+        {data.save && <TypingSection name={name} typing={typingSummary(data.save)} />}
       </div>
     </div>
   );
@@ -247,38 +261,28 @@ function lastPlayedPhrase(words: string): string {
 /**
  * The few lines a grown-up reads first (#29 review round 1): how much they've
  * played, what's going well, and what could use a hand — only what the
- * account says (a topic below their starting level, several questions of one
- * topic waiting at the Library), never a guess.
+ * account says (a topic against the start the game noted for it, several
+ * questions of one topic waiting at the Library), never a guess. `judged`:
+ * both the levels and the Library were read, so "nothing stands out" is true.
  */
-function AtAGlance({ glance: g, lastPlayed, levelsKnown }: { glance: Glance; lastPlayed: string | null; levelsKnown: boolean }) {
+function AtAGlance({ glance: g, lastPlayed, judged }: { glance: Glance; lastPlayed: string | null; judged: boolean }) {
   const lines: { emoji: string; text: ReactNode }[] = [];
   if (g.playedDays !== null) {
     lines.push({
       emoji: '📅',
       text:
         g.playedDays > 0
-          ? `Played on ${g.playedDays} of the last 7 days.`
+          ? `Played on ${g.playedDays} of the last 7 days${g.streakDays > 0 ? ' (counting days their streak shows)' : ''}.`
           : `No play noted in the last 7 days${lastPlayed ? ` — last played ${lastPlayedPhrase(lastPlayed)}` : ''}.`,
     });
   } else if (lastPlayed) {
     lines.push({ emoji: '📅', text: `Last played ${lastPlayedPhrase(lastPlayed)}.` });
   }
-  if (g.furthest.length > 0) {
-    lines.push({
-      emoji: '🌟',
-      text: `Furthest along: ${nameList(g.furthest.map((t) => t.label))} (question level ${g.furthest[0].level} of ${MAX_SKILL_LEVEL}).`,
-    });
-  }
-  // Each topic once, with every reason it's here.
-  const practise = new Map<string, string[]>();
-  for (const t of g.belowStart) practise.set(t.label, ['below their starting level']);
-  for (const m of g.missedByTopic) practise.set(m.label, [...(practise.get(m.label) ?? []), `${m.count} questions waiting at the Library`]);
-  if (practise.size > 0) {
-    const items = [...practise].map(([label, why]) => `${label} (${why.join('; ')})`);
-    lines.push({ emoji: '💡', text: `To practise together: ${nameList(items, 3)}.` });
-  } else if (levelsKnown) {
-    lines.push({ emoji: '💡', text: 'Nothing stands out to practise right now.' });
-  }
+  const climbed = climbedText(g.climbed);
+  if (climbed) lines.push({ emoji: '🌟', text: climbed });
+  const practise = practiseText(g);
+  if (practise) lines.push({ emoji: '💡', text: practise });
+  else if (judged) lines.push({ emoji: '💡', text: 'Nothing stands out to practise right now.' });
   if (g.missedCount > 0) {
     lines.push({
       emoji: '📚',
@@ -313,22 +317,23 @@ function Section({ emoji, title, children }: { emoji: string; title: string; chi
 }
 
 /** A thin bar for a number against its limit; the words beside it carry the value (it's decoration for a screen reader). */
-function Meter({ percent, muted = false }: { percent: number; muted?: boolean }) {
+function Meter({ percent }: { percent: number }) {
   return (
-    <div aria-hidden="true" className={cn('h-2.5 w-full overflow-hidden rounded-[4px]', muted ? TRACK_MUTED : TRACK)}>
-      <div className={cn('h-full rounded-r-[4px]', muted ? FILL_MUTED : FILL)} style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
+    <div aria-hidden="true" className={cn('h-2.5 w-full overflow-hidden rounded-[4px]', TRACK)}>
+      <div className={cn('h-full rounded-r-[4px]', FILL)} style={{ width: `${Math.max(0, Math.min(100, percent))}%` }} />
     </div>
   );
 }
 
 function LevelSection({ name, data, week, today }: { name: string; data: KidProgressData; week: RecentDay[] | null; today: string }) {
   const playedCount = week?.filter((d) => d.played).length ?? 0;
+  const fromStreak = week?.some((d) => d.fromStreak) ?? false;
   const { stats } = data;
   const lv = stats ? levelSummary(stats) : null;
   const streak = stats ? streakSummary(stats, today) : null;
   return (
-    <Section emoji="⭐" title="Player level and play">
-      {lv && streak ? (
+    <Section emoji="⭐" title={stats ? 'Player level and play' : 'Days played'}>
+      {lv && streak && (
         <>
           <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
             <p className="leading-none text-gray-900">
@@ -342,24 +347,27 @@ function LevelSection({ name, data, week, today }: { name: string; data: KidProg
             <p className="mt-1 text-sm text-gray-700">
               {fmt(lv.into)} of {fmt(lv.needed)} XP toward player level {fmt(lv.level + 1)} — {fmt(lv.toNext)} more to go.
             </p>
+            {/* Said in half the words (#29 review round 2: six lines of small print on a phone). */}
             <p className="mt-0.5 text-xs text-gray-600">
-              Player level rises with XP, from right answers in rounds, battles, the Library and more, and from typing
-              practice. It shows how much {name} has played and never makes questions harder — each topic's question level
-              (below) does that.
+              Player level grows with the XP {name} earns. It never makes questions harder — each topic's question level
+              (below) does.
             </p>
           </div>
           <dl className="mt-3 grid grid-cols-2 gap-2">
             <Tile
               emoji="🔥"
               label="Streak"
-              value={streak.current > 0 ? days(streak.current) : 'No streak now'}
+              value={streak.clockAhead ? 'Not sure' : streak.current > 0 ? days(streak.current) : 'No streak now'}
               sub={streak.best > 0 ? `Best: ${days(streak.best)} in a row` : undefined}
             />
-            <Tile emoji="📅" label="Last played" value={streak.lastPlayed ?? 'Not yet'} sub={streak.lastPlayedAgo ?? undefined} />
+            <Tile
+              emoji="📅"
+              label="Last played"
+              value={streak.clockAhead ? 'Not sure' : (streak.lastPlayed ?? 'Not yet')}
+              sub={streak.clockAhead ? "Their device's date is set ahead" : (streak.lastPlayedAgo ?? undefined)}
+            />
           </dl>
         </>
-      ) : (
-        <p className="text-sm text-gray-700">{NOT_SAVED}</p>
       )}
       {week && (
         <div className="mt-3">
@@ -376,18 +384,27 @@ function LevelSection({ name, data, week, today }: { name: string; data: KidProg
                   aria-hidden="true"
                   className={cn(
                     'flex h-6 w-full max-w-10 items-center justify-center rounded-[4px] text-xs font-bold',
-                    d.played ? `${FILL} text-white` : `${TRACK} text-gray-500`,
+                    d.fromStreak ? `${FILL_STREAK} text-gray-900` : d.played ? `${FILL} text-white` : `${TRACK} text-gray-500`,
                   )}
                 >
                   {d.played ? '✓' : '·'}
                 </span>
                 <span className="sr-only">
                   {d.long}
-                  {d.today ? ' (today)' : ''}: {d.played ? 'played' : 'no play noted'}
+                  {d.today ? ' (today)' : ''}: {d.fromStreak ? 'played — their streak shows it' : d.played ? 'played' : 'no play noted'}
                 </span>
               </li>
             ))}
           </ol>
+          {/* Two kinds of ✓ need a key (the dataviz method: never colour alone). */}
+          {fromStreak && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-600">
+              <span aria-hidden="true" className={cn('inline-flex h-4 w-5 items-center justify-center rounded-[3px] text-[10px] font-bold text-gray-900', FILL_STREAK)}>
+                ✓
+              </span>
+              A day their streak shows they played, though it wasn't noted that day.
+            </p>
+          )}
         </div>
       )}
     </Section>
@@ -408,25 +425,20 @@ function Tile({ emoji, label, value, sub }: { emoji: string; label: string; valu
   );
 }
 
-function TopicSection({ name, levels }: { name: string; levels: TopicLevel[] | null }) {
-  if (!levels) {
-    return (
-      <Section emoji="🎯" title="Question level by topic">
-        <p className="text-sm text-gray-700">{NOT_SAVED}</p>
-      </Section>
-    );
-  }
+function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicLevel[]; ageStart: number }) {
   const measured = levels.filter((t) => t.measured);
-  // Every topic not moved yet is at the starting level (it's set by age): one line for them all.
+  // Every topic not moved yet is at the start for their age now (it's set by age): one line for them all.
   const starting = levels.filter((t) => !t.measured);
-  const start = levels[0]?.start ?? 1;
+  const unnoted = measured.some((t) => t.start === null);
   return (
     <Section emoji="🎯" title="Question level by topic">
+      {/* Never "their starting level" for them all: a topic starts where a player of the age they were when they
+          first played it starts, so a birthday moves it for topics not played yet (#29 review round 2). */}
       <p className="mb-3 text-sm text-gray-700">
-        Each topic has its own question level, 1 to {MAX_SKILL_LEVEL}: how hard its questions are for {name}'s age. Their
-        starting level is {start} — where the game starts a player their age
-        {start < 4 ? ' (younger players begin on easier questions on purpose, and climb as they play)' : ''}. Strong rounds
-        move a topic up; hard ones bring it down slowly.
+        Each topic has its own question level, 1 to {MAX_SKILL_LEVEL}: how hard its questions are for {name}'s age. A
+        topic starts where the game starts a player of the age they are when they first play it (younger players begin
+        lower, on purpose). Strong rounds move it up; hard ones bring it down slowly.
+        {unnoted && ' Where a topic started has only been noted since a recent update, so topics played before it show their level alone.'}
       </p>
       {measured.length > 0 && (
         <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -443,11 +455,13 @@ function TopicSection({ name, levels }: { name: string; levels: TopicLevel[] | n
                 </span>
               </div>
               <Segments value={t.level} />
-              <p className="mt-0.5 text-xs text-gray-600">{t.meaning}</p>
+              {t.meaning && <p className="mt-0.5 text-xs text-gray-600">{t.meaning}</p>}
             </li>
           ))}
         </ul>
       )}
+      {/* No bar for these (#29 review round 2): a grey bar at today's start outgrew the bars a long-time player
+          earned from a lower start, as if playing had made them worse. The words carry it. */}
       {starting.length > 0 && (
         <div className={cn('rounded-xl bg-gray-50 p-3', measured.length > 0 && 'mt-4')}>
           <h4 className="flex items-baseline justify-between gap-2 text-sm">
@@ -455,11 +469,12 @@ function TopicSection({ name, levels }: { name: string; levels: TopicLevel[] | n
               Not moved yet<span className="sr-only">:</span>
             </span>{' '}
             <span className="shrink-0 font-semibold tabular-nums text-gray-900">
-              level {start} of {MAX_SKILL_LEVEL}
+              level {ageStart} of {MAX_SKILL_LEVEL}
             </span>
           </h4>
-          <Segments value={start} muted />
-          <p className="mt-0.5 text-xs text-gray-600">{starting[0].meaning}</p>
+          <p className="mt-0.5 text-xs text-gray-600">
+            Where the game starts a player {name}'s age. Each moves once they play rounds in it.
+          </p>
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {starting.map((t) => (
               <li key={t.id} className="rounded-full bg-white px-2.5 py-1 text-xs text-gray-800 ring-1 ring-gray-200">
@@ -475,14 +490,11 @@ function TopicSection({ name, levels }: { name: string; levels: TopicLevel[] | n
 }
 
 /** Ten cells, one per level, a 2 px gap between (the value is in the words above). */
-function Segments({ value, muted = false }: { value: number; muted?: boolean }) {
+function Segments({ value }: { value: number }) {
   return (
     <div aria-hidden="true" className="mt-1 flex gap-0.5">
       {Array.from({ length: MAX_SKILL_LEVEL }, (_, i) => (
-        <span
-          key={i}
-          className={cn('h-2.5 flex-1 rounded-[2px]', i < value ? (muted ? FILL_MUTED : FILL) : muted ? TRACK_MUTED : TRACK)}
-        />
+        <span key={i} className={cn('h-2.5 flex-1 rounded-[2px]', i < value ? FILL : TRACK)} />
       ))}
     </div>
   );
@@ -496,14 +508,7 @@ function crystalLine(story: StorySummary): string {
   return `${restored} — every one they've found so far.`;
 }
 
-function StorySection({ name, story }: { name: string; story: StorySummary | null }) {
-  if (!story) {
-    return (
-      <Section emoji="🗺️" title="Story">
-        <p className="text-sm text-gray-700">{NOT_SAVED}</p>
-      </Section>
-    );
-  }
+function StorySection({ name, story }: { name: string; story: StorySummary }) {
   if (story.stage === 'training') {
     return (
       <Section emoji="🗺️" title="Story">
@@ -578,16 +583,9 @@ function StorySection({ name, story }: { name: string; story: StorySummary | nul
   );
 }
 
-function MissedSection({ name, missed }: { name: string; missed: MissedQuestion[] | null }) {
+function MissedSection({ name, missed }: { name: string; missed: MissedQuestion[] }) {
   const [all, setAll] = useState(false);
   const listId = useId();
-  if (!missed) {
-    return (
-      <Section emoji="📚" title="Questions to practise">
-        <p className="text-sm text-gray-700">{NOT_SAVED}</p>
-      </Section>
-    );
-  }
   const shown = all ? missed : missed.slice(0, MISSED_FIRST);
   return (
     <Section emoji="📚" title={missed.length > 0 ? `Questions to practise (${missed.length})` : 'Questions to practise'}>
@@ -634,14 +632,7 @@ function MissedSection({ name, missed }: { name: string; missed: MissedQuestion[
   );
 }
 
-function TypingSection({ name, typing }: { name: string; typing: TypingSummary | null }) {
-  if (!typing) {
-    return (
-      <Section emoji="⌨️" title="Touch typing">
-        <p className="text-sm text-gray-700">{NOT_SAVED}</p>
-      </Section>
-    );
-  }
+function TypingSection({ name, typing }: { name: string; typing: TypingSummary }) {
   if (typing.cleared === 0) {
     return (
       <Section emoji="⌨️" title="Touch typing">

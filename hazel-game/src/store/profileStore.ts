@@ -6,6 +6,9 @@ import { mergeProfiles, readLocalProfile, writeLocalProfile } from '../lib/profi
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
 import { flushPlayDays, notePlayDay } from '../lib/playDays';
+import { ageToStartLevel, playerAge } from '../lib/age';
+import { withTopicStart } from '../lib/save';
+import { useSaveStore } from './saveStore';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -93,7 +96,12 @@ interface ProfileStore {
   remoteError: string | null;
   /** Fetch a kid's profile row; `birth` seeds a fresh profile if the read fails. */
   loadProfile: (userId: string, birth?: Birth) => Promise<void>;
-  /** Persist a new skill level for one topic (optimistic update). */
+  /**
+   * Persist a new skill level for one topic (optimistic update). The first
+   * time a topic's level is saved, where it started — the level for the kid's
+   * age now, the one the round began from — is noted in their save
+   * (`topicStarts`, #29 review round 2).
+   */
   setSkillLevel: (topic: Topic, level: number) => Promise<void>;
   /** Add experience points (optimistic update). Any XP earned is play, so it counts the day too (`recordActivity`). */
   addXp: (amount: number) => Promise<void>;
@@ -181,6 +189,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   setSkillLevel: async (topic, level) => {
     const profile = get().profile;
     if (!profile) return;
+    // Its first saved level: until now the topic stood at the start for the
+    // kid's age (`skillLevelFor`) — note that start, and the age, for good.
+    const saves = useSaveStore.getState();
+    if (profile.skillLevels[topic] === undefined && saves.userId === profile.id) {
+      const age = playerAge(profile);
+      saves.update((s) => withTopicStart(s, topic, { level: ageToStartLevel(age), age }));
+    }
     const skillLevels = { ...profile.skillLevels, [topic]: level };
     const updated = { ...profile, skillLevels };
     set({ profile: updated }); // optimistic

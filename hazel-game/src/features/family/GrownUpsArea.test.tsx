@@ -665,11 +665,42 @@ describe('GrownUpsArea (#124)', () => {
     // The rest of 👪 Grown-ups never left.
     fireEvent.click(screen.getByRole('button', { name: '← Back to 👪 Grown-ups' }));
     await screen.findByText('Sam');
+    // …and the area's live region no longer says the page didn't load (review round 2).
+    expect(screen.getAllByRole('status').some((el) => /didn't load|couldn't reach/.test(el.textContent ?? ''))).toBe(false);
     // Back in, and the file loads this time: the page, its title focused.
     fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
     expect(await findHero(2)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+  });
+
+  it("📈 Progress's file still missing while our server answers: it leaves a note, then reloads the game (#29 review round 2)", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    onTestFinished(() => window.removeEventListener('error', quiet));
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
+    chunk.fail = 2;
+    let noted: string | null = null;
+    const reload = vi.fn(() => (noted = sessionStorage.getItem('hazel-reloaded-for')));
+    vi.stubGlobal('location', { ...window.location, href: 'http://localhost/play/', origin: 'http://localhost', reload });
+    const ours = '<!doctype html><title>Hazel Quest</title><div id="root"></div>';
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(ours, { status: 200, headers: { 'content-type': 'text/html' } }))));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+      sessionStorage.removeItem('hazel-reloaded-for');
+      chunk.fail = 0;
+      // A fresh lazy page for the tests after (React keeps a lazy failure).
+      page.Component = lazy(page.load as never);
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    // The note was there before the reload: "Who's playing?" says what happened after.
+    expect(noted).toBe('progress');
   });
 
   it('📈 Progress goes back to the gate when the 15 minutes run out (#29)', async () => {

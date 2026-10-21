@@ -11,6 +11,7 @@ import {
   wakeAfterDefeat,
   wakeShelter,
   wakeInnName,
+  withTopicStart,
   DAWNREACH_GREW_BY,
   MIGRATIONS,
   MOVED_CHESTS,
@@ -271,6 +272,43 @@ describe('normalizeSave', () => {
     expect(s.questItems).toEqual(['color-seed']);
     expect(normalizeSave({}).kills).toEqual({});
     expect(normalizeSave({ kills: 'junk' }).kills).toEqual({});
+  });
+});
+
+describe("each topic's real start (#29 review round 2)", () => {
+  it('a save from before has none; a new save starts with none', () => {
+    expect(defaultSave().topicStarts).toEqual({});
+    expect(normalizeSave(V2_FIRST_BUILD).topicStarts).toEqual({});
+  });
+
+  it('keeps whole levels 1–10 and whole ages for known topics only — never junk, and never `constructor`', () => {
+    const raw = {
+      ...defaultSave(),
+      topicStarts: {
+        math: { level: 3, age: 8 },
+        science: { level: 11, age: 9 },
+        nature: { level: 2.5, age: 7 },
+        words: { level: 2, age: 'seven' },
+        music: { level: 1, age: 6, extra: true },
+        'not-a-topic': { level: 2, age: 7 },
+        constructor: { level: 2, age: 7 },
+        history: null,
+      },
+    };
+    expect(normalizeSave(JSON.parse(JSON.stringify(raw))).topicStarts).toEqual({ math: { level: 3, age: 8 }, music: { level: 1, age: 6 } });
+    expect(normalizeSave({ ...defaultSave(), topicStarts: [{ level: 1, age: 6 }] }).topicStarts).toEqual({});
+  });
+
+  it('survives the trip to the server and back, and which copy wins keeps its starts with it (#151: the whole copy)', () => {
+    const save = withTopicStart(defaultSave(), 'math', { level: 4, age: 9 });
+    expect(normalizeSave(JSON.parse(JSON.stringify(save))).topicStarts).toEqual({ math: { level: 4, age: 9 } });
+  });
+
+  it('withTopicStart keeps the first start (where the topic began) and spends no revision when it has one', () => {
+    const once = withTopicStart(defaultSave(), 'math', { level: 3, age: 8 });
+    expect(once.topicStarts).toEqual({ math: { level: 3, age: 8 } });
+    expect(withTopicStart(once, 'math', { level: 4, age: 9 })).toBe(once);
+    expect(withTopicStart(once, 'science', { level: 4, age: 9 }).topicStarts).toEqual({ math: { level: 3, age: 8 }, science: { level: 4, age: 9 } });
   });
 });
 

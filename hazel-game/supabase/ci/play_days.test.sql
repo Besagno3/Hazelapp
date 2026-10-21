@@ -3,7 +3,8 @@
 -- writes them — the family's own sign-in, for its own kid, adding days from
 -- the last week only — and nothing can be changed or deleted through the API.
 -- Kept two weeks for every kid (review round 1): any note deletes every
--- family's older days, and nobody can read one meanwhile.
+-- family's older days, and nobody can read one meanwhile — a bounded batch
+-- per note, the oldest first (review round 2).
 -- Any failed assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
 -- The test's dates are the server's (UTC), as note_play_days' are.
@@ -144,6 +145,40 @@ begin
     'a day exactly two weeks back is kept';
   assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 1),
     'Bea''s recent day stays';
+end $$;
+
+-- A big backlog (review round 2): a note deletes at most 1,000 old days, the
+-- oldest first, so no call ever pays for a whole day's crossing (one unbounded
+-- delete outlasted the API's timeout at scale, rolling the note back with it).
+-- 2,500 of Kit's days older than two weeks: three notes clear them, the 14th
+-- day back stays, and the note itself is kept each time.
+reset role;
+insert into public.play_days (profile_id, day)
+select '00000000-0000-0000-0000-000000005a10', current_date - 15 - g from generate_series(0, 2499) g;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
+do $$ begin perform public.note_play_days('00000000-0000-0000-0000-000000005a09', array[current_date - 2]); end $$;
+reset role;
+do $$
+begin
+  assert (select count(*) from public.play_days where day < current_date - 14) = 1500,
+    format('one note deletes 1,000 old days, no more (left %s)', (select count(*) from public.play_days where day < current_date - 14));
+  assert (select min(day) from public.play_days) = current_date - 15 - 1499, 'the oldest go first';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a09' and day = current_date - 2),
+    'the note is kept';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
+do $$ begin perform public.note_play_days('00000000-0000-0000-0000-000000005a09', array[current_date - 3]); end $$;
+do $$ begin perform public.note_play_days('00000000-0000-0000-0000-000000005a09', array[current_date - 4]); end $$;
+reset role;
+do $$
+begin
+  assert not exists (select 1 from public.play_days where day < current_date - 14), 'three notes clear the backlog';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 14),
+    'the 14th day back is still kept';
+  assert (select count(*) from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a09' and day in (current_date - 3, current_date - 4)) = 2,
+    'every note is kept';
 end $$;
 
 -- The server's calendar, whatever time zone the caller asks for (PostgREST

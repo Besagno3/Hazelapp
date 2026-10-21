@@ -1,6 +1,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
-import { retryableLazy, useLazyRetry } from '../../lib/lazyRetry';
+import { noteReloadFor, retryableLazy, useLazyRetry } from '../../lib/lazyRetry';
 import LazyBoundary from '../../components/LazyBoundary';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
@@ -251,7 +251,11 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
 
   if (progressFor) {
-    const back = () => setProgressFor(null);
+    // Back on the list: a failure card's words leave the live region with it (#29 review round 2).
+    const back = () => {
+      setProgressFor(null);
+      say(null);
+    };
     return (
       <LazyBoundary key={progressTry} failed={<ProgressDidNotLoad onLoaded={progressLoaded} onBack={back} say={say} />}>
         <Suspense
@@ -412,14 +416,19 @@ function UnlockedNote({ name }: { name: string }) {
   );
 }
 
+/** Before 📈 Progress reloads the game for a new version: "Who's playing?" says why, after (#29 review round 2). */
+const noteProgressReload = () => noteReloadFor('progress');
+
 /**
  * 📈 Progress's file didn't load (#29 review round 1): plain words, "Try
- * again" (it loads the file afresh; still missing while the server answers
- * means a new version is out, so the page reloads) and the way back — the
- * rest of 👪 Grown-ups never leaves. Said once through the area's live region.
+ * again" (it loads the file afresh; still missing while our server answers
+ * means a new version is out, so the game reloads — leaving a note, so "Who's
+ * playing?" says what happened and how to get back, `ReloadedNote`) and the
+ * way back — the rest of 👪 Grown-ups never leaves. Said once through the
+ * area's live region.
  */
 function ProgressDidNotLoad({ onLoaded, onBack, say }: { onLoaded: () => void; onBack: () => void; say: (words: string | null) => void }) {
-  const { busy, words, tryAgain } = useLazyRetry(progressPage, onLoaded);
+  const { busy, words, tryAgain } = useLazyRetry(progressPage, onLoaded, noteProgressReload);
   const text = `The progress page didn't load. ${words ?? 'Try again.'}`;
   useEffect(() => {
     say(text);

@@ -3352,10 +3352,12 @@ on conflict (version) do nothing;
 --     kid's play, so like their save it needs no 👪 window.
 --   * kept 14 days, for every kid (the page shows 7): a day older than that
 --     can't be read by anyone through the API (the read policy stops at two
---     weeks), and each note — any family's — deletes every kid's older days,
---     so a kid who stops playing loses theirs too (#29 review round 1: it
---     used to be only the noting kid's). Removing a kid or closing the
---     account deletes them with the kid (on delete cascade from `profiles`).
+--     weeks), and each note — any family's — deletes up to 1,000 of every
+--     kid's oldest older days, so a kid who stops playing loses theirs too
+--     (#29 review round 1: it used to be only the noting kid's; round 2: a
+--     bounded batch, so a note never risks the API's statement timeout).
+--     Removing a kid or closing the account deletes them with the kid (on
+--     delete cascade from `profiles`).
 --   * the server's own calendar: the function runs in UTC, whatever time zone
 --     a request asks for, so no caller can move the week or the two weeks.
 --
@@ -3400,6 +3402,8 @@ as $$
 declare
   v_user uuid := auth.uid();
   v_kept integer;
+  -- How many old days one note deletes at most (see the tidy-up below).
+  v_purge constant integer := 1000;
 begin
   if v_user is null then
     raise exception 'not signed in' using errcode = '42501';
@@ -3425,13 +3429,21 @@ begin
   on conflict (profile_id, day) do nothing;
 
   -- Kept for 14 days (the page shows the last 7) — every kid's, not just
-  -- this one's, so a kid who stops playing doesn't keep theirs for ever. Rows
-  -- another note is deleting right now are left to it (no waiting on locks).
+  -- this one's, so a kid who stops playing doesn't keep theirs for ever. A
+  -- few at a time (#29 review round 2): at most v_purge of the oldest, found
+  -- by the index on `day`, so no note ever pays for a whole day's crossing
+  -- (one statement over every family's old rows outlasted the API's timeout
+  -- at scale, and the note itself was rolled back with it); every note trims
+  -- a little more. Rows another note is deleting right now are left to it
+  -- (no waiting on locks). Old rows waiting their turn can't be read anyway
+  -- (the read policy stops at two weeks).
   delete from public.play_days
-   where (profile_id, day) in (
-     select o.profile_id, o.day from public.play_days o
+   where ctid = any (array(
+     select o.ctid from public.play_days o
       where o.day < current_date - 14
-        for update skip locked);
+      order by o.day
+      limit v_purge
+        for update skip locked));
 
   return v_kept;
 end;

@@ -294,6 +294,24 @@ export interface SaveData {
    * on Ember (#75 item 15b).
    */
   vehicle: TravelMode;
+  /**
+   * Where each topic's question level started (#29 review round 2), noted the
+   * first time the game saves that topic's level — so 👪 Grown-ups → 📈
+   * Progress compares a topic with where it really began, never with where a
+   * player of the kid's age *today* would begin (a birthday moves that).
+   * Additive: topics saved before this have no entry (the page then makes no
+   * above/below claim), and an older save has none at all.
+   */
+  topicStarts: Partial<Record<Topic, TopicStart>>;
+}
+
+/**
+ * A topic's real start (#29 review round 2): the level the game first set it
+ * from — `ageToStartLevel` of the kid's age then — and that age.
+ */
+export interface TopicStart {
+  level: number;
+  age: number;
 }
 
 /** A boat's mooring (#75 item 14): a sea cell on a map, in tiles. */

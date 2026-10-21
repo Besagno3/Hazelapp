@@ -13,9 +13,11 @@ const { LINE_HOLD_MS, TYPING_BADGE_ID, TYPING_LESSONS, TYPING_LESSON_XP, anchors
 afterEach(() => vi.useRealTimers());
 
 const addXp = vi.fn();
+const recordActivity = vi.fn();
 beforeEach(() => {
   addXp.mockClear();
-  useProfileStore.setState({ addXp, profile: null });
+  recordActivity.mockClear();
+  useProfileStore.setState({ addXp, recordActivity, profile: null });
   useKeyboardStore.getState().reset();
   useSaveStore.setState({ userId: null, save: defaultSave(), status: 'ready', remoteError: null });
 });
@@ -82,6 +84,7 @@ describe('TypingLessons (#165)', () => {
     expect(screen.getByRole('img', { name: '3 of 3 stars' })).toBeInTheDocument();
     expect(flags()[typingLessonFlag(TYPING_LESSONS[0].id)]).toBe(true);
     expect(addXp).toHaveBeenCalledWith(TYPING_LESSON_XP);
+    expect(recordActivity).toHaveBeenCalledTimes(1);
     expect(screen.getByText(`⭐ +${TYPING_LESSON_XP} XP`)).toBeInTheDocument();
 
     // Back on the list, lesson 2 is open; the first says cleared.
@@ -98,6 +101,8 @@ describe('TypingLessons (#165)', () => {
     for (const line of TYPING_LESSONS[0].lines) typeLine(line);
     expect(screen.getByText('Lesson cleared!')).toBeInTheDocument();
     expect(addXp).not.toHaveBeenCalled();
+    // …but practising it is still a day played (#29 review round 2).
+    expect(recordActivity).toHaveBeenCalledTimes(2);
   });
 
   it('a key pressed in the beat after a line does nothing, and the result card follows its own beat (review round 4)', () => {

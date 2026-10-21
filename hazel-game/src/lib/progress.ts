@@ -12,7 +12,7 @@ import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, INTRO_SEEN, SPIRE_CLEARED } from '../c
 import { UMBRA_NAMED } from '../content/questFlags';
 import { TYPING_BADGE_ID, TYPING_LESSONS, pagesCopied, typingLessonFlag } from '../content/typing';
 import { badgeInfo, type BadgeInfo } from '../content/badges';
-import type { CrystalTopic, Profile, SaveData, Topic } from '../types';
+import type { CrystalTopic, Profile, SaveData, Topic, TopicStart } from '../types';
 
 /**
  * 👪 Grown-ups → 📈 Progress (#29): what a grown-up sees of each kid — read
@@ -168,11 +168,13 @@ function daysAgo(iso: string, today: string): number {
 /**
  * "Today", "Yesterday", "Monday" (this past week), "3 October", "3 October
  * 2025". A day after `today` reads "Today": the kid's device is a time zone
- * (or a clock) ahead of this one, and it was their today (#29 review round 1).
+ * ahead of this one, and it was their today (#29 review round 1). A date
+ * further ahead than that is said as the date itself — never "Today" (#29
+ * review round 2; `streakSummary` doesn't even ask).
  */
 export function dayWords(iso: string, today: string): string {
   const ago = daysAgo(iso, today);
-  if (ago <= 0) return 'Today';
+  if (ago === 0 || ago === -1) return 'Today';
   if (ago === 1) return 'Yesterday';
   const d = dateOf(iso);
   if (ago > 1 && ago < 7) return WEEKDAYS[d.getDay()];
@@ -180,18 +182,31 @@ export function dayWords(iso: string, today: string): string {
   return d.getFullYear() === dateOf(today).getFullYear() ? date : `${date} ${d.getFullYear()}`;
 }
 
+/**
+ * The profile's last day played as the page can trust it (#29 review round
+ * 2): a day after `today` is the kid's device a time zone ahead (the server
+ * allows play days that far ahead too, 0025); further ahead is a device clock
+ * set wrong — unknown, so it says nothing about "today" or a streak.
+ */
+function lastDayKnown(last: string | null, today: string): { day: string | null; clockAhead: boolean } {
+  if (last === null) return { day: null, clockAhead: false };
+  return last > isoOffset(today, 1) ? { day: null, clockAhead: true } : { day: last, clockAhead: false };
+}
+
 export interface StreakSummary {
   /** Days in a row right now — 0 once a day has been missed (the saved number waits for their next game to reset). */
   current: number;
   best: number;
-  /** Words for the last day played, or null if never. */
+  /** Words for the last day played, or null if never (or not known). */
   lastPlayed: string | null;
   /** "7 days ago" once it's a week or more — a bare date doesn't say they've stopped. */
   lastPlayedAgo: string | null;
+  /** The last day played is more than a day ahead of today: their device's clock is wrong, so it isn't known (#29 review round 2). */
+  clockAhead: boolean;
 }
 
 export function streakSummary(stats: Pick<KidStats, 'currentStreak' | 'longestStreak' | 'lastPlayedOn'> | null, today: string): StreakSummary {
-  const last = stats?.lastPlayedOn ?? null;
+  const { day: last, clockAhead } = lastDayKnown(stats?.lastPlayedOn ?? null, today);
   // A day ahead of this device's today was the kid's today (a time zone ahead): still alive.
   const alive = last !== null && last >= isoOffset(today, -1);
   const current = alive ? stats?.currentStreak ?? 0 : 0;
@@ -201,6 +216,7 @@ export function streakSummary(stats: Pick<KidStats, 'currentStreak' | 'longestSt
     best: Math.max(stats?.longestStreak ?? 0, current),
     lastPlayed: last ? dayWords(last, today) : null,
     lastPlayedAgo: last && ago >= 7 ? `${ago} days ago` : null,
+    clockAhead,
   };
 }
 
@@ -209,23 +225,48 @@ export interface RecentDay {
   /** "Mon" on the strip, "Monday 20 October" read out. */
   short: string;
   long: string;
+  /** Noted that day (migration 0025) or the profile's last day played, or shown by their live streak. */
   played: boolean;
+  /** Played, known only from their live streak — not noted that day (#29 review round 2): drawn and said apart. */
+  fromStreak: boolean;
   today: boolean;
 }
 
 /**
  * The last `RECENT_DAYS` days, oldest first: played when the database noted
- * the day (migration 0025) or it's the profile's last day played. Nothing is
- * guessed — a day without a note reads "no play noted". A day after `today`
- * (the kid's device a time zone ahead) counts as today.
+ * the day (migration 0025) or it's the profile's last day played — and, since
+ * a live streak of N ending on that day proves those N days were played,
+ * those days too (#29 review round 2: in the first week after 0025, or after
+ * a day's note didn't send, the week said "1 of 7" over a "6 days" streak),
+ * marked `fromStreak` so the page says where they came from. Nothing else is
+ * guessed — a day without either reads "no play noted". A day after `today`
+ * (the kid's device a time zone ahead) counts as today; one further ahead
+ * (a clock set wrong) counts for nothing.
  */
-export function recentDays(today: string, playDays: readonly string[], lastPlayedOn: string | null): RecentDay[] {
-  const played = new Set([...playDays, ...(lastPlayedOn ? [lastPlayedOn] : [])].map((d) => (d > today ? today : d)));
+export function recentDays(today: string, playDays: readonly string[], lastPlayedOn: string | null, currentStreak = 0): RecentDay[] {
+  const ahead = isoOffset(today, 1);
+  const asToday = (d: string) => (d > today ? today : d);
+  const last = lastDayKnown(lastPlayedOn, today).day;
+  const noted = new Set([...playDays, ...(last ? [last] : [])].filter((d) => d <= ahead).map(asToday));
+  const streak = new Set<string>();
+  // Only a live streak (they played today or yesterday) says anything about this week.
+  if (last !== null && last >= isoOffset(today, -1)) {
+    const n = Math.min(Math.max(0, Math.floor(currentStreak)), RECENT_DAYS + 1);
+    for (let i = 0; i < n; i++) streak.add(asToday(isoOffset(last, -i)));
+  }
   return Array.from({ length: RECENT_DAYS }, (_, i) => {
     const iso = isoOffset(today, i - (RECENT_DAYS - 1));
     const d = dateOf(iso);
     const name = WEEKDAYS[d.getDay()];
-    return { iso, short: name.slice(0, 3), long: `${name} ${d.getDate()} ${MONTHS[d.getMonth()]}`, played: played.has(iso), today: iso === today };
+    const fromStreak = !noted.has(iso) && streak.has(iso);
+    return {
+      iso,
+      short: name.slice(0, 3),
+      long: `${name} ${d.getDate()} ${MONTHS[d.getMonth()]}`,
+      played: noted.has(iso) || fromStreak,
+      fromStreak,
+      today: iso === today,
+    };
   });
 }
 
@@ -246,51 +287,59 @@ export function levelBand(level: number): LevelBand {
 }
 
 /**
- * A level's words against the kid's own starting level — where the game
- * starts a player of their age (`ageToStartLevel`, the rule the game itself
- * uses: 6 → 1 … 11 and up → 6). Young players start low on purpose, so the
- * bands alone would call a 7-year-old's untouched topic "easy for their age"
- * (#29 review round 1); only the top bands, which no start reaches, are said
- * too. Nothing here claims a level went down: the database keeps no history.
+ * A level's words against where that topic really started (#29 review round
+ * 2): the start the game noted when it first saved the topic's level
+ * (`SaveData.topicStarts`). Never against where a player of the kid's age
+ * *today* would start — a birthday moves that, so a topic held (or climbed)
+ * since the kid was younger read "below their starting level". A topic with
+ * no noted start (saved before the game noted them) makes no above / below
+ * claim; only the question writer's top bands, which describe the questions
+ * themselves, are said. Nothing here claims a level went down: the database
+ * keeps no history.
  */
-export function topicMeaning(level: number, start: number): string {
-  if (level < start) return 'Below their starting level — a good one to practise together';
+export function topicMeaning(level: number, start: TopicStart | null): string | null {
   const band = levelBand(level);
-  const pitch = band === 'stretch' ? ' — a stretch for their age' : band === 'top' ? ' — for the strongest at their age' : '';
-  if (level === start) return `At their starting level${pitch}`;
-  return `${level - start} above their starting level${pitch}`;
+  const pitch = band === 'stretch' ? 'a stretch for their age' : band === 'top' ? 'for the strongest at their age' : null;
+  if (!start) return pitch && `${pitch[0].toUpperCase()}${pitch.slice(1)}`;
+  const from = `level ${start.level}, where they started at age ${start.age}`;
+  if (level < start.level) return `Below ${from} — a good one to practise together`;
+  if (level === start.level) return `At ${from}`;
+  return `Up ${level - start.level} from ${from}${pitch ? ` — ${pitch}` : ''}`;
 }
-
-/** A topic no round has moved yet: at the starting level for their age. */
-export const STARTING_WORDS = 'Their starting level — it moves once they play rounds in these topics.';
 
 export interface TopicLevel {
   id: Topic;
   label: string;
   emoji: string;
   level: number;
-  /** False: no level saved yet, so it's the starting level for their age. */
+  /** False: no level saved yet, so it's at the start for their age (it moves once a round moves it). */
   measured: boolean;
-  /** Where the game starts a player of their age. */
-  start: number;
-  /** One short line for a grown-up. */
-  meaning: string;
+  /** Where the topic really started, when the game noted it (measured topics only). */
+  start: TopicStart | null;
+  /** One short line for a grown-up, or null when there's nothing true to add to the level. */
+  meaning: string | null;
 }
 
-/** Every topic, in the game's order, with its question level (1–10) and what it means. `age` is the kid's age now. */
-export function topicLevels(skillLevels: KidStats['skillLevels'], age: number): TopicLevel[] {
-  const start = ageToStartLevel(age);
+/**
+ * Every topic, in the game's order, with its question level (1–10) and what
+ * it means. Measured topics read against their noted start (`starts`, from
+ * the save); the rest stand at the start for the kid's age now (`age`) —
+ * where they'd begin if played today.
+ */
+export function topicLevels(skillLevels: KidStats['skillLevels'], age: number, starts: SaveData['topicStarts'] = {}): TopicLevel[] {
+  const ageStart = ageToStartLevel(age);
   return ALL_TOPIC_INFO.map((t) => {
     const saved = skillLevels[t.id];
     const measured = typeof saved === 'number' && Number.isFinite(saved);
-    const level = measured ? clampLevel(saved) : start;
-    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, start, meaning: measured ? topicMeaning(level, start) : STARTING_WORDS };
+    const level = measured ? clampLevel(saved) : ageStart;
+    const start = measured ? (starts[t.id] ?? null) : null;
+    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, start, meaning: measured ? topicMeaning(level, start) : null };
   });
 }
 
 // --- At a glance ---------------------------------------------------------------
 
-/** "Math", "Math and Science", "Math, Science and 2 more". */
+/** "Math", "Math and Science", "Math, Science and 2 more" (`max` = Infinity names them all). */
 export function nameList(names: readonly string[], max = 2): string {
   if (names.length <= 1) return names[0] ?? '';
   if (names.length <= max) return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
@@ -303,9 +352,11 @@ export const SEVERAL_MISSED = 3;
 export interface Glance {
   /** Days played in the last week, or null when the database can't say (no 0025). */
   playedDays: number | null;
-  /** The measured topics at their highest level, when that's above their starting level. */
-  furthest: TopicLevel[];
-  /** Measured topics below their starting level. */
+  /** How many of those only their live streak shows (#29 review round 2). */
+  streakDays: number;
+  /** The topics that climbed most since their noted start (none unless one climbed). */
+  climbed: TopicLevel[];
+  /** Measured topics below their noted start. */
   belowStart: TopicLevel[];
   /** Topics with several questions waiting at the Library, most first. */
   missedByTopic: { label: string; count: number }[];
@@ -314,26 +365,52 @@ export interface Glance {
 
 /**
  * The page's opening lines (#29 review round 1): how much they've played,
- * what's going well and what could use a hand — all from what's stored (a
- * topic below their starting level; several missed questions waiting), never
- * guessed. `levels` / `missed` are null where nothing was saved.
+ * what's going well and what could use a hand — all from what's stored
+ * (a topic against the start the game noted for it; several missed questions
+ * waiting), never guessed: a topic with no noted start is in neither list
+ * (#29 review round 2). `levels` / `missed` are null where nothing was saved.
  */
 export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, missed: MissedQuestion[] | null): Glance {
-  const measured = (levels ?? []).filter((t) => t.measured);
-  const top = Math.max(0, ...measured.map((t) => t.level));
-  const furthest = measured.filter((t) => t.level === top && t.level > t.start);
+  const started = (levels ?? []).filter((t): t is TopicLevel & { start: TopicStart } => t.measured && t.start !== null);
+  const most = Math.max(0, ...started.map((t) => t.level - t.start.level));
   const counts = new Map<string, number>();
   for (const m of missed ?? []) counts.set(m.topicLabel, (counts.get(m.topicLabel) ?? 0) + 1);
   return {
     playedDays: week ? week.filter((d) => d.played).length : null,
-    furthest,
-    belowStart: measured.filter((t) => t.level < t.start),
+    streakDays: week ? week.filter((d) => d.fromStreak).length : 0,
+    climbed: most > 0 ? started.filter((t) => t.level - t.start.level === most) : [],
+    belowStart: started.filter((t) => t.level < t.start.level),
     missedByTopic: [...counts]
       .filter(([, n]) => n >= SEVERAL_MISSED)
       .sort((a, b) => b[1] - a[1])
       .map(([label, count]) => ({ label, count })),
     missedCount: missed?.length ?? 0,
   };
+}
+
+/**
+ * What to practise together, grouped by why and every topic named (#29 review
+ * round 2: one long line repeated "(below their starting level)" for each and
+ * ended "…and 2 more"): "To practise together — below where they started:
+ * Engineering and Creativity · questions waiting at the Library: Math (4)."
+ * Null when nothing stands out.
+ */
+export function practiseText(g: Pick<Glance, 'belowStart' | 'missedByTopic'>): string | null {
+  const parts: string[] = [];
+  if (g.belowStart.length > 0) parts.push(`below where they started: ${nameList(g.belowStart.map((t) => t.label), Infinity)}`);
+  if (g.missedByTopic.length > 0) {
+    parts.push(`questions waiting at the Library: ${nameList(g.missedByTopic.map((m) => `${m.label} (${m.count})`), Infinity)}`);
+  }
+  return parts.length > 0 ? `To practise together — ${parts.join(' · ')}.` : null;
+}
+
+/** "Most progress: Math — up from level 1 to 3 since they started." (or "Math and Science — up 2 levels each …"); null with no climb. */
+export function climbedText(climbed: readonly TopicLevel[]): string | null {
+  const first = climbed[0];
+  if (!first?.start) return null;
+  if (climbed.length === 1) return `Most progress: ${first.label} — up from level ${first.start.level} to ${first.level} since they started.`;
+  const by = first.level - first.start.level;
+  return `Most progress: ${nameList(climbed.map((t) => t.label), Infinity)} — up ${by} ${by === 1 ? 'level' : 'levels'} each since they started.`;
 }
 
 // --- The story -----------------------------------------------------------------

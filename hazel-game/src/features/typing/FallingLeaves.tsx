@@ -26,6 +26,7 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
   const holdRule = useSaveStore((s) => s.save?.typingAnchor ?? true);
   const update = useSaveStore((s) => s.update);
   const addXp = useProfileStore((s) => s.addXp);
+  const recordActivity = useProfileStore((s) => s.recordActivity);
   const keyboard = useKeyboardStore((s) => s.present);
   const [phase, setPhase] = useState<'intro' | 'playing' | 'over'>('intro');
   const [state, setState] = useState<LeavesState>(startLeaves);
@@ -125,13 +126,15 @@ export default function FallingLeaves({ onBack }: { onBack: () => void }) {
     const fresh = newMilestones(stateRef.current.caught, useSaveStore.getState().save?.flags ?? {});
     setReached(fresh);
     setTallied(true);
+    // A round with a leaf caught is practice: a day played, milestone or not (#29 review round 2).
+    if (stateRef.current.caught > 0) void recordActivity();
     if (fresh.length === 0) return;
     update((s) => ({ ...s, flags: { ...s.flags, ...Object.fromEntries(fresh.map((m) => [leavesFlag(m), true])) } }));
     // One write for every milestone this round reached (review round 2: one per milestone raced the server).
     void addXp(LEAVES_XP * fresh.length);
     sfx('levelup');
     confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, disableForReducedMotion: true });
-  }, [phase, update, addXp]);
+  }, [phase, update, addXp, recordActivity]);
 
   if (!keyboard) return <KeyboardGate title="Falling Leaves" onBack={onBack} />;
 

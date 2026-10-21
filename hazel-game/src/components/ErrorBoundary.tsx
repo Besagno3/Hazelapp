@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, createRef, type ErrorInfo, type ReactNode } from 'react';
 import { errorMessage } from '../lib/errors';
 
 interface Props {
@@ -17,6 +17,8 @@ interface State {
  */
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null };
+  // The title takes the focus as the crash screen appears, so a screen reader hears it (#29 review round 2).
+  private heading = createRef<HTMLHeadingElement>();
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
@@ -24,6 +26,15 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Uncaught error:', error, info.componentStack);
+  }
+
+  // A crash in the very first render commits the boundary with its error at once.
+  componentDidMount() {
+    if (this.state.error) this.heading.current?.focus({ preventScroll: true });
+  }
+
+  componentDidUpdate(_: Props, prev: State) {
+    if (!prev.error && this.state.error) this.heading.current?.focus({ preventScroll: true });
   }
 
   render() {
@@ -36,7 +47,9 @@ export default class ErrorBoundary extends Component<Props, State> {
           <div className="text-5xl mb-3" aria-hidden>
             🙈
           </div>
-          <h1 className="text-xl font-bold mb-2">Oops! The game tripped over.</h1>
+          <h1 ref={this.heading} tabIndex={-1} className="text-xl font-bold mb-2 focus:outline-none">
+            Oops! The game tripped over.
+          </h1>
           <p className="text-gray-700 mb-5">Tap Reload to jump back in. Your adventure is saved as you play.</p>
           <button
             onClick={() => window.location.reload()}
