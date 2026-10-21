@@ -122,6 +122,40 @@ describe('leaving the Spire asks first (#75 item 14b review)', () => {
   });
 });
 
+describe('a floor whose riddles fail to load (#130 S6)', () => {
+  beforeEach(() => {
+    sendFlow.mockClear();
+    useSaveStore.setState({
+      userId: null,
+      status: 'ready',
+      save: { ...defaultSave(), avatarId: 'a1', flags: Object.fromEntries(actCrystals(1).map((t) => [crystalFlag(t.id), true])) },
+      flush: vi.fn(async () => {}),
+    });
+  });
+
+  it('says so in the Spire\'s words with its own button, not the error\'s — which goes to the console', async () => {
+    const asked = vi.mocked(fetchQuestions).getMockImplementation()!;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      // Every topic comes back empty: the floor is short, and its own words ("only 0 of 3…") stay off screen.
+      vi.mocked(fetchQuestions).mockImplementation(async () => []);
+      render(<SpireOverlay />);
+      await readUntil('Try the stair again');
+      expect(screen.getByText('The Spire shudders! The riddles didn\'t load. Tap "Try the stair again".')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('The Spire shudders!');
+      expect(screen.queryByText(/riddles came back/)).toBeNull();
+      expect(warn).toHaveBeenCalledWith('Spire floor questions failed:', expect.stringContaining('riddles came back for this floor'));
+      expect(screen.getByRole('button', { name: 'Leave the Spire' })).toBeInTheDocument();
+      vi.mocked(fetchQuestions).mockImplementation(asked);
+      fireEvent.click(screen.getByRole('button', { name: 'Try the stair again' }));
+      expect(await screen.findByText(/rune seals glow somewhere on this floor/)).toBeInTheDocument();
+    } finally {
+      vi.mocked(fetchQuestions).mockImplementation(asked);
+      warn.mockRestore();
+    }
+  });
+});
+
 describe('the seals line is one live region for the whole climb (#110n)', () => {
   beforeEach(() => {
     sendFlow.mockClear();

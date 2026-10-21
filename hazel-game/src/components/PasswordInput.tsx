@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react';
+import { useEffect, useRef, useState, type InputHTMLAttributes, type MutableRefObject } from 'react';
 import { flushSync } from 'react-dom';
 import { cn } from '../lib/utils';
 
@@ -7,14 +7,16 @@ import { cn } from '../lib/utils';
  * a kid who mistypes a password can see why sign-in fails. Shown, it is plain
  * text with phone autocorrect and capitals off, so the keyboard can't change
  * the password. Sending the form hides it again first, so browsers don't keep
- * the password in their plain-text autofill history.
+ * the password in their plain-text autofill history. `inputRef` hands the
+ * field itself to a form that focuses it (a refused password, #124b review).
  */
 export default function PasswordInput({
   className,
+  inputRef,
   ...props
-}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> & { inputRef?: MutableRefObject<HTMLInputElement | null> }) {
   const [shown, setShown] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const form = input.current?.form;
@@ -30,7 +32,10 @@ export default function PasswordInput({
     <div className="relative">
       <input
         {...props}
-        ref={input}
+        ref={(el) => {
+          input.current = el;
+          if (inputRef) inputRef.current = el;
+        }}
         type={shown ? 'text' : 'password'}
         autoCapitalize="off"
         autoCorrect="off"

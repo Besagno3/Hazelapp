@@ -16,7 +16,7 @@ import FirstKidPage from './features/family/FirstKidPage';
 import KidSetupPage from './features/family/KidSetupPage';
 import WhoIsPlaying from './features/family/WhoIsPlaying';
 import GrownUpsArea from './features/family/GrownUpsArea';
-import { familyScreen, useFamilyStore } from './store/familyStore';
+import { familyScreen, signInAgain, useFamilyStore } from './store/familyStore';
 import LevelUpModal from './components/LevelUpModal';
 import { ErrorScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
 import TopicSelect from './features/quiz/TopicSelect';
@@ -58,6 +58,8 @@ export default function App() {
   // Before the game: the grown-up's consent, their kids, who's playing (#124).
   const family = useFamilyStore((s) => familyScreen(s));
   const familyError = useFamilyStore((s) => s.error);
+  // The family didn't load because the sign-in ran out: "Try again" would only fail again.
+  const familySessionGone = useFamilyStore((s) => s.sessionGone);
   const saveStatus = useSaveStore((s) => s.status);
   const outdatedReason = useSaveStore((s) => s.outdatedReason);
   const booting = useFlow((s) => s.matches('boot'));
@@ -118,7 +120,15 @@ export default function App() {
 
   if (family === 'loading') return <LoadingScreen label="Opening your family…" />;
   if (family === 'error') {
-    return (
+    return familySessionGone ? (
+      <ErrorScreen
+        emoji="🔑"
+        title="Please sign in again"
+        message={familyError ?? 'Your sign-in ran out — please sign in again.'}
+        retryLabel="Sign in again"
+        onRetry={() => void signInAgain()}
+      />
+    ) : (
       <ErrorScreen
         message={familyError ?? "Couldn't load your family."}
         onRetry={() => {

@@ -8,7 +8,7 @@ import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { candleLine, loadGauntlet } from '../../lib/gauntlet';
 import { Candles } from '../../components/Candles';
 import { isStarterId } from '../../content/starterQuestions';
-import { errorMessage } from '../../lib/errors';
+import { errorMessage, questionErrorMessage } from '../../lib/errors';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { XP_PER_CORRECT } from '../../lib/level';
 import { xpBonusPerCorrect } from '../../lib/powerups';
@@ -258,7 +258,11 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
               },
         );
       })
-      .catch((err) => setPhase({ kind: 'error', message: errorMessage(err) }));
+      .catch((err) => {
+        // Plain words for the kid; the whole error for whoever fixes it (#130 S6).
+        console.warn('Spire floor questions failed:', errorMessage(err));
+        setPhase({ kind: 'error', message: questionErrorMessage(err, { what: 'riddles', retry: 'Try the stair again' }) });
+      });
   }
 
   function recordAnswer(correct: boolean, q: Question, picked: number) {
@@ -528,7 +532,7 @@ export default function SpireOverlay({ hudSlot = null }: { hudSlot?: HTMLElement
 
         {phase.kind === 'error' && floorIndex !== null && (
           <div className="text-center">
-            <p className="text-sm text-orange-300 mb-4">The Spire shudders: {phase.message}</p>
+            <p role="alert" className="text-sm text-orange-300 mb-4">The Spire shudders! {phase.message}</p>
             <div className="flex gap-2 justify-center">
               <button
                 onClick={() => loadFloor(floorIndex)}

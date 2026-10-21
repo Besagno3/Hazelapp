@@ -97,12 +97,23 @@ zod, react-query. Add the package in the same change that first uses it.
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
   (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
   add / change / remove kids, set the grown-up PIN, the privacy notice,
-  Sign out) → the first kid (`FirstKidPage`) → any kid without a PIN
+  Sign out, **Close account** — `CloseAccount`, the `delete-account` edge
+  function, password + DELETE, #124b) → the first kid (`FirstKidPage`) → any kid without a PIN
   (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
   their 4-digit PIN on `PinPad`). **PINs are hashed in the database**
   (migration 0014: `kid_pins` / `parent_pins`, readable by no client; set and
-  checked only by `set_/check_kid_pin`, `set_/check_parent_pin`); the app
-  only sees `has_pin`. Picking a kid (`choose`) loads *their* profile and
+  checked only by `set_/check_kid_pin`, `set_/check_parent_pin` — and
+  **limited** (migration 0022, #124c): `try_kid_pin` / `try_parent_pin` count
+  wrong tries; 5 in a row lock the PIN for 1, 5, 15, then 60 minutes; the
+  right PIN, a new PIN or a day without a wrong try starts over; `PinPad`
+  says it in words with no time and counts the wait down (the one place the
+  time is said), and while it holds a lock asks the database again
+  (`pin_lock_status`: before showing a remembered lock, when the tab comes
+  back, every 15 s and on a tap, at most every 3 s), so a PIN typed again on
+  another device opens it; 👪 Grown-ups marks a locked kid by name and says
+  when a Save unlocked them, `lib/pinLock.ts`); the app only sees
+  `has_pin`. The grown-up PIN / password gate is a lock in the UI only —
+  grown-up actions need just the family's session (#167). Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
@@ -756,10 +767,41 @@ zod, react-query. Add the package in the same change that first uses it.
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
   check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
-  of the edge function and the bank recheck script; `migrations` applies every migration to a plain
+  of both edge functions (generate-questions, delete-account) and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
-  `supabase/ci/*.test.sql`. A new migration must apply cleanly there; put
+  `supabase/ci/*.test.sql` (`pin_limits_lock.test.sql` opens two more
+  sessions with dblink to prove the PIN row lock; it commits its own family
+  and deletes it again). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
+- **Closing an account (#124b):** the app signs in again with the typed
+  password (`signInWithPassword` from the grown-up's own browser, so Supabase's
+  sign-in limit counts that device — never one shared limit for every family,
+  #124b review — on `passwordCheckClient` in `lib/supabase.ts`, a client that
+  keeps nothing: memory only, never refreshed, its own storage key, no other
+  tab told; signed out again unless the close went through; the 👪 gate checks
+  the password on it too, #124b review round 2), then calls `delete-account`
+  (single file; `_shared/closeAccount.ts` canonical, drift-checked by
+  `closeAccount.test.ts`) with that fresh token and `{confirm: 'DELETE'}` —
+  never the password. The function checks the token (`auth.getUser`), the
+  confirm word and that the token's `amr` claim says "password" within a
+  minute (`signedInFreshly`; bare-string `amr` must name a password and then
+  `last_sign_in_at` must be just now; no `amr` at all is refused and logged
+  loudly; never `iat`), runs
+  `delete_family` (migration 0023, service role only — the whole family in one
+  transaction; today's spent question budget stays without a name, #152) and
+  `auth.admin.deleteUser`; refusals are JSON `{error, detail}` codes the app
+  words itself (`lib/closeAccount.ts`), each true however it came about: a lost
+  reply is `outcome_unknown` ("we can't tell — safe to repeat"), a login
+  already gone is `already_closed` (done), and "Nothing was deleted" only when
+  that try deleted nothing. After `login_not_deleted`, leaving the page
+  reloads the family (the privacy notice comes first again). Signing out
+  afterwards never waits on the server (`signOutHere`, `familyStore`): when
+  supabase-js keeps the session because `/logout` failed, the stored session
+  is dropped (`forgetStoredSession`) and the sign-out asked again. Left open
+  (#167): for about a minute after a grown-up really signs in on the family
+  device, that stored session could close the account. Deploy: `supabase
+  functions deploy delete-account` (no secrets beyond the injected
+  `SUPABASE_*`).
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
@@ -1016,6 +1058,9 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
 
+# Close an account (#124b) — after applying 0023
+supabase functions deploy delete-account   # no secrets beyond the injected SUPABASE_* ones
+
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
@@ -1041,7 +1086,7 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   and log `errorMessage` beside it (#130 S6). Pass the screen so the words
   name its own controls — `authErrorMessage(err, { where: 'gate' | 'sign-up'
   | 'reset' … })`; `authRetryAfter` / `isExpiredLink` sit beside it. Some
-  older screens still show `errorMessage`; move them over when touched.
+  screen that still shows `errorMessage` is a bug (#130 S6).
   `where` is `'sign-in' | 'sign-up' | 'gate' | 'reset' | 'forgot' | 'resend' |
   'link'`: an unmapped error says what didn't happen there; a dead sign-in
   (JWT / refresh token / session) is `SIGNED_OUT_MESSAGE`; a non-JSON error
@@ -1049,6 +1094,17 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   refusal's wait down with `useRetryWait` (`features/auth/`); live error lines
   use `useLiveMessage` (keyed, so a repeat is read out); buttons wait with
   `aria-disabled`, never `disabled`, so the keyboard keeps its place (#159).
+  Where a screen's questions didn't come, `questionErrorMessage(err, { what,
+  retry })` (a kid offline is asked to fetch a grown-up to check the
+  internet); family screens use `plainErrorOr(err, fallback)`
+  (`lib/familyErrors.ts`). Words that say "sign in again" come with the
+  button that does it: `App`'s family error, both PIN pads (a kid's reads
+  "Grown-ups: sign in again"), KidForm, Remove and the grown-up PIN form offer
+  "Sign in again" (`SignInAgainButton` → `signInAgain` in `familyStore`, a
+  sign-out on this device that never waits on the server, `signOutHere`) when
+  the sign-in ran out (`sessionGone`, `sessionRanOut`). No screen shows `errorMessage` now — the crash
+  screen's folded details and the menu's cloud-save `title`s are on purpose
+  (#130 S6).
 - For `supabase.functions.invoke` failures, use `resolveErrorMessage` (async)
   so the edge function's real `{error, detail}` body surfaces.
 - `ErrorBoundary` (`src/components/`) catches uncaught render errors and
@@ -1084,7 +1140,9 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   copy is canonical for the app; `topicPrompts.test.ts` (`?raw`) fails if the
   function's inline copy drifts from it. The question flavours work the same
   way (`_shared/flavors.ts`, `questionFlavors.test.ts`, #131), and so does the
-  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133).
+  kids' screen (`_shared/questionScreen.ts`, `questionScreen.test.ts`, #133)
+  and closing an account (`_shared/closeAccount.ts`, `closeAccount.test.ts`,
+  #124b).
 
 ---
 
@@ -1265,6 +1323,94 @@ stubbed app with a question server that answers saved-only requests at once
 the tap at 320×568 and 1024×768 (main: "Building your questions…" for the
 15 s); a kid at question 4 before the rest gets a starter after ~3 s; a
 slower kid gets the late bank questions. Tests 1805 → 1816.
+### 2026-10-20 — Safe to share review round 2: closing needs the password typed just now, one wait said once, focus that goes back where it was (#124b, #124c, #130 S6)
+Fixes for `/saas-code-review` (4) and `/saas-ux-review` (6 + notes) of PR
+#84. **Closing an account:** any password sign-in in the last 5 minutes —
+a grown-up's ordinary sign-in, or opening 👪 Grown-ups by password — left a
+token on the family device that could close the account without the
+password typed. The close's re-sign-in and the gate's password check now run
+on `passwordCheckClient` (`lib/supabase.ts`: memory only, never refreshed,
+its own storage key, no other tab told) and are signed out after;
+`delete-account` wants a password within **60 s**, refuses a token with no
+`amr` (logged loudly) and needs `password` in a bare-string `amr` (the
+minute after a real sign-in stays open — #167). After `login_not_deleted`,
+"Keep my account" reloads the family (the privacy notice, not "＋ Add a
+player" without consent). A sign-out the server can't hear no longer leaves
+"Closing your account…" stuck (`signOutHere`: the stored session dropped,
+then signed out again with no server needed; "Sign in again" too), and
+`useAuthInit` follows the family store's `userId`. Close account has the
+gate's reset link (`ResetLinkButton`). **PINs:** the lock sentence names no
+time — the countdown is the one place it's said; a reopened pad asks before
+it shows a remembered lock ("Checking…"); a tap on a locked key asks again;
+locked keys leave the Tab order and are 44 px on a sideways phone (the lock
+still fits at 740×360); the gate says "Use your password for now." while
+its PIN rests. **Grown-ups list:** back from any page, focus and the page go
+to the button that left it, once (no more jumping to "Close account…");
+unlocking says "🔓 Sam can try their PIN again now." on the row and through
+the area's live region; the gate, Change and Remove focus their titles.
+**Plain errors:** "Sign in again" on KidForm, Remove and the grown-up PIN
+form (`SignInAgainButton`); the kid pad's reads "Grown-ups: sign in again".
+The CI lock test no longer prints the DB password. Tests 1891 → 1915 (each
+fix mutation-checked); all 23 migrations + 16 SQL tests; the function against
+a stand-in 36/36 (round 1's fails 7); rendered at 320×568, 740×360 and
+1024×768 (28 checks each).
+
+### 2026-10-19 — Safe to share review round 1: the database decides when a pad opens, closing never shares a sign-in limit, every refusal true (#124b, #124c, #130 S6)
+Fixes for `/saas-code-review` (6) and `/saas-ux-review` (13 + notes) of PR
+#84. **PINs:** a lock lifted elsewhere opened nowhere — the pad trusted the
+deadline it remembered. Migration 0022 gains `pin_lock_status()` (the
+caller's own locked kids and grown-up PIN, seconds left, nothing else);
+`PinPad` asks it on opening, when the tab comes back and every 15 s, and
+👪 Grown-ups marks a locked kid by name ("type their PIN again — the same one
+is fine"). Remembered locks are per login and forgotten on sign-out. The kid
+words are one kind word ("That's a lot of tries! Take a break for 5
+minutes…", "2 more tries, then a short break."), the wait is said in words
+(never "5:00"), the subtitle says "Taking a short break.", a reopened locked
+pad is read out, a kid's offline line asks a grown-up, and a dead sign-in
+offers "Sign in again" (the pads and `App`'s family error). On a phone on
+its side the pad and its words sit side by side. A new CI test,
+`pin_limits_lock.test.sql`, proves the row lock with two dblink sessions (it
+fails without `for update`). **Closing an account:** the function no longer
+signs in itself (one per-IP limit for every family): the app signs in again
+from the grown-up's browser and the function checks the token's `amr`
+password time (≤ 5 min). Every refusal is true in every path — a lost reply
+says "we can't tell, safe to repeat", a login already gone counts as done,
+"Nothing was deleted" only when it wasn't; after `login_not_deleted` the
+device's copies go and Grown-ups lists no players. The page opens at the top
+with its title focused, marks the box a refusal is about, uses sign-in's
+labels, and "Keep my account" returns focus to its opener; the sign-in page
+says "Your account and all its data are gone." in a focused banner. **Plain
+errors:** remove-player and grown-up-PIN saves use `plainErrorOr`; 🚩 Report
+and the world's question errors are read out; the 8-player line and the
+draft notice's contact line fixed. Tests 1856 → 1891; all 23 migrations + 16
+SQL tests (each new rule mutation-checked); the function against a stand-in
+29/29 (the old one fails 20).
+
+### 2026-10-19 — Safe to share: PIN guesses limited, a grown-up can close the account, every screen says it plainly (#124b, #124c, #130 S6)
+A kid's 4-digit PIN could be guessed without limit by anyone holding the
+family's session, and closing an account meant emailing us. **Migration
+0022** counts wrong tries in the database: `try_kid_pin` / `try_parent_pin`
+lock a PIN after 5 wrong in a row — 1 minute, then 5, then 15, then an hour
+each time — refuse even the right PIN while locked (uncounted), and start
+over on the right PIN, a new PIN (how a grown-up unlocks a kid) or a quiet
+day; only the caller's own PINs count, and `check_kid_pin` /
+`check_parent_pin` keep their signatures for old tabs. `PinPad` says it
+plainly — "Too many tries — ask a grown-up, or wait 5 minutes." (the gate:
+"Use your password instead") — counts the wait down, remembers it for the
+tab (`lib/pinLock.ts`) and takes no digits meanwhile. **Close account**, at
+the bottom of 👪 Grown-ups, lists exactly what goes, asks for the account's
+password (never the grown-up PIN) and DELETE, and calls the new single-file
+`delete-account` edge function (token and password checked there,
+`delete_family` in migration 0023, then the login deleted with the service
+role); the sign-in page then says "Your account and all its data are gone."
+The family screens and `App`'s family error say plain words
+(`plainErrorOr`, `familyLoadMessage`), and the world's question screens and
+🚩 Report too (`questionErrorMessage`: "The Spire shudders! The riddles
+didn't load. Tap "Try the stair again"."). Tests: `pin_limits.test.sql` and
+`close_account.test.sql`, a 30-call burst counts exactly 5, the function
+against a stand-in Supabase 20/20; 1805 → 1856 green, lint, `tsc -b`,
+`deno check` of both functions, all 23 migrations + 15 SQL tests on
+Postgres 16. Logged: #167 (the grown-ups gate is a UI lock only).
 ### 2026-10-20 — Back to the Library: a returning kid is sent to Librarian Sage (#166)
 The owner: now that typing is in, whenever someone logs back in a message
 should tell them Sage has something for them at the Library. `WorldScreen`

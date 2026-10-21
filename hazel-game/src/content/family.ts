@@ -98,14 +98,17 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
       "A child's information is kept while they are on your account. Removing a child in the " +
       'Grown-ups area deletes their information straight away, except a note of how many new ' +
       "questions were written for them that day — without their name — which is kept for one " +
-      "day so your family's daily question limit still works. [RETENTION PERIOD for backups " +
-      'and closed accounts.]',
+      "day so your family's daily question limit still works. Closing your account deletes " +
+      "your login and every child's information straight away, keeping only that same " +
+      "nameless note of the day's question count for one day. [RETENTION PERIOD for backups.]",
   },
   {
     heading: 'Your choices',
     body:
       "You can see, change or delete your children's information at any time in the " +
-      'Grown-ups area. To close your whole account, or to stop us collecting anything more, ' +
-      'email [CONTACT EMAIL] and we will delete it.',
+      'Grown-ups area. You can close your whole account there too ("Close account", at the ' +
+      'bottom): after you type your password and the word DELETE, it deletes your login and everything about ' +
+      'your children straight away, and we collect nothing more. If you can\'t sign in, ' +
+      'email [CONTACT EMAIL] and we will close it for you.',
   },
 ];

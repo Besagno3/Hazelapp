@@ -3,7 +3,9 @@
 # Ready for review runs them.
 # The job's check is named `test` — require it in the main-branch ruleset
 # (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
-# `edge-function` and `migrations` (#88) check the Supabase side.
+# `edge-function` (both edge functions + the recheck script) and `migrations`
+# (#88; every `supabase/ci/*.test.sql`, e.g. the PIN limit and account close)
+# check the Supabase side.
 #
 # No `paths:` filter on purpose: a required check that skips some PRs would
 # leave them stuck on "waiting for status".
@@ -73,6 +75,8 @@ jobs:
       # --no-config / --node-modules-dir=none: resolve npm: imports the way the
       # Supabase runtime does, not through the app's package.json.
       - run: deno check --no-config --node-modules-dir=none generate-questions/index.ts
+      # Closing an account (#124b): a grown-up's self-serve delete.
+      - run: deno check --no-config --node-modules-dir=none delete-account/index.ts
       # The bank recheck (#147) shares the function's prompts and checks.
       - run: deno check --no-config --node-modules-dir=none ../scripts/recheck-questions.ts
 
