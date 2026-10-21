@@ -8,9 +8,9 @@
 -- here — the day and the kid, nothing else (no times, no XP, no answers).
 --
 -- Who may do what:
---   * read: a grown-up, their own kids' days (RLS, like `saves`). Reading is
---     not a grown-up *action*, so it needs no 👪 window (0024), but the app
---     only shows it inside 👪 Grown-ups.
+--   * read: a grown-up, their own kids' days of the last two weeks (RLS,
+--     like `saves`). Reading is not a grown-up *action*, so it needs no 👪
+--     window (0024), but the app only shows it inside 👪 Grown-ups.
 --   * write: only through note_play_days(kid, days) — the family's own
 --     sign-in, for one of its own kids (kids have no login of their own: the
 --     family's sign-in plays as them, as it saves their game). It only ADDS
@@ -18,9 +18,14 @@
 --     offline; 1 ahead, for a time zone ahead of the server's clock), at most
 --     31 at once. Nobody updates or deletes a day through the API. It is the
 --     kid's play, so like their save it needs no 👪 window.
---   * kept 14 days: each note deletes that kid's days older than that (the
---     page shows 7). Removing a kid or closing the account deletes them with
---     the kid (on delete cascade from `profiles`).
+--   * kept 14 days, for every kid (the page shows 7): a day older than that
+--     can't be read by anyone through the API (the read policy stops at two
+--     weeks), and each note — any family's — deletes every kid's older days,
+--     so a kid who stops playing loses theirs too (#29 review round 1: it
+--     used to be only the noting kid's). Removing a kid or closing the
+--     account deletes them with the kid (on delete cascade from `profiles`).
+--   * the server's own calendar: the function runs in UTC, whatever time zone
+--     a request asks for, so no caller can move the week or the two weeks.
 --
 -- Backward compatible: an app from before this never calls it; this app
 -- treats a database without it as "no days to show" (the page leaves the
@@ -32,12 +37,18 @@ create table if not exists public.play_days (
   primary key (profile_id, day)
 );
 
+-- The tidy-up finds old days by date, across every kid.
+create index if not exists play_days_day_idx on public.play_days (day);
+
 alter table public.play_days enable row level security;
 
 drop policy if exists "Grown-ups read their kids' play days" on public.play_days;
 create policy "Grown-ups read their kids' play days"
   on public.play_days for select
-  using (exists (select 1 from public.profiles p where p.id = profile_id and p.parent_id = auth.uid()));
+  using (
+    day >= current_date - 14
+    and exists (select 1 from public.profiles p where p.id = profile_id and p.parent_id = auth.uid())
+  );
 
 revoke all on public.play_days from public, anon, authenticated;
 grant select on public.play_days to authenticated;
@@ -52,6 +63,7 @@ returns integer
 language plpgsql
 security definer
 set search_path = ''
+set timezone = 'UTC'
 as $$
 declare
   v_user uuid := auth.uid();
@@ -80,8 +92,14 @@ begin
    where d between current_date - 7 and current_date + 1
   on conflict (profile_id, day) do nothing;
 
-  -- Kept for 14 days: the page shows the last 7.
-  delete from public.play_days where profile_id = p_kid and day < current_date - 14;
+  -- Kept for 14 days (the page shows the last 7) — every kid's, not just
+  -- this one's, so a kid who stops playing doesn't keep theirs for ever. Rows
+  -- another note is deleting right now are left to it (no waiting on locks).
+  delete from public.play_days
+   where (profile_id, day) in (
+     select o.profile_id, o.day from public.play_days o
+      where o.day < current_date - 14
+        for update skip locked);
 
   return v_kept;
 end;

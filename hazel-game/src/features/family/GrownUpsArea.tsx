@@ -1,7 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
+import { retryableLazy, useLazyRetry } from '../../lib/lazyRetry';
+import LazyBoundary from '../../components/LazyBoundary';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
+import { cn } from '../../lib/utils';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { KidAddedWithoutPin, useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
@@ -21,8 +24,11 @@ import QuestionReviewPage from './QuestionReviewPage';
 import SignInAgainButton from './SignInAgainButton';
 import type { Kid } from '../../types';
 
-// 📈 Progress (#29) loads only when a grown-up opens it: the game's first load doesn't carry it.
-const ProgressPage = lazy(() => import('./ProgressPage'));
+// 📈 Progress (#29) loads only when a grown-up opens it: the game's first
+// load doesn't carry it. If its file doesn't load (offline, or a new version
+// deployed while the tab was open) the page says so and can try again, and the
+// rest of 👪 Grown-ups keeps working (#29 review round 1).
+const progressPage = retryableLazy(() => import('./ProgressPage'));
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
@@ -107,8 +113,11 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   const [closing, setClosing] = useState(false);
   // Changing the login's email or password (#124d).
   const [changing, setChanging] = useState<'email' | 'password' | null>(null);
-  // Whose 📈 Progress is open (#29).
+  // Whose 📈 Progress is open (#29), and how many times its file was loaded
+  // again after failing (a new try starts the page afresh).
   const [progressFor, setProgressFor] = useState<string | null>(null);
+  const [progressTry, setProgressTry] = useState(0);
+  const progressLoaded = useCallback(() => setProgressTry((n) => n + 1), []);
   // Which kids' PINs the database has locked (#124c review): unlocking is done here.
   const pinLocks = useFamilyStore((s) => s.pinLocks);
   const [lockedKids, setLockedKids] = useState<Record<string, number>>({});
@@ -242,18 +251,22 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
 
   if (progressFor) {
+    const back = () => setProgressFor(null);
     return (
-      <Suspense
-        fallback={
-          <FamilyCard wide focusTitle title="📈 Progress">
-            <p role="status" className="text-center text-sm text-gray-600">
-              Loading…
-            </p>
-          </FamilyCard>
-        }
-      >
-        <ProgressPage kidId={progressFor} onBack={() => setProgressFor(null)} />
-      </Suspense>
+      <LazyBoundary key={progressTry} failed={<ProgressDidNotLoad onLoaded={progressLoaded} onBack={back} say={say} />}>
+        <Suspense
+          fallback={
+            // As wide as the page it's waiting for, so the card doesn't jump (#29 review round 1).
+            <FamilyCard extraWide focusTitle title="📈 Progress">
+              <p role="status" className="text-center text-sm text-gray-600">
+                Loading…
+              </p>
+            </FamilyCard>
+          }
+        >
+          <progressPage.Component kidId={progressFor} onBack={back} />
+        </Suspense>
+      </LazyBoundary>
     );
   }
 
@@ -396,6 +409,36 @@ function UnlockedNote({ name }: { name: string }) {
       <span aria-hidden="true">🔓 </span>
       {unlockedWords(name)}
     </p>
+  );
+}
+
+/**
+ * 📈 Progress's file didn't load (#29 review round 1): plain words, "Try
+ * again" (it loads the file afresh; still missing while the server answers
+ * means a new version is out, so the page reloads) and the way back — the
+ * rest of 👪 Grown-ups never leaves. Said once through the area's live region.
+ */
+function ProgressDidNotLoad({ onLoaded, onBack, say }: { onLoaded: () => void; onBack: () => void; say: (words: string | null) => void }) {
+  const { busy, words, tryAgain } = useLazyRetry(progressPage, onLoaded);
+  const text = `The progress page didn't load. ${words ?? 'Try again.'}`;
+  useEffect(() => {
+    say(text);
+  }, [say, text]);
+  return (
+    <FamilyCard extraWide focusTitle title="📈 Progress">
+      <p className="text-sm text-gray-700">{text}</p>
+      <button
+        type="button"
+        aria-disabled={busy || undefined}
+        onClick={busy ? undefined : () => void tryAgain()}
+        className={cn(primaryClass, 'mt-4 w-full')}
+      >
+        {busy ? 'Trying…' : 'Try again'}
+      </button>
+      <button type="button" onClick={onBack} className={cn(gateLinkClass, 'mt-2 text-purple-700')}>
+        ← Back to 👪 Grown-ups
+      </button>
+    </FamilyCard>
   );
 }
 

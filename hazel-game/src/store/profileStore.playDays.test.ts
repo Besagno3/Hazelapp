@@ -43,6 +43,27 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
     expect(useProfileStore.getState().profile?.currentStreak).toBe(3);
   });
 
+  it('any XP earned counts the day — a typing lesson, the Library, a shrine — once, with the streak (review round 1)', async () => {
+    useProfileStore.setState({ profile: kid(isoOffset(todayIso(), -1)) });
+    await useProfileStore.getState().addXp(30);
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_days', { p_kid: 'kid-1', p_days: [todayIso()] }));
+    const p = useProfileStore.getState().profile;
+    expect(p).toMatchObject({ xp: 30, lastPlayedOn: todayIso(), currentStreak: 3 });
+    // More XP that day, or a round's end after it: the day isn't noted again.
+    await useProfileStore.getState().addXp(10);
+    await useProfileStore.getState().recordActivity();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(useProfileStore.getState().profile?.currentStreak).toBe(3);
+  });
+
+  it('no XP (a starter question, nothing earned) is not a day played on its own', async () => {
+    useProfileStore.setState({ profile: kid(isoOffset(todayIso(), -1)) });
+    await useProfileStore.getState().addXp(0);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(useProfileStore.getState().profile?.lastPlayedOn).toBe(isoOffset(todayIso(), -1));
+  });
+
   it('later rounds that day note nothing more — but a day still waiting on the device goes up', async () => {
     useProfileStore.setState({ profile: kid(todayIso()) });
     await useProfileStore.getState().recordActivity();

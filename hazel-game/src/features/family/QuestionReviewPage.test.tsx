@@ -104,6 +104,23 @@ describe('QuestionReviewPage (#147)', () => {
     expect(await screen.findByText('2 questions waiting')).toBeInTheDocument();
   });
 
+  it('Try again keeps the keyboard: it waits in place, a second failure leaves the focus on it, and once loaded the title has it (#29 review round 1)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    review.fetchReviewQueue.mockRejectedValueOnce(new Error('down')).mockRejectedValueOnce(new Error('still down'));
+    render(<QuestionReviewPage onBack={onBack} />);
+    const button = await screen.findByRole('button', { name: 'Try again' });
+    button.focus();
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveTextContent('Trying…');
+    await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
+    expect(button).toHaveFocus();
+    fireEvent.click(button);
+    expect(await screen.findByText('2 questions waiting')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '🛡️ Question review' })).toHaveFocus();
+    vi.mocked(console.warn).mockRestore();
+  });
+
   it('nothing waiting is all clear; Back goes back', async () => {
     review.fetchReviewQueue.mockResolvedValue([]);
     render(<QuestionReviewPage onBack={onBack} />);

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore, watchPageForSaves } from './store/saveStore';
@@ -20,15 +20,19 @@ import RelockDialog from './features/family/RelockDialog';
 import { useLockOnLeave } from './features/family/useLockOnLeave';
 import { familyScreen, signInAgain, useFamilyStore } from './store/familyStore';
 import LevelUpModal from './components/LevelUpModal';
-import { ErrorScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
+import { ErrorScreen, LazyFailedScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
+import LazyBoundary from './components/LazyBoundary';
+import { retryableLazy } from './lib/lazyRetry';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
 import AvatarSelect from './features/battle/AvatarSelect';
 import BattleArena from './features/battle/BattleArena';
 
 // Lazy-load the canvas-based world — pulls in KaPlay (~200 KB), which
-// the auth / quiz / battle screens never need. (#36)
-const WorldScreen = lazy(() => import('./features/world/WorldScreen'));
+// the auth / quiz / battle screens never need. (#36) If its file doesn't load
+// (offline, or a new version deployed while the tab was open) the screen says
+// so and can try again, instead of the crash screen (#29 review round 1).
+const worldScreen = retryableLazy(() => import('./features/world/WorldScreen'));
 
 /**
  * Routing is the game-flow machine (#37, resolves #11): App renders whatever
@@ -81,6 +85,9 @@ export default function App() {
   const inSpire = useFlow((s) => s.matches({ world: 'spire' }) || (s.matches({ world: 'service' }) && s.context.service === 'name'));
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
+  // Bumped when the world's file loads after failing: the boundary starts afresh.
+  const [worldTry, setWorldTry] = useState(0);
+  const worldLoaded = useCallback(() => setWorldTry((n) => n + 1), []);
 
   // Background music follows the screen — the sign-in screen has its own intro,
   // which plays on through the family screens until a kid is playing (#124);
@@ -186,9 +193,11 @@ export default function App() {
       {screen === 'quiz' && <QuizRound />}
       {screen === 'avatar' && <AvatarSelect />}
       {screen === 'world' && (
-        <Suspense fallback={<LoadingScreen label="Entering Lumina…" />}>
-          <WorldScreen />
-        </Suspense>
+        <LazyBoundary key={worldTry} failed={<LazyFailedScreen page={worldScreen} onLoaded={worldLoaded} title="The world didn't load" />}>
+          <Suspense fallback={<LoadingScreen label="Entering Lumina…" />}>
+            <worldScreen.Component />
+          </Suspense>
+        </LazyBoundary>
       )}
       {screen === 'battle' && <BattleArena />}
       <LevelUpModal />

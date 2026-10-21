@@ -95,11 +95,11 @@ interface ProfileStore {
   loadProfile: (userId: string, birth?: Birth) => Promise<void>;
   /** Persist a new skill level for one topic (optimistic update). */
   setSkillLevel: (topic: Topic, level: number) => Promise<void>;
-  /** Add experience points (optimistic update). */
+  /** Add experience points (optimistic update). Any XP earned is play, so it counts the day too (`recordActivity`). */
   addXp: (amount: number) => Promise<void>;
   /** Record a power-up chosen on level-up (optimistic update). */
   addPowerUp: (id: PowerUpId) => Promise<void>;
-  /** Advance the daily streak after a round / battle (#28). */
+  /** Advance the daily streak and note the day played (#28, #29): after a round, a battle, and any XP earned. */
   recordActivity: () => Promise<void>;
   clearProfile: () => void;
 }
@@ -128,8 +128,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // Level 1 by a remote row stuck at 0.
       const merged = mergeProfiles(fromRow(data as ProfileRow), local);
       set({ profile: merged, loading: false, remoteError: null });
-      // Days played while offline (or before migration 0025) go up now (#29).
-      void flushPlayDays(userId);
+      // Days played while offline (or before migration 0025) go up now (#29),
+      // even after a failed send this session (unless 0025 isn't there).
+      void flushPlayDays(userId, { now: true });
       writeLocalProfile(merged);
       // If the local cache was ahead, best-effort push the merge back up.
       const remote = fromRow(data as ProfileRow);
@@ -198,6 +199,10 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const updated = { ...profile, xp: profile.xp + amount, level, levelXp };
     set({ profile: updated }); // optimistic
     writeLocalProfile(updated);
+    // Every XP the game pays — typing lessons, the Library, a shrine, the
+    // Scriptorium, not only rounds and battles — is a day played (#29 review
+    // round 1): the streak, "last played" and 📈 Progress's week agree.
+    void get().recordActivity();
     const { error } = await supabase
       .from('profiles')
       .update({ xp: updated.xp, level, level_xp: levelXp, updated_at: new Date().toISOString() })
@@ -223,8 +228,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const profile = get().profile;
     if (!profile) return;
     const today = todayIso();
-    // Same-day no-op — don't write or even nudge the streak (a day still
-    // waiting on this device is sent, #29).
+    // Same-day no-op — don't write or even nudge the streak. A day still
+    // waiting on this device is sent, unless a send just failed: then it
+    // waits (back online, a few minutes, or the next day — lib/playDays, #29).
     if (profile.lastPlayedOn === today) {
       void flushPlayDays(profile.id);
       return;

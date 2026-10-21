@@ -285,7 +285,9 @@ export function normalizeSave(raw: unknown): SaveData {
     questItems: stringArray(r.questItems),
     passedRounds: numberOr(r.passedRounds, 0),
     worldUnlocked: r.worldUnlocked === true,
-    library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(0, LIBRARY_MAX) : [],
+    // Oldest first, like `pushLibrary`: an over-long queue keeps its newest
+    // misses (it kept the oldest, which 📈 Progress then listed as the newest — #29 review round 1).
+    library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(-LIBRARY_MAX) : [],
     // Added after v1 shipped: older saves (and unknown ids) default to Ember.
     companionId: (COMPANION_IDS as readonly string[]).includes(r.companionId as string)
       ? (r.companionId as CompanionId)

@@ -320,6 +320,14 @@ describe('pushLibrary', () => {
     expect(out[0].question.id).toBe('old-1');
     expect(out[out.length - 1].question.id).toBe('new');
   });
+
+  it('a loaded queue over the cap keeps its newest misses too, as pushLibrary does (#29 review round 1)', () => {
+    const library: LibraryEntry[] = Array.from({ length: LIBRARY_MAX + 3 }, (_, i) => ({ question: q(`m-${i}`), picked: 0 }));
+    const out = normalizeSave({ version: 3, library }).library;
+    expect(out).toHaveLength(LIBRARY_MAX);
+    expect(out[0].question.id).toBe('m-3');
+    expect(out.at(-1)?.question.id).toBe(`m-${LIBRARY_MAX + 2}`);
+  });
 });
 
 describe('the last inn rested at (#75 item 11)', () => {

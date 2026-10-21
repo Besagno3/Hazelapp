@@ -29,7 +29,31 @@ vi.mock('../../lib/progress', async (original) => ({
   fetchFamilyProgress: progress.fetchFamilyProgress,
 }));
 
+// 📈 Progress's file can be made to fail to load (#29 review round 1): the
+// real retryableLazy, its load failing while `chunk.fail` > 0.
+const chunk = vi.hoisted(() => ({ fail: 0, page: null as null | { Component: unknown; load: () => Promise<unknown> } }));
+vi.mock('../../lib/lazyRetry', async (original) => {
+  const real = await original<typeof import('../../lib/lazyRetry')>();
+  return {
+    ...real,
+    retryableLazy: ((load: Parameters<typeof real.retryableLazy>[0]) => {
+      const page = real.retryableLazy(() => {
+        if (chunk.fail > 0) {
+          chunk.fail -= 1;
+          return Promise.reject<Awaited<ReturnType<typeof load>>>(
+            new TypeError('Failed to fetch dynamically imported module: http://localhost/src/features/family/ProgressPage.tsx'),
+          );
+        }
+        return load();
+      });
+      chunk.page = page as never;
+      return page;
+    }) as typeof real.retryableLazy,
+  };
+});
+
 const { default: GrownUpsArea } = await import('./GrownUpsArea');
+const { lazy } = await import('react');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
@@ -98,6 +122,9 @@ async function unlock() {
   fireEvent.click(screen.getByRole('button', { name: 'Open' }));
   await screen.findByText('Sam');
 }
+
+/** 📈 Progress's hero: "Player level" over the number, read as one. */
+const findHero = (n: number) => screen.findByText((_, el) => el?.tagName === 'P' && el.textContent === `Player level ${n}`);
 
 /** The page's own status line (the area's sr-only live region is another). */
 const pageStatus = () => screen.getAllByRole('status').find((el) => !el.classList.contains('sr-only'))!;
@@ -591,11 +618,16 @@ describe('GrownUpsArea (#124)', () => {
   });
 
   it('📈 Progress opens for that kid behind the gate, loads lazily, and Back lands on the button that opened it (#29)', async () => {
+    // A fresh lazy page, so its loading card shows first: as wide as the page it waits for (review round 1).
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
     await unlock();
     const button = screen.getByRole('button', { name: 'Progress for Sam' });
     fireEvent.click(button);
+    const loadingCard = screen.getByText('Loading…').closest('.rounded-2xl');
+    expect(loadingCard).toHaveClass('sm:max-w-2xl');
     expect(await screen.findByRole('heading', { level: 1, name: '📈 Progress' })).toBeInTheDocument();
-    expect(await screen.findByText('Level 2')).toBeInTheDocument();
+    expect(await findHero(2)).toBeInTheDocument();
     expect(progress.fetchFamilyProgress).toHaveBeenCalledWith(['kid-sam', 'kid-old'], expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
     // Reading opened no grown-up action: nothing asked the database for the gate.
     expect(rpc.mock.calls.map(([fn]) => fn)).not.toContain('unlock_grown_ups');
@@ -604,12 +636,48 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByRole('button', { name: 'Progress for Sam' })).toHaveFocus();
   });
 
+  it("📈 Progress's file not loading stays on that page: plain words, Back to the list, Try again loads it with focus on its title (#29 review round 1)", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    onTestFinished(() => window.removeEventListener('error', quiet));
+    // A fresh lazy page (another test may have loaded it already), whose file fails twice.
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
+    chunk.fail = 2;
+    vi.stubGlobal('location', { ...window.location, href: 'http://localhost/play/', reload: vi.fn() });
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    // Shown on the card, and read out once through the area's live region.
+    await waitFor(() => expect(screen.getAllByText("The progress page didn't load. Try again.")).toHaveLength(2));
+    expect(screen.getAllByRole('status').some((el) => el.textContent === "The progress page didn't load. Try again.")).toBe(true);
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+    expect(warn.mock.calls.flat().join(' ')).toContain('Failed to fetch dynamically imported module');
+    // The server out of reach: no reload, the connection's words.
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect((await screen.findAllByText(/We couldn't reach Hazel Quest\. Check your internet connection, then try again\./)).length).toBeGreaterThan(0);
+    expect(window.location.reload).not.toHaveBeenCalled();
+    // The rest of 👪 Grown-ups never left.
+    fireEvent.click(screen.getByRole('button', { name: '← Back to 👪 Grown-ups' }));
+    await screen.findByText('Sam');
+    // Back in, and the file loads this time: the page, its title focused.
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(await findHero(2)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+  });
+
   it('📈 Progress goes back to the gate when the 15 minutes run out (#29)', async () => {
     await unlock();
     fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
-    await screen.findByText('Level 2');
+    await findHero(2);
     act(() => useGrownUpsStore.setState({ openedAt: Date.now() - 15 * 60_000 + 50 }));
     expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
-    expect(screen.queryByText('Level 2')).toBeNull();
+    expect(screen.queryByText(/Player level/)).toBeNull();
   });
 });

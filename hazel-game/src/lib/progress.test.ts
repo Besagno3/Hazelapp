@@ -21,25 +21,33 @@ vi.mock('./supabase', () => ({
 }));
 
 const {
-  BAND_WORDS,
   PROGRESS_COLUMNS,
+  SEVERAL_MISSED,
   STARTING_WORDS,
   dayWords,
   fetchFamilyProgress,
+  glance,
   hasPlayed,
   levelBand,
   levelSummary,
   missedQuestions,
+  nameList,
   recentDays,
   statsFromRow,
   storyAct,
   storySummary,
   streakSummary,
   topicLevels,
+  topicMeaning,
   typingSummary,
 } = await import('./progress');
+const { ageToStartLevel } = await import('./age');
 const { ALL_TOPIC_INFO } = await import('../content/topics');
+const { ROUNDS_TO_UNLOCK } = await import('./utils');
 const { nextObjective } = await import('./wayfinding');
+const { BOAT_MENDED } = await import('../content/boat');
+const { visitedFlag } = await import('../content/fieldSpells');
+const { keyFlag, keyForBoss } = await import('../content/keys');
 const { defaultSave } = await import('./save');
 const { EIGHT_MISSED, midActTwoRow, midActTwoSave, newKidRow, trainingSave } = await import('../test/progressFixtures');
 
@@ -143,13 +151,27 @@ describe('streak, last played and the last week', () => {
   const stats = { currentStreak: 3, longestStreak: 7, lastPlayedOn: '2026-10-20' };
 
   it('a streak counts while they played today or yesterday', () => {
-    expect(streakSummary(stats, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Yesterday' });
+    expect(streakSummary(stats, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Yesterday', lastPlayedAgo: null });
     expect(streakSummary({ ...stats, lastPlayedOn: TODAY }, TODAY)).toMatchObject({ current: 3, lastPlayed: 'Today' });
   });
 
   it('a missed day breaks it — never the stale saved number — and the best is kept', () => {
-    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-19' }, TODAY)).toEqual({ current: 0, best: 7, lastPlayed: 'Monday' });
-    expect(streakSummary(null, TODAY)).toEqual({ current: 0, best: 0, lastPlayed: null });
+    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-19' }, TODAY)).toEqual({ current: 0, best: 7, lastPlayed: 'Monday', lastPlayedAgo: null });
+    expect(streakSummary(null, TODAY)).toEqual({ current: 0, best: 0, lastPlayed: null, lastPlayedAgo: null });
+  });
+
+  it('a week or more since they played says how long, not just a date (review round 1)', () => {
+    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-14' }, TODAY)).toMatchObject({ lastPlayed: '14 October', lastPlayedAgo: '7 days ago' });
+    expect(streakSummary({ ...stats, lastPlayedOn: '2026-10-15' }, TODAY)).toMatchObject({ lastPlayed: 'Thursday', lastPlayedAgo: null });
+  });
+
+  it("the kid's device a time zone ahead: their today reads Today, the streak holds, the week marks today (review round 1)", () => {
+    const ahead = { ...stats, lastPlayedOn: '2026-10-22' };
+    expect(streakSummary(ahead, TODAY)).toEqual({ current: 3, best: 7, lastPlayed: 'Today', lastPlayedAgo: null });
+    expect(dayWords('2026-10-22', TODAY)).toBe('Today');
+    const week = recentDays(TODAY, ['2026-10-22'], '2026-10-22');
+    expect(week.at(-1)).toMatchObject({ today: true, played: true });
+    expect(week.filter((d) => d.played)).toHaveLength(1);
   });
 
   it('days in plain words', () => {
@@ -182,46 +204,116 @@ describe('question level by topic', () => {
     expect(levels.map((t) => t.id)).toEqual(ALL_TOPIC_INFO.map((t) => t.id));
     expect(levels).toHaveLength(10);
     const by = Object.fromEntries(levels.map((t) => [t.id, t]));
-    expect(by.math).toMatchObject({ label: 'Math', level: 6, measured: true, meaning: BAND_WORDS.right });
-    expect(by.science).toMatchObject({ level: 8, meaning: 'A stretch for their age' });
-    expect(by.history).toMatchObject({ level: 10, meaning: 'For the strongest at their age' });
-    expect(by.nature).toMatchObject({ level: 1, meaning: 'Easy questions for their age' });
-    // A 9-year-old starts a topic at 4 (age − 5).
+    // A 9-year-old starts every topic at 4 — the game's own rule (ageToStartLevel).
+    expect(levels.every((t) => t.start === 4)).toBe(true);
+    expect(by.math).toMatchObject({ label: 'Math', level: 6, measured: true, meaning: '2 above their starting level' });
+    expect(by.science).toMatchObject({ level: 8, meaning: '4 above their starting level — a stretch for their age' });
+    expect(by.history).toMatchObject({ level: 10, meaning: '6 above their starting level — for the strongest at their age' });
+    expect(by.nature).toMatchObject({ level: 1, meaning: 'Below their starting level — a good one to practise together' });
     expect(by.music).toMatchObject({ label: 'Music', level: 4, measured: false, meaning: STARTING_WORDS });
     expect(by.space).toMatchObject({ level: 4, measured: false });
+  });
+
+  it("young players start low on purpose: a 6- or 7-year-old's levels read against their own start, never as below their age (review round 1)", () => {
+    // A 6-year-old starts at 1, a 7-year-old at 2 (#156).
+    const bo = topicLevels({ math: 1 }, 6);
+    expect(bo[0]).toMatchObject({ id: 'math', level: 1, start: 1, meaning: 'At their starting level' });
+    expect(bo.find((t) => t.id === 'science')).toMatchObject({ level: 1, measured: false });
+    const kit = topicLevels({ math: 3, science: 2 }, 7);
+    expect(kit.find((t) => t.id === 'math')?.meaning).toBe('1 above their starting level');
+    expect(kit.find((t) => t.id === 'science')?.meaning).toBe('At their starting level');
+    // Nothing a young player reaches by playing reads "easy" or "below" unless it really is below their start.
+    for (const [age, level] of [[6, 1], [6, 3], [7, 2], [8, 3], [8, 5]] as const) {
+      const meaning = topicMeaning(level, ageToStartLevel(age));
+      expect(meaning).not.toMatch(/easy|below/i);
+    }
+    expect(topicMeaning(2, ageToStartLevel(8))).toMatch(/^Below their starting level/);
+  });
+
+  it('a teen at the top bands says so; nothing claims a level went down (the data keeps no history)', () => {
+    expect(topicMeaning(6, 6)).toBe('At their starting level');
+    expect(topicMeaning(7, 6)).toBe('1 above their starting level — a stretch for their age');
+    expect(topicMeaning(10, 6)).toBe('4 above their starting level — for the strongest at their age');
+    for (let start = 1; start <= 6; start++) for (let level = 1; level <= 10; level++) expect(topicMeaning(level, start)).not.toMatch(/down|dropped|fell|harder/i);
+  });
+});
+
+describe('at a glance (review round 1)', () => {
+  it('names lists the way a grown-up reads them', () => {
+    expect(nameList([])).toBe('');
+    expect(nameList(['Math'])).toBe('Math');
+    expect(nameList(['Math', 'Science'])).toBe('Math and Science');
+    expect(nameList(['Math', 'Science', 'Space'])).toBe('Math, Science and 1 more');
+    expect(nameList(['Math', 'Science', 'Space'], 3)).toBe('Math, Science and Space');
+  });
+
+  it('days played, the furthest topic, what to practise together and the questions waiting — all from what is stored', () => {
+    const week = recentDays(TODAY, ['2026-10-18', '2026-10-15'], '2026-10-20');
+    const levels = topicLevels({ math: 6, science: 9, engineering: 3, creativity: 2, nature: 9 }, 9);
+    const library = [...EIGHT_MISSED, EIGHT_MISSED[0], EIGHT_MISSED[0]].map((e, i) => ({ ...e, question: { ...e.question, id: `q${i}` } }));
+    const missed = missedQuestions({ ...defaultSave(), library });
+    const g = glance(week, levels, missed);
+    expect(g.playedDays).toBe(3);
+    expect(g.furthest.map((t) => t.label)).toEqual(['Science', 'Nature & Animals']);
+    expect(g.belowStart.map((t) => t.label)).toEqual(['Engineering', 'Creativity']);
+    // Three Math questions waiting (several); one of each other topic isn't.
+    expect(g.missedByTopic).toEqual([{ label: 'Math', count: SEVERAL_MISSED }]);
+    expect(g.missedCount).toBe(10);
+  });
+
+  it('nothing invented: no week without the table, no "furthest" at the starting level, nothing from what was never saved', () => {
+    const g = glance(null, topicLevels({ math: 4 }, 9), []);
+    expect(g).toEqual({ playedDays: null, furthest: [], belowStart: [], missedByTopic: [], missedCount: 0 });
+    expect(glance(null, null, null)).toEqual({ playedDays: null, furthest: [], belowStart: [], missedByTopic: [], missedCount: 0 });
   });
 });
 
 describe('the story, no spoilers', () => {
   it('in the Training Grounds: practice rounds, nothing about the world', () => {
-    expect(storySummary(trainingSave())).toMatchObject({ stage: 'training', practiceRounds: 1, roundsToOpen: 3, goal: null });
+    expect(storySummary(trainingSave())).toMatchObject({ stage: 'training', practiceRounds: 1, roundsToOpen: ROUNDS_TO_UNLOCK, goal: null });
   });
 
-  it('mid-Act-II: Act I and II crystals only, the Spire won, their own next goal, trophies by name', () => {
+  it('mid-Act-II: acts by number only, Act I crystals by the names the opening story gave them, the next one unnamed (review round 1)', () => {
     const save = midActTwoSave();
     const s = storySummary(save);
-    expect(s).toMatchObject({ stage: 'world', act: 2, actTitle: 'Act II · The Crystal of Memory', restored: 4, spire: 'cleared' });
-    expect(s.crystals.map((c) => c.crystal)).toEqual([
-      'Crystal of Numbers',
-      'Crystal of Nature',
-      'Crystal of Gears',
-      'Crystal of Wonder',
-      'Crystal of Memory',
-    ]);
-    expect(s.crystals.at(-1)).toMatchObject({ restored: false, topicLabel: 'Time & History' });
-    // A later act's crystal is never named.
-    expect(JSON.stringify(s)).not.toMatch(/Voices|Starfall Sea|The Name/);
+    expect(s).toMatchObject({ stage: 'world', act: 2, actLabel: 'Act II', restored: 4, left: 1, spire: 'cleared' });
+    expect(s.crystals.map((c) => c.crystal)).toEqual(['Crystal of Numbers', 'Crystal of Nature', 'Crystal of Gears', 'Crystal of Wonder', null]);
+    expect(s.crystals.at(-1)).toMatchObject({ restored: false, topicLabel: null });
+    // Never a crystal the game hasn't named yet, a later act's, or the finale.
+    expect(JSON.stringify(s)).not.toMatch(/Memory|Voices|Starfall Sea|The Name|Time & History/);
     expect(s.goal).toBe(nextObjective(save.flags).title);
     // The unknown id is left out, never shown raw.
     expect(s.trophies.map((t) => t.name)).toEqual(['Verdant Key', 'Gearwright Key', 'Prism Key', 'Compass Badge', 'Leaf Badge']);
   });
 
-  it('Act I part-way: the Spire is not mentioned yet; Act III and IV by their flags; the end', () => {
-    const save = { ...defaultSave(), worldUnlocked: true, flags: { 'crystal-math-restored': true } };
-    expect(storySummary(save)).toMatchObject({ act: 1, restored: 1, spire: 'hidden', actTitle: 'Act I · The Four Crystals' });
+  it("a crystal is named once their own 🚩 names it, or it's restored", () => {
+    // Holding the Memoria Key: their guide says "Free the Crystal of Memory".
+    const flags = {
+      ...midActTwoSave().flags,
+      [BOAT_MENDED]: true,
+      [visitedFlag('silver-shallows')]: true,
+      [visitedFlag('remembrance-hill')]: true,
+      [keyFlag(keyForBoss('ringkeeper')!.id)]: true,
+    };
+    expect(nextObjective(flags).title).toBe('Free the Crystal of Memory');
+    const s = storySummary({ ...midActTwoSave(), flags });
+    expect(s.crystals.at(-1)).toMatchObject({ crystal: 'Crystal of Memory', topicLabel: 'Time & History', restored: false });
+    const after = storySummary({ ...midActTwoSave(), flags: { ...midActTwoSave().flags, 'crystal-history-restored': true } });
+    expect(after.crystals.at(-1)).toMatchObject({ crystal: 'Crystal of Memory', restored: true });
+    expect(after.left).toBe(0);
+  });
+
+  it('Act I before the opening story: no crystal named yet; part-way the Spire is not mentioned; Act III and IV by their flags; the end', () => {
+    // Before the opening story names the four, only the one their 🚩 names ("Free the Crystal of Numbers").
+    const fresh = storySummary({ ...defaultSave(), worldUnlocked: true });
+    expect(fresh.crystals.map((c) => c.crystal)).toEqual(['Crystal of Numbers', null, null, null]);
+    const save = { ...defaultSave(), worldUnlocked: true, flags: { 'intro-seen': true, 'crystal-math-restored': true } };
+    expect(storySummary(save)).toMatchObject({ act: 1, restored: 1, left: 3, spire: 'hidden', actLabel: 'Act I' });
     expect(storySummary(save).crystals).toHaveLength(4);
     expect(storyAct({ 'act2-seen': true, 'act3-seen': true })).toBe(3);
     expect(storyAct({ 'act4-seen': true })).toBe(4);
+    const act4 = storySummary({ ...midActTwoSave(), flags: { ...midActTwoSave().flags, 'act3-seen': true, 'act4-seen': true, 'crystal-history-restored': true, 'crystal-words-restored': true } });
+    expect(act4).toMatchObject({ act: 4, actLabel: 'Act IV', restored: 6, left: 0 });
     const done = storySummary({ ...midActTwoSave(), flags: { ...midActTwoSave().flags, 'act3-seen': true, 'act4-seen': true, 'umbra-named': true } });
     expect(done).toMatchObject({ stage: 'finished', goal: null, act: 4 });
     expect(done.crystals).toHaveLength(6);

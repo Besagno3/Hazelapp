@@ -2,8 +2,12 @@
 -- played are their family's to read and nobody else's; only note_play_days
 -- writes them — the family's own sign-in, for its own kid, adding days from
 -- the last week only — and nothing can be changed or deleted through the API.
+-- Kept two weeks for every kid (review round 1): any note deletes every
+-- family's older days, and nobody can read one meanwhile.
 -- Any failed assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
+-- The test's dates are the server's (UTC), as note_play_days' are.
+set local timezone = 'UTC';
 
 insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000a9', '{"consent_version": "2026-10-draft"}'),
@@ -16,11 +20,36 @@ insert into public.profiles (id, parent_id, display_name, icon, birth_year, birt
   ('00000000-0000-0000-0000-000000005a10', '00000000-0000-0000-0000-0000000000a9', 'Kit', 'frog', 2018, 5),
   ('00000000-0000-0000-0000-000000005b09', '00000000-0000-0000-0000-0000000000b9', 'Bea', 'bee', 2016, 7);
 
--- Bea already played yesterday; Sam has a day from long ago (the next note
--- tidies it away).
+-- Bea already played yesterday — and 30 days ago, and she never notes a day
+-- again here; Sam has a day from long ago; Kit's oldest day is 15 days back
+-- and his next-oldest exactly 14 (the last day kept). Any note tidies away
+-- every kid's day older than two weeks, whoever's family notes it.
 insert into public.play_days (profile_id, day) values
   ('00000000-0000-0000-0000-000000005b09', current_date - 1),
-  ('00000000-0000-0000-0000-000000005a09', current_date - 20);
+  ('00000000-0000-0000-0000-000000005b09', current_date - 30),
+  ('00000000-0000-0000-0000-000000005a09', current_date - 20),
+  ('00000000-0000-0000-0000-000000005a10', current_date - 15),
+  ('00000000-0000-0000-0000-000000005a10', current_date - 14);
+
+-- Before any note: an old day is there, but nobody reads one older than two
+-- weeks (the read policy stops there), not even its own family.
+do $$
+begin
+  assert (select count(*) from public.play_days) = 5, 'the owner sees all five rows';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b9', true);
+do $$
+begin
+  assert (select count(*) from public.play_days) = 1, 'B reads Bea''s yesterday, never her day 30 days ago';
+end $$;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
+do $$
+begin
+  assert (select array_agg(day order by day) from public.play_days) = array[current_date - 14],
+    'A reads Kit''s day 14 days back (still kept), not his 15 or Sam''s 20';
+end $$;
+reset role;
 
 -- From here on, act as grown-up A through the API role. No 👪 window is open:
 -- noting and reading a kid's days are play, not grown-up actions.
@@ -53,8 +82,9 @@ begin
     'a week back and a day ahead (a time zone ahead of the server) are the edges';
   assert public.note_play_days(kit, null) = 0 and public.note_play_days(kit, '{}') = 0, 'nothing to note';
 
-  -- A sees their own kids' days, never another family's.
-  assert (select count(*) from public.play_days) = 4, format('A sees their four rows (got %s)',
+  -- A sees their own kids' days, never another family's (Kit's day 14 days
+  -- back is still kept).
+  assert (select count(*) from public.play_days) = 5, format('A sees their five rows (got %s)',
     (select count(*) from public.play_days));
   assert not exists (select 1 from public.play_days where profile_id = bea), 'B''s kid''s days are hidden';
 
@@ -101,6 +131,43 @@ begin
   assert (select count(*) from public.play_days) = 1, 'B sees only Bea''s day';
 end $$;
 
+-- A's notes tidied every family's old days away: Bea's 30-day-old one (her
+-- family never noted again) and Kit's 15-day-old one — not his 14th.
+reset role;
+do $$
+begin
+  assert not exists (select 1 from public.play_days where day < current_date - 14),
+    'no kid keeps a day older than two weeks once anyone notes a day';
+  assert not exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 30),
+    'another family''s kid who stopped playing loses their old day too';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 14),
+    'a day exactly two weeks back is kept';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 1),
+    'Bea''s recent day stays';
+end $$;
+
+-- The server's calendar, whatever time zone the caller asks for (PostgREST
+-- passes `Prefer: timezone=` on): with the session's date a day off UTC's,
+-- the week's edges are still UTC's. One of the two zones is a day off at any
+-- hour (UTC+14 from 10:00, UTC−12 before 12:00).
+set local role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b9', true);
+do $$
+declare
+  utc date := (now() at time zone 'UTC')::date;
+  bea constant uuid := '00000000-0000-0000-0000-000000005b09';
+  was constant text := current_setting('timezone');
+begin
+  perform set_config('timezone',
+    case when (now() at time zone 'Etc/GMT-14')::date <> utc then 'Etc/GMT-14' else 'Etc/GMT+12' end, true);
+  assert current_date <> utc, 'the session''s date is a day off UTC''s';
+  perform public.note_play_days(bea, array[utc - 8, utc - 7, utc + 1, utc + 2]);
+  assert (select array_agg(day order by day) from public.play_days
+           where profile_id = bea and day in (utc - 8, utc - 7, utc + 1, utc + 2)) = array[utc - 7, utc + 1],
+    'a week back and a day ahead of UTC''s date are kept, never the session''s edges';
+  perform set_config('timezone', was, true);
+end $$;
+
 -- Signed out: nothing to see, nothing to note.
 select set_config('request.jwt.claim.sub', '', true);
 do $$
@@ -126,7 +193,9 @@ begin
   assert (select prosecdef from pg_proc where oid = 'public.note_play_days(uuid, date[])'::regprocedure),
     'it writes as the table''s owner';
   assert (select proconfig from pg_proc where oid = 'public.note_play_days(uuid, date[])'::regprocedure)
-           = array['search_path=""'], 'with an empty search path';
+           = array['search_path=""', 'TimeZone=UTC'], 'with an empty search path, in UTC';
+  assert exists (select 1 from pg_indexes where schemaname = 'public' and tablename = 'play_days' and indexdef like '%(day)'),
+    'old days are found by date';
 
   -- Removing a kid (and closing the account, which removes every kid) takes
   -- their days with them.

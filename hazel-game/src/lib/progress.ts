@@ -8,7 +8,7 @@ import { ROUNDS_TO_UNLOCK } from './utils';
 import { nextObjective } from './wayfinding';
 import { LEAF_MILESTONES, leavesFlag } from './leaves';
 import { ALL_TOPIC_INFO, actComplete, actCrystals, crystalFlag, type Act } from '../content/topics';
-import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, SPIRE_CLEARED } from '../content/story';
+import { ACT2_SEEN, ACT3_SEEN, ACT4_SEEN, INTRO_SEEN, SPIRE_CLEARED } from '../content/story';
 import { UMBRA_NAMED } from '../content/questFlags';
 import { TYPING_BADGE_ID, TYPING_LESSONS, pagesCopied, typingLessonFlag } from '../content/typing';
 import { badgeInfo, type BadgeInfo } from '../content/badges';
@@ -165,10 +165,14 @@ function daysAgo(iso: string, today: string): number {
   return Math.round((dateOf(today).getTime() - dateOf(iso).getTime()) / 86_400_000);
 }
 
-/** "Today", "Yesterday", "Monday" (this past week), "3 October", "3 October 2025". */
+/**
+ * "Today", "Yesterday", "Monday" (this past week), "3 October", "3 October
+ * 2025". A day after `today` reads "Today": the kid's device is a time zone
+ * (or a clock) ahead of this one, and it was their today (#29 review round 1).
+ */
 export function dayWords(iso: string, today: string): string {
   const ago = daysAgo(iso, today);
-  if (ago === 0) return 'Today';
+  if (ago <= 0) return 'Today';
   if (ago === 1) return 'Yesterday';
   const d = dateOf(iso);
   if (ago > 1 && ago < 7) return WEEKDAYS[d.getDay()];
@@ -182,13 +186,22 @@ export interface StreakSummary {
   best: number;
   /** Words for the last day played, or null if never. */
   lastPlayed: string | null;
+  /** "7 days ago" once it's a week or more — a bare date doesn't say they've stopped. */
+  lastPlayedAgo: string | null;
 }
 
 export function streakSummary(stats: Pick<KidStats, 'currentStreak' | 'longestStreak' | 'lastPlayedOn'> | null, today: string): StreakSummary {
   const last = stats?.lastPlayedOn ?? null;
-  const alive = last !== null && (last === today || last === isoOffset(today, -1));
+  // A day ahead of this device's today was the kid's today (a time zone ahead): still alive.
+  const alive = last !== null && last >= isoOffset(today, -1);
   const current = alive ? stats?.currentStreak ?? 0 : 0;
-  return { current, best: Math.max(stats?.longestStreak ?? 0, current), lastPlayed: last ? dayWords(last, today) : null };
+  const ago = last ? daysAgo(last, today) : 0;
+  return {
+    current,
+    best: Math.max(stats?.longestStreak ?? 0, current),
+    lastPlayed: last ? dayWords(last, today) : null,
+    lastPlayedAgo: last && ago >= 7 ? `${ago} days ago` : null,
+  };
 }
 
 export interface RecentDay {
@@ -203,11 +216,11 @@ export interface RecentDay {
 /**
  * The last `RECENT_DAYS` days, oldest first: played when the database noted
  * the day (migration 0025) or it's the profile's last day played. Nothing is
- * guessed — a day without a note reads "no play noted".
+ * guessed — a day without a note reads "no play noted". A day after `today`
+ * (the kid's device a time zone ahead) counts as today.
  */
 export function recentDays(today: string, playDays: readonly string[], lastPlayedOn: string | null): RecentDay[] {
-  const played = new Set(playDays);
-  if (lastPlayedOn) played.add(lastPlayedOn);
+  const played = new Set([...playDays, ...(lastPlayedOn ? [lastPlayedOn] : [])].map((d) => (d > today ? today : d)));
   return Array.from({ length: RECENT_DAYS }, (_, i) => {
     const iso = isoOffset(today, i - (RECENT_DAYS - 1));
     const d = dateOf(iso);
@@ -219,9 +232,9 @@ export function recentDays(today: string, playDays: readonly string[], lastPlaye
 // --- Question levels -----------------------------------------------------------
 
 /**
- * What a level means for this child's age — the bands the question writer
- * pitches to (generate-questions: 1–3 easy for a typical child of this age,
- * 4–6 right for it, 7–8 a stretch, 9–10 for the strongest).
+ * The question writer's bands (generate-questions): a level is pitched to the
+ * child's age — 1–3 easy for a typical child of that age, 4–6 right for it,
+ * 7–8 a stretch, 9–10 for the strongest.
  */
 export type LevelBand = 'easy' | 'right' | 'stretch' | 'top';
 
@@ -232,15 +245,24 @@ export function levelBand(level: number): LevelBand {
   return 'top';
 }
 
-export const BAND_WORDS: Record<LevelBand, string> = {
-  easy: 'Easy questions for their age',
-  right: 'Right for their age',
-  stretch: 'A stretch for their age',
-  top: 'For the strongest at their age',
-};
+/**
+ * A level's words against the kid's own starting level — where the game
+ * starts a player of their age (`ageToStartLevel`, the rule the game itself
+ * uses: 6 → 1 … 11 and up → 6). Young players start low on purpose, so the
+ * bands alone would call a 7-year-old's untouched topic "easy for their age"
+ * (#29 review round 1); only the top bands, which no start reaches, are said
+ * too. Nothing here claims a level went down: the database keeps no history.
+ */
+export function topicMeaning(level: number, start: number): string {
+  if (level < start) return 'Below their starting level — a good one to practise together';
+  const band = levelBand(level);
+  const pitch = band === 'stretch' ? ' — a stretch for their age' : band === 'top' ? ' — for the strongest at their age' : '';
+  if (level === start) return `At their starting level${pitch}`;
+  return `${level - start} above their starting level${pitch}`;
+}
 
-/** A topic no round has moved yet: the starting level for their age. */
-export const STARTING_WORDS = 'Starting level for their age — not moved yet';
+/** A topic no round has moved yet: at the starting level for their age. */
+export const STARTING_WORDS = 'Their starting level — it moves once they play rounds in these topics.';
 
 export interface TopicLevel {
   id: Topic;
@@ -249,37 +271,81 @@ export interface TopicLevel {
   level: number;
   /** False: no level saved yet, so it's the starting level for their age. */
   measured: boolean;
+  /** Where the game starts a player of their age. */
+  start: number;
   /** One short line for a grown-up. */
   meaning: string;
 }
 
 /** Every topic, in the game's order, with its question level (1–10) and what it means. `age` is the kid's age now. */
 export function topicLevels(skillLevels: KidStats['skillLevels'], age: number): TopicLevel[] {
+  const start = ageToStartLevel(age);
   return ALL_TOPIC_INFO.map((t) => {
     const saved = skillLevels[t.id];
     const measured = typeof saved === 'number' && Number.isFinite(saved);
-    const level = measured ? clampLevel(saved) : ageToStartLevel(age);
-    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, meaning: measured ? BAND_WORDS[levelBand(level)] : STARTING_WORDS };
+    const level = measured ? clampLevel(saved) : start;
+    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, start, meaning: measured ? topicMeaning(level, start) : STARTING_WORDS };
   });
 }
 
-// --- The story -----------------------------------------------------------------
+// --- At a glance ---------------------------------------------------------------
 
-/** Each act's name, shown only once the kid has reached it (no spoilers). */
-export const ACT_NAMES: Record<Act, string> = {
-  1: 'The Four Crystals',
-  2: 'The Crystal of Memory',
-  3: 'The Starfall Sea',
-  4: 'The Name',
-};
+/** "Math", "Math and Science", "Math, Science and 2 more". */
+export function nameList(names: readonly string[], max = 2): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length <= max) return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return `${names.slice(0, max).join(', ')} and ${names.length - max} more`;
+}
+
+/** This many questions of one topic waiting at the Library is "several" — worth a look together. */
+export const SEVERAL_MISSED = 3;
+
+export interface Glance {
+  /** Days played in the last week, or null when the database can't say (no 0025). */
+  playedDays: number | null;
+  /** The measured topics at their highest level, when that's above their starting level. */
+  furthest: TopicLevel[];
+  /** Measured topics below their starting level. */
+  belowStart: TopicLevel[];
+  /** Topics with several questions waiting at the Library, most first. */
+  missedByTopic: { label: string; count: number }[];
+  missedCount: number;
+}
+
+/**
+ * The page's opening lines (#29 review round 1): how much they've played,
+ * what's going well and what could use a hand — all from what's stored (a
+ * topic below their starting level; several missed questions waiting), never
+ * guessed. `levels` / `missed` are null where nothing was saved.
+ */
+export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, missed: MissedQuestion[] | null): Glance {
+  const measured = (levels ?? []).filter((t) => t.measured);
+  const top = Math.max(0, ...measured.map((t) => t.level));
+  const furthest = measured.filter((t) => t.level === top && t.level > t.start);
+  const counts = new Map<string, number>();
+  for (const m of missed ?? []) counts.set(m.topicLabel, (counts.get(m.topicLabel) ?? 0) + 1);
+  return {
+    playedDays: week ? week.filter((d) => d.played).length : null,
+    furthest,
+    belowStart: measured.filter((t) => t.level < t.start),
+    missedByTopic: [...counts]
+      .filter(([, n]) => n >= SEVERAL_MISSED)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, count]) => ({ label, count })),
+    missedCount: missed?.length ?? 0,
+  };
+}
+
+// --- The story -----------------------------------------------------------------
 
 const ROMAN: Record<Act, string> = { 1: 'I', 2: 'II', 3: 'III', 4: 'IV' };
 
 export interface CrystalLine {
   topic: CrystalTopic;
-  crystal: string;
-  topicLabel: string;
-  emoji: string;
+  /** The crystal's name, once the game has said it (else null: "a crystal not found yet"). */
+  crystal: string | null;
+  /** Its topic, shown with the name only. */
+  topicLabel: string | null;
   restored: boolean;
 }
 
@@ -289,11 +355,13 @@ export interface StorySummary {
   practiceRounds: number;
   roundsToOpen: number;
   act: Act;
-  /** "Act II · The Crystal of Memory". */
-  actTitle: string;
+  /** "Act II" — the game names no acts, so neither does the page (#29 review round 1). */
+  actLabel: string;
   /** The crystals of the acts reached so far — never a later act's. */
   crystals: CrystalLine[];
   restored: number;
+  /** Crystals of the acts reached still to restore. */
+  left: number;
   /** The Crystal Spire: not mentioned before Act I's crystals are all back. */
   spire: 'hidden' | 'open' | 'cleared';
   /** What their own 🚩 says to do next (null in training or once finished). */
@@ -309,17 +377,26 @@ export function storyAct(flags: Record<string, boolean>): Act {
   return 1;
 }
 
+/**
+ * The story so far, with nothing the game hasn't shown the kid (#29 review
+ * round 1, the lead's call): acts by number only; a crystal by name once it's
+ * restored, once their own 🚩 names it, or — Act I's four — once the opening
+ * story has (it names all four); any other is "a crystal not found yet".
+ */
 export function storySummary(save: SaveData): StorySummary {
   const { flags } = save;
   const act = storyAct(flags);
+  const finished = flags[UMBRA_NAMED] === true;
+  const stage = !save.worldUnlocked ? 'training' : finished ? 'finished' : 'world';
+  const objective = stage === 'world' ? nextObjective(flags) : null;
   const crystals: CrystalLine[] = [];
   for (let a = 1; a <= act; a++) {
     for (const t of actCrystals(a as Act)) {
-      crystals.push({ topic: t.id, crystal: t.crystalName, topicLabel: t.label, emoji: t.emoji, restored: flags[crystalFlag(t.id)] === true });
+      const restored = flags[crystalFlag(t.id)] === true;
+      const known = restored || objective?.crystal?.id === t.id || (t.act === 1 && flags[INTRO_SEEN] === true);
+      crystals.push({ topic: t.id, crystal: known ? t.crystalName : null, topicLabel: known ? t.label : null, restored });
     }
   }
-  const finished = flags[UMBRA_NAMED] === true;
-  const stage = !save.worldUnlocked ? 'training' : finished ? 'finished' : 'world';
   const seen = new Set<string>();
   const trophies: BadgeInfo[] = [];
   for (const id of save.badges) {
@@ -329,16 +406,18 @@ export function storySummary(save: SaveData): StorySummary {
       trophies.push(info);
     }
   }
+  const restored = crystals.filter((c) => c.restored).length;
   return {
     stage,
     practiceRounds: Math.min(save.passedRounds, ROUNDS_TO_UNLOCK),
     roundsToOpen: ROUNDS_TO_UNLOCK,
     act,
-    actTitle: `Act ${ROMAN[act]} · ${ACT_NAMES[act]}`,
+    actLabel: `Act ${ROMAN[act]}`,
     crystals,
-    restored: crystals.filter((c) => c.restored).length,
+    restored,
+    left: crystals.length - restored,
     spire: flags[SPIRE_CLEARED] ? 'cleared' : actComplete(flags, 1) ? 'open' : 'hidden',
-    goal: stage === 'world' ? nextObjective(flags).title : null,
+    goal: objective?.title ?? null,
     trophies,
   };
 }
