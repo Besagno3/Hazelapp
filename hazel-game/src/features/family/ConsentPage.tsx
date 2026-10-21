@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { errorMessage } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
-import { useFamilyStore } from '../../store/familyStore';
+import { signOutGrownUp, useFamilyStore } from '../../store/familyStore';
 import FamilyCard from './FamilyCard';
 import PrivacyNotice from './PrivacyNotice';
 
@@ -60,7 +59,7 @@ export default function ConsentPage() {
         {saving ? 'Saving…' : 'I agree'}
       </button>
       <button
-        onClick={() => void supabase.auth.signOut()}
+        onClick={() => void signOutGrownUp()}
         className="mt-3 w-full text-center text-sm text-gray-500 hover:underline"
       >
         Not now — sign out

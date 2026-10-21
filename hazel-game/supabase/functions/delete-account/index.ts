@@ -2,8 +2,10 @@
 // ----------------------------------------------------------------------------
 // Closes a grown-up's whole account (#124b), from 👪 Grown-ups → Close account.
 //
-//   POST { confirm: 'DELETE' }   (with a sign-in token made by typing the
-//                                 password moments ago — see step 3)
+//   POST { confirm: 'DELETE', session: '<the device's session id>' }
+//        (with a sign-in token made by typing the password moments ago —
+//        see step 3; `session` is the family device's sign-in, where
+//        👪 Grown-ups is open — see step 4)
 //   200  { ok: true, kids: <players removed> }
 //   4xx / 5xx  { error: <code>, detail: <a plain sentence> } — the codes are
 //   CLOSE_ACCOUNT_ERRORS below; the app turns them into its own words.
@@ -23,9 +25,14 @@
 //      auth service's sign-in limit counts that grown-up's device — a
 //      sign-in from this function would share one limit with every family
 //      (#124b review). Never a 4-digit grown-up PIN, which a kid may know.
-//      Left open (#167): for that minute after a grown-up signs in on the
-//      family device, the session it keeps could close the account too.
-//   4. The family's data: `delete_family` (migration 0023, service role) —
+//      The minute after a grown-up really signs in on the family device
+//      (that session's token is fresh too) is closed by step 4 (#167).
+//   4. The family's data: `delete_family` (migrations 0023 + 0024, service
+//      role) — only while 👪 Grown-ups is open on the sign-in the app names
+//      (`session`): 403 `grown_ups_locked` otherwise, nothing deleted. A
+//      sign-in can't open it for itself once the family is set up, so a kid
+//      holding the device's fresh session after a real sign-in can't close
+//      the account with it (#167). Then —
 //      kids with their saves, seen questions, reports and PINs, the grown-up
 //      PIN, consent and admin rows, all in one transaction; today's spent
 //      question budget stays without a name, so it still counts for a day
@@ -84,6 +91,7 @@ export const CLOSE_ACCOUNT_ERRORS = [
   'bad_request',
   'confirm_required',
   'reauth_required',
+  'grown_ups_locked',
   'data_not_deleted',
   'login_not_deleted',
   'outcome_unknown',
@@ -106,6 +114,10 @@ const REFUSALS: Record<CloseAccountError, Omit<CloseAccountRefusal, 'error'>> = 
   bad_request: { status: 400, detail: 'The request was not understood.' },
   confirm_required: { status: 400, detail: `Type ${CONFIRM_WORD} to confirm.` },
   reauth_required: { status: 403, detail: 'Type your password again, just before closing the account.' },
+  grown_ups_locked: {
+    status: 403,
+    detail: 'Open 👪 Grown-ups again with your grown-up PIN or password, then close the account. Nothing was deleted.',
+  },
   data_not_deleted: { status: 500, detail: 'Nothing was deleted: the family data could not be removed.' },
   login_not_deleted: {
     status: 500,
@@ -118,10 +130,37 @@ export function refusal(error: CloseAccountError): CloseAccountRefusal {
   return { error, ...REFUSALS[error] };
 }
 
-/** The request body, checked: just the confirm word (null when it's right). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The request body, checked: the confirm word, and — when it names one — the
+ * device's sign-in as a session id (null when it's all right).
+ */
 export function closeRequestRefusal(body: unknown): CloseAccountRefusal | null {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return refusal('bad_request');
-  return (body as Record<string, unknown>).confirm === CONFIRM_WORD ? null : refusal('confirm_required');
+  const b = body as Record<string, unknown>;
+  if (b.session !== undefined && b.session !== null && !(typeof b.session === 'string' && UUID_RE.test(b.session))) {
+    return refusal('bad_request');
+  }
+  return b.confirm === CONFIRM_WORD ? null : refusal('confirm_required');
+}
+
+/**
+ * The sign-in (session id) the app says has 👪 Grown-ups open — the family
+ * device's, where Close account was asked for. `delete_family` deletes
+ * nothing unless it's open (migration 0024, #167); null when none is named,
+ * which it refuses too.
+ */
+export function closeSessionOf(body: unknown): string | null {
+  const s = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).session : null;
+  return typeof s === 'string' && UUID_RE.test(s) ? s : null;
+}
+
+/** The database's "👪 Grown-ups is shut" (SQLSTATE HQ001, migration 0024): nothing was deleted. */
+export const GROWN_UPS_LOCKED_SQLSTATE = 'HQ001';
+
+export function grownUpsLockedDb(err: { code?: string | null }): boolean {
+  return err.code === GROWN_UPS_LOCKED_SQLSTATE;
 }
 
 /**
@@ -287,13 +326,15 @@ Deno.serve(async (req) => {
     let kids = 0;
     let familyGone = false;
     deleting = true;
-    const { data: gone, error: famErr } = await admin.rpc('delete_family', { p_parent: user.id });
+    const { data: gone, error: famErr } = await admin.rpc('delete_family', { p_parent: user.id, p_session: closeSessionOf(body) });
     if (famErr) {
+      // 👪 Grown-ups is shut on that sign-in (0024): it raised before deleting anything.
+      if (grownUpsLockedDb(famErr)) return refuse(refusal('grown_ups_locked'));
       if (!FUNCTION_MISSING.includes(famErr.code ?? '')) {
         console.error('delete-account: delete_family failed:', famErr.code ?? '', famErr.message);
         return refuse(refusal(dbCallRefused(famErr) ? 'data_not_deleted' : 'outcome_unknown'));
       }
-      console.error('DELETE_FAMILY MISSING (is migration 0023 applied?) — deleting the login alone; its cascades remove the family:', famErr.message);
+      console.error('DELETE_FAMILY MISSING (are migrations 0023 + 0024 applied?) — deleting the login alone; its cascades remove the family:', famErr.message);
     } else {
       familyGone = true;
       const n = Number((gone as { kids?: unknown } | null)?.kids);

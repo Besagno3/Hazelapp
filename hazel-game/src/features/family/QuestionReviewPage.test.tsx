@@ -111,4 +111,20 @@ describe('QuestionReviewPage (#147)', () => {
     fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
     expect(onBack).toHaveBeenCalled();
   });
+
+  it('locked again (#167): the queue waits for the gate, then loads; a decision waits the same way', async () => {
+    const { resetGrownUps, unlockedAgain, useGrownUpsStore } = await import('../../store/grownUpsStore');
+    resetGrownUps();
+    const locked = Object.assign(new Error('grown_ups_locked: open 👪 Grown-ups first'), { code: 'HQ001' });
+    review.fetchReviewQueue.mockRejectedValueOnce(locked).mockResolvedValueOnce([held]);
+    render(<QuestionReviewPage onBack={onBack} />);
+    await waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    unlockedAgain();
+    expect(await screen.findByText('1 question waiting')).toBeInTheDocument();
+    review.reviewQuestion.mockRejectedValueOnce(locked).mockResolvedValueOnce(undefined);
+    fireEvent.click(within(card('Which planet is red?')).getByRole('button', { name: /Release/ }));
+    await waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    unlockedAgain();
+    await waitFor(() => expect(review.reviewQuestion).toHaveBeenCalledTimes(2));
+  });
 });

@@ -154,6 +154,8 @@ describe('authErrorMessage (#130 S6)', () => {
       forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
       resend: "We couldn't send the link again just now. Please try again in a few minutes.",
       link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".',
+      'change-email': "We couldn't change your email just now. Please try again in a few minutes.",
+      'change-password': "We couldn't change your password just now. Please try again in a few minutes.",
     };
     for (const [where, words] of Object.entries(said) as [AuthWhere, string][]) {
       const msg = authErrorMessage(odd, { where });
@@ -339,3 +341,24 @@ describe('authRetryAfter: how long the resend button counts down after a refusal
     expect(authRetryAfter({ code: 'invalid_credentials', message: 'Invalid login credentials' })).toBeNull();
   });
 });
+
+describe('authErrorMessage — changing the login from 👪 Grown-ups (#124d)', () => {
+  it("a wrong current password reads like the gate's, with its \"Forgot it?\" link", () => {
+    const wrong = { code: 'invalid_credentials', message: 'Invalid login credentials', status: 400 };
+    for (const where of ['change-email', 'change-password'] as const) {
+      expect(authErrorMessage(wrong, { where })).toBe('That password isn\'t right. Try again, or tap "Forgot it?" below.');
+    }
+  });
+
+  it('an address with an account already, a code that ran out, the same password', () => {
+    expect(authErrorMessage({ code: 'email_exists', message: 'A user with this email address has already been registered', status: 422 }, { where: 'change-email' }))
+      .toBe("There's already an account with that email address. Choose a different one.");
+    expect(authErrorMessage({ code: 'reauthentication_not_valid', message: 'Nonce has expired or is invalid', status: 400 }, { where: 'change-password' }))
+      .toBe('That code isn\'t right, or it has run out. Check the newest email, or tap "Send a new code".');
+    expect(authErrorMessage({ code: 'same_password', message: 'New password should be different from the old password.', status: 422 }, { where: 'change-password' }))
+      .toBe("That's the password you have now. Choose a new one.");
+    expect(authErrorMessage({ code: 'email_address_invalid', message: 'Email address "x@y" is invalid', status: 400 }, { where: 'change-email' }))
+      .toBe("That email address doesn't look right. Check it and try again.");
+  });
+});
+

@@ -146,12 +146,12 @@ export default function KidForm({
       <button
         type="submit"
         aria-disabled={saving}
-        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
+        className="w-full min-h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
       >
         {saving ? 'Saving…' : submitLabel}
       </button>
       {onCancel && (
-        <button type="button" onClick={onCancel} className="w-full text-center text-sm text-gray-500 hover:underline">
+        <button type="button" onClick={onCancel} className="w-full min-h-11 text-center text-sm text-gray-500 hover:underline">
           Cancel
         </button>
       )}

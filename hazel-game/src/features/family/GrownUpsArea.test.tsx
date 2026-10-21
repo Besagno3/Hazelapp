@@ -7,10 +7,14 @@ const auth = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
   signOut: vi.fn(),
   resetPasswordForEmail: vi.fn(),
+  getSession: vi.fn(),
 }));
-// The gate checks the password on a one-off client that keeps nothing (#124b review round 2).
+const rpc = vi.hoisted(() => vi.fn());
+// The gate checks the password on a one-off client that keeps nothing (#124b review round 2),
+// whose token then opens 👪 Grown-ups on the device's sign-in (#167).
 const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
-vi.mock('../../lib/supabase', () => ({ supabase: { auth }, passwordCheckClient: () => ({ auth: checkAuth }) }));
+const checkRpc = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/supabase', () => ({ supabase: { auth, rpc }, passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }) }));
 const review = vi.hoisted(() => ({ isAdmin: vi.fn(), fetchReviewQueue: vi.fn() }));
 vi.mock('../../lib/review', async (original) => ({
   ...(await original<typeof import('../../lib/review')>()),
@@ -23,6 +27,7 @@ const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
 const { forgetAllLocks, GROWN_UP_LOCKED_TEXT } = await import('../../lib/pinLock');
+const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
@@ -41,6 +46,9 @@ async function type(pin: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   checkAuth.signOut.mockResolvedValue({ error: null });
+  checkRpc.mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
+  rpc.mockResolvedValue({ data: null, error: null });
+  auth.getSession.mockResolvedValue(deviceSession);
   auth.signOut.mockResolvedValue({ error: null });
   review.isAdmin.mockResolvedValue(false);
   review.fetchReviewQueue.mockResolvedValue([]);
@@ -98,6 +106,30 @@ describe('GrownUpsArea (#124)', () => {
     // No fresh-password session left on the device that could close the account (#167).
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    // That check's token opens 👪 Grown-ups on the device's own sign-in, which it names (#167).
+    expect(checkRpc).toHaveBeenCalledWith('unlock_grown_ups', { p_session: DEVICE_SESSION });
+    expect(checkRpc.mock.invocationCallOrder[0]).toBeLessThan(checkAuth.signOut.mock.invocationCallOrder[0]);
+  });
+
+  it('a right password the database won\'t open on says so plainly, and stays shut (#167)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    checkAuth.signInWithPassword.mockResolvedValue({ error: null });
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'reauth_required: type your password again' } });
+    render(<GrownUpsArea />);
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    await waitFor(() => expect(pageStatus()).toHaveTextContent("We couldn't open 👪 Grown-ups just now. Please try again."));
+    expect(screen.queryByText('Sam')).not.toBeInTheDocument();
+    expect(screen.queryByText(/reauth_required/)).toBeNull();
+    // The check's sign-in is signed out all the same.
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    warn.mockRestore();
+  });
+
+  it('a database from before 0024 has no gate to open: the password still opens the area (#167)', async () => {
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.unlock_grown_ups' } });
+    await unlock();
+    expect(screen.getByText('Locks again when you leave, or after 15 minutes.')).toBeInTheDocument();
   });
 
   it('opens with its title focused (#124 review round 2)', () => {
@@ -174,7 +206,8 @@ describe('GrownUpsArea (#124)', () => {
     expect(open).not.toBeDisabled();
     expect(open).toHaveFocus();
     fireEvent.click(open);
-    expect(checkAuth.signInWithPassword).toHaveBeenCalledOnce();
+    // (The sign-in goes out once the login's current email has been read.)
+    await waitFor(() => expect(checkAuth.signInWithPassword).toHaveBeenCalledOnce());
     await act(async () => answer({ error: { code: 'invalid_credentials', message: 'Invalid login credentials' } }));
     expect(open).toHaveTextContent('Open');
   });
@@ -248,10 +281,12 @@ describe('GrownUpsArea (#124)', () => {
     await waitFor(() => expect(removeKid).toHaveBeenCalledWith('kid-sam'));
   });
 
-  it('Sign out lives here, behind the password', async () => {
+  it('Sign out lives here, behind the password — 👪 Grown-ups is shut on this sign-in first (#167)', async () => {
     await unlock();
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
-    expect(auth.signOut).toHaveBeenCalled();
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalled());
+    expect(rpc).toHaveBeenCalledWith('lock_grown_ups');
+    expect(rpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(auth.signOut.mock.invocationCallOrder[0]);
   });
 
   it('Add a player opens the kid form; Cancel comes back', async () => {

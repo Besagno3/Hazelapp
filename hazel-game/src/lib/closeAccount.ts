@@ -2,6 +2,7 @@ import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import { passwordCheckClient, supabase } from './supabase';
 import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE, TROUBLE_MESSAGE } from './errors';
 import { PRIVACY_IS_DRAFT } from '../content/family';
+import { deviceSessionId, openGrownUpsWith } from './grownUps';
 import {
   CLOSE_ACCOUNT_ERRORS,
   CONFIRM_WORD,
@@ -84,6 +85,8 @@ export function closeAccountMessage(code: CloseFailureCode): string {
       return `${NETWORK_MESSAGE} ${NOTHING_DELETED}`;
     case 'trouble':
       return `${TROUBLE_MESSAGE} ${NOTHING_DELETED}`;
+    case 'grown_ups_locked':
+      return `Grown-ups locked again. Enter your PIN or password, then tap "Close account for good" again. ${NOTHING_DELETED}`;
     case 'not_signed_in':
     case 'reauth_required':
       return `We couldn't confirm it's you just now. Tap "Close account for good" to try again. ${NOTHING_DELETED}`;
@@ -189,10 +192,20 @@ export async function requestCloseAccount(email: string, password: string): Prom
   let closed = false;
   try {
     if (!token) throw new CloseAccountFailure('password_check_failed', 'signing in again gave no session');
+    // The function deletes nothing unless 👪 Grown-ups is open on this
+    // device's sign-in (#167): name it, and — the password having just been
+    // typed — open it for the window first (best effort: if this fails, the
+    // function's refusal says so and the gate is asked for).
+    const session = await deviceSessionId();
+    try {
+      if (session) await openGrownUpsWith(passwordCheckClient(), session);
+    } catch (err) {
+      console.warn('Opening 👪 Grown-ups before closing:', errorMessage(err));
+    }
     let result: Awaited<ReturnType<typeof supabase.functions.invoke>>;
     try {
       result = await supabase.functions.invoke('delete-account', {
-        body: { confirm: CONFIRM_WORD },
+        body: { confirm: CONFIRM_WORD, session },
         // This sign-in's own token: its `amr` says the password was typed just now.
         headers: { Authorization: `Bearer ${token}` },
       });

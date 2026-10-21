@@ -1,5 +1,4 @@
-import { supabase } from '../../lib/supabase';
-import { kidNeedingPin, useFamilyStore } from '../../store/familyStore';
+import { kidNeedingPin, signOutGrownUp, useFamilyStore } from '../../store/familyStore';
 import FamilyCard from './FamilyCard';
 import KidForm from './KidForm';
 
@@ -27,7 +26,7 @@ export default function KidSetupPage() {
         }}
       />
       <button
-        onClick={() => void supabase.auth.signOut()}
+        onClick={() => void signOutGrownUp()}
         className="mt-3 w-full text-center text-sm text-gray-500 hover:underline"
       >
         Sign out

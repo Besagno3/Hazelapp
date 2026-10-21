@@ -14,6 +14,9 @@ import {
   type PinVerdict,
 } from '../lib/pinLock';
 import { CloseAccountFailure, noteAccountClosed, requestCloseAccount } from '../lib/closeAccount';
+import { lockGrownUps, openForFirstRun } from '../lib/grownUps';
+import { GrownUpsLockedError } from '../lib/grownUpsGate';
+import { asGrownUp, noteGrownUpsOpen, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
 import { CONSENT_VERSION } from '../content/family';
@@ -86,11 +89,22 @@ export function familyLoadMessage(err: unknown): string {
   return words;
 }
 
-/** Set a kid's PIN (the database hashes it and checks the kid is the caller's). A new PIN unlocks a locked one. */
+/**
+ * Set a kid's PIN (the database hashes it and checks the kid is the caller's).
+ * A new PIN unlocks a locked one. A grown-up action: asks for the gate if
+ * 👪 Grown-ups has locked again (#167).
+ */
 async function setKidPin(id: string, pin: string): Promise<void> {
-  const { error } = await supabase.rpc('set_kid_pin', { p_kid: id, p_pin: pin });
-  if (error) throw asError(error);
+  await asGrownUp(async () => {
+    const { error } = await supabase.rpc('set_kid_pin', { p_kid: id, p_pin: pin });
+    if (error) throw asError(error);
+  });
   forgetLock(kidLockKey(id));
+}
+
+/** The screens before "Who's playing?" that a family still being set up sees (consent, first kid, a kid's PIN). */
+function settingUp(consentAt: string | null, kids: Kid[]): boolean {
+  return !consentAt || kids.length === 0 || kidNeedingPin(kids) !== null;
 }
 
 /**
@@ -169,6 +183,20 @@ export async function signOutHere(why: string): Promise<void> {
   useFamilyStore.getState().clear();
   putAwayGame();
 }
+
+/**
+ * A grown-up's "Sign out" (👪 Grown-ups and the setup screens): 👪 Grown-ups
+ * is shut on this sign-in first (#167) — a token outlives its sign-out by up
+ * to an hour — then the usual sign-out.
+ */
+export async function signOutGrownUp(): Promise<void> {
+  // Never held up by it: a call that hangs gives way after a moment (the window runs out anyway).
+  await Promise.race([lockGrownUps(), new Promise((done) => setTimeout(done, LOCK_BEFORE_SIGN_OUT_MS))]);
+  await supabase.auth.signOut();
+}
+
+/** How long a grown-up's Sign out waits for 👪 Grown-ups to be shut before going on regardless. */
+export const LOCK_BEFORE_SIGN_OUT_MS = 2_000;
 
 /**
  * Sign out on this device only — what a dead sign-in needs; the app then
@@ -275,21 +303,32 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     }
     const list = ((kids.data ?? []) as KidRow[]).map(fromRow);
     const row = parent.data as { consent_at: string | null; has_pin: boolean | null } | null;
-    set({ status: 'ready', consentAt: row?.consent_at ?? null, hasParentPin: row?.has_pin === true, kids: list });
+    const consentAt = row?.consent_at ?? null;
+    // Still being set up, right after signing up or in: that fresh sign-in
+    // opens 👪 Grown-ups for itself, so consent, the first kid and their PIN
+    // need no gate (#167). The database decides; not fresh, nothing opens.
+    if (settingUp(consentAt, list) && (await openForFirstRun())) noteGrownUpsOpen();
+    if (get().userId !== userId) return; // signed out meanwhile
+    set({ status: 'ready', consentAt, hasParentPin: row?.has_pin === true, kids: list });
     // A reload keeps the kid who was playing in this tab.
     const last = readActive(userId);
     if (last && list.some((k) => k.id === last)) get().choose(last);
   },
 
   agree: async () => {
-    const { error } = await supabase.rpc('record_consent', { p_version: CONSENT_VERSION });
-    if (error) throw asError(error);
+    await asGrownUp(async () => {
+      const { error } = await supabase.rpc('record_consent', { p_version: CONSENT_VERSION });
+      if (error) throw asError(error);
+    });
     set({ consentAt: new Date().toISOString() });
   },
 
   addKid: async (input) => {
-    const { data, error } = await supabase.from('profiles').insert(toRow(input)).select(KID_COLUMNS).single();
-    if (error || !data) throw asError(error, "The new player didn't save — try again.");
+    const data = await asGrownUp(async () => {
+      const res = await supabase.from('profiles').insert(toRow(input)).select(KID_COLUMNS).single();
+      if (res.error || !res.data) throw asError(res.error, "The new player didn't save — try again.");
+      return res.data;
+    });
     const kid = fromRow(data as KidRow);
     set((s) => ({ kids: [...s.kids, kid] }));
     // Listed first: if the PIN fails, "finish setting up" asks for it again.
@@ -300,11 +339,13 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   },
 
   updateKid: async (id, input) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ ...toRow(input), updated_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) throw asError(error);
+    await asGrownUp(async () => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ...toRow(input), updated_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw asError(error);
+    });
     if (input.pin) await setKidPin(id, input.pin);
     const row = toRow(input);
     set((s) => ({
@@ -319,8 +360,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   checkKidPin: (id, pin) => tryPin('try_kid_pin', 'check_kid_pin', { p_kid: id, p_pin: pin }),
 
   setParentPin: async (pin) => {
-    const { error } = await supabase.rpc('set_parent_pin', { p_pin: pin });
-    if (error) throw asError(error);
+    await asGrownUp(async () => {
+      const { error } = await supabase.rpc('set_parent_pin', { p_pin: pin });
+      if (error) throw asError(error);
+    });
     forgetLock(grownUpLockKey(get().userId));
     set({ hasParentPin: true });
   },
@@ -344,8 +387,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
 
   removeKid: async (id) => {
     // Their save, seen questions and flags go with them (on delete cascade).
-    const { error } = await supabase.from('profiles').delete().eq('id', id);
-    if (error) throw asError(error);
+    await asGrownUp(async () => {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) throw asError(error);
+    });
     set((s) => ({ kids: s.kids.filter((k) => k.id !== id) }));
     // …and so do the copies on this device.
     try {
@@ -360,7 +405,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     const { userId, kids } = get();
     const email = useAuthStore.getState().user?.email ?? '';
     try {
-      await requestCloseAccount(email, password);
+      // 👪 Grown-ups locked meanwhile and the grown-up chose "Not now": nothing was deleted (#167).
+      await asGrownUp(() => requestCloseAccount(email, password)).catch((err: unknown) => {
+        throw err instanceof GrownUpsLockedError ? new CloseAccountFailure('grown_ups_locked', 'the gate was left shut') : err;
+      });
     } catch (err) {
       if (err instanceof CloseAccountFailure && err.code === 'login_not_deleted') {
         // The family's data is gone on the server; only the login is left.
@@ -420,6 +468,8 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   clear: () => {
     // A lock this tab remembered is never the next login's (#124c review).
     forgetAllLocks();
+    // …nor a grown-up action waiting on the gate (#167).
+    resetGrownUps();
     set({
       userId: null,
       status: 'idle',

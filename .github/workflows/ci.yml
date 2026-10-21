@@ -4,7 +4,8 @@
 # The job's check is named `test` — require it in the main-branch ruleset
 # (Settings → Rules → Rulesets → Require status checks, source: GitHub Actions).
 # `edge-function` (both edge functions + the recheck script) and `migrations`
-# (#88; every `supabase/ci/*.test.sql`, e.g. the PIN limit and account close)
+# (#88; every `supabase/ci/*.test.sql`, e.g. the PIN limit, account close and the
+# 👪 Grown-ups window, #167 — a new test file is picked up by the glob)
 # check the Supabase side.
 #
 # No `paths:` filter on purpose: a required check that skips some PRs would

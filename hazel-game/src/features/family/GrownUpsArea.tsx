@@ -1,164 +1,58 @@
 import { useEffect, useRef, useState } from 'react';
-import { passwordCheckClient, supabase } from '../../lib/supabase';
-import { authErrorMessage, errorMessage, sessionRanOut } from '../../lib/errors';
+import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
-import { useAuthStore } from '../../store/authStore';
-import { useFamilyStore } from '../../store/familyStore';
+import { signOutGrownUp, useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
-import { GROWN_UP_LOCKED_TEXT, grownUpLockKey } from '../../lib/pinLock';
+import { GROWN_UP_UNLOCK_MINUTES } from '../../lib/grownUpsGate';
 import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
+import { ChangeEmailPage, ChangePasswordPage, SignInSection } from './AccountChange';
 import CloseAccountPage, { CloseAccountSection } from './CloseAccount';
 import FamilyCard from './FamilyCard';
+import GrownUpsGate from './GrownUpsGate';
+import { gateLinkClass, gatePrimaryClass as primaryClass } from './familyStyles';
 import KidForm from './KidForm';
-import PinPad from './PinPad';
 import PrivacyNotice from './PrivacyNotice';
 import QuestionReviewPage from './QuestionReviewPage';
-import ResetLinkButton from './ResetLinkButton';
 import SignInAgainButton from './SignInAgainButton';
 import type { Kid } from '../../types';
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
-/** The gate's text links: 44 px tall, so a finger finds them. */
-const linkClass = 'w-full min-h-11 text-center text-sm hover:underline';
-/** A main button that waits with `aria-disabled` (a disabled one drops the keyboard's focus). */
-const primaryClass =
-  'bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600';
 
 /**
- * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN, see
- * the privacy notice, sign out and close the whole account (#124b) — and, for
- * the game's owner, 🛡️ Question review (#147). Opens only with the grown-up's
- * own PIN (if they've set one; the database limits guesses, #124c) or their
- * password, so a kid can't remove a sibling, sign the family out or release a
- * question. Closing the account asks for the password again, never the PIN.
- * The password is checked on a client that keeps nothing
- * (`passwordCheckClient`), so opening 👪 Grown-ups never leaves a
- * fresh-password session on the device — one that could close the account
- * (#124b review round 2, #167).
+ * 👪 Grown-ups (#124): add, change and remove kids, set the grown-up PIN,
+ * change the login's email or password (#124d), see the privacy notice, sign
+ * out and close the whole account (#124b) — and, for the game's owner,
+ * 🛡️ Question review (#147). Opens only with the grown-up's own PIN (if
+ * they've set one; the database limits guesses, #124c) or their password
+ * (`GrownUpsGate`), and since #167 the database holds it to that: opening it
+ * opens a 15-minute window on this sign-in that every grown-up action needs,
+ * shut again when the area is left (`App`) or the time runs out
+ * (`RelockDialog` then asks again, keeping the page). Closing the account
+ * and changing the login ask for the password again, never the PIN.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
-  return unlocked ? <GrownUpsHome /> : <GrownUpsGate onUnlock={() => setUnlocked(true)} />;
-}
-
-function GrownUpsGate({ onUnlock }: { onUnlock: () => void }) {
-  const email = useAuthStore((s) => s.user?.email ?? '');
-  const hasParentPin = useFamilyStore((s) => s.hasParentPin);
-  const checkParentPin = useFamilyStore((s) => s.checkParentPin);
-  const pinLocks = useFamilyStore((s) => s.pinLocks);
-  const userId = useFamilyStore((s) => s.userId);
   const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
-  const [usePassword, setUsePassword] = useState(false);
-  // The grown-up PIN is locked: the password is the way in now, so it's the main button.
-  const [pinResting, setPinResting] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Open is aria-disabled while it checks: a tap or Enter then stops here.
-    if (loading) return;
-    setError(null);
-    setNotice(null);
-    setLoading(true);
-    // Signing in again with the same login proves it's the grown-up — on a
-    // client that keeps nothing, so the device's own session stays as it was
-    // and no fresh-password one is left behind; that check sign-in is
-    // signed out at once (#124b review round 2).
-    const check = passwordCheckClient().auth;
-    const { error: authError } = await check.signInWithPassword({ email, password });
-    setLoading(false);
-    if (authError) {
-      // Friendly words on screen, the whole error in the console (#130 S6).
-      console.warn('Grown-ups sign-in failed:', errorMessage(authError));
-      setError(authErrorMessage(authError, { where: 'gate' }));
-      return;
-    }
-    void check.signOut({ scope: 'local' }).catch((err: unknown) => console.warn('Signing out the password check:', errorMessage(err)));
-    onUnlock();
-  }
-
-  const back = (
-    <button onClick={close} className={`mt-1 ${linkClass} text-purple-600`}>
-      ← Back to Who's playing
-    </button>
-  );
-
-  if (hasParentPin && !usePassword) {
-    return (
-      // Opens with its title focused, like the screens it replaces (#124 review round 2).
-      <FamilyCard focusTitle title="👪 Grown-ups" subtitle={pinResting ? 'Use your password for now.' : 'Type your grown-up PIN.'}>
-        <PinPad
-          onSubmit={async (pin) => {
-            const verdict = await checkParentPin(pin);
-            if (verdict.ok) onUnlock();
-            return verdict;
-          }}
-          lockKey={grownUpLockKey(userId)}
-          lockedText={GROWN_UP_LOCKED_TEXT}
-          who="grown-up"
-          checkLock={async () => {
-            const locks = await pinLocks();
-            return locks === null ? null : locks.grownUp;
-          }}
-          onLockedChange={setPinResting}
-        />
-        <button
-          onClick={() => setUsePassword(true)}
-          className={pinResting ? `mt-2 w-full min-h-[44px] ${primaryClass}` : `${linkClass} text-gray-500`}
-        >
-          Use my password instead
-        </button>
-        {back}
-      </FamilyCard>
-    );
-  }
-
+  if (unlocked) return <GrownUpsHome />;
   return (
-    <FamilyCard focusTitle title="👪 Grown-ups" subtitle={`Enter the password for ${email}.`}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <PasswordInput
-          placeholder="Password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className={fieldClass}
-        />
-        <div>
-          {/* Always there, so a screen reader hears each message as it appears. */}
-          <div role="status" className="mb-3 empty:mb-0 space-y-1 text-sm">
-            {error && <p className="text-red-700">{error}</p>}
-            {notice && <p className="text-green-700">{notice}</p>}
-          </div>
-          <button type="submit" aria-disabled={loading} className={`w-full min-h-[44px] ${primaryClass}`}>
-            {loading ? 'Checking…' : 'Open'}
-          </button>
-        </div>
-      </form>
-      <ResetLinkButton
-        email={email}
-        onStart={() => {
-          setError(null);
-          setNotice(null);
-        }}
-        onSent={setNotice}
-        onFailed={setError}
-        className={`mt-1 ${linkClass} text-gray-500`}
-      />
-      {hasParentPin && (
-        <button onClick={() => setUsePassword(false)} className={`${linkClass} text-gray-500`}>
-          Use my grown-up PIN instead
-        </button>
+    <GrownUpsGate
+      onUnlock={() => setUnlocked(true)}
+      frame={(subtitle, controls) => (
+        // Opens with its title focused, like the screens it replaces (#124 review round 2).
+        <FamilyCard focusTitle title="👪 Grown-ups" subtitle={subtitle}>
+          {controls}
+        </FamilyCard>
       )}
-      {back}
-    </FamilyCard>
+      back={
+        <button onClick={close} className={`mt-1 ${gateLinkClass} text-purple-600`}>
+          ← Back to Who's playing
+        </button>
+      }
+    />
   );
 }
 
@@ -189,6 +83,8 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Kid | null>(null);
   const [closing, setClosing] = useState(false);
+  // Changing the login's email or password (#124d).
+  const [changing, setChanging] = useState<'email' | 'password' | null>(null);
   // Which kids' PINs the database has locked (#124c review): unlocking is done here.
   const pinLocks = useFamilyStore((s) => s.pinLocks);
   const [lockedKids, setLockedKids] = useState<Record<string, number>>({});
@@ -220,7 +116,7 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
   }, []);
 
   // Asked again each time the list comes back (after a Change, a PIN typed again unlocks).
-  const listing = !editing && !removing && !closing && !reviewing;
+  const listing = !editing && !removing && !closing && !reviewing && !changing;
   useEffect(() => {
     if (!listing) return;
     let live = true;
@@ -288,8 +184,11 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
     return <CloseAccountPage onCancel={() => setClosing(false)} />;
   }
 
+  if (changing === 'email') return <ChangeEmailPage onDone={() => setChanging(null)} />;
+  if (changing === 'password') return <ChangePasswordPage onDone={() => setChanging(null)} />;
+
   return (
-    <FamilyCard wide title="👪 Grown-ups">
+    <FamilyCard wide title="👪 Grown-ups" subtitle={`Locks again when you leave, or after ${GROWN_UP_UNLOCK_MINUTES} minutes.`}>
       <ul className="space-y-2">
         {kids.map((k) => (
           <li key={k.id} className="rounded-xl border border-gray-200 p-3">
@@ -348,6 +247,12 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
         ＋ Add a player
       </button>
       <ParentPin />
+      <SignInSection
+        onChange={(what) => {
+          leave(what);
+          setChanging(what);
+        }}
+      />
       {admin && (
         <button
           data-return="review"
@@ -370,13 +275,13 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
       </div>
       <button
         onClick={close}
-        className="mt-6 w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition"
+        className="mt-6 w-full min-h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition"
       >
         Done — back to Who's playing
       </button>
       <button
-        onClick={() => void supabase.auth.signOut()}
-        className="mt-3 w-full text-center text-sm text-gray-500 hover:underline"
+        onClick={() => void signOutGrownUp()}
+        className="mt-1 w-full min-h-11 text-center text-sm text-gray-500 hover:underline"
       >
         Sign out
       </button>

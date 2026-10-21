@@ -7,6 +7,12 @@ insert into auth.users (id, raw_user_meta_data)
   values ('00000000-0000-0000-0000-0000000000e1', '{"birth_year": 2016, "birth_month": 5}');
 
 -- Saves are written through the API role, as the app writes them.
+-- 👪 Grown-ups is open on this session for every grown-up here (#167,
+-- migration 0024): the grown-up actions below need it.
+-- grown_ups_gate.test.sql tests the gate itself.
+select set_config('request.jwt.claims', '{"session_id": "00000000-0000-0000-0000-00000000c167"}', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e1', true);
 

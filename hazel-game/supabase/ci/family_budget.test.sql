@@ -10,6 +10,12 @@ insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000a3', '{"birth_year": 2017, "birth_month": 3}'),
   ('00000000-0000-0000-0000-0000000000b3', '{"birth_year": 2016, "birth_month": 9}');
 -- A second kid for A.
+-- 👪 Grown-ups is open on this session for every grown-up here (#167,
+-- migration 0024): the grown-up actions below need it.
+-- grown_ups_gate.test.sql tests the gate itself.
+select set_config('request.jwt.claims', '{"session_id": "00000000-0000-0000-0000-00000000c167"}', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
 insert into public.profiles (id, display_name, icon, birth_year, birth_month)
@@ -46,6 +52,8 @@ reset role;
 
 -- Remove the kid who spent, add a new one: the spend still counts.
 delete from public.profiles where id = '00000000-0000-0000-0000-0000000000a3';
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
 insert into public.profiles (id, display_name, icon, birth_year, birth_month)
@@ -93,6 +101,8 @@ end $$;
 insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000c3', '{"birth_year": 2015, "birth_month": 5}'),
   ('00000000-0000-0000-0000-0000000000d3', '{"birth_year": 2014, "birth_month": 2}');
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c3', true);
 insert into public.profiles (id, display_name, icon, birth_year, birth_month)
@@ -188,6 +198,8 @@ reset role;
 -- through the API (authenticated), as the app does.
 insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000e3', '{"birth_year": 2015, "birth_month": 5}');
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e3', true);
 insert into public.profiles (id, display_name, icon, birth_year, birth_month)
@@ -201,6 +213,8 @@ insert into public.question_requests (profile_id, parent_id, requested_at, fresh
   -- Her brother's (the old-app first kid), untouched by her removal.
   ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000e3', now() - interval '40 days', 3),
   ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000e3', now() - interval '2 hours', 0);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000e3', true);
 delete from public.profiles where id = '00000000-0000-0000-0000-00000000e302';

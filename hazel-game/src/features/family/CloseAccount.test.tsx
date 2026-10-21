@@ -11,15 +11,18 @@ const auth = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
   signUp: vi.fn(),
   resend: vi.fn(),
+  getSession: vi.fn(),
 }));
-// The one-off client every password check signs in on (the gate's and the close's, #124b review round 2).
+// The one-off client every password check signs in on (the gate's and the close's, #124b review round 2);
+// its token opens 👪 Grown-ups on the device's sign-in (#167).
 const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
+const checkRpc = vi.hoisted(() => vi.fn());
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
 const rpc = vi.hoisted(() => vi.fn());
 const forgetStoredSession = vi.hoisted(() => vi.fn());
 vi.mock('../../lib/supabase', () => ({
   supabase: { auth, functions, rpc },
-  passwordCheckClient: () => ({ auth: checkAuth }),
+  passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }),
   forgetStoredSession,
 }));
 vi.mock('../../lib/review', async (original) => ({
@@ -33,6 +36,7 @@ const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { saveKey } = await import('../../lib/save');
 const { profileKey } = await import('../../lib/profile');
+const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: true, birthYear: 2019, birthMonth: 8 };
@@ -53,6 +57,8 @@ beforeEach(() => {
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   checkAuth.signInWithPassword.mockResolvedValue(signedIn);
   checkAuth.signOut.mockResolvedValue({ error: null });
+  checkRpc.mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
+  auth.getSession.mockResolvedValue(deviceSession);
   auth.signOut.mockResolvedValue({ error: null });
   auth.getUser.mockResolvedValue({ data: { user: { id: 'grown-up-1' } }, error: null });
   rpc.mockResolvedValue({ data: { kids: {}, grown_up: 0 }, error: null });
@@ -165,7 +171,7 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     // Never on the device's own client — neither the gate's check nor the close's (#124b review round 2).
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', {
-      body: { confirm: 'DELETE' },
+      body: { confirm: 'DELETE', session: DEVICE_SESSION },
       headers: { Authorization: 'Bearer fresh-token' },
     });
   });
@@ -350,4 +356,21 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(auth.signOut).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith('Signing out after closing the account:', expect.stringContaining('Failed to fetch'));
   });
+
+  it('👪 Grown-ups locked again (#167): the gate is asked for over the page; "Not now" says nothing was deleted', async () => {
+    const { unlockCancelled, useGrownUpsStore } = await import('../../store/grownUpsStore');
+    await openCloseAccount();
+    functions.invoke.mockResolvedValue(refusedWith(403, { error: 'grown_ups_locked', detail: 'x' }));
+    fill('right', 'DELETE');
+    fireEvent.click(submit());
+    await vi.waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    // Still closing while it waits, the password and DELETE as typed.
+    expect(submit()).toHaveTextContent('Closing your account…');
+    await act(async () => unlockCancelled());
+    expect(pageStatus()).toHaveTextContent('Grown-ups locked again. Enter your PIN or password, then tap "Close account for good" again. Nothing was deleted.');
+    expect(screen.getByLabelText('Your password (not your grown-up PIN)')).toHaveValue('right');
+    expect(auth.signOut).not.toHaveBeenCalled();
+    expect(useFamilyStore.getState().kids).toHaveLength(2);
+  });
 });
+

@@ -56,6 +56,13 @@ describe('the owner’s question review (#147)', () => {
     await expect(reviewQuestion('q-1', 'retired')).rejects.toThrow(/Couldn't save that — timeout/);
   });
 
+  it('"👪 Grown-ups is shut" comes through recognisable, so the gate is asked for (#167)', async () => {
+    const locked = { code: 'HQ001', message: 'grown_ups_locked: open 👪 Grown-ups first' };
+    rpcMock.mockResolvedValue({ data: null, error: locked });
+    await expect(fetchReviewQueue()).rejects.toMatchObject({ code: 'HQ001', message: locked.message });
+    await expect(reviewQuestion('q-1', 'retired')).rejects.toMatchObject({ code: 'HQ001' });
+  });
+
   it('reviewQuestion sends the decision', async () => {
     rpcMock.mockResolvedValue({ data: null, error: null });
     await reviewQuestion('q-9', 'approved');

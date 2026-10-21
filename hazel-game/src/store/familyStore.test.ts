@@ -21,24 +21,26 @@ const db = vi.hoisted(() => {
       Promise.resolve(answer(table, chain.ops)).then(ok, bad);
     return b;
   };
-  const rpc = vi.fn(async () => ({ data: null, error: null }));
+  const rpc = vi.fn<(fn: string, args?: unknown) => Promise<{ data: unknown; error: unknown }>>(async () => ({ data: null, error: null }));
   return { chains, answer, from, rpc };
 });
 const auth = vi.hoisted(() => ({
   signOut: vi.fn(async (): Promise<{ error: unknown }> => ({ error: null })),
   signInWithPassword: vi.fn(),
   getUser: vi.fn(async () => ({ data: { user: { id: 'grown-up-1' } }, error: null })),
+  getSession: vi.fn(),
 }));
 // The one-off client the close checks the password on (#124b review round 2).
 const checkAuth = vi.hoisted(() => ({
   signInWithPassword: vi.fn(async () => ({ data: { session: { access_token: 'fresh-token' } }, error: null })),
   signOut: vi.fn(async () => ({ error: null })),
 }));
+const checkRpc = vi.hoisted(() => vi.fn(async () => ({ data: { unlocked: true, seconds: 900 }, error: null })));
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
 const forgetStoredSession = vi.hoisted(() => vi.fn());
 vi.mock('../lib/supabase', () => ({
   supabase: { from: db.from, rpc: db.rpc, auth, functions },
-  passwordCheckClient: () => ({ auth: checkAuth }),
+  passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }),
   forgetStoredSession,
 }));
 
@@ -50,6 +52,7 @@ const { NETWORK_MESSAGE, SIGNED_OUT_MESSAGE } = await import('../lib/errors');
 const { useProfileStore } = await import('./profileStore');
 const { useSaveStore } = await import('./saveStore');
 const { CONSENT_VERSION } = await import('../content/family');
+const { DEVICE_SESSION, deviceSession } = await import('../test/grownUps');
 
 const SAM = { id: 'kid-sam', display_name: 'Sam', icon: 'fox', has_pin: true, birth_year: 2017, birth_month: 3 };
 const KIT = { id: 'kid-kit', display_name: 'Kit', icon: 'panda', has_pin: true, birth_year: 2019, birth_month: 8 };
@@ -72,6 +75,7 @@ beforeEach(() => {
   db.chains.length = 0;
   db.answer.mockReset();
   db.rpc.mockClear();
+  auth.getSession.mockResolvedValue(deviceSession);
   sessionStorage.clear();
   localStorage.clear();
   useFamilyStore.getState().clear();
@@ -343,7 +347,7 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().closeAccount('hunter22');
     expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'hunter22' });
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
-    expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE' }, headers: { Authorization: 'Bearer fresh-token' } });
+    expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE', session: DEVICE_SESSION }, headers: { Authorization: 'Bearer fresh-token' } });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
     expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
@@ -461,5 +465,126 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().agree();
     expect(db.rpc).toHaveBeenCalledWith('record_consent', { p_version: CONSENT_VERSION });
     expect(useFamilyStore.getState().consentAt).not.toBeNull();
+  });
+});
+
+describe('👪 Grown-ups enforced by the database (#167)', () => {
+  const LOCKED = { code: 'HQ001', message: 'grown_ups_locked: open 👪 Grown-ups first' };
+
+  beforeEach(async () => {
+    const { resetGrownUps } = await import('./grownUpsStore');
+    resetGrownUps();
+    db.rpc.mockImplementation(async () => ({ data: null, error: null }));
+  });
+
+  it('load: a family still being set up opens 👪 Grown-ups on the fresh sign-in, before anything shows (the first run needs no gate)', async () => {
+    const { useGrownUpsStore } = await import('./grownUpsStore');
+    for (const [consent, kids] of [
+      [null, []],
+      ['2026-10-10', []],
+      ['2026-10-10', [{ ...SAM, has_pin: false }]],
+    ] as const) {
+      db.rpc.mockClear();
+      family(consent, [...kids]);
+      await useFamilyStore.getState().load('grown-up-1');
+      expect(db.rpc, JSON.stringify([consent, kids])).toHaveBeenCalledWith('unlock_grown_ups');
+      expect(useFamilyStore.getState().status).toBe('ready');
+    }
+    expect(useGrownUpsStore.getState().wasOpen).toBe(true);
+  });
+
+  it('load: a set-up family opens nothing — the gate does that', async () => {
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    expect(db.rpc).not.toHaveBeenCalledWith('unlock_grown_ups');
+  });
+
+  it('load: a sign-in that isn\'t fresh is refused quietly, and the family still loads', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { useGrownUpsStore } = await import('./grownUpsStore');
+    db.rpc.mockImplementation(async () => ({ data: null, error: { code: 'HQ002', message: 'reauth_required' } }));
+    family(null, []);
+    await useFamilyStore.getState().load('grown-up-1');
+    expect(useFamilyStore.getState().status).toBe('ready');
+    expect(useGrownUpsStore.getState().wasOpen).toBe(false);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('a refused grown-up action asks for the gate and runs again once it opens (consent here)', async () => {
+    const { unlockedAgain, useGrownUpsStore } = await import('./grownUpsStore');
+    let calls = 0;
+    db.rpc.mockImplementation(async (fn: string) => {
+      if (fn !== 'record_consent') return { data: null, error: null };
+      calls += 1;
+      return calls === 1 ? { data: null, error: LOCKED } : { data: null, error: null };
+    });
+    const agreeing = useFamilyStore.getState().agree();
+    await vi.waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    unlockedAgain();
+    await agreeing;
+    expect(calls).toBe(2);
+    expect(useFamilyStore.getState().consentAt).not.toBeNull();
+  });
+
+  it('"Not now" on a remove leaves the kid, and says it was locked', async () => {
+    const { unlockCancelled, useGrownUpsStore } = await import('./grownUpsStore');
+    const { GrownUpsLockedError } = await import('../lib/grownUpsGate');
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    db.answer.mockImplementation(() => ({ data: null, error: LOCKED }));
+    const removing = useFamilyStore.getState().removeKid('kid-sam');
+    await vi.waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    unlockCancelled();
+    await expect(removing).rejects.toBeInstanceOf(GrownUpsLockedError);
+    expect(useFamilyStore.getState().kids.map((k) => k.id)).toEqual(['kid-sam', 'kid-kit']);
+  });
+
+  it('closeAccount: the function refusing "grown_ups_locked" asks for the gate; "Not now" is a close refusal that deleted nothing', async () => {
+    const { unlockCancelled, useGrownUpsStore } = await import('./grownUpsStore');
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    functions.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError(new Response(JSON.stringify({ error: 'grown_ups_locked', detail: 'x' }), { status: 403 })),
+    });
+    auth.signOut.mockClear();
+    const closing = useFamilyStore.getState().closeAccount('hunter22');
+    await vi.waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    unlockCancelled();
+    await expect(closing).rejects.toMatchObject({ name: 'CloseAccountFailure', code: 'grown_ups_locked' });
+    expect(useFamilyStore.getState().kids).toHaveLength(1);
+    expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it('signing out (clear) ends anything waiting on the gate', async () => {
+    const { askToUnlock, useGrownUpsStore } = await import('./grownUpsStore');
+    const waiting = askToUnlock();
+    useFamilyStore.getState().clear();
+    await expect(waiting).rejects.toMatchObject({ code: 'grown_ups_locked' });
+    expect(useGrownUpsStore.getState().asked).toBe(false);
+  });
+
+  it("a grown-up's Sign out never waits long on shutting 👪 Grown-ups", async () => {
+    const { signOutGrownUp, LOCK_BEFORE_SIGN_OUT_MS } = await import('./familyStore');
+    vi.useFakeTimers();
+    try {
+      db.rpc.mockImplementation(() => new Promise(() => {}));
+      auth.signOut.mockClear();
+      const out = signOutGrownUp();
+      await vi.advanceTimersByTimeAsync(LOCK_BEFORE_SIGN_OUT_MS);
+      await out;
+      expect(auth.signOut).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a grown-up's Sign out shuts 👪 Grown-ups on this sign-in first", async () => {
+    const { signOutGrownUp } = await import('./familyStore');
+    await signOutGrownUp();
+    expect(db.rpc).toHaveBeenCalledWith('lock_grown_ups');
+    expect(db.rpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(auth.signOut.mock.invocationCallOrder.at(-1)!);
   });
 });

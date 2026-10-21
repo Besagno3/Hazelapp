@@ -39,6 +39,7 @@ export const CLOSE_ACCOUNT_ERRORS = [
   'bad_request',
   'confirm_required',
   'reauth_required',
+  'grown_ups_locked',
   'data_not_deleted',
   'login_not_deleted',
   'outcome_unknown',
@@ -61,6 +62,10 @@ const REFUSALS: Record<CloseAccountError, Omit<CloseAccountRefusal, 'error'>> = 
   bad_request: { status: 400, detail: 'The request was not understood.' },
   confirm_required: { status: 400, detail: `Type ${CONFIRM_WORD} to confirm.` },
   reauth_required: { status: 403, detail: 'Type your password again, just before closing the account.' },
+  grown_ups_locked: {
+    status: 403,
+    detail: 'Open 👪 Grown-ups again with your grown-up PIN or password, then close the account. Nothing was deleted.',
+  },
   data_not_deleted: { status: 500, detail: 'Nothing was deleted: the family data could not be removed.' },
   login_not_deleted: {
     status: 500,
@@ -73,10 +78,37 @@ export function refusal(error: CloseAccountError): CloseAccountRefusal {
   return { error, ...REFUSALS[error] };
 }
 
-/** The request body, checked: just the confirm word (null when it's right). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The request body, checked: the confirm word, and — when it names one — the
+ * device's sign-in as a session id (null when it's all right).
+ */
 export function closeRequestRefusal(body: unknown): CloseAccountRefusal | null {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) return refusal('bad_request');
-  return (body as Record<string, unknown>).confirm === CONFIRM_WORD ? null : refusal('confirm_required');
+  const b = body as Record<string, unknown>;
+  if (b.session !== undefined && b.session !== null && !(typeof b.session === 'string' && UUID_RE.test(b.session))) {
+    return refusal('bad_request');
+  }
+  return b.confirm === CONFIRM_WORD ? null : refusal('confirm_required');
+}
+
+/**
+ * The sign-in (session id) the app says has 👪 Grown-ups open — the family
+ * device's, where Close account was asked for. `delete_family` deletes
+ * nothing unless it's open (migration 0024, #167); null when none is named,
+ * which it refuses too.
+ */
+export function closeSessionOf(body: unknown): string | null {
+  const s = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).session : null;
+  return typeof s === 'string' && UUID_RE.test(s) ? s : null;
+}
+
+/** The database's "👪 Grown-ups is shut" (SQLSTATE HQ001, migration 0024): nothing was deleted. */
+export const GROWN_UPS_LOCKED_SQLSTATE = 'HQ001';
+
+export function grownUpsLockedDb(err: { code?: string | null }): boolean {
+  return err.code === GROWN_UPS_LOCKED_SQLSTATE;
 }
 
 /**

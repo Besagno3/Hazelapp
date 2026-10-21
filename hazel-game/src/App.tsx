@@ -16,6 +16,8 @@ import FirstKidPage from './features/family/FirstKidPage';
 import KidSetupPage from './features/family/KidSetupPage';
 import WhoIsPlaying from './features/family/WhoIsPlaying';
 import GrownUpsArea from './features/family/GrownUpsArea';
+import RelockDialog from './features/family/RelockDialog';
+import { useLockOnLeave } from './features/family/useLockOnLeave';
 import { familyScreen, signInAgain, useFamilyStore } from './store/familyStore';
 import LevelUpModal from './components/LevelUpModal';
 import { ErrorScreen, LoadingScreen, OutdatedScreen } from './components/StatusScreens';
@@ -99,6 +101,9 @@ export default function App() {
     if (session) dropSignupParam();
   }, [session]);
 
+  // Leaving the grown-up screens for the kids' shuts 👪 Grown-ups (#167).
+  useLockOnLeave(family);
+
   // Wake the machine once auth + save have loaded (guards read the save).
   useEffect(() => {
     if (session && saveStatus === 'ready' && booting) sendFlow({ type: 'READY' });
@@ -138,10 +143,26 @@ export default function App() {
       />
     );
   }
-  if (family === 'consent') return <ConsentPage />;
-  if (family === 'grownUps') return <GrownUpsArea />;
-  if (family === 'firstKid') return <FirstKidPage />;
-  if (family === 'kidSetup') return <KidSetupPage />;
+  // A grown-up's screens: 👪 Grown-ups locking again mid-action asks over
+  // the page, so nothing on it is lost (#167).
+  const grownUpPage =
+    family === 'consent' ? (
+      <ConsentPage />
+    ) : family === 'grownUps' ? (
+      <GrownUpsArea />
+    ) : family === 'firstKid' ? (
+      <FirstKidPage />
+    ) : family === 'kidSetup' ? (
+      <KidSetupPage />
+    ) : null;
+  if (grownUpPage) {
+    return (
+      <>
+        {grownUpPage}
+        <RelockDialog />
+      </>
+    );
+  }
   if (family === 'pick') return <WhoIsPlaying />;
 
   // A newer save exists — from a newer version of the game, or played on in

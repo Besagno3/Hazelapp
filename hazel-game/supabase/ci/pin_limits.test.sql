@@ -15,6 +15,12 @@ insert into auth.users (id, raw_user_meta_data) values
   ('00000000-0000-0000-0000-0000000000b3', '{"consent_version": "2026-10-draft"}');
 
 -- Grown-up A, their kid Sam (PIN 4821), their own PIN 9090; Kit has no PIN.
+-- 👪 Grown-ups is open on this session for every grown-up here (#167,
+-- migration 0024): the grown-up actions below need it.
+-- grown_ups_gate.test.sql tests the gate itself.
+select set_config('request.jwt.claims', '{"session_id": "00000000-0000-0000-0000-00000000c167"}', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
 insert into public.profiles (id, display_name, icon, birth_year, birth_month) values
@@ -38,6 +44,8 @@ begin
 end $$;
 
 -- 1) The ladder, as grown-up A.
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
 do $$
@@ -97,6 +105,8 @@ end $$;
 -- The right PIN, once the lock has run out, starts it all over.
 update public.kid_pins set locked_until = now() - interval '1 second'
  where profile_id = '00000000-0000-0000-0000-000000005a02';
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -144,6 +154,8 @@ begin
 end $$;
 
 -- 3) A new PIN unlocks at once (a grown-up helping a locked-out kid).
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -168,6 +180,8 @@ reset role;
 
 -- 4) Grown-up B can't count tries against A's kid or A's grown-up PIN.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b3', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -192,6 +206,8 @@ end $$;
 
 -- 5) The grown-up PIN climbs the same ladder.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -216,6 +232,8 @@ end $$;
 -- 5b) What's locked now (pin_lock_status): the caller's own locked PINs and
 --     the seconds left — nothing else, and nobody else's.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -235,6 +253,8 @@ end $$;
 reset role;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b3', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -247,6 +267,8 @@ reset role;
 -- A new PIN (set anywhere — another device too) takes the lock off at once,
 -- which is what the pad's re-check reads.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a3', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare
@@ -267,6 +289,8 @@ begin
 end $$;
 
 -- 6) No client reads or changes the counters, or calls the helpers.
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 do $$
 declare

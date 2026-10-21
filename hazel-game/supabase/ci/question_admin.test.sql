@@ -18,6 +18,12 @@ insert into public.question_flags (question_id, profile_id, reason)
   values ('00000000-0000-0000-0000-0000000d0002', '00000000-0000-0000-0000-000000005b91', 'confusing');
 
 -- A grown-up who isn't an admin.
+-- 👪 Grown-ups is open on this session for every grown-up here (#167,
+-- migration 0024): the grown-up actions below need it.
+-- grown_ups_gate.test.sql tests the gate itself.
+select set_config('request.jwt.claims', '{"session_id": "00000000-0000-0000-0000-00000000c167"}', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b9', true);
 do $$
@@ -58,6 +64,8 @@ begin
 end $$;
 
 -- The owner.
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
 do $$
