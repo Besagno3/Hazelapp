@@ -3,9 +3,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { Suspense, useState } from 'react';
 import LazyBoundary from '../components/LazyBoundary';
 import ErrorBoundary from '../components/ErrorBoundary';
+import indexHtml from '../../index.html?raw';
 import {
   isChunkLoadError,
+  isGamePage,
   noteReloadFor,
+  RELOAD_NOTE_MS,
+  SERVER_ANSWER_MS,
   retryableLazy,
   retryLazy,
   serverAnswers,
@@ -99,7 +103,8 @@ describe('a lazy page whose file fails to load (#29 review round 1)', () => {
     await screen.findByText(/didn't load/);
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-    expect(fetch).toHaveBeenCalledWith('http://localhost/play/', { cache: 'no-store', credentials: 'same-origin' });
+    expect(fetch).toHaveBeenCalledWith('http://localhost/play/', expect.objectContaining({ cache: 'no-store', credentials: 'same-origin' }));
+    expect((fetch.mock.calls[0] as unknown[])[1]).toHaveProperty('signal');
   });
 
   it('before it reloads, the page leaves its note (📈 Progress: "Who\'s playing?" says why after, review round 2)', async () => {
@@ -199,6 +204,8 @@ describe('a lazy page whose file fails to load (#29 review round 1)', () => {
       'error loading dynamically imported module: https://hazel.example/assets/ProgressPage-abc.js',
       'Importing a module script failed.',
       'Unable to preload CSS for /assets/index-abc.css',
+      // Safari, when a missing file is answered with a page (a catch-all rewrite to index.html, review round 3).
+      "'text/html' is not a valid JavaScript MIME type.",
     ]) {
       expect(isChunkLoadError(new TypeError(message))).toBe(true);
     }
@@ -252,6 +259,70 @@ describe('a lazy page whose file fails to load (#29 review round 1)', () => {
     expect(takeReloadNote()).toBeNull();
     sessionStorage.setItem('hazel-reloaded-for', 'something-else');
     expect(takeReloadNote()).toBeNull();
+  });
+
+  it("a note older than a couple of minutes isn't said (the reload landed on sign-in; a later sign-in mustn't hear it), and one from the build before is (review round 3)", () => {
+    noteReloadFor('progress', 1_000_000);
+    expect(takeReloadNote(1_000_000 + RELOAD_NOTE_MS + 1)).toBeNull();
+    expect(sessionStorage.getItem('hazel-reloaded-for')).toBeNull();
+    noteReloadFor('progress', 1_000_000);
+    expect(takeReloadNote(1_000_000 + RELOAD_NOTE_MS - 1)).toBe('progress');
+    sessionStorage.setItem('hazel-reloaded-for', 'progress');
+    expect(takeReloadNote()).toBe('progress');
+    sessionStorage.setItem('hazel-reloaded-for', 'progress@junk');
+    expect(takeReloadNote()).toBeNull();
+  });
+
+  it('← Back while Try again waits on the server: its answer is dropped — no reload, no note, no page under what came next (review round 3)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { reload } = stubPage({ answers: true });
+    let answer: (r: Response) => void = () => {};
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>((r) => (answer = r))));
+    const beforeReload = vi.fn();
+    const page = retryableLazy<{ name: string }>(() => Promise.reject(CHUNK_GONE()));
+    const { unmount } = render(<Harness page={page} beforeReload={beforeReload} />);
+    await screen.findByText(/didn't load/);
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    unmount(); // ← Back
+    await act(async () => answer(page200()));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(beforeReload).not.toHaveBeenCalled();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it(`serverAnswers gives up after ${SERVER_ANSWER_MS / 1000} s: a black-holed connection is out of reach (review round 3)`, async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          (_url: string, init: RequestInit) =>
+            new Promise((_, fail) => init.signal?.addEventListener('abort', () => fail(new DOMException('The operation was aborted.', 'AbortError')))),
+        ),
+      );
+      let said: boolean | null = null;
+      void serverAnswers().then((v) => (said = v));
+      await vi.advanceTimersByTimeAsync(SERVER_ANSWER_MS - 1);
+      expect(said).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(said).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("isGamePage: the real index.html is the game's page — read loosely, so a longer title or a minified root still counts (review round 3)", () => {
+    expect(isGamePage(indexHtml)).toBe(true);
+    expect(isGamePage(OUR_PAGE)).toBe(true);
+    expect(isGamePage('<html><head><title data-x="1">Hazel Quest — Play</title></head><body><div id=root></div></body></html>')).toBe(true);
+    expect(isGamePage("<title>  hazel quest</title><div class=app id='root'>")).toBe(true);
+    // Not ours: someone else's title, no root, or a root by another name.
+    expect(isGamePage('<title>Hotel Wi-Fi</title><div id="root"></div>')).toBe(false);
+    expect(isGamePage('<title>Hazel Quest</title><div id="rooted"></div>')).toBe(false);
+    expect(isGamePage('<title>Hazel Questions</title><div id="root"></div>')).toBe(false);
+    expect(isGamePage('<title>Hazel Quest</title><body></body>')).toBe(false);
   });
 
   it('retryLazy swaps in a new component only when the file loads', async () => {

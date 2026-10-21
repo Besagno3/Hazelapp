@@ -23,7 +23,7 @@ shared source of truth for how this project works.
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
-| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
+| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build (with placeholder Supabase settings, so it bundles the real app, #175) on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
@@ -230,11 +230,16 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   the family's own kids), but the page is only reachable through the gate and
   goes back to it when the 15 minutes run out, like the list. The page opens
   on an h2 with the kid's name and a few lines **at a glance** (`glance`:
-  days played this week, the topic that climbed most since its noted start
-  (`climbedText`), what to practise together grouped by why with every topic
-  named (`practiseText`: below where it started, or `SEVERAL_MISSED` questions
-  of one topic waiting at the Library; "nothing stands out" only when both
-  the levels and the Library were read) and how many questions wait), then h3 sections
+  days played this week ("Not sure which days they played" when their
+  device's date is set ahead, like the tiles — review round 3), the topics
+  that climbed since their noted start (`climbedText`: "Most progress" only
+  when every measured topic has a noted start and there are two or more —
+  `Glance.ranked`; otherwise "Up since they started: Maps & Places (level 4
+  → 5)", none crowned, round 3), what to practise together grouped by why
+  with every topic named once (`practiseText`: below where it started, or
+  `SEVERAL_MISSED` questions of one topic waiting at the Library, a topic
+  with both said once with both; "nothing stands out" only when both the
+  levels and the Library were read) and how many questions wait), then h3 sections
   (emoji `aria-hidden`); switching kids is said in the page's status region.
   Pure shaping in `lib/progress.ts`: `levelSummary` (the **player level**, so
   named, as the hero number, with one line saying it grows with XP and never
@@ -244,8 +249,8 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   counts as today; further ahead is a clock set wrong, "Not sure",
   `clockAhead`, review round 2), `dayWords`, `recentDays` (played where the
   database noted the day or it's the last day played, plus the days a live
-  streak proves, marked `fromStreak` — a lighter blue cell with a key, read
-  "played — their streak shows it", review round 2; nothing else guessed),
+  streak proves — review round 2 — drawn and read "played" like any other,
+  one mark, no key (round 3); nothing else guessed),
   `topicLevels` / `topicMeaning` (each topic "Math: level 6 of 10" read
   against **where that topic really started** — the save's `topicStarts`,
   noted by `profileStore.setSkillLevel` the first time a topic's level is
@@ -253,12 +258,20 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   1, where they started at age 6", "Below level 4, where they started at age
   9 — a good one to practise together", plus the writer's top bands, a
   stretch / the strongest; never against where a player of the kid's age
-  *today* would start — a birthday moves that (#29 review round 2). A topic
-  saved before starts were noted makes no above / below claim: its level
-  alone (and only the top bands), said once in the intro; nothing claims a
-  level went down: no history is kept; topics no round has moved grouped in
-  one "Not moved yet" line at the start for their age now, with no bar —
-  a grey bar there outgrew the bars a long-time player earned), `storySummary` (the act by
+  *today* would start — a birthday moves that (#29 review round 2). The
+  section opens with two short sentences (round 3: no history of the game;
+  "Young players start low on purpose" for a kid starting below level 4),
+  then its groups, each under a small heading: "Since they started" (when
+  two or more share one start it's said once — "All 5 started at level 1,
+  when Ada was 6." — and the rows shorten to "Up 2 since they started",
+  `sharedStart`), "Levels now" for topics saved before starts were noted (no
+  above / below claim, only the top bands; "Where these began wasn't
+  recorded.", and when one sits under today's start, that one first played
+  younger may have started lower — so a bare 2 never reads as a step back
+  from the box below, round 3); nothing claims a level went down: no history
+  is kept; topics no round has moved grouped in one "Not moved yet" box at
+  the start for their age now, with no bar — a grey bar there outgrew the
+  bars a long-time player earned), `storySummary` (the act by
   `act2/3/4-seen` as "Act II" only — the game names no acts; a crystal by
   name once restored, once their own 🚩 names it, or, Act I's four, once the
   opening story has; any other "a crystal they haven't found yet"; "4
@@ -283,12 +296,19 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   again." on its own card (the loading card is as wide as the page) — the
   rest of 👪 Grown-ups keeps working (`retryableLazy` / `useLazyRetry`,
   `lib/lazyRetry.ts`; the world's lazy screen does the same in `App`,
-  `LazyFailedScreen`); Back clears the area's live region. When Try again
-  must reload the game for a new version, it leaves a note first
-  (`noteReloadFor`, sessionStorage), and "Who's playing?" says what happened
-  and how to get back, once, focused (`takeReloadNote`,
-  `PROGRESS_RELOADED_NOTE`, review round 2). Bars are plain HTML/CSS: blue `#2a78d6` on its `#cde2fb` track
-  for measured values, its 250 step `#86b6ef` for a day only a streak shows,
+  `LazyFailedScreen`); Back clears the area's live region, and Back while
+  Try again waits drops its answer — no reload under the list later (round
+  3). When Try again must reload the game, it leaves a note first
+  (`noteReloadFor`, sessionStorage, with its time), and "Who's playing?"
+  says "The page had to reload. Open 👪 Grown-ups again to carry on." once,
+  focused, within two minutes (`takeReloadNote`, `RELOAD_NOTE_MS`,
+  `PROGRESS_RELOADED_NOTE`, review rounds 2–3). **A bug in the page** (not a
+  file that didn't load) shows its own card, `ProgressCrashed`: "Something
+  went wrong showing progress. The rest of 👪 Grown-ups still works.", the
+  error under "Details for grown-ups" (`components/ErrorDetails`) and Back —
+  👪 stays open (`LazyBoundary`'s `crashed`, round 3; the world keeps the
+  game's crash screen). Bars are plain HTML/CSS: blue `#2a78d6` on its `#cde2fb` track
+  for measured values and played days,
   the de-emphasis grey `#898781` for crystals not yet restored — validated with the dataviz palette script on
   the card's white; every bar carries its value in words beside it
   (`aria-hidden` bars), the week is an ordered list read day by day.
@@ -414,7 +434,9 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   debounce).
   Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
   (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
-  3** since #75 item 15b). **Which copy wins (#151):** every change adds one
+  4** since #29 review round 3 — an empty step, a guard: a tab on a v3 build
+  would drop `topicStarts` and save over them, so to it a v4 save is too new;
+  3 since #75 item 15b). **Which copy wins (#151):** every change adds one
   to the save's `revision` (additive; none = 0, `revisionOf`); loading keeps
   the higher of this device's copy and the server's (a tie, or neither with a
   revision, goes to the server's) and pushes a newer local copy. The server
@@ -444,6 +466,16 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   `recordActivity` is the one way a day counts as played (the streak, last
   played, 📈 Progress's week — #28, #29); `setSkillLevel` notes a topic's
   real start in the save the first time its level is saved (`topicStarts`).
+  **A row that couldn't be read is never written over (#29 review round 3,
+  #61's class):** after a failed read the profile is this device's copy, or
+  a made-up start (level 1, no topics), and `unread` is set: play goes on in
+  memory, but nothing goes to the row and no topic start is noted (a made-up
+  profile never becomes the device's copy either); the next change after
+  `RETRY_READ_MS` (15 s) reads it again (`retryRead`) and takes it up — the
+  row as the copy the device had would have merged it, plus the XP earned
+  since and today played; levels and power-ups moved since count only from
+  a real copy — then writes the result. A read that answers after the kid
+  changed (or the game was put away) is dropped (`readGen`).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, press-to-use (#127), zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
@@ -965,7 +997,9 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   `db:bundle` refuses to build if rules 2–3 are broken; CI applies the bundle
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
-  check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
+  check + tests + `build:web` (what Vercel serves, #146; with placeholder
+  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` on that step only, so it
+  bundles the real app — without them the app is dropped, #175); `edge-function` = `deno check`
   of both edge functions (generate-questions, delete-account) and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql` (`pin_limits_lock.test.sql` opens two more
@@ -1235,7 +1269,7 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
 npm install      # install deps (node_modules is gitignored)
 npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build (the game alone)
-npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146)
+npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146); needs VITE_SUPABASE_URL / _ANON_KEY (placeholders do) or the game builds with no app in it — it warns, and refuses on Vercel production (VERCEL_ENV=production) or with REQUIRE_SUPABASE_ENV=1 (#175)
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
 
@@ -1394,13 +1428,18 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   and "Try again" (`retryableLazy` / `useLazyRetry`, `lib/lazyRetry.ts`),
   which loads the file afresh, reloads the page when our server answers
   with our own page (`serverAnswers`: OK, this site, `text/html`, the game's
-  title and root — a wifi sign-in page or a 5xx isn't us; a new version
-  replaced the file, or the browser kept the failure — Chrome does for a
-  module; `beforeReload` can leave a note for after), and when it doesn't,
-  says the connection's words instead (a reload would lose the game). It
-  catches **only** a file that didn't load (`isChunkLoadError`: the browsers'
-  dynamic-import words, Vite's preload, `ChunkLoadError`); any other error in
-  the page goes on to `ErrorBoundary` with its details (#29 review round 2).
+  title and root read loosely by `isGamePage` — a test reads the real
+  `index.html` — within `SERVER_ANSWER_MS` (8 s); a wifi sign-in page or a
+  5xx isn't us; a new version replaced the file, or the browser kept the
+  failure — Chrome does for a module; `beforeReload` can leave a note for
+  after), and when it doesn't, says the connection's words instead (a reload
+  would lose the game); once its card is gone the answer is dropped (round
+  3). It catches **only** a file that didn't load (`isChunkLoadError`: the
+  browsers' dynamic-import words — Safari's "not a valid JavaScript MIME
+  type" too — Vite's preload, `ChunkLoadError`); any other error in the page
+  goes on to `ErrorBoundary` with its details (#29 review round 2) — unless
+  the page gives `crashed`, its own card for it (📈 Progress does, round 3:
+  `ProgressCrashed`, `components/ErrorDetails`).
   📈 Progress and the world use it. `ErrorScreen` and the crash screen move
   the focus to their title as they appear, and `ErrorScreen`'s message is a
   live region (review round 2).
@@ -1458,7 +1497,9 @@ check to go green (fix and push on red), then merge.
   (Vercel, Preview env); any lookup failure fails open (builds).
 - **What Vercel builds** (#146): `vercel.json` → `buildCommand` `npm run
   build:web`, `outputDirectory` `dist`: the public pages (`site/`) at `/` and
-  the game at `/play/` (`/play` redirects there). The game is built with base
+  the game at `/play/` (`/play` redirects there). A production build stops if
+  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` aren't set (#175): without
+  them the game would ship with no app in it; previews only warn. The game is built with base
   `/` and only its page moves, so its root paths (`/sprites/…`, `/assets/…`)
   still work. A sign-in link or `?review` that lands on `/` is passed on to
   `/play/` by a script at the top of `site/index.html`.
@@ -1493,6 +1534,72 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-21 — Parent dashboard review round 3: nothing written from a profile that wasn't read, no crown from half the data, one honest week, a page that crashes alone, a CI build with the app in it (#29, #175)
+`/saas-code-review` (3 low + answers) and `/saas-ux-review` (1 medium, 6
+low + also noted) of PR #88, plus the lead's items, all fixed. **Never
+written from a profile that wasn't read (code, the lead's root cause, #61's
+class):** a failed profile read on a device with no copy left a made-up
+profile (no topics), so the kid's next round noted today's age as the start
+of a topic measured years ago ("Below level 5, where they started at age
+10" for good), and the next writes put its XP, levels and streak over the
+real row. Now a failed read marks the profile `unread`: play goes on in
+memory, nothing is written to the row, no start is noted, a made-up profile
+never becomes the device's copy, and the next change after `RETRY_READ_MS`
+(15 s) reads the row again and takes it up — the XP earned since and today
+played carried onto the real numbers, levels and power-ups from a made-up
+start dropped — then writes it (`retryRead`; a late read for another kid is
+dropped, `readGen`). **Try again after Back (code):** its answer could
+reload the page under the 👪 list a moment later, losing what was typed —
+dropped once the card is gone; `serverAnswers` gives up after 8 s.
+**`index.html` read for real (code):** `isGamePage` reads the title and
+root loosely (a longer title, `id=root`) and a test reads the real file;
+Safari's "not a valid JavaScript MIME type" counts as a file that didn't
+load. **Save v4 (the reviewer's optional, the lead's call):** an empty step;
+a tab still on a v3 build would drop `topicStarts` and save over them, now
+it says "Hazel Quest has been updated! … Refresh … nothing is lost." and the
+server refuses its older version. **No crown from half the data (UX
+medium):** on launch week a topic first tried since the update was "Most
+progress" over years of Math it can't be compared with; "Most progress" now
+needs every measured topic to have a noted start (two or more), else "Up
+since they started: Maps & Places (level 4 → 5)". **Low:** one "played"
+mark for the week (the streak's lighter ✓, its key and "(counting days their
+streak shows)" are gone); the reload note says "The page had to reload. Open
+👪 Grown-ups again to carry on." (it claimed a new version), and only within
+two minutes of the reload (a reload that landed on sign-in doesn't explain
+itself to a later sign-in); the topic intro in two short sentences, no
+history of the game ("Young players start low on purpose, then climb." for
+a young kid); topics with no recorded start sit apart under "Levels now"
+("Where these began wasn't recorded." — and, beside a higher "Not moved
+yet", that one first played younger may have started lower), so a bare 2
+never reads as a step back; a device clock set ahead is "Not sure" in the
+glance and the week too; a bug in 📈 shows its own grown-up card ("Something
+went wrong showing progress. The rest of 👪 Grown-ups still works.",
+details folded, Back — 👪 stays open; `LazyBoundary` `crashed`,
+`components/ErrorDetails`, shared with the crash screen), the world keeps
+the game's crash screen. **Also noted:** a topic with both reasons is named
+once in 💡 ("below where they started, with questions waiting: Creativity
+(3)"); a start every noted topic shares is said once ("All 5 started at
+level 1, when Ada was 6.") and the rows shorten ("Up 2 since they
+started", `sharedStart`). **#175 closed (the lead):** CI's `build:web` step
+gets placeholder Supabase settings (`https://ci.invalid`, a dummy key — not
+secrets), so it bundles the real app (locally: main 504.9 KB / 160.1 gz
+without them, 1,373.4 KB / 401.6 gz with, the world and 📈 chunks
+referenced); `build-web.mjs` refuses a Vercel production build without them
+(`VERCEL_ENV=production`, or `REQUIRE_SUPABASE_ENV=1`) and only warns
+elsewhere. Tests 2328 → 2348 (29 mutations of the fixes: 28 caught at once; a kid
+check in `retryRead` redundant with the read counter survived and went); lint, `tsc -b`,
+`build:web` with and without the placeholders; the stubbed app (port 5961)
+at 320×568, 375×667, 740×360 touch and 1024×768 keyboard with the
+reviewers' families (Ada 9 noted and not, Kit 7, Lia's launch week, Zoe's
+top bands, Mia's 6-day streak, Zed's clock in 2099), 📈's file blocked
+(reload + note; Back while it waits: no reload, typing kept) and throwing
+(the grown-up card, Back, again) — 147 checks; the world's file blocked
+and throwing unchanged; and a failed profile read in the game (a Training
+Grounds round with no write and no start, then the real row read and
+written — 10 checks). Bundle: `ProgressPage` 25.5 → 26.7 KB (9.0 gz).
+Left: #174 (a start lost with #151's losing copy), #176 (a made-up
+start's levels dropped once the row is read). No migration, no deploy step.
 
 ### 2026-10-21 — Parent dashboard review round 2: topics against where they really started, only a missing file stays on its page, a reload that says why, the week a streak proves (#29)
 `/saas-code-review` (2 medium, 4 low) and `/saas-ux-review` (1 high, 2

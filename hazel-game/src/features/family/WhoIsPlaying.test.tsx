@@ -123,11 +123,11 @@ describe('WhoIsPlaying (#124)', () => {
     expect(choose).not.toHaveBeenCalled();
   });
 
-  it('after 📈 Progress reloaded the game for a new version: what happened and the way back, focused, once (#29 review round 2)', () => {
-    sessionStorage.setItem('hazel-reloaded-for', 'progress');
+  it('after 📈 Progress reloaded the game: what happened and the way back — no reason it can\'t be sure of — focused, once (#29 review rounds 2–3)', () => {
+    sessionStorage.setItem('hazel-reloaded-for', `progress@${Date.now()}`);
     const { unmount } = render(<WhoIsPlaying />);
     const note = screen.getByText(PROGRESS_RELOADED_NOTE);
-    expect(note.textContent).toBe('🔄 We reloaded Hazel Quest to fetch its newest version for 📈 Progress. Open 👪 Grown-ups again to see it.');
+    expect(note.textContent).toBe('🔄 The page had to reload. Open 👪 Grown-ups again to carry on.');
     expect(note).toHaveFocus();
     expect(sessionStorage.getItem('hazel-reloaded-for')).toBeNull();
     unmount();

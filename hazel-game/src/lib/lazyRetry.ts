@@ -1,4 +1,4 @@
-import { lazy, useCallback, useRef, useState, type ComponentType, type LazyExoticComponent } from 'react';
+import { lazy, useCallback, useEffect, useRef, useState, type ComponentType, type LazyExoticComponent } from 'react';
 import { errorMessage, friendlyMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE } from './errors';
 
 /**
@@ -26,8 +26,10 @@ export function retryableLazy<P extends object>(load: () => Promise<{ default: C
  * crash screen, with its details for grown-ups. The browsers' own words for a
  * dynamic import that failed: Chrome "Failed to fetch dynamically imported
  * module", Firefox "error loading dynamically imported module", Safari
- * "Importing a module script failed."; Vite's "Unable to preload CSS"; a
- * bundler's `ChunkLoadError`.
+ * "Importing a module script failed." — and Safari's "'text/html' is not a
+ * valid JavaScript MIME type." when a missing file is answered with a page
+ * (a site that sends every unknown address to `index.html`, #29 review
+ * round 3); Vite's "Unable to preload CSS"; a bundler's `ChunkLoadError`.
  */
 export function isChunkLoadError(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false;
@@ -35,29 +37,49 @@ export function isChunkLoadError(err: unknown): boolean {
   if (name === 'ChunkLoadError') return true;
   return (
     typeof message === 'string' &&
-    /dynamically imported module|importing a module script failed|unable to preload css|loading (css )?chunk \S+ failed/i.test(message)
+    /dynamically imported module|importing a module script failed|not a valid javascript mime type|unable to preload css|loading (css )?chunk \S+ failed/i.test(
+      message,
+    )
   );
 }
+
+/**
+ * Is this the game's own page (#29 review round 2)? Its title and its root,
+ * as `index.html` has them — read loosely (a longer title, attributes, quotes
+ * or none: a tidy-up there or a minifier mustn't quietly turn every Try
+ * again into "couldn't reach Hazel Quest"), and a test reads the real
+ * `index.html` with it (#29 review round 3). A wifi sign-in page has neither.
+ */
+export function isGamePage(html: string): boolean {
+  return /<title[^>]*>\s*Hazel Quest\b/i.test(html) && /\bid\s*=\s*["']?root(?=["'\s/>])/i.test(html);
+}
+
+/** How long a fresh GET of the page may take before the server counts as out of reach (#29 review round 3). */
+export const SERVER_ANSWER_MS = 8_000;
 
 /**
  * Does the game's own server answer with the game's own page (#29 review
  * round 2)? A fresh GET of this page must come back OK (not a 5xx), from
  * this site (where any redirect ended — a hotel or school wifi's sign-in
- * page is elsewhere), as a web page carrying the game's own page (its title
- * and root: a sign-in page served in its place has neither). Anything else
- * — no answer, an error page, someone else's page — is "out of reach": a
- * reload would land on it and lose the game.
+ * page is elsewhere), as a web page carrying the game's own page
+ * (`isGamePage`), within `SERVER_ANSWER_MS` (a black-holed connection
+ * doesn't keep "Trying…" up for ever, review round 3). Anything else — no
+ * answer, an error page, someone else's page — is "out of reach": a reload
+ * would land on it and lose the game.
  */
-export async function serverAnswers(): Promise<boolean> {
+export async function serverAnswers(timeoutMs = SERVER_ANSWER_MS): Promise<boolean> {
+  const stop = new AbortController();
+  const timer = setTimeout(() => stop.abort(), timeoutMs);
   try {
-    const res = await fetch(window.location.href, { cache: 'no-store', credentials: 'same-origin' });
+    const res = await fetch(window.location.href, { cache: 'no-store', credentials: 'same-origin', signal: stop.signal });
     if (!res.ok) return false;
     if (res.url && new URL(res.url).origin !== window.location.origin) return false;
     if (!/text\/html/i.test(res.headers.get('content-type') ?? '')) return false;
-    const page = await res.text();
-    return page.includes('<title>Hazel Quest</title>') && page.includes('id="root"');
+    return isGamePage(await res.text());
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -90,6 +112,9 @@ export async function retryLazy<P extends object>(page: RetryableLazy<P>): Promi
  * still missing while our server answers reloads the page (a new version is
  * out); `beforeReload` runs first, so the page can leave a note for after
  * (📈 Progress does: the reload lands on "Who's playing?", #29 review round 2).
+ * Once the card is gone (← Back while it tried) the answer is dropped — no
+ * page, no note, no reload under whatever the grown-up went on to (#29
+ * review round 3).
  */
 export function useLazyRetry<P extends object>(page: RetryableLazy<P>, onLoaded: () => void, beforeReload?: () => void) {
   const [busy, setBusy] = useState(false);
@@ -97,11 +122,19 @@ export function useLazyRetry<P extends object>(page: RetryableLazy<P>, onLoaded:
     typeof navigator !== 'undefined' && navigator.onLine === false ? OFFLINE_MESSAGE : null,
   );
   const trying = useRef(false);
+  const live = useRef(true);
+  useEffect(() => {
+    live.current = true;
+    return () => {
+      live.current = false;
+    };
+  }, []);
   const tryAgain = useCallback(async () => {
     if (trying.current) return;
     trying.current = true;
     setBusy(true);
     const got = await retryLazy(page);
+    if (!live.current) return;
     if (got.outcome === 'loaded') {
       onLoaded();
       return;
@@ -118,24 +151,36 @@ export function useLazyRetry<P extends object>(page: RetryableLazy<P>, onLoaded:
   return { busy, words, tryAgain };
 }
 
-/** The note 📈 Progress leaves before reloading for a new version (sessionStorage: this tab only). */
+/** The note 📈 Progress leaves before it reloads the game (sessionStorage: this tab only). */
 const RELOAD_NOTE_KEY = 'hazel-reloaded-for';
 
+/**
+ * How long a reload's note stays true (#29 review round 3): a reload that
+ * landed on the sign-in page (the sign-in had ended) must not explain itself
+ * to whoever signs in later.
+ */
+export const RELOAD_NOTE_MS = 2 * 60_000;
+
 /** Remember, for after the reload, why the game reloaded itself. Storage that can't be written just drops the note. */
-export function noteReloadFor(why: 'progress'): void {
+export function noteReloadFor(why: 'progress', now = Date.now()): void {
   try {
-    sessionStorage.setItem(RELOAD_NOTE_KEY, why);
+    sessionStorage.setItem(RELOAD_NOTE_KEY, `${why}@${now}`);
   } catch {
     // Private mode / blocked storage: the reload still happens, unexplained.
   }
 }
 
-/** Why the game reloaded itself just now, once (the note is cleared as it's read); null when it didn't. */
-export function takeReloadNote(): 'progress' | null {
+/** Why the game reloaded itself just now, once (the note is cleared as it's read); null when it didn't, or longer ago than `RELOAD_NOTE_MS`. */
+export function takeReloadNote(now = Date.now()): 'progress' | null {
   try {
-    const why = sessionStorage.getItem(RELOAD_NOTE_KEY);
+    const note = sessionStorage.getItem(RELOAD_NOTE_KEY);
     sessionStorage.removeItem(RELOAD_NOTE_KEY);
-    return why === 'progress' ? why : null;
+    const [why, at] = (note ?? '').split('@');
+    if (why !== 'progress') return null;
+    // A note from the build before this one has no time: the reload just happened.
+    if (at === undefined) return why;
+    const age = now - Number(at);
+    return age >= 0 && age <= RELOAD_NOTE_MS ? why : null;
   } catch {
     return null;
   }

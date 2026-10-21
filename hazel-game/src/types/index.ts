@@ -234,7 +234,7 @@ export interface LibraryEntry {
  * table with a localStorage write-through cache keyed by user id (#12).
  */
 export interface SaveData {
-  version: 3;
+  version: 4;
   /**
    * How many times this save has been changed (#151): one more on every change
    * the game makes (`saveStore.update`). On load the copy with the higher

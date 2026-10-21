@@ -9,8 +9,12 @@ import FamilyCard from './FamilyCard';
 import PinPad from './PinPad';
 import type { Kid } from '../../types';
 
-/** After 📈 Progress reloaded the game for a new version (#29 review round 2): what happened, and the way back. */
-export const PROGRESS_RELOADED_NOTE = 'We reloaded Hazel Quest to fetch its newest version for 📈 Progress. Open 👪 Grown-ups again to see it.';
+/**
+ * After 📈 Progress reloaded the game (#29 review round 2): what happened, and
+ * the way back — no reason it can't be sure of (a network blip reloads it too,
+ * with no new version, review round 3).
+ */
+export const PROGRESS_RELOADED_NOTE = 'The page had to reload. Open 👪 Grown-ups again to carry on.';
 
 /** What the locked pad tells a grown-up: where to unlock it, and that the same PIN is fine (#124c review). */
 export const KID_UNLOCK_HELP =
@@ -23,8 +27,8 @@ export const KID_UNLOCK_HELP =
  * notices). Grown-ups manage the family from 👪 Grown-ups, behind their own
  * PIN or password. Opened from an email-change link (#124d), it says what the
  * link did, once, at the top — focused, so it's heard (#167 review round 1);
- * after 📈 Progress reloaded the game for a new version, it says that, and how
- * to get back (#29 review round 2).
+ * after 📈 Progress reloaded the game, it says that, and how to get back (#29
+ * review rounds 2–3).
  */
 export default function WhoIsPlaying() {
   const kids = useFamilyStore((s) => s.kids);
@@ -37,7 +41,7 @@ export default function WhoIsPlaying() {
   const [resting, setResting] = useState(false);
   // An email-change link brought the grown-up here: what it did, once.
   const [linkNotice] = useState(() => takeEmailLinkNotice());
-  // 📈 Progress reloaded the game to fetch a new version: say so, once (#29 review round 2).
+  // 📈 Progress reloaded the game: say so, once (#29 review round 2).
   const [reloadNote] = useState(() => takeReloadNote());
   const noticeRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {

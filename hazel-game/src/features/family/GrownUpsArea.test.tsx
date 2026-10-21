@@ -52,7 +52,7 @@ vi.mock('../../lib/lazyRetry', async (original) => {
   };
 });
 
-const { default: GrownUpsArea } = await import('./GrownUpsArea');
+const { default: GrownUpsArea, PROGRESS_CRASHED } = await import('./GrownUpsArea');
 const { lazy } = await import('react');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
@@ -699,8 +699,42 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
     await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
-    // The note was there before the reload: "Who's playing?" says what happened after.
-    expect(noted).toBe('progress');
+    // The note was there before the reload (with its time, review round 3): "Who's playing?" says what happened after.
+    expect(noted).toMatch(/^progress@\d+$/);
+  });
+
+  it('a bug in 📈 Progress stays on its page in grown-up words — details folded, 👪 still open, Back to the list; the crash screen is for the rest of the game (#29 review round 3)', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    const page = chunk.page!;
+    function Broken(): never {
+      throw new TypeError("Cannot read properties of undefined (reading 'topicStarts')");
+    }
+    page.Component = lazy(() => Promise.resolve({ default: Broken })) as never;
+    onTestFinished(() => {
+      window.removeEventListener('error', quiet);
+      page.Component = lazy(page.load as never);
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    expect(await screen.findByText(PROGRESS_CRASHED, { selector: 'p' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+    // Read out once through the area's live region.
+    expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(true);
+    // The real error, folded for a grown-up — and in the console.
+    const raw = screen.getByText(/reading 'topicStarts'/, { selector: 'p' });
+    expect(raw.closest('details')?.querySelector('summary')).toHaveTextContent('Details for grown-ups');
+    expect(log.mock.calls.some(([first]) => first === 'A page crashed:')).toBe(true);
+    // Not the kid's crash screen, and nothing that would only show the same page again.
+    expect(screen.queryByText(/tripped over/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Try again|Reload/ })).toBeNull();
+    // Back: the list, 👪 still open (no gate), the live region quiet.
+    fireEvent.click(screen.getByRole('button', { name: '← Back to 👪 Grown-ups' }));
+    await screen.findByText('Sam');
+    expect(screen.queryByPlaceholderText('Password')).toBeNull();
+    expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(false);
+    expect(screen.getByRole('button', { name: 'Progress for Sam' })).toHaveFocus();
   });
 
   it('📈 Progress goes back to the gate when the 15 minutes run out (#29)', async () => {

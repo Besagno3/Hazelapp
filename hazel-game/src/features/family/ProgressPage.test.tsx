@@ -81,10 +81,11 @@ describe('📈 Progress (#29)', () => {
     ]);
     // At a glance: what's going well and what to practise together — from what's stored.
     const glanceList = screen.getByRole('list', { name: 'At a glance' });
-    // Days noted 1, 3 and 4 days back, and a 3-day streak to yesterday: the day 2 back is the streak's (review round 2).
+    // Days noted 1, 3 and 4 days back, and a 3-day streak to yesterday: the day 2 back is the streak's (review round 2) —
+    // played, like the rest (round 3). Time & History has no noted start, so no topic is crowned "most" (round 3).
     expect(within(glanceList).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      '📅Played on 4 of the last 7 days (counting days their streak shows).',
-      '🌟Most progress: Nature & Animals — up from level 4 to 9 since they started.',
+      '📅Played on 4 of the last 7 days.',
+      '🌟Up since they started: Math (level 3 → 6), Science (level 4 → 8) and Nature & Animals (level 4 → 9).',
       '💡To practise together — below where they started: Creativity.',
       '📚8 questions to try again at the Library (listed below).',
     ]);
@@ -103,27 +104,33 @@ describe('📈 Progress (#29)', () => {
     const week = weekHeading.nextElementSibling as HTMLElement;
     const daysRead = within(week).getAllByRole('listitem').map((li) => li.querySelector('.sr-only')?.textContent);
     expect(daysRead).toHaveLength(7);
-    expect(daysRead.filter((t) => t?.endsWith(': played'))).toHaveLength(3);
-    expect(daysRead.filter((t) => t?.endsWith(': played — their streak shows it'))).toHaveLength(1);
+    // One kind of played day, read "played" (round 3: the streak's lighter ✓ and its key are gone).
+    expect(daysRead.filter((t) => t?.endsWith(': played'))).toHaveLength(4);
     expect(daysRead.at(-1)).toMatch(/\(today\): no play noted$/);
-    // Two kinds of ✓: a key says what the lighter one is.
-    expect(screen.getByText("A day their streak shows they played, though it wasn't noted that day.")).toBeInTheDocument();
+    expect(screen.queryByText(/streak shows|wasn't noted/)).toBeNull();
     // Every topic, in plain words, against where it really started (review round 2) — never "their starting level".
     const topicRegion = screen.getByRole('region', { name: 'Question level by topic' });
-    expect(topicRegion).toHaveTextContent('A topic starts where the game starts a player of the age they are when they first play it (younger players begin lower, on purpose).');
-    // Time & History has no noted start: said once, and its row shows its level alone.
-    expect(topicRegion).toHaveTextContent('Where a topic started has only been noted since a recent update, so topics played before it show their level alone.');
-    expect(topicRegion).not.toHaveTextContent(/their starting level|above their/);
-    const [moved, notMoved] = within(topicRegion).getAllByRole('list');
+    // The intro in two short sentences, with no history of the game (round 3).
+    expect(topicRegion).toHaveTextContent('Each topic has its own question level, 1 to 10. Strong rounds move it up; hard ones bring it down slowly.');
+    expect(topicRegion).not.toHaveTextContent(/recent update|their starting level|above their/);
+    // Time & History has no noted start: apart, under "Levels now", its level alone (round 3).
+    expect(within(topicRegion).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual([
+      'Since they started',
+      'Levels now',
+      'Not moved yet: level 4 of 10',
+    ]);
+    const [moved, unnoted, notMoved] = within(topicRegion).getAllByRole('list');
     const topics = within(moved).getAllByRole('listitem');
     expect(topics.map((t) => t.textContent)).toEqual([
       '🔢 Math: level 6 of 10Up 3 from level 3, where they started at age 8',
       '🔬 Science: level 8 of 10Up 4 from level 4, where they started at age 9 — a stretch for their age',
       '⚙️ Engineering: level 4 of 10At level 4, where they started at age 9',
       '🎨 Creativity: level 3 of 10Below level 4, where they started at age 9 — a good one to practise together',
-      '⏳ Time & History: level 5 of 10',
       '🦋 Nature & Animals: level 9 of 10Up 5 from level 4, where they started at age 9 — for the strongest at their age',
     ]);
+    expect(within(unnoted).getAllByRole('listitem').map((t) => t.textContent)).toEqual(['⏳ Time & History: level 5 of 10']);
+    expect(unnoted.parentElement).toHaveTextContent("Where these began wasn't recorded.");
+    expect(unnoted.parentElement).not.toHaveTextContent(/younger/);
     // The four no round has moved, in one line — and no bar (review round 2).
     const notMovedHeading = within(topicRegion).getByRole('heading', { name: 'Not moved yet: level 4 of 10' });
     expect(notMovedHeading.parentElement?.querySelector('[aria-hidden="true"].flex')).toBeNull();
@@ -208,10 +215,12 @@ describe('📈 Progress (#29)', () => {
     await open(kit.id);
     await hero(1);
     const topics = screen.getByRole('region', { name: 'Question level by topic' });
-    expect(topics).toHaveTextContent('younger players begin lower, on purpose');
-    expect(topics).not.toHaveTextContent(/only been noted since/);
-    expect(topics).toHaveTextContent('Math: level 3 of 10Up 1 from level 2, where they started at age 7');
-    expect(topics).toHaveTextContent('Science: level 2 of 10At level 2, where they started at age 7');
+    expect(topics).toHaveTextContent('Each topic has its own question level, 1 to 10. Young players start low on purpose, then climb.');
+    expect(topics).not.toHaveTextContent(/recent update|Levels now/);
+    // Both started at the same place: said once above them, the rows shorter (round 3).
+    expect(topics).toHaveTextContent('Both started at level 2, when Kit was 7.');
+    expect(topics).toHaveTextContent('Math: level 3 of 10Up 1 since they started');
+    expect(topics).toHaveTextContent('Science: level 2 of 10At the level they started on');
     expect(topics).not.toHaveTextContent(/easy questions for their age|below/i);
     expect(screen.getByRole('list', { name: 'At a glance' })).toHaveTextContent('Nothing stands out to practise right now.');
   });
@@ -227,8 +236,10 @@ describe('📈 Progress (#29)', () => {
     await hero(18);
     const topics = screen.getByRole('region', { name: 'Question level by topic' });
     expect(topics).not.toHaveTextContent(/[Bb]elow/);
-    expect(topics).toHaveTextContent('Math: level 3 of 10Up 2 from level 1, where they started at age 6');
-    expect(topics).toHaveTextContent('Words & Stories: level 2 of 10Up 1 from level 1, where they started at age 6');
+    expect(topics).toHaveTextContent('All 5 started at level 1, when Ada was 6.');
+    expect(topics).not.toHaveTextContent(/where they started at age/);
+    expect(topics).toHaveTextContent('Math: level 3 of 10Up 2 since they started');
+    expect(topics).toHaveTextContent('Words & Stories: level 2 of 10Up 1 since they started');
     const glanceList = screen.getByRole('list', { name: 'At a glance' });
     expect(glanceList).toHaveTextContent('Most progress: Math, Science and Nature & Animals — up 2 levels each since they started.');
     expect(glanceList).toHaveTextContent('Nothing stands out to practise right now.');
@@ -244,9 +255,33 @@ describe('📈 Progress (#29)', () => {
     const topics = screen.getByRole('region', { name: 'Question level by topic' });
     expect(topics).toHaveTextContent('Math: level 10 of 10For the strongest at their age');
     expect(topics).toHaveTextContent('Words & Stories: level 5 of 10');
-    expect(topics).not.toHaveTextContent(/above|below|where they started/i);
-    expect(topics).toHaveTextContent('only been noted since a recent update');
+    expect(topics).not.toHaveTextContent(/above|below|where they started|recent update/i);
+    // Apart, under "Levels now" — and the bare 5 beside "Not moved yet: level 6" isn't left to read as a step back (round 3).
+    expect(within(topics).getByRole('heading', { level: 4, name: 'Levels now' })).toBeInTheDocument();
+    expect(topics).toHaveTextContent("Where these began wasn't recorded. Any first played when Ren was younger may have started lower than level 6.");
     expect(screen.getByRole('list', { name: 'At a glance' })).not.toHaveTextContent(/Most progress|Furthest|below/);
+  });
+
+  it("launch week (Lia 9, round 3): a topic first tried since the update is never crowned \"most progress\" over topics the page can't compare", async () => {
+    const lia: Kid = { ...sam, id: 'kid-lia', name: 'Lia' };
+    answers.profiles = ok([
+      { ...newKidRow(lia.id), xp: 4000, level: 15, level_xp: 10, last_played_on: today, skill_levels: { math: 7, science: 8, history: 6, words: 5, creativity: 2, engineering: 3, geography: 5, music: 3 } },
+    ]);
+    answers.saves = ok([{ profile_id: lia.id, data: { ...trainingSave(), worldUnlocked: true, topicStarts: { geography: { level: 4, age: 9 }, music: { level: 4, age: 9 } } } }]);
+    useFamilyStore.setState({ kids: [lia] });
+    await open(lia.id);
+    await hero(15);
+    const glanceList = screen.getByRole('list', { name: 'At a glance' });
+    expect(glanceList).toHaveTextContent('Up since they started: Maps & Places (level 4 → 5).');
+    expect(glanceList).not.toHaveTextContent(/Most progress/);
+    // Her six older topics sit apart, under "Levels now"; the two since, against where they started.
+    const topics = screen.getByRole('region', { name: 'Question level by topic' });
+    const [since, now] = within(topics).getAllByRole('list');
+    expect(within(since).getAllByRole('listitem').map((t) => t.textContent)).toEqual([
+      '🧭 Maps & Places: level 5 of 10Up 1 since they started',
+      '🎸 Music: level 3 of 10Below where they started — a good one to practise together',
+    ]);
+    expect(within(now).getAllByRole('listitem')).toHaveLength(6);
   });
 
   it("a last day played more than a day ahead is a device clock set wrong: not sure, never \"Today\" (review round 2)", async () => {
@@ -258,9 +293,11 @@ describe('📈 Progress (#29)', () => {
     await hero(12);
     expect(screen.getAllByRole('definition').map((d) => d.textContent)).toEqual(['Not sure', 'Best: 7 days in a row', 'Not sure', "Their device's date is set ahead"]);
     expect(screen.queryByText(/999/)).toBeNull();
-    // No day of the week is counted from it (the strip's own "Today" label stays).
-    expect(screen.getByRole('heading', { name: /Last 7 days/ })).toHaveTextContent('played on 0 of 7');
-    expect(screen.getByRole('list', { name: 'At a glance' })).toHaveTextContent('No play noted in the last 7 days.');
+    // The week and the glance say "not sure" too — never "0 of 7" or "no play noted" (round 3).
+    expect(screen.getByRole('heading', { name: /Last 7 days/ })).toHaveTextContent('Last 7 days · not sure');
+    expect(screen.queryByText(/of 7/)).toBeNull();
+    expect(screen.queryByText(/no play noted/i)).toBeNull();
+    expect(screen.getByRole('list', { name: 'At a glance' })).toHaveTextContent("Not sure which days they played — their device's date is set ahead.");
   });
 
   it('big numbers are written one way; a week since they played says so (review round 1)', async () => {

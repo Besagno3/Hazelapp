@@ -8,6 +8,7 @@ import {
   revisionOf,
   runMigrations,
   saveIsTooNew,
+  saveVersionOf,
   wakeAfterDefeat,
   wakeShelter,
   wakeInnName,
@@ -98,7 +99,7 @@ describe('runMigrations (Wave 0.2 versioned ladder)', () => {
   const centre = (x: number, y: number) => ({ x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 });
 
   it('v1 → v2: a save on the retired Lumina Field wakes at home, keeping everything else (#75 item 8)', () => {
-    expect(SAVE_VERSION).toBe(3);
+    expect(SAVE_VERSION).toBe(4);
     const v2 = runMigrations(V1, MIGRATIONS, 2) as Record<string, unknown>;
     expect(v2.version).toBe(2);
     expect(v2.zoneId).toBe('lumina-village');
@@ -552,9 +553,23 @@ describe('old saves load (#75 item 14b)', () => {
   });
 });
 
+describe('save v4: a guard for the topic starts (#29 review round 3)', () => {
+  it('v3 → v4 changes nothing but the version: a v3 save keeps its starts, its place and its revision', () => {
+    const v3 = { ...V3_FLYING, revision: 5, topicStarts: { math: { level: 4, age: 9 } } };
+    const up = runMigrations(v3) as Record<string, unknown>;
+    expect(up).toEqual({ ...v3, version: 4 });
+    expect(normalizeSave(v3)).toMatchObject({ version: 4, revision: 5, topicStarts: { math: { level: 4, age: 9 } }, zoneId: 'dawnreach' });
+  });
+
+  it("a v4 save is too new for a tab still on a v3 build (it asks for a refresh instead of dropping the starts)", () => {
+    // As a v3 build reads it: SAVE_VERSION was 3 there.
+    expect(saveVersionOf(normalizeSave(V3_FLYING))).toBeGreaterThan(3);
+  });
+});
+
 describe('save v3: how the hero gets about (#75 item 15b)', () => {
   it('v2 → v3: `aboard` becomes `vehicle`', () => {
-    const sailing = runMigrations(CURRENT_ABOARD) as Record<string, unknown>;
+    const sailing = runMigrations(CURRENT_ABOARD, MIGRATIONS, 3) as Record<string, unknown>;
     expect([sailing.version, sailing.vehicle]).toEqual([3, 'boat']);
     expect(sailing).not.toHaveProperty('aboard');
     const ashore = runMigrations({ ...CURRENT_ABOARD, aboard: false }) as Record<string, unknown>;

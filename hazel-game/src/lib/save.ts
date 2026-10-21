@@ -9,7 +9,7 @@ import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
 import { withSecretsBadge } from '../content/secrets';
 
-export const SAVE_VERSION = 3 as const;
+export const SAVE_VERSION = 4 as const;
 
 /**
  * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
@@ -97,6 +97,17 @@ export const MIGRATIONS: MigrationLadder = {
     delete out.aboard;
     return out;
   },
+  /**
+   * v3 → v4 (#29 review round 3): nothing to change — `topicStarts` (where
+   * each topic really started, #29 review round 2) is additive. The bump is
+   * the guard: a tab still running a v3 build drops `topicStarts` as it
+   * normalizes, and its next save would wipe them for good (those topics are
+   * measured now, so they're never noted again). A v4 save is too new for it
+   * (`saveIsTooNew` → "Hazel Quest has been updated! … Refresh the page to
+   * keep playing — nothing is lost.") and the server refuses its lower
+   * version (0011), so it asks for a refresh instead.
+   */
+  3: (raw) => ({ ...raw }),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {

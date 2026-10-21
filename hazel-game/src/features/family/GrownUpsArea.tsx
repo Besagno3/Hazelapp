@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { noteReloadFor, retryableLazy, useLazyRetry } from '../../lib/lazyRetry';
 import LazyBoundary from '../../components/LazyBoundary';
+import ErrorDetails from '../../components/ErrorDetails';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
 import { cn } from '../../lib/utils';
@@ -257,7 +258,11 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
       say(null);
     };
     return (
-      <LazyBoundary key={progressTry} failed={<ProgressDidNotLoad onLoaded={progressLoaded} onBack={back} say={say} />}>
+      <LazyBoundary
+        key={progressTry}
+        failed={<ProgressDidNotLoad onLoaded={progressLoaded} onBack={back} say={say} />}
+        crashed={(error) => <ProgressCrashed error={error} onBack={back} say={say} />}
+      >
         <Suspense
           fallback={
             // As wide as the page it's waiting for, so the card doesn't jump (#29 review round 1).
@@ -416,15 +421,16 @@ function UnlockedNote({ name }: { name: string }) {
   );
 }
 
-/** Before 📈 Progress reloads the game for a new version: "Who's playing?" says why, after (#29 review round 2). */
+/** Before 📈 Progress reloads the game: "Who's playing?" says so, after (#29 review round 2). */
 const noteProgressReload = () => noteReloadFor('progress');
 
 /**
  * 📈 Progress's file didn't load (#29 review round 1): plain words, "Try
  * again" (it loads the file afresh; still missing while our server answers
- * means a new version is out, so the game reloads — leaving a note, so "Who's
- * playing?" says what happened and how to get back, `ReloadedNote`) and the
- * way back — the rest of 👪 Grown-ups never leaves. Said once through the
+ * means a new version is out or the browser kept the failure, so the game
+ * reloads — leaving a note, so "Who's playing?" says what happened and how to
+ * get back) and the way back — the rest of 👪 Grown-ups never leaves; Back
+ * while it tries drops its answer (#29 review round 3). Said once through the
  * area's live region.
  */
 function ProgressDidNotLoad({ onLoaded, onBack, say }: { onLoaded: () => void; onBack: () => void; say: (words: string | null) => void }) {
@@ -445,6 +451,32 @@ function ProgressDidNotLoad({ onLoaded, onBack, say }: { onLoaded: () => void; o
         {busy ? 'Trying…' : 'Try again'}
       </button>
       <button type="button" onClick={onBack} className={cn(gateLinkClass, 'mt-2 text-purple-700')}>
+        ← Back to 👪 Grown-ups
+      </button>
+    </FamilyCard>
+  );
+}
+
+/** What 📈 Progress says when something in it goes wrong (#29 review round 3). */
+export const PROGRESS_CRASHED = 'Something went wrong showing progress. The rest of 👪 Grown-ups still works.';
+
+/**
+ * 📈 Progress hit a bug (a junk save value, say — not a file that didn't
+ * load) (#29 review round 3): grown-up words, the error folded under
+ * "Details for grown-ups" and the way back, on its own card — 👪 Grown-ups
+ * stays open (the game's crash screen spoke to a kid, and its Reload locked
+ * 👪 again). No Try again: it would only show the same page. Said once
+ * through the area's live region.
+ */
+function ProgressCrashed({ error, onBack, say }: { error: Error; onBack: () => void; say: (words: string | null) => void }) {
+  useEffect(() => {
+    say(PROGRESS_CRASHED);
+  }, [say]);
+  return (
+    <FamilyCard extraWide focusTitle title="📈 Progress">
+      <p className="text-sm text-gray-700">{PROGRESS_CRASHED}</p>
+      <ErrorDetails error={error} className="mt-3" />
+      <button type="button" onClick={onBack} className={cn(gateLinkClass, 'mt-4 text-purple-700')}>
         ← Back to 👪 Grown-ups
       </button>
     </FamilyCard>

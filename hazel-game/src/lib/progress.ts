@@ -225,10 +225,8 @@ export interface RecentDay {
   /** "Mon" on the strip, "Monday 20 October" read out. */
   short: string;
   long: string;
-  /** Noted that day (migration 0025) or the profile's last day played, or shown by their live streak. */
+  /** Noted that day (migration 0025), the profile's last day played, or a day their live streak proves (#29 review round 2). */
   played: boolean;
-  /** Played, known only from their live streak — not noted that day (#29 review round 2): drawn and said apart. */
-  fromStreak: boolean;
   today: boolean;
 }
 
@@ -237,9 +235,10 @@ export interface RecentDay {
  * the day (migration 0025) or it's the profile's last day played — and, since
  * a live streak of N ending on that day proves those N days were played,
  * those days too (#29 review round 2: in the first week after 0025, or after
- * a day's note didn't send, the week said "1 of 7" over a "6 days" streak),
- * marked `fromStreak` so the page says where they came from. Nothing else is
- * guessed — a day without either reads "no play noted". A day after `today`
+ * a day's note didn't send, the week said "1 of 7" over a "6 days" streak) —
+ * played like any other (round 3: a second kind of ✓ had no job for a parent
+ * and made the count sound unsure). Nothing else is guessed — a day without
+ * either reads "no play noted". A day after `today`
  * (the kid's device a time zone ahead) counts as today; one further ahead
  * (a clock set wrong) counts for nothing.
  */
@@ -258,13 +257,11 @@ export function recentDays(today: string, playDays: readonly string[], lastPlaye
     const iso = isoOffset(today, i - (RECENT_DAYS - 1));
     const d = dateOf(iso);
     const name = WEEKDAYS[d.getDay()];
-    const fromStreak = !noted.has(iso) && streak.has(iso);
     return {
       iso,
       short: name.slice(0, 3),
       long: `${name} ${d.getDate()} ${MONTHS[d.getMonth()]}`,
-      played: noted.has(iso) || fromStreak,
-      fromStreak,
+      played: noted.has(iso) || streak.has(iso),
       today: iso === today,
     };
   });
@@ -297,14 +294,32 @@ export function levelBand(level: number): LevelBand {
  * themselves, are said. Nothing here claims a level went down: the database
  * keeps no history.
  */
-export function topicMeaning(level: number, start: TopicStart | null): string | null {
+export function topicMeaning(level: number, start: TopicStart | null, short = false): string | null {
   const band = levelBand(level);
   const pitch = band === 'stretch' ? 'a stretch for their age' : band === 'top' ? 'for the strongest at their age' : null;
   if (!start) return pitch && `${pitch[0].toUpperCase()}${pitch.slice(1)}`;
+  // `short`: every topic started at the same place, said once above them (#29 review round 3).
+  if (short) {
+    if (level < start.level) return 'Below where they started — a good one to practise together';
+    if (level === start.level) return 'At the level they started on';
+    return `Up ${level - start.level} since they started${pitch ? ` — ${pitch}` : ''}`;
+  }
   const from = `level ${start.level}, where they started at age ${start.age}`;
   if (level < start.level) return `Below ${from} — a good one to practise together`;
   if (level === start.level) return `At ${from}`;
   return `Up ${level - start.level} from ${from}${pitch ? ` — ${pitch}` : ''}`;
+}
+
+/**
+ * The start every noted topic shares, when there are two or more and they all
+ * began at the same level at the same age (#29 review round 3: "…where they
+ * started at age 6" five times over) — said once above them, the rows shorter.
+ */
+export function sharedStart(levels: readonly Pick<TopicLevel, 'measured' | 'start'>[]): TopicStart | null {
+  const starts = levels.filter((t) => t.measured && t.start !== null).map((t) => t.start as TopicStart);
+  if (starts.length < 2) return null;
+  const [first] = starts;
+  return starts.every((s) => s.level === first.level && s.age === first.age) ? first : null;
 }
 
 export interface TopicLevel {
@@ -328,13 +343,15 @@ export interface TopicLevel {
  */
 export function topicLevels(skillLevels: KidStats['skillLevels'], age: number, starts: SaveData['topicStarts'] = {}): TopicLevel[] {
   const ageStart = ageToStartLevel(age);
-  return ALL_TOPIC_INFO.map((t) => {
+  const rows = ALL_TOPIC_INFO.map((t) => {
     const saved = skillLevels[t.id];
     const measured = typeof saved === 'number' && Number.isFinite(saved);
     const level = measured ? clampLevel(saved) : ageStart;
     const start = measured ? (starts[t.id] ?? null) : null;
-    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, start, meaning: measured ? topicMeaning(level, start) : null };
+    return { id: t.id, label: t.label, emoji: t.emoji, level, measured, start };
   });
+  const short = sharedStart(rows) !== null;
+  return rows.map((t) => ({ ...t, meaning: t.measured ? topicMeaning(t.level, t.start, short) : null }));
 }
 
 // --- At a glance ---------------------------------------------------------------
@@ -350,12 +367,20 @@ export function nameList(names: readonly string[], max = 2): string {
 export const SEVERAL_MISSED = 3;
 
 export interface Glance {
-  /** Days played in the last week, or null when the database can't say (no 0025). */
+  /** Days played in the last week, or null when the database can't say (no 0025, or their device's date is set ahead). */
   playedDays: number | null;
-  /** How many of those only their live streak shows (#29 review round 2). */
-  streakDays: number;
-  /** The topics that climbed most since their noted start (none unless one climbed). */
+  /**
+   * The topics that climbed since their noted start: the ones that climbed
+   * most when `ranked`, else every one that climbed, in the game's order.
+   */
   climbed: TopicLevel[];
+  /**
+   * Every measured topic has a noted start, and there are two or more: only
+   * then can one be said to have climbed most (#29 review round 3 — a topic
+   * first tried after the update was crowned over years of Math it can't be
+   * compared with).
+   */
+  ranked: boolean;
   /** Measured topics below their noted start. */
   belowStart: TopicLevel[];
   /** Topics with several questions waiting at the Library, most first. */
@@ -371,14 +396,16 @@ export interface Glance {
  * (#29 review round 2). `levels` / `missed` are null where nothing was saved.
  */
 export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, missed: MissedQuestion[] | null): Glance {
-  const started = (levels ?? []).filter((t): t is TopicLevel & { start: TopicStart } => t.measured && t.start !== null);
+  const measured = (levels ?? []).filter((t) => t.measured);
+  const started = measured.filter((t): t is TopicLevel & { start: TopicStart } => t.start !== null);
+  const ranked = measured.length >= 2 && started.length === measured.length;
   const most = Math.max(0, ...started.map((t) => t.level - t.start.level));
   const counts = new Map<string, number>();
   for (const m of missed ?? []) counts.set(m.topicLabel, (counts.get(m.topicLabel) ?? 0) + 1);
   return {
     playedDays: week ? week.filter((d) => d.played).length : null,
-    streakDays: week ? week.filter((d) => d.fromStreak).length : 0,
-    climbed: most > 0 ? started.filter((t) => t.level - t.start.level === most) : [],
+    climbed: ranked ? (most > 0 ? started.filter((t) => t.level - t.start.level === most) : []) : started.filter((t) => t.level > t.start.level),
+    ranked,
     belowStart: started.filter((t) => t.level < t.start.level),
     missedByTopic: [...counts]
       .filter(([, n]) => n >= SEVERAL_MISSED)
@@ -389,25 +416,43 @@ export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, mi
 }
 
 /**
- * What to practise together, grouped by why and every topic named (#29 review
- * round 2: one long line repeated "(below their starting level)" for each and
- * ended "…and 2 more"): "To practise together — below where they started:
- * Engineering and Creativity · questions waiting at the Library: Math (4)."
- * Null when nothing stands out.
+ * What to practise together, grouped by why and every topic named once (#29
+ * review round 2: one long line repeated "(below their starting level)" for
+ * each and ended "…and 2 more"; round 3: a topic with both reasons was named
+ * twice): "To practise together — below where they started, with questions
+ * waiting: Creativity (3) · below where they started: Engineering · questions
+ * waiting at the Library: Math (4)." Null when nothing stands out.
  */
 export function practiseText(g: Pick<Glance, 'belowStart' | 'missedByTopic'>): string | null {
+  const waiting = new Map(g.missedByTopic.map((m) => [m.label, m.count]));
+  const both = g.belowStart.filter((t) => waiting.has(t.label));
+  const belowOnly = g.belowStart.filter((t) => !waiting.has(t.label));
+  const below = new Set(g.belowStart.map((t) => t.label));
+  const waitingOnly = g.missedByTopic.filter((m) => !below.has(m.label));
   const parts: string[] = [];
-  if (g.belowStart.length > 0) parts.push(`below where they started: ${nameList(g.belowStart.map((t) => t.label), Infinity)}`);
-  if (g.missedByTopic.length > 0) {
-    parts.push(`questions waiting at the Library: ${nameList(g.missedByTopic.map((m) => `${m.label} (${m.count})`), Infinity)}`);
+  if (both.length > 0) {
+    parts.push(`below where they started, with questions waiting: ${nameList(both.map((t) => `${t.label} (${waiting.get(t.label)})`), Infinity)}`);
+  }
+  if (belowOnly.length > 0) parts.push(`below where they started: ${nameList(belowOnly.map((t) => t.label), Infinity)}`);
+  if (waitingOnly.length > 0) {
+    parts.push(`questions waiting at the Library: ${nameList(waitingOnly.map((m) => `${m.label} (${m.count})`), Infinity)}`);
   }
   return parts.length > 0 ? `To practise together — ${parts.join(' · ')}.` : null;
 }
 
-/** "Most progress: Math — up from level 1 to 3 since they started." (or "Math and Science — up 2 levels each …"); null with no climb. */
-export function climbedText(climbed: readonly TopicLevel[]): string | null {
+/**
+ * The 🌟 line. `ranked` (every measured topic has a noted start, two or
+ * more): "Most progress: Math — up from level 1 to 3 since they started." (or
+ * "Math and Science — up 2 levels each …"). Otherwise only what's known, no
+ * winner (#29 review round 3): "Up since they started: Maps & Places (level 4
+ * → 5)." Null with no climb.
+ */
+export function climbedText(climbed: readonly TopicLevel[], ranked: boolean): string | null {
   const first = climbed[0];
   if (!first?.start) return null;
+  if (!ranked) {
+    return `Up since they started: ${nameList(climbed.map((t) => `${t.label} (level ${t.start?.level} → ${t.level})`), Infinity)}.`;
+  }
   if (climbed.length === 1) return `Most progress: ${first.label} — up from level ${first.start.level} to ${first.level} since they started.`;
   const by = first.level - first.start.level;
   return `Most progress: ${nameList(climbed.map((t) => t.label), Infinity)} — up ${by} ${by === 1 ? 'level' : 'levels'} each since they started.`;
