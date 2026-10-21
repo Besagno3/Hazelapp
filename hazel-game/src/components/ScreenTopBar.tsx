@@ -8,9 +8,9 @@ import SwitchPlayerButton from '../features/auth/SwitchPlayerButton';
  * world's (#102i). Floating, the badges covered the "Training Grounds" heading
  * and the rounds-passed line on a phone, and stayed over the topics as the
  * page scrolled. In the page, it scrolls away with it and covers nothing. The
- * quiz's loading and error screens show it too. "Switch player" in full where
- * it fits (from 400 px; "Switch" alone could mean the hero or the topic), and
- * a short landscape phone keeps the gap under it small.
+ * quiz keeps it while a question is on its way (#163). "Switch player" in
+ * full where it fits (from 400 px; "Switch" alone could mean the hero or the
+ * topic), and a short landscape phone keeps the gap under it small.
  */
 export default function ScreenTopBar() {
   return (

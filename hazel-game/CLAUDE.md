@@ -337,7 +337,7 @@ zod, react-query. Add the package in the same change that first uses it.
   the commands off the screen (`bench … battle`, a boss fight); 🏃 Flee sits
   beside "Your move!", so the other six commands fill the grid (#158b). The
   Training Grounds, quiz and hero pick use `ScreenTopBar` (the same row in
-  the page, #110h; the quiz's loading and error screens too) — no screen
+  the page, #110h; the quiz keeps it while a question is on its way, #163) — no screen
   floats badges any more; there "Switch player" is spelled out from 400 px.
   🏃 Flee comes last in the page (after the grid), so Tab reaches Attack first. Switch asks
   "Switch?" first (same size; the hint floats below it), and any other tap
@@ -970,9 +970,35 @@ zod, react-query. Add the package in the same change that first uses it.
   (`fetchQuestions`) invokes it from the client; the optional `flavor` arg
   (a `FlavorId` key — battle, spell, gate, chest, shrine, spire — never text,
   #131) adds adventure flavour to fresh generations (#37).
-- Quiz and battle screens load **AI-generated questions** via the
-  `useGeneratedQuestions` hook (age + per-topic skill level → `fetchQuestions`),
-  with loading and error/retry states.
+- Quiz and battle screens load **AI-generated questions** without waiting for
+  the whole batch (#158, #163): `useBattleQuestions` (age + per-topic skill
+  level) starts on saved questions — a look-ahead, or a saved-questions-only
+  request, at most `QUICK_WAIT_MS` (`quickQuestions`), starter questions
+  filling a thin, slow or down bank — and adds the rest as they arrive
+  (`moreQuestions`, which may ask Claude). It never errors (a bug in the
+  loading is logged, and starters fill in), so neither screen has an error
+  state. The battle goes round its pool; **the Training Grounds quiz**
+  (`useQuizRound`, `features/quiz/`) takes each of its 5 questions as the kid
+  reaches it — the next bank question when one is in, else a starter
+  (`nextRoundQuestion`), never one the round asked — and if nothing new has
+  arrived it says "One moment…" in its card (not a full-screen loader; shown
+  only after a beat, counted once the last question has slid out, and then
+  for at least 0.4 s, `useCalmWait`) for at most
+  `QUICK_WAIT_MS`, then asks a starter (`withSpareStarters`), so a round
+  always finishes. Next moves on only from the question it belongs to
+  (`advance(from)`), and a question sliding out is inert. The quiz runs
+  `useBattleQuestions` with `carry`: questions it was handed but couldn't use
+  (in after every slot was taken, or after the kid left) are carried to the
+  kid's next round of the topic (`carryOver` / `takeCarried`, in memory, per
+  kid, within ±2 levels, dropped after `HELD_FOR_MS`) and go first there
+  (`quickQuestions`' `have`: with 3 it starts at once), each kept until 45
+  min after the server handed it over (`noteHandedOver`), the oldest going
+  at the cap; the round-end look-ahead (`warmNextRound`, at the new level)
+  asks only for what they leave missing; and a round whose bank covered it
+  (`covered`) asks instead, as it ends, for the next round's — a normal
+  request at the new level, ~1 fresh (#30, `askFreshForNextRound`). Gates, chests and tale-stones, shrine trials, the Spire
+  and a battle's speed boost still use `fetchQuestions` (one call, the whole
+  batch, starters for whatever the server can't give).
 - Two progression systems: (1) per-topic **skill ramp** — `nextSkillLevel`
   (`lib/age.ts`) tunes quiz difficulty after each quiz round, persisted via
   `profileStore.setSkillLevel`; (2) overall **player level** — saved in
@@ -997,8 +1023,10 @@ zod, react-query. Add the package in the same change that first uses it.
   an hour (`question_views.shown = false`), so prefetches don't fill a kid's
   seen window — the last 100 distinct questions shown in that topic (read
   from their latest 1,000 shown views, so the cost doesn't grow with play).
-  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need. A
-  zone's critters are warmed from the saved bank only (`cacheOnly`, #153:
+  `prefetchQuestions` (`lib/questions.ts`) warms requests ahead of need (one
+  warmed longer ago than `HELD_FOR_MS`, 45 min, isn't used: the server's hold
+  may have lapsed). A zone's critters — and the next quiz round, warmed as a
+  round ends (#163) — are warmed from the saved bank only (`cacheOnly`, #153:
   unseen saved questions, never a Claude call, maybe short or empty, and it
   holds nothing on the family budget — `p_fresh_wanted: 0`); the
   battle asks for whatever is still missing when it starts.
@@ -1246,6 +1274,129 @@ tests 2045 → 2112, lint, `tsc -b`, `build:web`, `deno check` of both functions
 320×568, 740×360 and 1024×768 (72/72). Logged: #168 (the auth service's own
 user updates can't be held to the window).
 
+### 2026-10-20 — Quiz review round 2: the next round asked for at its own level, held questions that never outlive the server's hold, a wait that starts when the slot is free, a results card that fits a sideways phone (#163)
+`/saas-code-review` (2 medium, 1 low) and `/saas-ux-review` (4 low + 2 also
+noted), all fixed; the lead's calls on the two open questions. **The next
+round's questions are asked for as a round ends, at the level it's played
+at:** a round its saved questions covered (`useBattleQuestions`' new
+`covered`, through `useQuizRound`) has `finishRound` call `warmNextRound(…,
+newLevel, …, { fresh: true })`, which makes the normal request (~1 fresh,
+#30, `askFreshForNextRound`) there instead of the saved-only look-ahead —
+it used to go out as the round started, at that round's level, so after a
+climb of two about 2 of its 5 never fitted the next round and sat held and
+unused. At the cap of 10 the oldest carried questions go (`carryOver` sorts
+by hand-over time), never the new ones that fit. **A held question never
+outlives the server's hold:** `invokeGenerate` notes when it handed each
+question over, per kid (`noteHandedOver`, the request's send time), and a
+carried question keeps that time — carrying it, putting it back unasked or
+carrying it again no longer restarts its 45 minutes (it could be offered 75–84
+min after hand-over, past the server's hour, so the kid could see it twice).
+Tests for the per-kid routing and the catch path's carried questions (6 of
+the reviewer's 14 mutations survived; all 14, and 19 more of this round's,
+now fail a test). **The wait starts when the slot is free:** Next sets
+`leaving`, cleared by `AnimatePresence`'s `onExitComplete`, and the calm
+wait gets `waiting && !leaving` — a question that lands while the old card
+slides out (~0.42 s) comes straight in, never behind a 0.17 s flash of "One
+moment…" or held for its 0.4 s minimum. **At 8 s** the card says "This is
+taking a while. You can go back and pick again." (no spinner, no "on its
+way") over "Back to Topics", the status line says it once
+(`LONG_WAIT_WORDS`), and the button goes the moment a question comes.
+**Results on a short landscape phone** (`[@media(max-height:500px)]`): the
+emoji (text-4xl) beside the title, the XP beside the score, tighter padding
+and gaps — a perfect world round's card is 264 px at 740×360 (was 424, 140 px
+past the screen), both buttons on screen; portrait and desktop unchanged.
+The fact has its own mark, 🌟 (💡 is the recap's explanations). Five facts
+reworded for a 7-year-old (no "asylum", the Cleopatra line, "slow
+microwaves", factors, 99.965%) and the Sun's "99.8% of the mass" too, which
+the new no-decimal-percentages test caught. **Also noted:** the wait block
+and a question keep two lines' room (`min-h-[20.25rem]`, the h2
+`min-h-[3.5rem]`), so a two-line question no longer grows the card 28 px; on
+a short landscape phone it stays one line (the page already scrolls there,
+and a second line would push every one-line question's last answer below
+the fold). Starter-only rounds still show no XP line (the lead).
+Stubbed app (BENCH_PORT 5781): the rest of a round released 150–600 ms
+after Next → the wait never shows, no status line (375×667, 320×568,
+740×360, 1024×768); 800 ms → shown from ~0.74 s for 0.42 s; at 8 s the new
+words at three sizes, Tab reaches Back; results at 320×568, 375×667, 740×360
+touch and 1024×768; a two-line question 424 px waiting and shown at 375×667
+and 1024×768; a rich bank whose kid reads the results 25 s → every round
+starts on the five asked at its level, none stranded, one call a round.
+Tests 1844 → 1861.
+
+### 2026-10-20 — The quiz starts at once review round 1: no skipped question, nothing wasted, a wait that never flashes, XP and a fun fact (#163)
+`/saas-code-review` (1 high, 2 medium, 3 low) and `/saas-ux-review` (1
+medium, 3 low), all fixed, with the lead's calls on the open questions.
+**A double tap on Next skipped a question** (older than #163): the card
+sliding out still ran its Next, so the recap, the Library and the bank /
+starter split paired answers with the wrong questions. `advance(from)` moves
+only from the question its Next belongs to, and a question sliding out is
+`inert` (`RoundQuestion`, `useIsPresent`). The spare-starter timer fills
+every empty slot up to the kid's (`withSpareStarters`), so the same tap into
+a question not in yet can't leave "One moment…" up until the slow request
+ends. **Nothing the server hands over is wasted** (the lead): what a round
+can't use — in once every slot is taken, or not asked when the kid leaves,
+or landing after — is carried to the kid's next round of the topic
+(`carryOver` / `takeCarried`, `lib/questions.ts`: in memory, per kid, within
+±2 levels, at most 10, dropped after `HELD_FOR_MS` = 45 min, inside the
+server's hour-long hold) and goes first there (`quickQuestions`' `have`: with
+3 it starts at once, asking only for the rest); the round-end look-ahead asks
+only for what they leave missing (`warmNextRound`, `prefetchQuestions`'
+`ask`). **~1 fresh question a round again on a rich bank** (#30, the lead):
+when the saved questions cover the round, it asks in the background for the
+next round's — the normal request for 5 a round made before #163, of which
+the server writes about one fresh (`chooseFreshCount`) — carried over, one at
+a time a topic, none when the next round is covered
+(`askFreshForNextRound`); never waited for, and within the budget rules (one
+call a round, ~1 fresh). A failing `quickQuestions` gives starters
+(`useBattleQuestions`), and a wait past `LONG_WAIT_MS` (8 s; only a bug)
+shows "Back to Topics". A look-ahead warmed longer ago than `HELD_FOR_MS`
+isn't used (also noted). **The wait:** "One moment…" shows after 0.8 s for a
+round's first question (0.25 s later) and then for at least 0.4 s
+(`useCalmWait`), at a one-line question's height (`min-h-[18.5rem]`, 16rem on
+a short landscape phone — measured, so the card never jumps); the status line
+is in the page empty, speaks as the wait shows and says "Here's question N!"
+when it ends. **Results:** "+N XP" under the score when the round paid some
+(nothing for the opening rounds, #122), and one of the topic's fun facts
+(`pickFact`). Dead code gone: `LoadingScreen`'s `topic` / `topBar`,
+`ErrorScreen`'s `topBar` / `backLabel` / `onBack`, `Backdrop`'s bar. TC-49,
+TC-1065, TC-1068, TC-1594 retired. Each guard's test fails without it (33
+mutations). Stubbed app (BENCH_PORT 5741): saved questions in 100–700 ms → the
+wait never shows, 900 ms → shown 0.4 s, no status line before; the card is
+396 px waiting and with a question at 320×568 and 1024×768, 316 at 740×360
+(no jump); two taps 120 ms apart move one question at all three sizes; 3
+saved and the rest 45 s, double tap at question 3 → question 4, a starter at
+~3.3 s; a thin bank (rest after 12 s) → round 1 two bank questions, round 2
+starts on the three that came late, all five bank (+50 XP); a rich bank →
+one background request a round, the look-ahead asks nothing. Tests 1816 →
+1844.
+
+### 2026-10-19 — The quiz starts at once (#163)
+The Training Grounds quiz — the first screen a new kid sees — waited for its
+whole round behind "Building your questions…" (`useGeneratedQuestions` →
+`fetchQuestions`), 15–30 s on a thin bank. It now loads the battle's way
+(#158): new `useQuizRound` (`features/quiz/`) runs `useBattleQuestions` for
+the round's 5 — saved questions first (a saved-only request, at most
+`QUICK_WAIT_MS`; fewer than 3 saved and starters fill the round), the rest
+asked for while the kid answers, a late saved batch joining too — and takes
+each question as the kid reaches it: the next bank question when one is in,
+else a starter (`nextRoundQuestion`), never one the round asked. With nothing
+new yet the card says "One moment… Your question is on its way!" (a status
+line says it too; it fades in a beat late and leaves at once, so a quick
+question never flashes it), and after `QUICK_WAIT_MS` comes a starter the
+round hasn't had (`spareStarter`), so a round always finishes. The rules
+stay: 5 a round, `PASS_THRESHOLD` / `ROUNDS_TO_UNLOCK`, the ramp on bank
+answers only (`bankRamp`), no XP for starters or before the world opens, the
+recap, 🚩, on screen = seen, the level pinned under the results. The
+next-round look-ahead is saved-only now (`cacheOnly`, like a zone's
+critters): nothing is written for a round the kid may never play, and the
+round asks for the rest. `useGeneratedQuestions` and the quiz's error screens
+are gone (neither could show since #153: the starters fill in); a loading bug
+is logged in words (`console.warn(…, errorMessage(e))`), never shown. On the
+stubbed app with a question server that answers saved-only requests at once
+(3) and the rest after 15 s: the first question is in the page ~90 ms after
+the tap at 320×568 and 1024×768 (main: "Building your questions…" for the
+15 s); a kid at question 4 before the rest gets a starter after ~3 s; a
+slower kid gets the late bank questions. Tests 1805 → 1816.
 ### 2026-10-20 — Safe to share review round 2: closing needs the password typed just now, one wait said once, focus that goes back where it was (#124b, #124c, #130 S6)
 Fixes for `/saas-code-review` (4) and `/saas-ux-review` (6 + notes) of PR
 #84. **Closing an account:** any password sign-in in the last 5 minutes —
