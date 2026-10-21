@@ -5,6 +5,7 @@ import { nextStreak, todayIso } from '../lib/streak';
 import { mergeProfiles, readLocalProfile, writeLocalProfile } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
+import { flushPlayDays, notePlayDay } from '../lib/playDays';
 import type { PowerUpId, PowerUps, Profile, SkillLevels, Topic } from '../types';
 
 /** Shape of a row in the Supabase `profiles` table (snake_case). */
@@ -127,6 +128,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // Level 1 by a remote row stuck at 0.
       const merged = mergeProfiles(fromRow(data as ProfileRow), local);
       set({ profile: merged, loading: false, remoteError: null });
+      // Days played while offline (or before migration 0025) go up now (#29).
+      void flushPlayDays(userId);
       writeLocalProfile(merged);
       // If the local cache was ahead, best-effort push the merge back up.
       const remote = fromRow(data as ProfileRow);
@@ -220,8 +223,12 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const profile = get().profile;
     if (!profile) return;
     const today = todayIso();
-    // Same-day no-op — don't write or even nudge the streak.
-    if (profile.lastPlayedOn === today) return;
+    // Same-day no-op — don't write or even nudge the streak (a day still
+    // waiting on this device is sent, #29).
+    if (profile.lastPlayedOn === today) {
+      void flushPlayDays(profile.id);
+      return;
+    }
     const newCurrent = nextStreak(profile.currentStreak, profile.lastPlayedOn, today);
     const newLongest = Math.max(profile.longestStreak, newCurrent);
     const updated = {
@@ -232,6 +239,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     };
     set({ profile: updated });
     writeLocalProfile(updated);
+    // A new day played: kept for 👪 Grown-ups → 📈 Progress (#29, migration 0025).
+    void notePlayDay(profile.id, today);
     const { error } = await supabase
       .from('profiles')
       .update({

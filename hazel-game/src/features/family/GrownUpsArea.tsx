@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
@@ -21,6 +21,9 @@ import QuestionReviewPage from './QuestionReviewPage';
 import SignInAgainButton from './SignInAgainButton';
 import type { Kid } from '../../types';
 
+// 📈 Progress (#29) loads only when a grown-up opens it: the game's first load doesn't carry it.
+const ProgressPage = lazy(() => import('./ProgressPage'));
+
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
 
@@ -37,7 +40,9 @@ const fieldClass =
  * the time has run out, it shows the gate again rather than controls that
  * would only ask (#167 review round 1) — and says why, on the gate and out
  * loud (`LAPSED_NOTE`, #167 review round 2). Closing the account and
- * changing the login ask for the password again, never the PIN.
+ * changing the login ask for the password again, never the PIN. 📈 Progress
+ * (#29) shows how each kid is doing — read-only, but still only behind the
+ * gate, and it goes back to the gate when the 15 minutes run out like the list.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
@@ -102,6 +107,8 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   const [closing, setClosing] = useState(false);
   // Changing the login's email or password (#124d).
   const [changing, setChanging] = useState<'email' | 'password' | null>(null);
+  // Whose 📈 Progress is open (#29).
+  const [progressFor, setProgressFor] = useState<string | null>(null);
   // Which kids' PINs the database has locked (#124c review): unlocking is done here.
   const pinLocks = useFamilyStore((s) => s.pinLocks);
   const [lockedKids, setLockedKids] = useState<Record<string, number>>({});
@@ -134,7 +141,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   }, []);
 
   // Asked again each time the list comes back (after a Change, a PIN typed again unlocks).
-  const listing = !editing && !removing && !closing && !reviewing && !changing;
+  const listing = !editing && !removing && !closing && !reviewing && !changing && !progressFor;
   useEffect(() => {
     if (!listing) return;
     let live = true;
@@ -150,9 +157,12 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   // ago, by the gate, the dialog or a password typed again): back to the gate,
   // so a kid who finds the device sees the way in, not live grown-up controls.
   // A page part-filled keeps its place; the list checks again when it's back.
+  // 📈 Progress has nothing to lose, so it goes back to the gate too (#29): a
+  // kid who finds the device never reads the answers to their Library shelf.
   const openedAt = useGrownUpsStore((s) => s.openedAt);
+  const watching = listing || progressFor !== null;
   useEffect(() => {
-    if (!listing || openedAt === null) return;
+    if (!watching || openedAt === null) return;
     const left = openedAt + GROWN_UP_UNLOCK_MINUTES * 60_000 - Date.now();
     if (left <= 0) {
       onLapse();
@@ -160,7 +170,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
     }
     const timer = window.setTimeout(onLapse, left);
     return () => window.clearTimeout(timer);
-  }, [listing, openedAt, onLapse]);
+  }, [watching, openedAt, onLapse]);
 
   // Back on the list: the keyboard and the page are where they left it.
   useEffect(() => {
@@ -231,6 +241,22 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
 
+  if (progressFor) {
+    return (
+      <Suspense
+        fallback={
+          <FamilyCard wide focusTitle title="📈 Progress">
+            <p role="status" className="text-center text-sm text-gray-600">
+              Loading…
+            </p>
+          </FamilyCard>
+        }
+      >
+        <ProgressPage kidId={progressFor} onBack={() => setProgressFor(null)} />
+      </Suspense>
+    );
+  }
+
   if (closing) {
     return <CloseAccountPage onCancel={() => setClosing(false)} />;
   }
@@ -263,15 +289,29 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
               </p>
             )}
             {unlockedId === k.id && !(lockedKids[k.id] > 0) && <UnlockedNote name={k.name ?? 'This player'} />}
-            {/* Their own line, so a long nickname never squeezes them on a phone. */}
-            <div className="flex justify-end gap-2">
+            {/* Their own line, so a long nickname never squeezes them on a phone; all three fit one line at 320 px. */}
+            <div className="flex flex-wrap justify-end gap-x-2 [@media(max-width:359px)]:gap-x-0.5">
+              <button
+                data-return={`progress:${k.id}`}
+                onClick={() => {
+                  leave(`progress:${k.id}`);
+                  setProgressFor(k.id);
+                }}
+                aria-label={`Progress for ${k.name ?? 'this player'}`}
+                className="text-sm font-semibold text-purple-700 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
+              >
+                <span aria-hidden="true" className="[@media(max-width:359px)]:hidden">
+                  📈{' '}
+                </span>
+                Progress
+              </button>
               <button
                 data-return={`change:${k.id}`}
                 onClick={() => {
                   leave(`change:${k.id}`);
                   setEditing(k.id);
                 }}
-                className="text-sm text-purple-600 hover:underline px-2 min-h-11"
+                className="text-sm text-purple-600 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
               >
                 Change
               </button>
@@ -281,7 +321,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
                   leave(`remove:${k.id}`);
                   setRemoving(k);
                 }}
-                className="text-sm text-red-600 hover:underline px-2 min-h-11"
+                className="text-sm text-red-600 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
               >
                 Remove
               </button>

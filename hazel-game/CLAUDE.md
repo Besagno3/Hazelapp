@@ -27,8 +27,10 @@ shared source of truth for how this project works.
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
-react-router-dom + recharts (parent dashboard), vite-plugin-pwa (PWA, #5),
-zod, react-query. Add the package in the same change that first uses it.
+react-router-dom + recharts, vite-plugin-pwa (PWA, #5), zod, react-query.
+Add the package in the same change that first uses it. The parent dashboard
+(#29) needed neither: it is a page inside 👪 Grown-ups (no router), and its
+bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
 
 ## Decisions
 
@@ -61,7 +63,14 @@ zod, react-query. Add the package in the same change that first uses it.
   shipped 2026-06-12, resolved #11). **Do not adopt react-router** for the game
   flow (URLs / browser-back are a liability for a guided kids' game).
   react-router may still be added later *only* for standalone non-game pages
-  (parent dashboard, settings, leaderboard).
+  (settings, leaderboard). The parent dashboard became 👪 Grown-ups → 📈
+  Progress (#29, 2026-10-21): a page inside the gated area, not a route.
+- **Parent dashboard (#29, 2026-10-21):** it shows only what the database
+  stores — no invented history. The days a kid played are stored for it
+  (migration 0025 `play_days`, kept 14 days); XP over time is not, so there is
+  no XP chart (#169). Charts follow the dataviz method: forms by job (one hero
+  number, meters and cells with their values in words), one sequential hue
+  plus the de-emphasis grey, validated against the card's surface.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
@@ -96,7 +105,8 @@ zod, react-query. Add the package in the same change that first uses it.
   family (`familyStore`: consent + kids). Before the game, `familyScreen()`
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
   (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password —
-  `GrownUpsGate`: add / change / remove kids, set the grown-up PIN, change
+  `GrownUpsGate`: add / change / remove kids, each kid's 📈 Progress (#29),
+  set the grown-up PIN, change
   the login's email or password (`AccountChange`, #124d), the privacy notice,
   Sign out, **Close account** — `CloseAccount`, the `delete-account` edge
   function, password + DELETE, #124b) → the first kid (`FirstKidPage`) → any kid without a PIN
@@ -206,6 +216,50 @@ zod, react-query. Add the package in the same change that first uses it.
   (migration 0021, #152) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
+- **👪 Grown-ups → 📈 Progress (#29, `features/family/ProgressPage.tsx`,
+  `lib/progress.ts`):** a "📈 Progress" button on each kid's row opens their
+  page, lazy-loaded (`React.lazy` in `GrownUpsArea`, so the game's first load
+  doesn't carry it); a toggle per kid at the top (`aria-pressed`). The family
+  is read once, three reads whatever its size (`fetchFamilyProgress`):
+  `profiles` progress columns only (`PROGRESS_COLUMNS` — never the birth date;
+  the kid's age only picks a topic's starting level, and PINs are unreadable
+  anyway), `saves` (normalized), and the last week of `play_days`. Reading is
+  not a grown-up action (no `asGrownUp`, no 👪 window needed — RLS keeps it to
+  the family's own kids), but the page is only reachable through the gate and
+  goes back to it when the 15 minutes run out, like the list. Pure shaping in
+  `lib/progress.ts`: `levelSummary` (the player level as the page's one hero
+  number, the XP meter to the next level), `streakSummary` (0 once a day was
+  missed — the saved number waits for the next game), `dayWords`,
+  `recentDays` (played where the database noted the day or it's the last day
+  played — nothing guessed), `topicLevels` / `levelBand` / `BAND_WORDS` (each
+  topic "Math: level 6 of 10" with one line in the question writer's bands —
+  easy / right / a stretch / the strongest, for their age; topics no round
+  has moved grouped in one "Not moved yet" line at their starting level),
+  `storySummary` (the act by `act2/3/4-seen`, only reached acts' crystals and
+  names, the Spire once Act I's crystals are back, their own 🚩 goal, trophies
+  via `badgeInfo` — `content/badges.ts`, shared with the menu's shelf; unknown
+  ids left out), `missedQuestions` (the Library queue newest first: question,
+  right answer, what they picked or that time ran out, why, the topic's name —
+  no ids; junk entries left out), `typingSummary`, `hasPlayed` (else "… hasn't
+  played yet"). Loading says so in a status region; errors use
+  `plainErrorOr` (with "Sign in again" when the sign-in ran out) and log
+  `errorMessage`; no `play_days` table (0025 not applied) just leaves the
+  week out. Bars are plain HTML/CSS: blue `#2a78d6` on its `#cde2fb` track
+  for measured values, the de-emphasis grey `#898781` for starting levels and
+  crystals not yet restored — validated with the dataviz palette script on
+  the card's white; every bar carries its value in words beside it
+  (`aria-hidden` bars), the week is an ordered list read day by day.
+  **Days played (#29, migration 0025, `lib/playDays.ts`):** when a kid plays
+  on a new day (`profileStore.recordActivity`) that day (their device's own
+  `YYYY-MM-DD`) is kept on the device (`hazel-play-days-<kid>`, at most 8) and
+  sent to `note_play_days(kid, days)` — security definer, the family's own
+  kid only (42501 "not your player"), only adding days from 7 back to 1 ahead
+  of the server's date, at most 31 a call, deleting that kid's days older than
+  14 — and leaves the device once sent; a waiting day goes up on the next
+  round or profile load. `play_days` (profile, day) is readable by the
+  family (RLS) and writable by no client; removing a kid or closing the
+  account deletes it (cascade). Kids have no login, so "the kid's own
+  session" is the family's sign-in playing as them, as with saves.
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
   `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
   substates `exploring / dialogue / service / path / menu` driving DOM
@@ -858,6 +912,7 @@ zod, react-query. Add the package in the same change that first uses it.
   and deletes it again; `grown_ups_gate.test.sql` proves 👪 Grown-ups is held
   by the database, #167 — and fails when a `profiles` column is on neither
   side of the gate — and `grown_ups_password.test.sql` the password wait;
+  `play_days.test.sql` the days-played rules, #29;
   the other tests that act as a grown-up open it first, on the stub's
   `request.jwt.claims` session). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
@@ -1204,6 +1259,10 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   reset email). A password set in the dashboard, or a hash Supabase upgrades on sign-in, counts
 #   as unannounced too (the safe side).
 
+# 📈 Progress's days played (#29) — migration 0025, any time (either order with the app)
+#   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`). Before it, the page
+#   leaves "Last 7 days" out and each device keeps its days (up to 8) until it can send them.
+
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
@@ -1355,6 +1414,49 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-21 — The parent dashboard: 📈 Progress for each kid in 👪 Grown-ups, and the days they played (#29)
+Parents could see nothing of their kid's progress. Now each kid's row in 👪
+Grown-ups has **📈 Progress** (`ProgressPage`, lazy-loaded; shaping in
+`lib/progress.ts`), a toggle per kid at the top, the family read once (three
+reads). Per kid: the player level as the one big number, XP and how far to
+the next level (and that levels never make questions harder); the streak (0
+once a day was missed, best kept) and last played in words; the last 7 days,
+read day by day; every topic's question level as "Math: level 6 of 10" with
+one line on what it means for their age (the question writer's bands),
+topics no round has moved grouped at their starting level; the story — the
+act reached, that act's and earlier crystals, the Spire, their own 🚩 goal,
+trophies by name, nothing about acts not reached; the Library's missed
+questions in words (question, right answer, what they picked or that time
+ran out, why, topic; newest first, three then "Show all"); touch typing.
+"Hasn't played yet", loading and error states (`plainErrorOr`, Sign in again;
+raw errors logged). Never the birth date, a PIN or an id. Reads need no 👪
+window, but the page is behind the gate and goes back to it after 15
+minutes. **History, not invented:** "last 7 days" needed data that wasn't
+stored, so **migration 0025** adds `play_days` (kid, day; RLS: the family
+reads its own kids' days; only `note_play_days` writes — the family's own
+kid, adding days from a week back to a day ahead, kept 14 days; cascade on
+removal) and `lib/playDays.ts` notes a new day from `recordActivity`, kept on
+the device until sent; XP over time isn't stored and stays out (#169).
+**Charts:** plain HTML/CSS by the dataviz method — a hero number, stat tiles,
+meters, 10-cell level bars, a 7-cell week — one sequential blue on its own
+track plus the de-emphasis grey, validated with the palette script on the
+card's white (the 👪 area is a white card, no dark mode); values always in
+words beside the bars. **No recharts** (one bar chart alone is ~106 KB
+gzipped) and no router. `content/badges.ts` (`badgeInfo`) is now shared with
+the menu's shelf (and ignores `constructor`-style ids); the 👪 row's three
+buttons fit one line at 320 px. Bundle: main +7.2 KB (+2.4 KB gzipped: day
+noting, the row button, exports the lazy chunk shares), `ProgressPage` 19.3
+KB (6.7 KB gz) + a shared 2.5 KB chunk, loaded only when opened. Tests 2227 →
+2267 (15 mutations, all caught once a missing junk-level case was added); 25
+migrations + 19 SQL tests on Postgres 16 (new `play_days.test.sql`, 12
+loosenings of 0025 each caught; `close_account.test.sql` checks the days go);
+lint, `tsc -b`, `build:web`; the stubbed app with a family of three (a kid
+mid-Act-II with 8 missed questions, a brand-new kid, one in training) at
+320×568, 375×667, 740×360 touch and 1024×768 keyboard (72 checks). Logged:
+#169 (XP over time), #170 (the first week's undercount), #171 (a streak
+merge that can claim unplayed days). Deploy: apply 0025, either order
+(Commands).
 
 ### 2026-10-21 — Grown-ups review round 2: a reset link really ends the wait, a check the server can tell apart, Close account waits too, and the wait says what works (#167, #124d, #168)
 `/saas-code-review` (1 high, 2 medium, 3 low) and `/saas-ux-review` (2

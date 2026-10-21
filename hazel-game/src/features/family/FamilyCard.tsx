@@ -7,18 +7,21 @@ import { cn } from '../../lib/utils';
  * opens at the top with its title focused, so a keyboard or screen-reader user
  * starts where the screen does — not on the page, or halfway down it
  * (#124 review). On a short screen (a phone on its side) the card is wider
- * and tighter, so what's in it fits beside rather than below.
+ * and tighter, so what's in it fits beside rather than below. `extraWide`
+ * (📈 Progress, #29) gives a page of numbers more room from 640 px up.
  */
 export default function FamilyCard({
   title,
   subtitle,
   wide = false,
+  extraWide = false,
   focusTitle = false,
   children,
 }: {
   title: string;
   subtitle?: ReactNode;
   wide?: boolean;
+  extraWide?: boolean;
   focusTitle?: boolean;
   children: ReactNode;
 }) {
@@ -36,7 +39,7 @@ export default function FamilyCard({
       <div
         className={cn(
           'bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-full [@media(max-height:500px)]:p-4',
-          wide ? 'max-w-lg' : 'max-w-sm [@media(max-height:500px)]:max-w-xl',
+          extraWide ? 'max-w-lg sm:max-w-2xl' : wide ? 'max-w-lg' : 'max-w-sm [@media(max-height:500px)]:max-w-xl',
         )}
       >
         <h1

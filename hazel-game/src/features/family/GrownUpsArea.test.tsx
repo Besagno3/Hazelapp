@@ -22,6 +22,13 @@ vi.mock('../../lib/review', async (original) => ({
   fetchReviewQueue: review.fetchReviewQueue,
 }));
 
+// 📈 Progress (#29) reads through lib/progress; here it answers at once.
+const progress = vi.hoisted(() => ({ fetchFamilyProgress: vi.fn() }));
+vi.mock('../../lib/progress', async (original) => ({
+  ...(await original<typeof import('../../lib/progress')>()),
+  fetchFamilyProgress: progress.fetchFamilyProgress,
+}));
+
 const { default: GrownUpsArea } = await import('./GrownUpsArea');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
@@ -56,6 +63,13 @@ beforeEach(() => {
   auth.signOut.mockResolvedValue({ error: null });
   review.isAdmin.mockResolvedValue(false);
   review.fetchReviewQueue.mockResolvedValue([]);
+  progress.fetchFamilyProgress.mockResolvedValue({
+    'kid-sam': {
+      stats: { skillLevels: { math: 5 }, xp: 120, level: 2, levelXp: 20, currentStreak: 1, longestStreak: 1, lastPlayedOn: null },
+      save: null,
+      playDays: [],
+    },
+  });
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
   useFamilyStore.setState({
     kids: [sam, old],
@@ -574,5 +588,28 @@ describe('GrownUpsArea (#124)', () => {
     expect(await screen.findByText('🛡️ Question review')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
     expect(useFamilyStore.getState().reviewRequested).toBe(false);
+  });
+
+  it('📈 Progress opens for that kid behind the gate, loads lazily, and Back lands on the button that opened it (#29)', async () => {
+    await unlock();
+    const button = screen.getByRole('button', { name: 'Progress for Sam' });
+    fireEvent.click(button);
+    expect(await screen.findByRole('heading', { level: 1, name: '📈 Progress' })).toBeInTheDocument();
+    expect(await screen.findByText('Level 2')).toBeInTheDocument();
+    expect(progress.fetchFamilyProgress).toHaveBeenCalledWith(['kid-sam', 'kid-old'], expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    // Reading opened no grown-up action: nothing asked the database for the gate.
+    expect(rpc.mock.calls.map(([fn]) => fn)).not.toContain('unlock_grown_ups');
+    fireEvent.click(screen.getAllByRole('button', { name: '← Back to 👪 Grown-ups' })[0]);
+    await screen.findByText('Sam');
+    expect(screen.getByRole('button', { name: 'Progress for Sam' })).toHaveFocus();
+  });
+
+  it('📈 Progress goes back to the gate when the 15 minutes run out (#29)', async () => {
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    await screen.findByText('Level 2');
+    act(() => useGrownUpsStore.setState({ openedAt: Date.now() - 15 * 60_000 + 50 }));
+    expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.queryByText('Level 2')).toBeNull();
   });
 });

@@ -19,6 +19,7 @@ import { GrownUpsLockedError } from '../lib/grownUpsGate';
 import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
+import { playDaysKey } from '../lib/playDays';
 import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
@@ -168,6 +169,7 @@ function forgetFamilyHere(userId: string | null, kids: Kid[]): void {
     for (const k of kids) {
       localStorage.removeItem(saveKey(k.id));
       localStorage.removeItem(profileKey(k.id));
+      localStorage.removeItem(playDaysKey(k.id));
     }
   } catch {
     // Storage unavailable — nothing was kept here.
@@ -436,6 +438,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     try {
       localStorage.removeItem(saveKey(id));
       localStorage.removeItem(profileKey(id));
+      localStorage.removeItem(playDaysKey(id));
     } catch {
       // Storage unavailable — nothing was kept here.
     }
