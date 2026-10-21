@@ -24,6 +24,7 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
   const holdRule = useSaveStore((s) => s.save?.typingAnchor ?? true);
   const update = useSaveStore((s) => s.update);
   const addXp = useProfileStore((s) => s.addXp);
+  const recordActivity = useProfileStore((s) => s.recordActivity);
   const keyboard = useKeyboardStore((s) => s.present);
   // The page being copied is kept whole: once copied, the desk no longer lists it.
   const [active, setActive] = useState<ScriptoriumPage | null>(null);
@@ -77,6 +78,8 @@ export default function Scriptorium({ onBack }: { onBack: () => void }) {
     // Always true today — a copied page leaves the desk — kept as a guard should a page ever be reopened.
     const paid = flags[flag] !== true;
     update((s) => ({ ...s, flags: { ...s.flags, [flag]: true } }));
+    // A copied page is a day played, whatever it pays (#29 review round 2).
+    void recordActivity();
     if (paid) void addXp(SCRIPTORIUM_XP);
     // The result after the same beat as any line (review round 4).
     hold.current = window.setTimeout(() => {

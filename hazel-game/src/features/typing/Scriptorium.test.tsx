@@ -36,9 +36,11 @@ function lessonsThroughCapitals(): Record<string, boolean> {
 }
 
 const addXp = vi.fn();
+const recordActivity = vi.fn();
 beforeEach(() => {
   addXp.mockClear();
-  useProfileStore.setState({ addXp, profile: null });
+  recordActivity.mockClear();
+  useProfileStore.setState({ addXp, recordActivity, profile: null });
   useKeyboardStore.getState().reset();
   useKeyboardStore.getState().seen();
   useSaveStore.setState({
@@ -134,6 +136,7 @@ describe('the Scriptorium (#165 item 5)', () => {
     expect(screen.getByText(`⭐ +${SCRIPTORIUM_XP} XP`)).toBeInTheDocument();
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp).toHaveBeenCalledWith(SCRIPTORIUM_XP);
+    expect(recordActivity).toHaveBeenCalledTimes(1);
     expect(flags()[pageFlag('q-why')]).toBe(true);
     // Back on the desk the shelf page is gone and the count moved on; the desk's heading has the focus.
     fireEvent.click(screen.getByText('← Back to the pages'));

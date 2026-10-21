@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { LoadingScreen, ErrorScreen, OutdatedScreen } from './StatusScreens';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { LoadingScreen, ErrorScreen, LazyFailedScreen, OutdatedScreen } from './StatusScreens';
+import { retryableLazy } from '../lib/lazyRetry';
 import { GENERIC_FACTS } from '../lib/funFacts';
 
 describe('LoadingScreen', () => {
@@ -21,6 +22,17 @@ describe('ErrorScreen', () => {
     render(<ErrorScreen message="Network failed" onRetry={vi.fn()} />);
     expect(screen.getByText('Network failed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('is heard as it appears: its title takes the focus, and new words are read from a live region (#29 review round 2)', () => {
+    const { rerender } = render(<ErrorScreen title="The world didn't load" message='Tap "Try again" to go back in.' onRetry={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: "The world didn't load" })).toHaveFocus();
+    const live = screen.getByRole('status');
+    expect(live).toHaveTextContent('Tap "Try again" to go back in.');
+    rerender(<ErrorScreen title="The world didn't load" message="You're offline." onRetry={vi.fn()} />);
+    // The same region, new words: a screen reader reads them out.
+    expect(screen.getByRole('status')).toBe(live);
+    expect(live).toHaveTextContent("You're offline.");
   });
 
   it('omits the retry when none is given', () => {
@@ -63,5 +75,25 @@ describe('OutdatedScreen', () => {
     expect(screen.getByText(/another tab or on another device/)).toBeInTheDocument();
     expect(screen.queryByText(/has been updated|new version|nothing is lost/)).toBeNull();
     expect(screen.getByRole('button', { name: '🔄 Refresh' })).toBeInTheDocument();
+  });
+});
+
+describe('LazyFailedScreen (#29 review round 1)', () => {
+  it('offline from the start: says so and asks a grown-up; Try again waits in place while it tries', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    const page = retryableLazy<object>(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')));
+    render(<LazyFailedScreen page={page} onLoaded={vi.fn()} title="The world didn't load" />);
+    expect(screen.getByText(`You're offline. Ask a grown-up to check the internet, then tap "Try again".`)).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: 'Try again' });
+    button.focus();
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveTextContent('Trying…');
+    await vi.waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
+    expect(button).toHaveFocus();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 });

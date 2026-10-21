@@ -242,6 +242,20 @@ describe('saveStore.load', () => {
     await vi.waitFor(() => expect(remote.upserts).toHaveLength(1));
   });
 
+  it("a v3 save holding topic starts comes up as v4 and goes back at once — so a tab on a v3 build can neither load it nor save over it, which would drop the starts for good (#29 review round 3)", async () => {
+    const v3 = { ...copy(7, 12), version: 3, topicStarts: { math: { level: 4, age: 9 } } };
+    remote.rows.u4 = { data: v3 };
+    await useSaveStore.getState().load('u4');
+    expect(useSaveStore.getState().save).toMatchObject({ version: 4, revision: 8, topicStarts: { math: { level: 4, age: 9 } } });
+    await vi.waitFor(() => expect(remote.upserts).toHaveLength(1));
+    expect(remote.rows.u4.data).toMatchObject({ version: 4, revision: 8, topicStarts: { math: { level: 4, age: 9 } } });
+    // The v3 tab's next save, without the starts its build doesn't know: refused (0011's rule).
+    const oldTab: Record<string, unknown> = { ...v3, revision: 99 };
+    delete oldTab.topicStarts;
+    expect(remote.apply({ profile_id: 'u4', data: oldTab } as Row).error).toBeTruthy();
+    expect(remote.rows.u4.data).toMatchObject({ topicStarts: { math: { level: 4, age: 9 } } });
+  });
+
   it('refuses a save from a newer version: nothing loaded, nothing written back', async () => {
     const newer = { version: SAVE_VERSION + 1, zoneId: 'somewhere-new', coins: 999 };
     remote.rows.u2 = { data: newer };

@@ -19,6 +19,7 @@ import { GrownUpsLockedError } from '../lib/grownUpsGate';
 import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
+import { forgetPlayDays } from '../lib/playDays';
 import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
@@ -172,6 +173,8 @@ function forgetFamilyHere(userId: string | null, kids: Kid[]): void {
   } catch {
     // Storage unavailable — nothing was kept here.
   }
+  // Their unsent days too, from storage and memory (never throws).
+  for (const k of kids) forgetPlayDays(k.id);
   if (userId) writeActive(userId, null);
 }
 
@@ -439,6 +442,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     } catch {
       // Storage unavailable — nothing was kept here.
     }
+    forgetPlayDays(id);
   },
 
   closeAccount: async (password) => {

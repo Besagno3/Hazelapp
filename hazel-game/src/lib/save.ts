@@ -1,6 +1,6 @@
 import { COMPANION_IDS, type CompanionId } from '../content/companion';
 import { escortsBack } from '../content/questFlags';
-import type { CrystalTopic, LibraryEntry, SaveData, ZoneId } from '../types';
+import { CRYSTAL_TOPIC_IDS, EXTRA_TOPIC_IDS, type CrystalTopic, type LibraryEntry, type SaveData, type Topic, type TopicStart, type ZoneId } from '../types';
 import { HUB_ZONE, TILE, ZONES, innOf, innWakeCell, isZoneId, shelterOf } from '../content/zones';
 import { BOAT_SPAWN_REACH, safeSpawn } from './reach';
 import { canFlyOver } from './travel';
@@ -9,7 +9,7 @@ import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
 import { withSecretsBadge } from '../content/secrets';
 
-export const SAVE_VERSION = 3 as const;
+export const SAVE_VERSION = 4 as const;
 
 /**
  * Versioned save-migration ladder (Wave 0.2, ROADMAP-4X). Each step upgrades
@@ -97,6 +97,17 @@ export const MIGRATIONS: MigrationLadder = {
     delete out.aboard;
     return out;
   },
+  /**
+   * v3 → v4 (#29 review round 3): nothing to change — `topicStarts` (where
+   * each topic really started, #29 review round 2) is additive. The bump is
+   * the guard: a tab still running a v3 build drops `topicStarts` as it
+   * normalizes, and its next save would wipe them for good (those topics are
+   * measured now, so they're never noted again). A v4 save is too new for it
+   * (`saveIsTooNew` → "Hazel Quest has been updated! … Refresh the page to
+   * keep playing — nothing is lost.") and the server refuses its lower
+   * version (0011), so it asks for a refresh instead.
+   */
+  3: (raw) => ({ ...raw }),
 };
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -221,7 +232,38 @@ export function defaultSave(): SaveData {
     lastRest: null,
     boat: null,
     vehicle: 'foot',
+    topicStarts: {},
   };
+}
+
+const TOPIC_IDS: readonly string[] = [...CRYSTAL_TOPIC_IDS, ...EXTRA_TOPIC_IDS];
+
+/**
+ * A save's topic starts (#29 review round 2): only known topics (own keys —
+ * never `constructor`), each a whole level 1–10 and a whole age 0–120;
+ * anything else is left out, so the page makes no claim on it.
+ */
+function topicStartsFrom(raw: unknown): Partial<Record<Topic, TopicStart>> {
+  if (!isRecord(raw)) return {};
+  const out: Partial<Record<Topic, TopicStart>> = {};
+  for (const [topic, v] of Object.entries(raw)) {
+    if (!TOPIC_IDS.includes(topic) || !isRecord(v)) continue;
+    const { level, age } = v as Record<string, unknown>;
+    if (!Number.isInteger(level) || !Number.isInteger(age)) continue;
+    if ((level as number) < 1 || (level as number) > 10 || (age as number) < 0 || (age as number) > 120) continue;
+    out[topic as Topic] = { level: level as number, age: age as number };
+  }
+  return out;
+}
+
+/**
+ * A save with `topic`'s start noted (#29 review round 2) — the same save when
+ * it already has one (the first one stays: it's where the topic began), so
+ * nothing changes and no revision is spent.
+ */
+export function withTopicStart(save: SaveData, topic: Topic, start: TopicStart): SaveData {
+  if (save.topicStarts[topic]) return save;
+  return { ...save, topicStarts: { ...save.topicStarts, [topic]: start } };
 }
 
 /**
@@ -285,7 +327,9 @@ export function normalizeSave(raw: unknown): SaveData {
     questItems: stringArray(r.questItems),
     passedRounds: numberOr(r.passedRounds, 0),
     worldUnlocked: r.worldUnlocked === true,
-    library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(0, LIBRARY_MAX) : [],
+    // Oldest first, like `pushLibrary`: an over-long queue keeps its newest
+    // misses (it kept the oldest, which 📈 Progress then listed as the newest — #29 review round 1).
+    library: Array.isArray(r.library) ? (r.library as LibraryEntry[]).slice(-LIBRARY_MAX) : [],
     // Added after v1 shipped: older saves (and unknown ids) default to Ember.
     companionId: (COMPANION_IDS as readonly string[]).includes(r.companionId as string)
       ? (r.companionId as CompanionId)
@@ -305,6 +349,8 @@ export function normalizeSave(raw: unknown): SaveData {
         ? { zoneId: r.boat.zoneId, x: r.boat.x, y: r.boat.y }
         : null,
     vehicle: afloat !== null ? 'boat' : flying ? 'ember' : 'foot',
+    // Where each topic's level started (#29 review round 2) — additive: none in an older save.
+    topicStarts: topicStartsFrom(r.topicStarts),
   };
   // Between the Spire's finale and Act II the hero is asleep at the Sleepy
   // Sheep Inn (#75 item 14) — Act II opens "You wake to sunshine at the Sleepy

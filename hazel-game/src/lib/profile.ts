@@ -49,6 +49,14 @@ function maxByKey<T extends Record<string, number>>(a: T, b: T): T {
 export function mergeProfiles(remote: Profile, local: Profile | null): Profile {
   if (!local || local.id !== remote.id) return remote;
   const { level, levelXp } = furthestLevel(levelState(remote), levelState(local));
+  // The streak and the day it ended on come from the same copy — whichever
+  // played last (the longer streak on the same day): taken apart, a cached
+  // "5 days, last 10 Oct" and the server's "1 day, last 20 Oct" made "5 days,
+  // last 20 Oct", days nobody played — which 📈 Progress's week now shows (#171).
+  const lastLocal = local.lastPlayedOn ?? '';
+  const lastRemote = remote.lastPlayedOn ?? '';
+  const streakFrom =
+    lastLocal > lastRemote || (lastLocal === lastRemote && local.currentStreak > remote.currentStreak) ? local : remote;
   return {
     ...remote,
     xp: Math.max(remote.xp, local.xp),
@@ -62,11 +70,8 @@ export function mergeProfiles(remote: Profile, local: Profile | null): Profile {
       remote.powerUps as PowerUps & Record<string, number>,
       local.powerUps as PowerUps & Record<string, number>,
     ),
-    currentStreak: Math.max(remote.currentStreak, local.currentStreak),
+    currentStreak: streakFrom.currentStreak,
     longestStreak: Math.max(remote.longestStreak, local.longestStreak),
-    lastPlayedOn:
-      (local.lastPlayedOn ?? '') > (remote.lastPlayedOn ?? '')
-        ? local.lastPlayedOn
-        : remote.lastPlayedOn,
+    lastPlayedOn: streakFrom.lastPlayedOn,
   };
 }

@@ -12,9 +12,11 @@ const { TYPING_LESSONS, charKey, typingLessonFlag } = await import('../../conten
 const { LEAVES_TUNING, LEAVES_XP, leafPace, leavesFlag } = await import('../../lib/leaves');
 
 const addXp = vi.fn();
+const recordActivity = vi.fn();
 beforeEach(() => {
   addXp.mockClear();
-  useProfileStore.setState({ addXp, profile: null });
+  recordActivity.mockClear();
+  useProfileStore.setState({ addXp, recordActivity, profile: null });
   useKeyboardStore.getState().reset();
   useKeyboardStore.getState().seen();
   useSaveStore.setState({
@@ -83,6 +85,8 @@ describe('🍂 Falling Leaves (#165 item 7)', () => {
     expect(screen.getByText('The leaves have settled!')).toBeInTheDocument();
     expect(screen.getAllByText(/You caught/)[1]).toHaveTextContent('1 leaf');
     expect(addXp).not.toHaveBeenCalled();
+    // No milestone, no XP — but a round played is a day played (#29 review round 2).
+    expect(recordActivity).toHaveBeenCalledTimes(1);
     expect(screen.getByText('🍂 Play again')).toBeInTheDocument();
   });
 
@@ -109,6 +113,17 @@ describe('🍂 Falling Leaves (#165 item 7)', () => {
     fireEvent.click(screen.getByText('⏹ Stop the round'));
     expect(screen.queryAllByText(/10 in one round/)).toHaveLength(0);
     expect(addXp).toHaveBeenCalledTimes(1);
+    // Both rounds counted the day (the second paid nothing).
+    expect(recordActivity).toHaveBeenCalledTimes(2);
+  });
+
+  it('a round stopped before a leaf is caught is no day played (#29 review round 2)', () => {
+    vi.useFakeTimers();
+    render(<FallingLeaves onBack={() => {}} />);
+    fireEvent.click(screen.getByText('🍂 Play'));
+    fireEvent.click(screen.getByText('⏹ Stop the round'));
+    expect(screen.getByText('🍂 Play again')).toBeInTheDocument();
+    expect(recordActivity).not.toHaveBeenCalled();
   });
 
   it('two milestones in one round pay with one XP write; a capital nudges about Shift or Caps Lock (review round 2)', () => {

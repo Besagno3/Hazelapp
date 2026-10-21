@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { fetchReviewQueue, NOT_AN_ADMIN, reasonLabel, reviewQuestion, type ReviewDecision, type ReviewItem } from '../../lib/review';
@@ -36,17 +36,33 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   const [notice, setNotice] = useState('');
   /** Bumped by Refresh / Try again to load the queue again. */
   const [attempt, setAttempt] = useState(0);
+  // "Try again" waits in place while it tries (the keyboard keeps its place);
+  // once the queue loads the title takes the focus (#29 review round 1's
+  // also-noted: the button used to vanish, dropping the focus to the page).
+  const [retrying, setRetrying] = useState(false);
+  const [refocus, setRefocus] = useState(0);
+  const retried = useRef(false);
 
   useEffect(() => {
     let live = true;
     // A grown-up action (#167): if 👪 Grown-ups locked meanwhile, the gate is asked for and it loads after.
     asGrownUp(fetchReviewQueue).then(
       (list) => {
-        if (live) setItems(list);
+        if (!live) return;
+        setLoadError(null);
+        setRetrying(false);
+        setItems(list);
+        if (retried.current) {
+          retried.current = false;
+          setRefocus((n) => n + 1);
+        }
       },
       (err) => {
         console.warn('Loading the review queue failed:', errorMessage(err));
-        if (live) setLoadError(reviewTrouble(err, `Couldn't load the review queue just now. Tap "Try again".`));
+        if (!live) return;
+        retried.current = false;
+        setRetrying(false);
+        setLoadError(reviewTrouble(err, `Couldn't load the review queue just now. Tap "Try again".`));
       },
     );
     return () => {
@@ -57,6 +73,12 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   function reload() {
     setLoadError(null);
     setItems(null);
+    setAttempt((n) => n + 1);
+  }
+
+  function tryAgain() {
+    retried.current = true;
+    setRetrying(true);
     setAttempt((n) => n + 1);
   }
 
@@ -80,7 +102,7 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
     items === null ? undefined : items.length === 0 ? 'Nothing waiting — all clear! 🎉' : `${plural(items.length, 'question', 'questions')} waiting`;
 
   return (
-    <FamilyCard wide title="🛡️ Question review" subtitle={subtitle}>
+    <FamilyCard wide title="🛡️ Question review" subtitle={subtitle} refocus={refocus}>
       <details className="mb-4 rounded-xl bg-purple-50 p-3 text-sm text-gray-700">
         <summary className="cursor-pointer font-semibold text-purple-700">What the buttons do</summary>
         <ul className="mt-2 space-y-1">
@@ -109,8 +131,12 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
       {loadError && (
         <div className="text-center">
           <p className="text-red-600 text-sm">{loadError}</p>
-          <button onClick={reload} className="mt-3 text-sm text-purple-600 hover:underline min-h-11 px-3">
-            Try again
+          <button
+            onClick={retrying ? undefined : tryAgain}
+            aria-disabled={retrying || undefined}
+            className="mt-3 text-sm text-purple-600 hover:underline min-h-11 px-3 aria-disabled:cursor-default aria-disabled:opacity-60"
+          >
+            {retrying ? 'Trying…' : 'Try again'}
           </button>
         </div>
       )}

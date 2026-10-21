@@ -21,6 +21,7 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
   const clearedBefore = useSaveStore((s) => s.save?.flags[typingLessonFlag(lesson.id)] === true);
   const update = useSaveStore((s) => s.update);
   const addXp = useProfileStore((s) => s.addXp);
+  const recordActivity = useProfileStore((s) => s.recordActivity);
   const [started, setStarted] = useState(false);
   const [line, setLine] = useState(0);
   const [tally, setTally] = useState({ hits: 0, misses: 0 });
@@ -52,6 +53,8 @@ export default function TypingLesson({ lesson, onBack, onNext }: { lesson: Lesso
       badge = all && !s.badges.includes(TYPING_BADGE_ID);
       return { ...s, flags, badges: badge ? [...s.badges, TYPING_BADGE_ID] : s.badges };
     });
+    // A finished lesson is a day played, XP or not (#29 review round 2: a cleared lesson replayed pays none).
+    void recordActivity();
     if (!clearedBefore) void addXp(TYPING_LESSON_XP);
     const paid = !clearedBefore;
     hold.current = window.setTimeout(() => {

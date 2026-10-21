@@ -22,7 +22,38 @@ vi.mock('../../lib/review', async (original) => ({
   fetchReviewQueue: review.fetchReviewQueue,
 }));
 
-const { default: GrownUpsArea } = await import('./GrownUpsArea');
+// 📈 Progress (#29) reads through lib/progress; here it answers at once.
+const progress = vi.hoisted(() => ({ fetchFamilyProgress: vi.fn() }));
+vi.mock('../../lib/progress', async (original) => ({
+  ...(await original<typeof import('../../lib/progress')>()),
+  fetchFamilyProgress: progress.fetchFamilyProgress,
+}));
+
+// 📈 Progress's file can be made to fail to load (#29 review round 1): the
+// real retryableLazy, its load failing while `chunk.fail` > 0.
+const chunk = vi.hoisted(() => ({ fail: 0, page: null as null | { Component: unknown; load: () => Promise<unknown> } }));
+vi.mock('../../lib/lazyRetry', async (original) => {
+  const real = await original<typeof import('../../lib/lazyRetry')>();
+  return {
+    ...real,
+    retryableLazy: ((load: Parameters<typeof real.retryableLazy>[0]) => {
+      const page = real.retryableLazy(() => {
+        if (chunk.fail > 0) {
+          chunk.fail -= 1;
+          return Promise.reject<Awaited<ReturnType<typeof load>>>(
+            new TypeError('Failed to fetch dynamically imported module: http://localhost/src/features/family/ProgressPage.tsx'),
+          );
+        }
+        return load();
+      });
+      chunk.page = page as never;
+      return page;
+    }) as typeof real.retryableLazy,
+  };
+});
+
+const { default: GrownUpsArea, PROGRESS_CRASHED } = await import('./GrownUpsArea');
+const { lazy } = await import('react');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
@@ -56,6 +87,13 @@ beforeEach(() => {
   auth.signOut.mockResolvedValue({ error: null });
   review.isAdmin.mockResolvedValue(false);
   review.fetchReviewQueue.mockResolvedValue([]);
+  progress.fetchFamilyProgress.mockResolvedValue({
+    'kid-sam': {
+      stats: { skillLevels: { math: 5 }, xp: 120, level: 2, levelXp: 20, currentStreak: 1, longestStreak: 1, lastPlayedOn: null },
+      save: null,
+      playDays: [],
+    },
+  });
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
   useFamilyStore.setState({
     kids: [sam, old],
@@ -84,6 +122,9 @@ async function unlock() {
   fireEvent.click(screen.getByRole('button', { name: 'Open' }));
   await screen.findByText('Sam');
 }
+
+/** 📈 Progress's hero: "Player level" over the number, read as one. */
+const findHero = (n: number) => screen.findByText((_, el) => el?.tagName === 'P' && el.textContent === `Player level ${n}`);
 
 /** The page's own status line (the area's sr-only live region is another). */
 const pageStatus = () => screen.getAllByRole('status').find((el) => !el.classList.contains('sr-only'))!;
@@ -574,5 +615,137 @@ describe('GrownUpsArea (#124)', () => {
     expect(await screen.findByText('🛡️ Question review')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
     expect(useFamilyStore.getState().reviewRequested).toBe(false);
+  });
+
+  it('📈 Progress opens for that kid behind the gate, loads lazily, and Back lands on the button that opened it (#29)', async () => {
+    // A fresh lazy page, so its loading card shows first: as wide as the page it waits for (review round 1).
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
+    await unlock();
+    const button = screen.getByRole('button', { name: 'Progress for Sam' });
+    fireEvent.click(button);
+    const loadingCard = screen.getByText('Loading…').closest('.rounded-2xl');
+    expect(loadingCard).toHaveClass('sm:max-w-2xl');
+    expect(await screen.findByRole('heading', { level: 1, name: '📈 Progress' })).toBeInTheDocument();
+    expect(await findHero(2)).toBeInTheDocument();
+    expect(progress.fetchFamilyProgress).toHaveBeenCalledWith(['kid-sam', 'kid-old'], expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+    // Reading opened no grown-up action: nothing asked the database for the gate.
+    expect(rpc.mock.calls.map(([fn]) => fn)).not.toContain('unlock_grown_ups');
+    fireEvent.click(screen.getAllByRole('button', { name: '← Back to 👪 Grown-ups' })[0]);
+    await screen.findByText('Sam');
+    expect(screen.getByRole('button', { name: 'Progress for Sam' })).toHaveFocus();
+  });
+
+  it("📈 Progress's file not loading stays on that page: plain words, Back to the list, Try again loads it with focus on its title (#29 review round 1)", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    onTestFinished(() => window.removeEventListener('error', quiet));
+    // A fresh lazy page (another test may have loaded it already), whose file fails twice.
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
+    chunk.fail = 2;
+    vi.stubGlobal('location', { ...window.location, href: 'http://localhost/play/', reload: vi.fn() });
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    // Shown on the card, and read out once through the area's live region.
+    await waitFor(() => expect(screen.getAllByText("The progress page didn't load. Try again.")).toHaveLength(2));
+    expect(screen.getAllByRole('status').some((el) => el.textContent === "The progress page didn't load. Try again.")).toBe(true);
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+    expect(warn.mock.calls.flat().join(' ')).toContain('Failed to fetch dynamically imported module');
+    // The server out of reach: no reload, the connection's words.
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect((await screen.findAllByText(/We couldn't reach Hazel Quest\. Check your internet connection, then try again\./)).length).toBeGreaterThan(0);
+    expect(window.location.reload).not.toHaveBeenCalled();
+    // The rest of 👪 Grown-ups never left.
+    fireEvent.click(screen.getByRole('button', { name: '← Back to 👪 Grown-ups' }));
+    await screen.findByText('Sam');
+    // …and the area's live region no longer says the page didn't load (review round 2).
+    expect(screen.getAllByRole('status').some((el) => /didn't load|couldn't reach/.test(el.textContent ?? ''))).toBe(false);
+    // Back in, and the file loads this time: the page, its title focused.
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    expect(await findHero(2)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+  });
+
+  it("📈 Progress's file still missing while our server answers: it leaves a note, then reloads the game (#29 review round 2)", async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    onTestFinished(() => window.removeEventListener('error', quiet));
+    const page = chunk.page!;
+    page.Component = lazy(page.load as never);
+    chunk.fail = 2;
+    let noted: string | null = null;
+    const reload = vi.fn(() => (noted = sessionStorage.getItem('hazel-reloaded-for')));
+    vi.stubGlobal('location', { ...window.location, href: 'http://localhost/play/', origin: 'http://localhost', reload });
+    const ours = '<!doctype html><title>Hazel Quest</title><div id="root"></div>';
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(ours, { status: 200, headers: { 'content-type': 'text/html' } }))));
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+      sessionStorage.removeItem('hazel-reloaded-for');
+      chunk.fail = 0;
+      // A fresh lazy page for the tests after (React keeps a lazy failure).
+      page.Component = lazy(page.load as never);
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    // The note was there before the reload (with its time, review round 3): "Who's playing?" says what happened after.
+    expect(noted).toMatch(/^progress@\d+$/);
+  });
+
+  it('a bug in 📈 Progress stays on its page in grown-up words — details folded, 👪 still open, Back to the list; the crash screen is for the rest of the game (#29 review round 3)', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const quiet = (e: ErrorEvent) => e.preventDefault();
+    window.addEventListener('error', quiet);
+    const page = chunk.page!;
+    function Broken(): never {
+      throw new TypeError("Cannot read properties of undefined (reading 'topicStarts')");
+    }
+    page.Component = lazy(() => Promise.resolve({ default: Broken })) as never;
+    onTestFinished(() => {
+      window.removeEventListener('error', quiet);
+      page.Component = lazy(page.load as never);
+    });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    // The card's own line — the area's live region says the same words, so look past it.
+    await waitFor(() =>
+      expect(screen.getAllByText(PROGRESS_CRASHED, { selector: 'p' }).some((p) => !p.closest('[role="status"]'))).toBe(true),
+    );
+    expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
+    // Read out once through the area's live region.
+    await waitFor(() => expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(true));
+    // The real error, folded for a grown-up — and in the console.
+    const raw = screen.getByText(/reading 'topicStarts'/, { selector: 'p' });
+    expect(raw.closest('details')?.querySelector('summary')).toHaveTextContent('Details for grown-ups');
+    expect(log.mock.calls.some(([first]) => first === 'A page crashed:')).toBe(true);
+    // Not the kid's crash screen, and nothing that would only show the same page again.
+    expect(screen.queryByText(/tripped over/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Try again|Reload/ })).toBeNull();
+    // Back: the list, 👪 still open (no gate), the live region quiet.
+    fireEvent.click(screen.getByRole('button', { name: '← Back to 👪 Grown-ups' }));
+    await screen.findByText('Sam');
+    expect(screen.queryByPlaceholderText('Password')).toBeNull();
+    expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(false);
+    expect(screen.getByRole('button', { name: 'Progress for Sam' })).toHaveFocus();
+  });
+
+  it('📈 Progress goes back to the gate when the 15 minutes run out (#29)', async () => {
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
+    await findHero(2);
+    act(() => useGrownUpsStore.setState({ openedAt: Date.now() - 15 * 60_000 + 50 }));
+    expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.queryByText(/Player level/)).toBeNull();
   });
 });

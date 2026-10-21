@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { spellsKnown } from '../../content/spells';
-import { ALL_SHOP_ITEMS, CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
-import { GATE_KEYS } from '../../content/keys';
-import { BOSS_BADGES } from '../../content/enemies';
+import { CONSUMABLES, CONSUMABLE_IDS } from '../../content/items';
+import { badgeInfo } from '../../content/badges';
 import { avatarById, HERO_ABILITIES, STYLE_LABEL } from '../../content/avatars';
 import { emberStatus, EMBER_SPRITES, EMBER_SPRITE_IDS, EMBER_STAGE_LABEL } from '../../content/story';
 import { COMPANIONS, COMPANION_IDS, companionLook, companionsInParty } from '../../content/companion';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { activeQuests, activeStep, resolveHint, QUEST_BADGES, QUEST_ITEMS } from '../../content/quests';
-import { ALL_SECRETS, SECRET_BADGES, secretFlag, secretProgress } from '../../content/secrets';
-import { TYPING_BADGES, TYPING_LESSONS, pagesCopied, typingLessonsCleared } from '../../content/typing';
+import { activeQuests, activeStep, resolveHint, QUEST_ITEMS } from '../../content/quests';
+import { ALL_SECRETS, secretFlag, secretProgress } from '../../content/secrets';
+import { TYPING_LESSONS, pagesCopied, typingLessonsCleared } from '../../content/typing';
 import { zone } from '../../content/zones';
 import { NPC_DEFS } from '../../content/npcs';
 import { heroMaxHp } from '../../lib/powerups';
@@ -169,7 +168,7 @@ export default function MenuOverlay({
             {/* Each one named under it — a phone has no hover (#75 item 14g UX review). */}
             <ul className="flex flex-wrap gap-x-3 gap-y-1">
               {save.badges.map((b) => {
-                const it = ALL_SHOP_ITEMS.find((i) => i.id === b) ?? GATE_KEYS.find((k) => k.id === b) ?? BOSS_BADGES[b] ?? QUEST_BADGES[b] ?? TYPING_BADGES[b] ?? SECRET_BADGES[b];
+                const it = badgeInfo(b);
                 return (
                   <li key={b} className="flex flex-col items-center text-center w-16">
                     <span aria-hidden="true" className="text-lg leading-tight">{it?.emoji ?? '🏅'}</span>

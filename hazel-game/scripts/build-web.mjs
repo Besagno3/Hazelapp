@@ -15,10 +15,28 @@
 // pages and bundle beside it, without emptying the folder.
 import { access, copyFile, mkdir, rename } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { build } from 'vite';
+import { build, loadEnv } from 'vite';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = `${root}dist`;
+
+// The game needs its Supabase address and key at build time (#175): without
+// them `lib/supabase.ts` throws as it loads, the throw is a constant, and the
+// minifier drops the whole app — a "successful" build of a page with no game
+// in it. Vercel's production deploy must never ship that, so there it stops
+// the build (VERCEL_ENV=production, or REQUIRE_SUPABASE_ENV=1 anywhere);
+// elsewhere (a preview, a local check of the public pages) it only warns.
+// CI builds with placeholders, which bundle the real app (.github/workflows/ci.yml).
+const env = loadEnv('production', root, 'VITE_SUPABASE_');
+const missing = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'].filter((key) => !env[key]);
+if (missing.length > 0) {
+  const what = `${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} not set, so the game would build with no app in it (ISSUES #175).`;
+  if (process.env.VERCEL_ENV === 'production' || process.env.REQUIRE_SUPABASE_ENV === '1') {
+    console.error(`build:web — ${what} Not building production: set them in Vercel → Settings → Environment Variables (Production).`);
+    process.exit(1);
+  }
+  console.warn(`build:web — ⚠️  ${what} Set them (or placeholders, as CI does) to build the game itself.`);
+}
 
 await build({ root });
 await mkdir(`${dist}/play`, { recursive: true });

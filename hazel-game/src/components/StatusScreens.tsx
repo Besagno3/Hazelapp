@@ -1,6 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GENERIC_FACTS } from '../lib/funFacts';
+import { OFFLINE_MESSAGE } from '../lib/errors';
+import { useLazyRetry, type RetryableLazy } from '../lib/lazyRetry';
 import type { OutdatedReason } from '../store/saveStore';
 
 const FACT_ROTATION_MS = 4000;
@@ -84,9 +86,33 @@ export function OutdatedScreen({ reason, onRefresh }: { reason: OutdatedReason |
 }
 
 /**
+ * A screen whose file didn't load (#29 review round 1) — the world's, which
+ * is lazy-loaded: kind words, a grown-up asked to check the internet when
+ * that's the trouble, and "Try again", which loads the file afresh (or
+ * reloads the page when a new version replaced it). Never the crash screen.
+ */
+export function LazyFailedScreen<P extends object>({ page, onLoaded, title }: { page: RetryableLazy<P>; onLoaded: () => void; title: string }) {
+  const { busy, words, tryAgain } = useLazyRetry(page, onLoaded);
+  const tap = 'tap "Try again"';
+  const message =
+    words === OFFLINE_MESSAGE
+      ? `You're offline. Ask a grown-up to check the internet, then ${tap}.`
+      : words
+        ? `We couldn't reach Hazel Quest. Ask a grown-up to check the internet, then ${tap}.`
+        : 'Tap "Try again" to go back in. Your adventure is saved as you play.';
+  return (
+    <ErrorScreen emoji="🗺️" title={title} message={message} retryLabel={busy ? 'Trying…' : 'Try again'} retryBusy={busy} onRetry={() => void tryAgain()} />
+  );
+}
+
+/**
  * Full-screen error state with an optional retry. `title`, `emoji` and
  * `retryLabel` let a screen that isn't really an error (an update to refresh
- * for) say so in friendlier words.
+ * for) say so in friendlier words. `retryBusy`: the retry is on its way — the
+ * button waits with `aria-disabled`, so the keyboard keeps its place. Its
+ * title takes the focus as it appears, so a screen reader hears it, and the
+ * message is a live region, so new words (offline, after a Try again) are
+ * read out too (#29 review round 2).
  */
 export function ErrorScreen({
   message,
@@ -94,25 +120,36 @@ export function ErrorScreen({
   title = 'Something went wrong',
   emoji = '😕',
   retryLabel = 'Try again',
+  retryBusy = false,
 }: {
   message: string;
   onRetry?: () => void;
   title?: string;
   emoji?: string;
   retryLabel?: string;
+  retryBusy?: boolean;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <Backdrop>
       <div className="bg-white text-gray-700 rounded-2xl p-8 max-w-sm w-full text-center shadow-xl">
         <div className="text-5xl mb-3" aria-hidden="true">
           {emoji}
         </div>
-        <h2 className="text-xl font-bold mb-2">{title}</h2>
-        <p className="text-sm text-gray-500 mb-6">{message}</p>
+        <h2 ref={heading} tabIndex={-1} className="text-xl font-bold mb-2 focus:outline-none">
+          {title}
+        </h2>
+        <div role="status">
+          <p className="text-sm text-gray-500 mb-6">{message}</p>
+        </div>
         {onRetry && (
           <button
-            onClick={onRetry}
-            className="bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-2 transition"
+            onClick={retryBusy ? undefined : onRetry}
+            aria-disabled={retryBusy || undefined}
+            className="min-h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg px-5 py-2 transition aria-disabled:cursor-default aria-disabled:opacity-60"
           >
             {retryLabel}
           </button>

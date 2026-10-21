@@ -4,9 +4,17 @@ import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
 import { emailLinkWords, takeEmailLinkNotice } from '../auth/linkError';
 import { kidLockKey } from '../../lib/pinLock';
+import { takeReloadNote } from '../../lib/lazyRetry';
 import FamilyCard from './FamilyCard';
 import PinPad from './PinPad';
 import type { Kid } from '../../types';
+
+/**
+ * After 📈 Progress reloaded the game (#29 review round 2): what happened, and
+ * the way back — no reason it can't be sure of (a network blip reloads it too,
+ * with no new version, review round 3).
+ */
+export const PROGRESS_RELOADED_NOTE = 'The page had to reload. Open 👪 Grown-ups again to carry on.';
 
 /** What the locked pad tells a grown-up: where to unlock it, and that the same PIN is fine (#124c review). */
 export const KID_UNLOCK_HELP =
@@ -18,7 +26,9 @@ export const KID_UNLOCK_HELP =
  * grown-up typing the PIN again in 👪 Grown-ups unlocks it, and the pad
  * notices). Grown-ups manage the family from 👪 Grown-ups, behind their own
  * PIN or password. Opened from an email-change link (#124d), it says what the
- * link did, once, at the top — focused, so it's heard (#167 review round 1).
+ * link did, once, at the top — focused, so it's heard (#167 review round 1);
+ * after 📈 Progress reloaded the game, it says that, and how to get back (#29
+ * review rounds 2–3).
  */
 export default function WhoIsPlaying() {
   const kids = useFamilyStore((s) => s.kids);
@@ -31,10 +41,12 @@ export default function WhoIsPlaying() {
   const [resting, setResting] = useState(false);
   // An email-change link brought the grown-up here: what it did, once.
   const [linkNotice] = useState(() => takeEmailLinkNotice());
+  // 📈 Progress reloaded the game: say so, once (#29 review round 2).
+  const [reloadNote] = useState(() => takeReloadNote());
   const noticeRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
-    if (linkNotice) noticeRef.current?.focus({ preventScroll: true });
-  }, [linkNotice]);
+    if (linkNotice || reloadNote) noticeRef.current?.focus({ preventScroll: true });
+  }, [linkNotice, reloadNote]);
   // Who the pad is open for right now: a check that answers after "That's not me" lets nobody in.
   const askingId = useRef<string | null>(null);
   function ask(kid: Kid | null) {
@@ -85,6 +97,16 @@ export default function WhoIsPlaying() {
         >
           <span aria-hidden="true">{linkNotice === 'other-email' ? '📬 ' : linkNotice === 'email-changed' ? '✅ ' : '⚠️ '}</span>
           {emailLinkWords(linkNotice, email)}
+        </p>
+      )}
+      {reloadNote && !linkNotice && (
+        <p
+          ref={noticeRef}
+          tabIndex={-1}
+          className="-mt-2 mb-4 rounded-xl border border-sky-300 bg-sky-50 px-3 py-2 text-center text-sm font-semibold text-sky-900 focus:outline-none"
+        >
+          <span aria-hidden="true">🔄 </span>
+          {PROGRESS_RELOADED_NOTE}
         </p>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

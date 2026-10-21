@@ -1,7 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
+import { noteReloadFor, retryableLazy, useLazyRetry } from '../../lib/lazyRetry';
+import LazyBoundary from '../../components/LazyBoundary';
+import ErrorDetails from '../../components/ErrorDetails';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
+import { cn } from '../../lib/utils';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { KidAddedWithoutPin, useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
@@ -21,6 +25,12 @@ import QuestionReviewPage from './QuestionReviewPage';
 import SignInAgainButton from './SignInAgainButton';
 import type { Kid } from '../../types';
 
+// 📈 Progress (#29) loads only when a grown-up opens it: the game's first
+// load doesn't carry it. If its file doesn't load (offline, or a new version
+// deployed while the tab was open) the page says so and can try again, and the
+// rest of 👪 Grown-ups keeps working (#29 review round 1).
+const progressPage = retryableLazy(() => import('./ProgressPage'));
+
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
 
@@ -37,7 +47,9 @@ const fieldClass =
  * the time has run out, it shows the gate again rather than controls that
  * would only ask (#167 review round 1) — and says why, on the gate and out
  * loud (`LAPSED_NOTE`, #167 review round 2). Closing the account and
- * changing the login ask for the password again, never the PIN.
+ * changing the login ask for the password again, never the PIN. 📈 Progress
+ * (#29) shows how each kid is doing — read-only, but still only behind the
+ * gate, and it goes back to the gate when the 15 minutes run out like the list.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
@@ -102,6 +114,11 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   const [closing, setClosing] = useState(false);
   // Changing the login's email or password (#124d).
   const [changing, setChanging] = useState<'email' | 'password' | null>(null);
+  // Whose 📈 Progress is open (#29), and how many times its file was loaded
+  // again after failing (a new try starts the page afresh).
+  const [progressFor, setProgressFor] = useState<string | null>(null);
+  const [progressTry, setProgressTry] = useState(0);
+  const progressLoaded = useCallback(() => setProgressTry((n) => n + 1), []);
   // Which kids' PINs the database has locked (#124c review): unlocking is done here.
   const pinLocks = useFamilyStore((s) => s.pinLocks);
   const [lockedKids, setLockedKids] = useState<Record<string, number>>({});
@@ -134,7 +151,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   }, []);
 
   // Asked again each time the list comes back (after a Change, a PIN typed again unlocks).
-  const listing = !editing && !removing && !closing && !reviewing && !changing;
+  const listing = !editing && !removing && !closing && !reviewing && !changing && !progressFor;
   useEffect(() => {
     if (!listing) return;
     let live = true;
@@ -150,9 +167,12 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   // ago, by the gate, the dialog or a password typed again): back to the gate,
   // so a kid who finds the device sees the way in, not live grown-up controls.
   // A page part-filled keeps its place; the list checks again when it's back.
+  // 📈 Progress has nothing to lose, so it goes back to the gate too (#29): a
+  // kid who finds the device never reads the answers to their Library shelf.
   const openedAt = useGrownUpsStore((s) => s.openedAt);
+  const watching = listing || progressFor !== null;
   useEffect(() => {
-    if (!listing || openedAt === null) return;
+    if (!watching || openedAt === null) return;
     const left = openedAt + GROWN_UP_UNLOCK_MINUTES * 60_000 - Date.now();
     if (left <= 0) {
       onLapse();
@@ -160,7 +180,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
     }
     const timer = window.setTimeout(onLapse, left);
     return () => window.clearTimeout(timer);
-  }, [listing, openedAt, onLapse]);
+  }, [watching, openedAt, onLapse]);
 
   // Back on the list: the keyboard and the page are where they left it.
   useEffect(() => {
@@ -231,6 +251,34 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
 
   if (removing) return <RemoveKid kid={removing} onDone={() => setRemoving(null)} />;
 
+  if (progressFor) {
+    // Back on the list: a failure card's words leave the live region with it (#29 review round 2).
+    const back = () => {
+      setProgressFor(null);
+      say(null);
+    };
+    return (
+      <LazyBoundary
+        key={progressTry}
+        failed={<ProgressDidNotLoad onLoaded={progressLoaded} onBack={back} say={say} />}
+        crashed={(error) => <ProgressCrashed error={error} onBack={back} say={say} />}
+      >
+        <Suspense
+          fallback={
+            // As wide as the page it's waiting for, so the card doesn't jump (#29 review round 1).
+            <FamilyCard extraWide focusTitle title="📈 Progress">
+              <p role="status" className="text-center text-sm text-gray-600">
+                Loading…
+              </p>
+            </FamilyCard>
+          }
+        >
+          <progressPage.Component kidId={progressFor} onBack={back} />
+        </Suspense>
+      </LazyBoundary>
+    );
+  }
+
   if (closing) {
     return <CloseAccountPage onCancel={() => setClosing(false)} />;
   }
@@ -263,15 +311,29 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
               </p>
             )}
             {unlockedId === k.id && !(lockedKids[k.id] > 0) && <UnlockedNote name={k.name ?? 'This player'} />}
-            {/* Their own line, so a long nickname never squeezes them on a phone. */}
-            <div className="flex justify-end gap-2">
+            {/* Their own line, so a long nickname never squeezes them on a phone; all three fit one line at 320 px. */}
+            <div className="flex flex-wrap justify-end gap-x-2 [@media(max-width:359px)]:gap-x-0.5">
+              <button
+                data-return={`progress:${k.id}`}
+                onClick={() => {
+                  leave(`progress:${k.id}`);
+                  setProgressFor(k.id);
+                }}
+                aria-label={`Progress for ${k.name ?? 'this player'}`}
+                className="text-sm font-semibold text-purple-700 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
+              >
+                <span aria-hidden="true" className="[@media(max-width:359px)]:hidden">
+                  📈{' '}
+                </span>
+                Progress
+              </button>
               <button
                 data-return={`change:${k.id}`}
                 onClick={() => {
                   leave(`change:${k.id}`);
                   setEditing(k.id);
                 }}
-                className="text-sm text-purple-600 hover:underline px-2 min-h-11"
+                className="text-sm text-purple-600 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
               >
                 Change
               </button>
@@ -281,7 +343,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
                   leave(`remove:${k.id}`);
                   setRemoving(k);
                 }}
-                className="text-sm text-red-600 hover:underline px-2 min-h-11"
+                className="text-sm text-red-600 hover:underline px-2 min-h-11 [@media(max-width:359px)]:px-1.5"
               >
                 Remove
               </button>
@@ -356,6 +418,68 @@ function UnlockedNote({ name }: { name: string }) {
       <span aria-hidden="true">🔓 </span>
       {unlockedWords(name)}
     </p>
+  );
+}
+
+/** Before 📈 Progress reloads the game: "Who's playing?" says so, after (#29 review round 2). */
+const noteProgressReload = () => noteReloadFor('progress');
+
+/**
+ * 📈 Progress's file didn't load (#29 review round 1): plain words, "Try
+ * again" (it loads the file afresh; still missing while our server answers
+ * means a new version is out or the browser kept the failure, so the game
+ * reloads — leaving a note, so "Who's playing?" says what happened and how to
+ * get back) and the way back — the rest of 👪 Grown-ups never leaves; Back
+ * while it tries drops its answer (#29 review round 3). Said once through the
+ * area's live region.
+ */
+function ProgressDidNotLoad({ onLoaded, onBack, say }: { onLoaded: () => void; onBack: () => void; say: (words: string | null) => void }) {
+  const { busy, words, tryAgain } = useLazyRetry(progressPage, onLoaded, noteProgressReload);
+  const text = `The progress page didn't load. ${words ?? 'Try again.'}`;
+  useEffect(() => {
+    say(text);
+  }, [say, text]);
+  return (
+    <FamilyCard extraWide focusTitle title="📈 Progress">
+      <p className="text-sm text-gray-700">{text}</p>
+      <button
+        type="button"
+        aria-disabled={busy || undefined}
+        onClick={busy ? undefined : () => void tryAgain()}
+        className={cn(primaryClass, 'mt-4 w-full')}
+      >
+        {busy ? 'Trying…' : 'Try again'}
+      </button>
+      <button type="button" onClick={onBack} className={cn(gateLinkClass, 'mt-2 text-purple-700')}>
+        ← Back to 👪 Grown-ups
+      </button>
+    </FamilyCard>
+  );
+}
+
+/** What 📈 Progress says when something in it goes wrong (#29 review round 3). */
+export const PROGRESS_CRASHED = 'Something went wrong showing progress. The rest of 👪 Grown-ups still works.';
+
+/**
+ * 📈 Progress hit a bug (a junk save value, say — not a file that didn't
+ * load) (#29 review round 3): grown-up words, the error folded under
+ * "Details for grown-ups" and the way back, on its own card — 👪 Grown-ups
+ * stays open (the game's crash screen spoke to a kid, and its Reload locked
+ * 👪 again). No Try again: it would only show the same page. Said once
+ * through the area's live region.
+ */
+function ProgressCrashed({ error, onBack, say }: { error: Error; onBack: () => void; say: (words: string | null) => void }) {
+  useEffect(() => {
+    say(PROGRESS_CRASHED);
+  }, [say]);
+  return (
+    <FamilyCard extraWide focusTitle title="📈 Progress">
+      <p className="text-sm text-gray-700">{PROGRESS_CRASHED}</p>
+      <ErrorDetails error={error} className="mt-3" />
+      <button type="button" onClick={onBack} className={cn(gateLinkClass, 'mt-4 text-purple-700')}>
+        ← Back to 👪 Grown-ups
+      </button>
+    </FamilyCard>
   );
 }
 

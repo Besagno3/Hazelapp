@@ -88,4 +88,15 @@ describe('mergeProfiles', () => {
     expect(merged.currentStreak).toBe(2);
     expect(merged.longestStreak).toBe(3);
   });
+
+  it('keeps a streak with the day it ended on — never days nobody played (#171)', () => {
+    // A cached "5 days, last 10 Oct" and the server's "1 day, last 20 Oct": the later copy's streak, not "5 days to 20 Oct".
+    const cached = makeProfile({ currentStreak: 5, longestStreak: 5, lastPlayedOn: '2026-10-10' });
+    const server = makeProfile({ currentStreak: 1, longestStreak: 4, lastPlayedOn: '2026-10-20' });
+    expect(mergeProfiles(server, cached)).toMatchObject({ currentStreak: 1, lastPlayedOn: '2026-10-20', longestStreak: 5 });
+    expect(mergeProfiles(cached, server)).toMatchObject({ currentStreak: 1, lastPlayedOn: '2026-10-20', longestStreak: 5 });
+    // The same last day: the longer streak (a device that noted more of it).
+    const sameDay = makeProfile({ currentStreak: 3, longestStreak: 3, lastPlayedOn: '2026-10-20' });
+    expect(mergeProfiles(server, sameDay)).toMatchObject({ currentStreak: 3, lastPlayedOn: '2026-10-20' });
+  });
 });

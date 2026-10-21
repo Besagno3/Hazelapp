@@ -23,12 +23,14 @@ shared source of truth for how this project works.
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
 | Game canvas | KaPlay 3001 (tile overworld, lazy-loaded with the world screen) |
 | Testing     | Vitest 4 + Testing Library + jsdom (`npm test`)     |
-| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
+| CI          | GitHub Actions (`.github/workflows/ci.yml`): lint + test + build (with placeholder Supabase settings, so it bundles the real app, #175) on every non-draft PR / push to `main` (check `test`), plus `edge-function` (deno check) and `migrations` (apply + SQL tests); draft PRs skip CI and Vercel previews (see Pull requests) |
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
-react-router-dom + recharts (parent dashboard), vite-plugin-pwa (PWA, #5),
-zod, react-query. Add the package in the same change that first uses it.
+react-router-dom + recharts, vite-plugin-pwa (PWA, #5), zod, react-query.
+Add the package in the same change that first uses it. The parent dashboard
+(#29) needed neither: it is a page inside 👪 Grown-ups (no router), and its
+bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
 
 ## Decisions
 
@@ -42,7 +44,9 @@ zod, react-query. Add the package in the same change that first uses it.
   tracks per player. The **question level** per topic
   (`profiles.skill_levels`, 1–10) starts from the child's **sign-up age**
   (`ageToStartLevel(playerAge)` — age recomputes from the birth date, so new
-  topics start higher each birthday) and then moves with **performance**
+  topics start higher each birthday; where each topic really started is
+  noted in the save the first time its level is saved, `topicStarts`, #29
+  review round 2) and then moves with **performance**
   (quiz ramp, battle ramp, and the battle **speed trigger**: 5 quick correct
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
@@ -61,7 +65,14 @@ zod, react-query. Add the package in the same change that first uses it.
   shipped 2026-06-12, resolved #11). **Do not adopt react-router** for the game
   flow (URLs / browser-back are a liability for a guided kids' game).
   react-router may still be added later *only* for standalone non-game pages
-  (parent dashboard, settings, leaderboard).
+  (settings, leaderboard). The parent dashboard became 👪 Grown-ups → 📈
+  Progress (#29, 2026-10-21): a page inside the gated area, not a route.
+- **Parent dashboard (#29, 2026-10-21):** it shows only what the database
+  stores — no invented history. The days a kid played are stored for it
+  (migration 0025 `play_days`, kept 14 days); XP over time is not, so there is
+  no XP chart (#169). Charts follow the dataviz method: forms by job (one hero
+  number, meters and cells with their values in words), one sequential hue
+  plus the de-emphasis grey, validated against the card's surface.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
@@ -96,7 +107,8 @@ zod, react-query. Add the package in the same change that first uses it.
   family (`familyStore`: consent + kids). Before the game, `familyScreen()`
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
   (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password —
-  `GrownUpsGate`: add / change / remove kids, set the grown-up PIN, change
+  `GrownUpsGate`: add / change / remove kids, each kid's 📈 Progress (#29),
+  set the grown-up PIN, change
   the login's email or password (`AccountChange`, #124d), the privacy notice,
   Sign out, **Close account** — `CloseAccount`, the `delete-account` edge
   function, password + DELETE, #124b) → the first kid (`FirstKidPage`) → any kid without a PIN
@@ -206,6 +218,126 @@ zod, react-query. Add the package in the same change that first uses it.
   (migration 0021, #152) — and on flags. The privacy notice and the tile
   pictures live in `content/family.ts` (the notice is a **draft** until a
   lawyer reviews it — `PRIVACY_IS_DRAFT`).
+- **👪 Grown-ups → 📈 Progress (#29, `features/family/ProgressPage.tsx`,
+  `lib/progress.ts`):** a "📈 Progress" button on each kid's row opens their
+  page, lazy-loaded (`React.lazy` in `GrownUpsArea`, so the game's first load
+  doesn't carry it); a toggle per kid at the top (`aria-pressed`). The family
+  is read once, three reads whatever its size (`fetchFamilyProgress`):
+  `profiles` progress columns only (`PROGRESS_COLUMNS` — never the birth date;
+  the kid's age only picks a topic's starting level, and PINs are unreadable
+  anyway), `saves` (normalized), and the last week of `play_days`. Reading is
+  not a grown-up action (no `asGrownUp`, no 👪 window needed — RLS keeps it to
+  the family's own kids), but the page is only reachable through the gate and
+  goes back to it when the 15 minutes run out, like the list. The page opens
+  on an h2 with the kid's name and a few lines **at a glance** (`glance`:
+  days played this week ("Not sure which days they played" when their
+  device's date is set ahead, like the tiles — review round 3), the topics
+  that climbed since their noted start (`climbedText`: "Most progress" only
+  when every measured topic has a noted start and there are two or more —
+  `Glance.ranked`; otherwise "Up since they started: Maps & Places (level 4
+  → 5)", none crowned, round 3), what to practise together grouped by why
+  with every topic named once (`practiseText`: below where it started, or
+  `SEVERAL_MISSED` questions of one topic waiting at the Library, a topic
+  with both said once with both; "nothing stands out" only when both the
+  levels and the Library were read) and how many questions wait), then h3 sections
+  (emoji `aria-hidden`); switching kids is said in the page's status region.
+  Pure shaping in `lib/progress.ts`: `levelSummary` (the **player level**, so
+  named, as the hero number, with one line saying it grows with XP and never
+  makes questions harder), `streakSummary` (0 once a day was missed — the
+  saved number waits for the next game; "7 days ago" once a week has passed;
+  a day ahead of this device's today — the kid's device a time zone ahead —
+  counts as today; further ahead is a clock set wrong, "Not sure",
+  `clockAhead`, review round 2), `dayWords`, `recentDays` (played where the
+  database noted the day or it's the last day played, plus the days a live
+  streak proves — review round 2 — drawn and read "played" like any other,
+  one mark, no key (round 3); nothing else guessed),
+  `topicLevels` / `topicMeaning` (each topic "Math: level 6 of 10" read
+  against **where that topic really started** — the save's `topicStarts`,
+  noted by `profileStore.setSkillLevel` the first time a topic's level is
+  saved (`ageToStartLevel` of the age then, and that age): "Up 2 from level
+  1, where they started at age 6", "Below level 4, where they started at age
+  9 — a good one to practise together", plus the writer's top bands, a
+  stretch / the strongest; never against where a player of the kid's age
+  *today* would start — a birthday moves that (#29 review round 2). The
+  section opens with two short sentences (round 3: no history of the game;
+  "Young players start low on purpose" for a kid starting below level 4),
+  then its groups, each under a small heading: "Since they started" (when
+  two or more share one start it's said once — "All 5 started at level 1,
+  when Ada was 6." — and the rows shorten to "Up 2 since they started",
+  `sharedStart`), "Levels now" for topics saved before starts were noted (no
+  above / below claim, only the top bands; "Where these began wasn't
+  recorded.", and when one sits under today's start, that one first played
+  younger may have started lower — so a bare 2 never reads as a step back
+  from the box below, round 3); nothing claims a level went down: no history
+  is kept; topics no round has moved grouped in one "Not moved yet" box at
+  the start for their age now, with no bar — a grey bar there outgrew the
+  bars a long-time player earned), `storySummary` (the act by
+  `act2/3/4-seen` as "Act II" only — the game names no acts; a crystal by
+  name once restored, once their own 🚩 names it, or, Act I's four, once the
+  opening story has; any other "a crystal they haven't found yet"; "4
+  crystals restored so far — 1 more to find in the part of the story they've
+  reached"; the Spire once Act I's crystals are back, their own 🚩 goal,
+  trophies via `badgeInfo` — `content/badges.ts`, shared with the menu's
+  shelf; unknown ids left out), `missedQuestions` ("Questions to practise":
+  the Library queue newest first, and that the kid tries them again at the
+  Library: question, right answer, what they picked or that time ran out,
+  why, the topic's name — no ids; junk entries left out), `typingSummary`,
+  `hasPlayed` (else "… hasn't played yet. Pick … on "Who's playing?" to
+  start."). A part of the account that was never saved (no profile row, no
+  save) says so once under the kid's name, and the sections it would fill are
+  left out — never level 1, 0 of 3 rounds or nothing waiting. Every
+  number in one format (`toLocaleString('en')`). Loading says so in a status
+  region; errors use `plainErrorOr` (with "Sign in again" when the sign-in
+  ran out) and log `errorMessage`; "Try again" waits in place with
+  `aria-disabled` and, once loaded, the kid's heading takes the focus; no
+  `play_days` table (0025 not applied) just leaves the week out. **A file
+  that doesn't load** (offline, or a deploy replaced it): the page sits in a
+  `LazyBoundary` (`components/`) and says "The progress page didn't load. Try
+  again." on its own card (the loading card is as wide as the page) — the
+  rest of 👪 Grown-ups keeps working (`retryableLazy` / `useLazyRetry`,
+  `lib/lazyRetry.ts`; the world's lazy screen does the same in `App`,
+  `LazyFailedScreen`); Back clears the area's live region, and Back while
+  Try again waits drops its answer — no reload under the list later (round
+  3). When Try again must reload the game, it leaves a note first
+  (`noteReloadFor`, sessionStorage, with its time), and "Who's playing?"
+  says "The page had to reload. Open 👪 Grown-ups again to carry on." once,
+  focused, within two minutes (`takeReloadNote`, `RELOAD_NOTE_MS`,
+  `PROGRESS_RELOADED_NOTE`, review rounds 2–3). **A bug in the page** (not a
+  file that didn't load) shows its own card, `ProgressCrashed`: "Something
+  went wrong showing progress. The rest of 👪 Grown-ups still works.", the
+  error under "Details for grown-ups" (`components/ErrorDetails`) and Back —
+  👪 stays open (`LazyBoundary`'s `crashed`, round 3; the world keeps the
+  game's crash screen). Bars are plain HTML/CSS: blue `#2a78d6` on its `#cde2fb` track
+  for measured values and played days,
+  the de-emphasis grey `#898781` for crystals not yet restored — validated with the dataviz palette script on
+  the card's white; every bar carries its value in words beside it
+  (`aria-hidden` bars), the week is an ordered list read day by day.
+  **Days played (#29, migration 0025, `lib/playDays.ts`):** when a kid plays
+  on a new day — a round, a battle, **any XP earned** (`profileStore.addXp`
+  runs `recordActivity`, so typing, the Library, shrines and the Scriptorium
+  count, and the streak and "last played" agree with the week), or
+  **finished typing practice** whatever it pays (a lesson, a cleared one
+  replayed; a 🍂 Falling Leaves round with a leaf caught; a Scriptorium page —
+  each calls `recordActivity`, review round 2) — that day
+  (their device's own `YYYY-MM-DD`) is kept on the device
+  (`hazel-play-days-<kid>`, at most 8; in memory when storage can't be
+  written) and sent to `note_play_days(kid, days)` — security definer, run in
+  UTC whatever time zone a request asks for, the family's own kid only (42501
+  "not your player"), only adding days from 7 back to 1 ahead of the server's
+  date, at most 31 a call, and deleting **every** kid's days older than 14
+  (any family's note — at most 1,000 of the oldest a call, by the index on
+  `day`, so no note risks the API's statement timeout, review round 2; rows
+  another note is deleting are skipped, `skip locked`) — and leaves the
+  device once sent. **The streak (#28) follows the same days:** `recordActivity`
+  is the one path, so a day spent only on typing, the Library or a shrine
+  keeps the 🔥 streak going too — intended (the lead, 2026-10-21). A failed send
+  backs off: no such function (0025 not applied) → nothing more this session;
+  offline → again on the `online` event or after `RETRY_OFFLINE_MS` (10 min);
+  any other refusal → the next new day or profile load (`flushPlayDays(kid,
+  { now })`). `play_days` (profile, day) is readable by the family for the
+  last two weeks only (RLS) and writable by no client; removing a kid or
+  closing the account deletes it (cascade). Kids have no login, so "the kid's
+  own session" is the family's sign-in playing as them, as with saves.
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
   `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
   substates `exploring / dialogue / service / path / menu` driving DOM
@@ -302,7 +434,9 @@ zod, react-query. Add the package in the same change that first uses it.
   debounce).
   Supabase errors degrade to local-only play. Pure logic in `lib/save.ts`
   (normalize / legacy migration / the `MIGRATIONS` ladder — **`SAVE_VERSION`
-  3** since #75 item 15b). **Which copy wins (#151):** every change adds one
+  4** since #29 review round 3 — an empty step, a guard: a tab on a v3 build
+  would drop `topicStarts` and save over them, so to it a v4 save is too new;
+  3 since #75 item 15b). **Which copy wins (#151):** every change adds one
   to the save's `revision` (additive; none = 0, `revisionOf`); loading keeps
   the higher of this device's copy and the server's (a tie, or neither with a
   revision, goes to the server's) and pushes a newer local copy. The server
@@ -329,6 +463,19 @@ zod, react-query. Add the package in the same change that first uses it.
   fresh start for mercy.
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
+  `recordActivity` is the one way a day counts as played (the streak, last
+  played, 📈 Progress's week — #28, #29); `setSkillLevel` notes a topic's
+  real start in the save the first time its level is saved (`topicStarts`).
+  **A row that couldn't be read is never written over (#29 review round 3,
+  #61's class):** after a failed read the profile is this device's copy, or
+  a made-up start (level 1, no topics), and `unread` is set: play goes on in
+  memory, but nothing goes to the row and no topic start is noted (a made-up
+  profile never becomes the device's copy either); the next change after
+  `RETRY_READ_MS` (15 s) reads it again (`retryRead`) and takes it up — the
+  row as the copy the device had would have merged it, plus the XP earned
+  since and today played; levels and power-ups moved since count only from
+  a real copy — then writes the result. A read that answers after the kid
+  changed (or the game was put away) is dropped (`readGen`).
 - **World** (`features/world/`): `WorldScreen` (HUD + overlays + cutscenes)
   wraps `WorldCanvas` (KaPlay; tile collision, press-to-use (#127), zone exits,
   the Spire icon, remounted per zone, paused under overlays via ref). Terrain
@@ -850,7 +997,9 @@ zod, react-query. Add the package in the same change that first uses it.
   `db:bundle` refuses to build if rules 2–3 are broken; CI applies the bundle
   twice and runs the SQL tests.
 - **CI** (`.github/workflows/ci.yml`, #81 + #88): job `test` = lint + bundle
-  check + tests + `build:web` (what Vercel serves, #146); `edge-function` = `deno check`
+  check + tests + `build:web` (what Vercel serves, #146; with placeholder
+  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` on that step only, so it
+  bundles the real app — without them the app is dropped, #175); `edge-function` = `deno check`
   of both edge functions (generate-questions, delete-account) and the bank recheck script; `migrations` applies every migration to a plain
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql` (`pin_limits_lock.test.sql` opens two more
@@ -858,6 +1007,7 @@ zod, react-query. Add the package in the same change that first uses it.
   and deletes it again; `grown_ups_gate.test.sql` proves 👪 Grown-ups is held
   by the database, #167 — and fails when a `profiles` column is on neither
   side of the gate — and `grown_ups_password.test.sql` the password wait;
+  `play_days.test.sql` the days-played rules, #29;
   the other tests that act as a grown-up open it first, on the stub's
   `request.jwt.claims` session). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
@@ -1119,7 +1269,7 @@ zod, react-query. Add the package in the same change that first uses it.
 npm install      # install deps (node_modules is gitignored)
 npm run dev      # Vite dev server
 npm run build    # tsc -b && vite build (the game alone)
-npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146)
+npm run build:web # what Vercel serves: the public pages (site/) at /, the game at /play/ — scripts/build-web.mjs (#146); needs VITE_SUPABASE_URL / _ANON_KEY (placeholders do) or the game builds with no app in it — it warns, and refuses on Vercel production (VERCEL_ENV=production) or with REQUIRE_SUPABASE_ENV=1 (#175)
 npm run lint     # eslint
 npm test         # Vitest suite (test:watch / test:ui also available)
 
@@ -1204,6 +1354,13 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   reset email). A password set in the dashboard, or a hash Supabase upgrades on sign-in, counts
 #   as unannounced too (the safe side).
 
+# 📈 Progress's days played (#29) — migration 0025, any time (either order with the app)
+#   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`). Before it, the page
+#   leaves "Last 7 days" out and each device keeps its days (up to 8), sending none more that session.
+#   0025 changed in review round 1 (every kid's old days deleted, a two-week read window, UTC, an
+#   index) and round 2 (the old days deleted at most 1,000 a note): a project that applied it before
+#   must re-run apply_all_migrations.sql — `db push` skips a recorded version.
+
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';
@@ -1266,6 +1423,26 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
 - `ErrorBoundary` (`src/components/`) catches uncaught render errors and
   shows a friendly crash screen, the real error folded under "Details for
   grown-ups".
+- A lazy-loaded page sits in a `LazyBoundary` (`src/components/`), so a file
+  that doesn't load stays on that page (#29 review round 1): its own words
+  and "Try again" (`retryableLazy` / `useLazyRetry`, `lib/lazyRetry.ts`),
+  which loads the file afresh, reloads the page when our server answers
+  with our own page (`serverAnswers`: OK, this site, `text/html`, the game's
+  title and root read loosely by `isGamePage` — a test reads the real
+  `index.html` — within `SERVER_ANSWER_MS` (8 s); a wifi sign-in page or a
+  5xx isn't us; a new version replaced the file, or the browser kept the
+  failure — Chrome does for a module; `beforeReload` can leave a note for
+  after), and when it doesn't, says the connection's words instead (a reload
+  would lose the game); once its card is gone the answer is dropped (round
+  3). It catches **only** a file that didn't load (`isChunkLoadError`: the
+  browsers' dynamic-import words — Safari's "not a valid JavaScript MIME
+  type" too — Vite's preload, `ChunkLoadError`); any other error in the page
+  goes on to `ErrorBoundary` with its details (#29 review round 2) — unless
+  the page gives `crashed`, its own card for it (📈 Progress does, round 3:
+  `ProgressCrashed`, `components/ErrorDetails`).
+  📈 Progress and the world use it. `ErrorScreen` and the crash screen move
+  the focus to their title as they appear, and `ErrorScreen`'s message is a
+  live region (review round 2).
 
 ## Conventions
 
@@ -1320,7 +1497,9 @@ check to go green (fix and push on red), then merge.
   (Vercel, Preview env); any lookup failure fails open (builds).
 - **What Vercel builds** (#146): `vercel.json` → `buildCommand` `npm run
   build:web`, `outputDirectory` `dist`: the public pages (`site/`) at `/` and
-  the game at `/play/` (`/play` redirects there). The game is built with base
+  the game at `/play/` (`/play` redirects there). A production build stops if
+  `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` aren't set (#175): without
+  them the game would ship with no app in it; previews only warn. The game is built with base
   `/` and only its page moves, so its root paths (`/sprites/…`, `/assets/…`)
   still work. A sign-in link or `?review` that lands on `/` is passed on to
   `/play/` by a script at the top of `site/index.html`.
@@ -1355,6 +1534,237 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
+CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.
+
+### 2026-10-21 — Parent dashboard review round 3: nothing written from a profile that wasn't read, no crown from half the data, one honest week, a page that crashes alone, a CI build with the app in it (#29, #175)
+`/saas-code-review` (3 low + answers) and `/saas-ux-review` (1 medium, 6
+low + also noted) of PR #88, plus the lead's items, all fixed. **Never
+written from a profile that wasn't read (code, the lead's root cause, #61's
+class):** a failed profile read on a device with no copy left a made-up
+profile (no topics), so the kid's next round noted today's age as the start
+of a topic measured years ago ("Below level 5, where they started at age
+10" for good), and the next writes put its XP, levels and streak over the
+real row. Now a failed read marks the profile `unread`: play goes on in
+memory, nothing is written to the row, no start is noted, a made-up profile
+never becomes the device's copy, and the next change after `RETRY_READ_MS`
+(15 s) reads the row again and takes it up — the XP earned since and today
+played carried onto the real numbers, levels and power-ups from a made-up
+start dropped — then writes it (`retryRead`; a late read for another kid is
+dropped, `readGen`). **Try again after Back (code):** its answer could
+reload the page under the 👪 list a moment later, losing what was typed —
+dropped once the card is gone; `serverAnswers` gives up after 8 s.
+**`index.html` read for real (code):** `isGamePage` reads the title and
+root loosely (a longer title, `id=root`) and a test reads the real file;
+Safari's "not a valid JavaScript MIME type" counts as a file that didn't
+load. **Save v4 (the reviewer's optional, the lead's call):** an empty step;
+a tab still on a v3 build would drop `topicStarts` and save over them, now
+it says "Hazel Quest has been updated! … Refresh … nothing is lost." and the
+server refuses its older version. **No crown from half the data (UX
+medium):** on launch week a topic first tried since the update was "Most
+progress" over years of Math it can't be compared with; "Most progress" now
+needs every measured topic to have a noted start (two or more), else "Up
+since they started: Maps & Places (level 4 → 5)". **Low:** one "played"
+mark for the week (the streak's lighter ✓, its key and "(counting days their
+streak shows)" are gone); the reload note says "The page had to reload. Open
+👪 Grown-ups again to carry on." (it claimed a new version), and only within
+two minutes of the reload (a reload that landed on sign-in doesn't explain
+itself to a later sign-in); the topic intro in two short sentences, no
+history of the game ("Young players start low on purpose, then climb." for
+a young kid); topics with no recorded start sit apart under "Levels now"
+("Where these began wasn't recorded." — and, beside a higher "Not moved
+yet", that one first played younger may have started lower), so a bare 2
+never reads as a step back; a device clock set ahead is "Not sure" in the
+glance and the week too; a bug in 📈 shows its own grown-up card ("Something
+went wrong showing progress. The rest of 👪 Grown-ups still works.",
+details folded, Back — 👪 stays open; `LazyBoundary` `crashed`,
+`components/ErrorDetails`, shared with the crash screen), the world keeps
+the game's crash screen. **Also noted:** a topic with both reasons is named
+once in 💡 ("below where they started, with questions waiting: Creativity
+(3)"); a start every noted topic shares is said once ("All 5 started at
+level 1, when Ada was 6.") and the rows shorten ("Up 2 since they
+started", `sharedStart`). **#175 closed (the lead):** CI's `build:web` step
+gets placeholder Supabase settings (`https://ci.invalid`, a dummy key — not
+secrets), so it bundles the real app (locally: main 504.9 KB / 160.1 gz
+without them, 1,373.4 KB / 401.6 gz with, the world and 📈 chunks
+referenced); `build-web.mjs` refuses a Vercel production build without them
+(`VERCEL_ENV=production`, or `REQUIRE_SUPABASE_ENV=1`) and only warns
+elsewhere. Tests 2328 → 2348 (29 mutations of the fixes: 28 caught at once; a kid
+check in `retryRead` redundant with the read counter survived and went); lint, `tsc -b`,
+`build:web` with and without the placeholders; the stubbed app (port 5961)
+at 320×568, 375×667, 740×360 touch and 1024×768 keyboard with the
+reviewers' families (Ada 9 noted and not, Kit 7, Lia's launch week, Zoe's
+top bands, Mia's 6-day streak, Zed's clock in 2099), 📈's file blocked
+(reload + note; Back while it waits: no reload, typing kept) and throwing
+(the grown-up card, Back, again) — 147 checks; the world's file blocked
+and throwing unchanged; and a failed profile read in the game (a Training
+Grounds round with no write and no start, then the real row read and
+written — 10 checks). Bundle: `ProgressPage` 25.5 → 26.7 KB (9.0 gz).
+Left: #174 (a start lost with #151's losing copy), #176 (a made-up
+start's levels dropped once the row is read). No migration, no deploy step.
+
+### 2026-10-21 — Parent dashboard review round 2: topics against where they really started, only a missing file stays on its page, a reload that says why, the week a streak proves (#29)
+`/saas-code-review` (2 medium, 4 low) and `/saas-ux-review` (1 high, 2
+medium, 1 low + polish and a hand-over) of PR #88, all fixed. **Birthdays
+(high, both reviews; the lead's call):** "their starting level" was
+`ageToStartLevel` of the kid's age *today*, so after a birthday a held or
+climbed topic read "Below their starting level — practise together" (and a
+teen measured before #156 "4 above"). The game now notes each topic's real
+start — the level for the age then, and that age — in the save the first
+time the topic's level is saved (`profileStore.setSkillLevel` →
+`withTopicStart`, `SaveData.topicStarts`: additive, validated by
+`normalizeSave`, carried whole by #151's copy that wins), and the page reads
+against it ("Up 2 from level 1, where they started at age 6"); a topic saved
+before has its level alone (and the top bands), no above / below claim, said
+once; the at-a-glance lines follow (🌟 "Most progress" since a noted start,
+💡 below a noted start) and the "Not moved yet" box has no bar (its grey
+outgrew a long-time player's earned bars). **Only a missing file stays on
+its page (medium):** `LazyBoundary` caught every error, so a bug in the world
+read "The world didn't load" and Try again remounted into it; it now catches
+only `isChunkLoadError` and rethrows the rest to `ErrorBoundary` (details for
+grown-ups). **A reload that says why (medium):** Try again on 📈 Progress
+reloads the game when the file is still missing (Chrome keeps the failure);
+it leaves a note first (`noteReloadFor`) and "Who's playing?" says "We
+reloaded Hazel Quest to fetch its newest version for 📈 Progress. Open 👪
+Grown-ups again to see it." once, focused; and `serverAnswers` (the
+hand-over) counts only our own page — OK, this site, `text/html`, the
+game's title and root — so a wifi sign-in page or a 5xx says the
+connection's words instead of reloading into it. **The week a streak proves
+(medium):** "Played on 1 of the last 7 days" over a "6 days" streak — a live
+streak's days join the week, marked (`fromStreak`: blue 250 with a key, read
+"played — their streak shows it"; "(counting days their streak shows)").
+**Low:** the 14-day tidy-up deletes at most 1,000 of the oldest a note (by
+the index; 1M old rows: 7.5 s → 5 ms, so no note risks the 8 s timeout);
+a last day played more than a day ahead is "Not sure" (a clock set wrong),
+never "Today" or a live streak; finished typing practice counts the day
+whatever it pays (a lesson replayed, a Falling Leaves round with a leaf
+caught, a Scriptorium page) — and typing, Library and shrine days keeping
+the 🔥 streak going is intended (the lead; Architecture → Days played);
+"Nothing stands out" only when both the levels and the Library were read;
+Back from the failure card clears 👪's live region. **Polish:** the 💡 line
+grouped by why with every topic named; the player-level note in two short
+sentences; "nothing saved yet" said once under the kid's name, those
+sections left out; the world's failure screen (and every `ErrorScreen`, and
+the crash screen) focuses its title, its message a live region. **Also
+noted (#171):** `mergeProfiles` keeps a streak with the day it ended on (a
+cached streak joined to the server's later day claimed days nobody played —
+the week would now show them). Left: #174 (a topic's start lives in the save,
+its level in the profile); found measuring: #175 (a build with no Supabase
+env drops the whole app, CI's too). Tests
+2297 → 2328 (39 mutations of the app fixes: 37 caught at once; a redirect
+check was redundant with the origin check and went, a content-type test was
+strengthened); 25 migrations + 19 SQL tests on Postgres 16 (`play_days.test.sql`:
+a 2,500-day backlog, 1,000 a note, the oldest first, the 14th day and every
+note kept; 3 loosenings caught); lint, `tsc -b`, `build:web`; bundle with a Supabase env set (without one
+the build drops the app, #175): main 1,368.7 → 1,370.9 KB (400.9 gz),
+`ProgressPage` 24.4 → 25.5 KB (8.7 gz); the stubbed app (port 5941) at
+320×568, 375×667, 740×360 touch and 1024×768 keyboard with the reviewers'
+families — Ada 9 who started at 6 (noted and not), Bo 6, Kit 7, Theodora 15,
+a pre-#156 teen, a 6-day streak with today noted, a clock in 2099, no save —
+and 📈's file blocked (offline, Back, a wifi portal, a new version → the
+note) and throwing (136 checks), the world's file blocked and throwing (28).
+Deploy: re-run `apply_all_migrations.sql` where 0025 was applied (Commands).
+
+### 2026-10-21 — Parent dashboard review round 1: two weeks for every kid, a page that fails alone, levels against their own start, no story spoilers (#29)
+`/saas-code-review` (2 medium, 5 low + 2 also noted) and `/saas-ux-review`
+(1 high, 1 medium, 6 low + also noted, suggestions and a hand-over) of PR
+#88, all fixed but what's listed below. **Kept two weeks, for every kid
+(medium):** only a kid's own new day deleted their old ones, so a kid who
+stopped kept theirs; now any family's note deletes every kid's days older
+than 14 (`skip locked`, an index on `day`), the read policy stops at two
+weeks, and `note_play_days` runs in UTC whatever time zone a request asks
+for. **A page that fails alone (medium):** a lazy file that didn't load sent
+the whole game to "Oops!"; `LazyBoundary` + `retryableLazy` /
+`useLazyRetry` (`lib/lazyRetry.ts`) keep it on 📈 Progress ("The progress
+page didn't load. Try again.", Back still works) and on the world's screen
+(`LazyFailedScreen`, the code review's also-noted): Try again loads the file
+afresh, reloads when the server answers (a new version, or the browser kept
+the failure), and offline says so instead of losing the game. **Days played
+(low ×3):** a failed send backs off (no function → nothing more this
+session; offline → the `online` event or 10 minutes; else the next day or
+profile load); unwritable storage still sends, from memory; any XP earned
+counts the day (`addXp` → `recordActivity`: typing, the Library, shrines,
+the Scriptorium; the streak follows). **Honest gaps (low):** a missing
+profile or save says "Nothing about this has been saved to your account
+yet" (`ROUNDS_TO_UNLOCK`, no invented level 1). **No spoilers (low, the
+lead's call):** acts by number only ("Act II"); a crystal by name once
+restored, once their own 🚩 names it, or Act I's four once the opening story
+has; "4 crystals restored so far — 1 more to find in the part of the story
+they've reached". **UX:** topic levels read against the kid's own starting
+level (`ageToStartLevel`, `topicMeaning`) — a 6–8-year-old starting low on
+purpose never reads "below their age", and the intro says young players
+begin easy on purpose (high); "Player level 12" named and explained, XP's
+sources told truly (rounds, battles, the Library and more, and typing); an
+h2 with the kid's name, h3 sections, emoji hidden, a switch said out loud;
+"Questions to practise" and how the kid revisits them; one number format;
+the loading card as wide as the page; Try again keeps the focus, then the
+kid's heading has it (and `QuestionReviewPage`'s, also noted, via
+`FamilyCard` `refocus`); **at a glance** (the suggested summary line, from
+stored data only): days played, the furthest topic, what to practise
+together (below their starting level, or 3+ questions of a topic waiting),
+the questions waiting; "7 days ago" under a last-played date; 24 px week
+cells; the empty state's next step; long names whole in the picker; the 🚩
+glossed; the kid's device a time zone ahead counts as today (the hand-over).
+`normalizeSave` keeps the newest Library entries (also noted). **Not
+built:** "question level 6 of 10" in each row (the hero, section and intro
+name both levels; the longer label wraps at 320 px); "went down recently" and
+a topic's change since last week (no level history — #173); "Act N of 4" (the
+lead: neutral labels); a sticky kid picker (the glance lines answer first; a
+sticky bar takes 52 px of a 360 px-tall phone). Logged: #172 (time played),
+#173 (accuracy per topic and level history). Tests 2267 → 2297 (20
+mutations of the app fixes, all caught); 25 migrations + 19 SQL tests on
+Postgres 16 (`play_days.test.sql`: another family's stale day goes, the
+14th day stays, the read window, the UTC edges; 6 loosenings of 0025 caught);
+lint, `tsc -b`, `build:web`; the stubbed app (port 5921) with the reviewer's
+families at 320×568, 375×667, 740×360 touch and 1024×768 keyboard (113
+checks) and the world's file blocked (8). Bundle: main 503.8 → 504.6 KB (160.0
+gz), `ProgressPage` 19.3 → 24.4 KB (8.2 gz). Deploy: re-run
+`apply_all_migrations.sql` where 0025 was applied before this round
+(Commands).
+
+### 2026-10-21 — The parent dashboard: 📈 Progress for each kid in 👪 Grown-ups, and the days they played (#29)
+Parents could see nothing of their kid's progress. Now each kid's row in 👪
+Grown-ups has **📈 Progress** (`ProgressPage`, lazy-loaded; shaping in
+`lib/progress.ts`), a toggle per kid at the top, the family read once (three
+reads). Per kid: the player level as the one big number, XP and how far to
+the next level (and that levels never make questions harder); the streak (0
+once a day was missed, best kept) and last played in words; the last 7 days,
+read day by day; every topic's question level as "Math: level 6 of 10" with
+one line on what it means for their age (the question writer's bands),
+topics no round has moved grouped at their starting level; the story — the
+act reached, that act's and earlier crystals, the Spire, their own 🚩 goal,
+trophies by name, nothing about acts not reached; the Library's missed
+questions in words (question, right answer, what they picked or that time
+ran out, why, topic; newest first, three then "Show all"); touch typing.
+"Hasn't played yet", loading and error states (`plainErrorOr`, Sign in again;
+raw errors logged). Never the birth date, a PIN or an id. Reads need no 👪
+window, but the page is behind the gate and goes back to it after 15
+minutes. **History, not invented:** "last 7 days" needed data that wasn't
+stored, so **migration 0025** adds `play_days` (kid, day; RLS: the family
+reads its own kids' days; only `note_play_days` writes — the family's own
+kid, adding days from a week back to a day ahead, kept 14 days; cascade on
+removal) and `lib/playDays.ts` notes a new day from `recordActivity`, kept on
+the device until sent; XP over time isn't stored and stays out (#169).
+**Charts:** plain HTML/CSS by the dataviz method — a hero number, stat tiles,
+meters, 10-cell level bars, a 7-cell week — one sequential blue on its own
+track plus the de-emphasis grey, validated with the palette script on the
+card's white (the 👪 area is a white card, no dark mode); values always in
+words beside the bars. **No recharts** (one bar chart alone is ~106 KB
+gzipped) and no router. `content/badges.ts` (`badgeInfo`) is now shared with
+the menu's shelf (and ignores `constructor`-style ids); the 👪 row's three
+buttons fit one line at 320 px. Bundle: main +7.2 KB (+2.4 KB gzipped: day
+noting, the row button, exports the lazy chunk shares), `ProgressPage` 19.3
+KB (6.7 KB gz) + a shared 2.5 KB chunk, loaded only when opened. Tests 2227 →
+2267 (15 mutations, all caught once a missing junk-level case was added); 25
+migrations + 19 SQL tests on Postgres 16 (new `play_days.test.sql`, 12
+loosenings of 0025 each caught; `close_account.test.sql` checks the days go);
+lint, `tsc -b`, `build:web`; the stubbed app with a family of three (a kid
+mid-Act-II with 8 missed questions, a brand-new kid, one in training) at
+320×568, 375×667, 740×360 touch and 1024×768 keyboard (72 checks). Logged:
+#169 (XP over time), #170 (the first week's undercount), #171 (a streak
+merge that can claim unplayed days). Deploy: apply 0025, either order
+(Commands).
 
 ### 2026-10-21 — Grown-ups review round 2: a reset link really ends the wait, a check the server can tell apart, Close account waits too, and the wait says what works (#167, #124d, #168)
 `/saas-code-review` (1 high, 2 medium, 3 low) and `/saas-ux-review` (2

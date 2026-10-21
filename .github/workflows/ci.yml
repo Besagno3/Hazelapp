@@ -56,7 +56,14 @@ jobs:
       - run: npm test
       # tsc -b (app + bench type-check), then what Vercel serves: the public
       # pages at / and the game at /play/ (scripts/build-web.mjs, #146).
+      # Placeholder Supabase settings (not secrets: the address never resolves,
+      # the key is a dummy), so the build bundles the real app — without them
+      # lib/supabase.ts's top-level throw lets the minifier drop every screen
+      # (#175). On this step only: `npm test` keeps vite.config's own stubs.
       - run: npm run build:web
+        env:
+          VITE_SUPABASE_URL: https://ci.invalid
+          VITE_SUPABASE_ANON_KEY: ci-placeholder-anon-key
 
   edge-function:
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft

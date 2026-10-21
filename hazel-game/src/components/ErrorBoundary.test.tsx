@@ -22,7 +22,8 @@ describe('ErrorBoundary (#130 S6)', () => {
         <Boom />
       </ErrorBoundary>,
     );
-    expect(screen.getByRole('heading', { name: 'Oops! The game tripped over.' })).toBeInTheDocument();
+    // Heard as it appears: its title takes the focus (#29 review round 2).
+    expect(screen.getByRole('heading', { name: 'Oops! The game tripped over.' })).toHaveFocus();
     expect(screen.getByRole('button', { name: /Reload/ })).toBeInTheDocument();
     // The actual error is still there for a grown-up — folded away — and in the console.
     const raw = screen.getByText(/Cannot read properties of undefined/, { selector: 'p' });
