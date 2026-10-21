@@ -168,8 +168,12 @@ as $$
 $$;
 
 -- What a day keeps when a note sends its topics again: per topic, the tally
--- with more answers (a tie takes the new one — its level is the later), the
--- topics already there first if they'd be more than 16.
+-- with more answers, the topics already there first if they'd be more than
+-- 16. A tie takes the new tally whole — its `r` and its `l` with its `a`,
+-- never mixed: one device re-sending its day has the same answers counted
+-- later (and its later level); two devices with the same number of answers
+-- that day keep the one sent last, its right count included (one device's
+-- real tally either way — never a mix, never more right than asked; #179).
 create or replace function public.play_topics_merge(p_old jsonb, p_new jsonb)
 returns jsonb
 language sql

@@ -9,11 +9,39 @@ import { todayIso } from './streak';
  * minute. Each one goes into the kid's day on this device
  * (`lib/playDays.ts`, `addDayMinute`), sent with the day. An undercount at
  * worst (a kid reading a long question without touching anything for a
- * minute); never a minute nobody played.
+ * minute); never a minute nobody played — nor one minute twice: two windows
+ * of the game on this device, both in view and used in turn, share a stamp
+ * of the kid's last minute counted, and a minute counts only when none was
+ * counted in the last `MINUTE_GAP_MS` (review round 1).
  */
 
 /** How often a minute is judged, and how recent the last key, pointer or touch must be. */
 export const MINUTE_MS = 60_000;
+
+/** A minute counts for a kid only if this device counted none for them in this long (another window's timer runs out of step). */
+export const MINUTE_GAP_MS = 55_000;
+
+/** Where a kid's last minute counted on this device is stamped (ms), for every window of the game to see. */
+export function minuteStampKey(kidId: string): string {
+  return `hazel-last-minute-${kidId}`;
+}
+
+/**
+ * Take the minute for `kidId` at `now` unless another window of the game on
+ * this device counted one in the last `MINUTE_GAP_MS` — then it's that
+ * window's minute. A stamp ahead of `now` is a clock set back: it doesn't
+ * hold the minute up. Storage that can't be read or written: counted here.
+ */
+export function claimMinute(kidId: string, now: number): boolean {
+  try {
+    const last = Number(localStorage.getItem(minuteStampKey(kidId)));
+    if (Number.isFinite(last) && last <= now && now - last < MINUTE_GAP_MS) return false;
+    localStorage.setItem(minuteStampKey(kidId), String(now));
+  } catch {
+    // No storage: this window alone counts.
+  }
+  return true;
+}
 
 /** What a minute is judged on. */
 export interface MinuteCheck {
@@ -36,7 +64,8 @@ const INPUT_EVENTS = ['keydown', 'pointerdown', 'touchstart'] as const;
 
 /**
  * Count the kid's active minutes while the page is open (wired once in
- * `App`): every `MINUTE_MS`, one minute for `kid()` when `minuteCounts`.
+ * `App`): every `MINUTE_MS`, one minute for `kid()` when `minuteCounts`
+ * and no other window of the game counted it (`claimMinute`).
  * Input is heard on the window before anything else handles it (a focused
  * button, the world's canvas). A tab going out of view forgets the last
  * input, so coming back needs a new one. Returns the clean-up.
@@ -67,7 +96,7 @@ export function watchActiveMinutes({
     const id = kid();
     if (!id) return;
     const check = { inGame: inGame(), visible: doc.visibilityState === 'visible', lastInputAt, now: Date.now() };
-    if (minuteCounts(check)) void addDayMinute(id, todayIso());
+    if (minuteCounts(check) && claimMinute(id, check.now)) void addDayMinute(id, todayIso());
   }, MINUTE_MS);
   return () => {
     win.clearInterval(timer);

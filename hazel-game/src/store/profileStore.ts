@@ -5,7 +5,7 @@ import { nextStreak, todayIso } from '../lib/streak';
 import { mergeProfiles, readLocalProfile, skillStartsFrom, writeLocalProfile } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
-import { addDayXp, flushPlayDays, noteDayAnswer, noteDayLevel, notePlayDay } from '../lib/playDays';
+import { addDayXp, flushPlayDays, markPlayDay, noteDayAnswer, noteDayLevel, notePlayDay } from '../lib/playDays';
 import { ageToStartLevel, clampLevel, playerAge, skillLevelFor } from '../lib/age';
 import { withTopicStart } from '../lib/save';
 import { isStarterId } from '../content/starterQuestions';
@@ -82,8 +82,11 @@ function withDayPlayed(p: Profile, today: string): Profile {
   return { ...p, currentStreak, longestStreak: Math.max(p.longestStreak, currentStreak), lastPlayedOn: today };
 }
 
-/** How long after a failed read the row is asked for again — on a timer, or by the next change. */
+/** How long after a failed read the row is first asked for again — on a timer, or by the next change. */
 export const RETRY_READ_MS = 15_000;
+
+/** The longest wait between reads of an unread row: each read that fails doubles it, from `RETRY_READ_MS` (#176 review round 1). */
+export const RETRY_READ_MAX_MS = 5 * 60_000;
 
 /**
  * The kid's `profiles` row couldn't be read (#29 review round 3): the profile
@@ -91,8 +94,11 @@ export const RETRY_READ_MS = 15_000;
  * (level 1, no topics). Nothing is written to the row until it is read (a
  * made-up or stale profile written back wiped real XP, levels and streaks —
  * #61's class — and noted a topic's start wrongly); play goes on in memory,
- * and the row is asked for again every `RETRY_READ_MS`, as soon as the
- * device is back online, and on the next change after that long (#176).
+ * and the row is asked for again on a timer, as soon as the device is back
+ * online, and on the next change after that long (#176) — first after
+ * `RETRY_READ_MS`, then twice as long after each read that fails, up to
+ * `RETRY_READ_MAX_MS` (review round 1: a server down for an hour was asked
+ * every 15 s by every open tab).
  * `xp`: earned since, added to the real total once it's read. `steps`: each
  * topic's net level step since (#176), carried onto the row's level once
  * it's read. `starts`: the start of a topic first played since (the level
@@ -173,26 +179,35 @@ async function writeRow(userId: string, fields: Partial<ProfileRow>, { insert = 
 
 /** Bumped on every load and clear: a read that answers after the kid changed is dropped. */
 let readGen = 0;
-let reading = false;
+/**
+ * The load (`readGen`) whose unread row is being read again right now: one
+ * read at a time for a kid, and never one still out for the last kid that
+ * holds up the next kid's (#176 review round 1: a read that hung for the
+ * last kid stopped the new kid's timer for good).
+ */
+let readingGen = -1;
+/** How long until the unread row is asked for again: doubled by each read that fails, back to `RETRY_READ_MS` on a read, a load or a clear. */
+let retryWait = RETRY_READ_MS;
 
 /** While a row is unread (#176): the timer that asks for it again, and the `online` listener. */
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let onOnline: (() => void) | null = null;
 
-/** Ask for the unread row again in `RETRY_READ_MS`, and as soon as the device is back online — not only on the next change (#176). */
+/** Ask for the unread row again in `retryWait`, and as soon as the device is back online — not only on the next change (#176). */
 function watchUnread(): void {
   clearTimeout(retryTimer);
-  retryTimer = setTimeout(() => void useProfileStore.getState().retryRead({ now: true }), RETRY_READ_MS);
+  retryTimer = setTimeout(() => void useProfileStore.getState().retryRead({ now: true }), retryWait);
   if (!onOnline && typeof window !== 'undefined') {
     onOnline = () => void useProfileStore.getState().retryRead({ now: true });
     window.addEventListener('online', onOnline);
   }
 }
 
-/** The row was read (or the profile put away): no more asking. */
+/** The row was read (or the profile put away): no more asking, and the next unread row starts at the first wait. */
 function stopWatchingUnread(): void {
   clearTimeout(retryTimer);
   retryTimer = undefined;
+  retryWait = RETRY_READ_MS;
   if (onOnline) {
     window.removeEventListener('online', onOnline);
     onOnline = null;
@@ -263,9 +278,10 @@ interface ProfileStore {
   /** Fetch a kid's profile row; `birth` seeds a fresh profile if the read fails. */
   loadProfile: (userId: string, birth?: Birth) => Promise<void>;
   /**
-   * After a failed read: read the row again (one at a time; `RETRY_READ_MS`
-   * apart unless `now` — the timer and coming back online) and take it up
-   * with what was played since.
+   * After a failed read: read the row again (one at a time; the wait since
+   * the last try — `RETRY_READ_MS`, doubled by each failure — unless `now`:
+   * the timer and coming back online) and take it up with what was played
+   * since.
    */
   retryRead: (opts?: { now?: boolean }) => Promise<void>;
   /**
@@ -319,6 +335,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const carried = startsToCarry(merged);
       if (carried) merged = { ...merged, skillStarts: carried };
       set({ profile: merged, loading: false, remoteError: null, unread: null });
+      // Today already played, here or on another device: this device's play
+      // for it goes up too (review round 1).
+      if (merged.lastPlayedOn === todayIso()) markPlayDay(userId, todayIso());
       // Days played while offline (or before migration 0025) go up now (#29),
       // even after a failed send this session (unless 0025 isn't there).
       void flushPlayDays(userId, { now: true });
@@ -370,10 +389,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 
   retryRead: async ({ now: soon = false } = {}) => {
     const { profile, unread } = get();
-    if (!profile || !unread || reading || (!soon && Date.now() - unread.triedAt < RETRY_READ_MS)) return;
+    // A read already out for this kid re-arms the timer when it answers.
+    if (!profile || !unread || readingGen === readGen || (!soon && Date.now() - unread.triedAt < retryWait)) return;
     const gen = readGen;
     const userId = profile.id;
-    reading = true;
+    readingGen = gen;
     clearTimeout(retryTimer);
     set({ unread: { ...unread, triedAt: Date.now() } });
     let got: Answer;
@@ -382,13 +402,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     } catch (err) {
       got = { data: null, error: err };
     } finally {
-      reading = false;
+      if (readingGen === gen) readingGen = -1;
     }
     const now = get();
     if (gen !== readGen || !now.profile || !now.unread) return; // another kid, or the game put away, meanwhile
     if (got.error) {
       set({ remoteError: errorMessage(got.error) });
-      watchUnread(); // again in a while, or once back online
+      retryWait = Math.min(RETRY_READ_MAX_MS, retryWait * 2);
+      watchUnread(); // again in a while (longer each time), or once back online
       return;
     }
     stopWatchingUnread();
@@ -438,6 +459,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     if (carried) merged = { ...merged, skillStarts: carried };
     set({ profile: merged, remoteError: null, unread: null });
     writeLocalProfile(merged);
+    // Today already played (on the row, maybe by another device): this device's play for it goes up too (review round 1).
+    if (merged.lastPlayedOn === today) {
+      markPlayDay(userId, today);
+      void flushPlayDays(userId, { now: true });
+    }
     // Each level moved since is the topic's level today now (#173).
     for (const topic of Object.keys(steps) as Topic[]) {
       const level = merged.skillLevels[topic];
@@ -534,10 +560,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const { profile, unread } = get();
     if (!profile) return;
     const today = todayIso();
-    // Same-day no-op — don't write or even nudge the streak. What's waiting
-    // on this device is sent, a couple of minutes after the last send at
-    // most, unless a send just failed (lib/playDays, #29).
+    // Same day — don't write or even nudge the streak. Today already counts
+    // as played (maybe on another device or browser), so this device's play
+    // for it is sent too (review round 1: it never was), with what else is
+    // waiting — a couple of minutes after the last send at most, unless a
+    // send just failed (lib/playDays, #29).
     if (profile.lastPlayedOn === today) {
+      markPlayDay(profile.id, today);
       void flushPlayDays(profile.id);
       return;
     }

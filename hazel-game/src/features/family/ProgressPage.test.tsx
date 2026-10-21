@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
 import type { Kid } from '../../types';
 
 // The database: one canned answer per table (given what the read selects), swappable per test.
@@ -25,7 +25,7 @@ vi.mock('../../lib/supabase', () => ({
 const { default: ProgressPage } = await import('./ProgressPage');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { todayIso, isoOffset } = await import('../../lib/streak');
-const { dayRange } = await import('../../lib/progress');
+const { dayRange, forgetMissingProgress } = await import('../../lib/progress');
 const { midActTwoRow, midActTwoSave, newKidRow, trainingSave } = await import('../../test/progressFixtures');
 
 // Ages by this year (born in January, so the birthday has passed): Sam 9, Kit 7, Ren 11.
@@ -74,6 +74,7 @@ beforeEach(() => {
   for (const k of Object.keys(answers)) delete answers[k];
   reads.length = 0;
   vi.restoreAllMocks();
+  forgetMissingProgress();
   useFamilyStore.setState({ kids: [sam, kit, ren] });
 });
 
@@ -90,10 +91,11 @@ describe('📈 Progress (#29)', () => {
     await hero(12);
     // The kid's own heading, then the sections under it (review round 1).
     expect(screen.getByRole('heading', { level: 2, name: "Sam's progress" })).toBeInTheDocument();
+    // XP after the topics (#89 review round 1): a game's currency, not what a grown-up acts on.
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
       '⭐ Player level and play',
-      '📊 XP, the last 4 weeks',
       '🎯 Question level by topic',
+      '📊 XP, the last 4 weeks',
       '🗺️ Story',
       '📚 Questions to practise (8)',
       '⌨️ Touch typing',
@@ -102,12 +104,13 @@ describe('📈 Progress (#29)', () => {
     const glanceList = screen.getByRole('list', { name: 'At a glance' });
     // Days noted 1, 3 and 4 days back, and a 3-day streak to yesterday: the day 2 back is the streak's (review round 2) —
     // played, like the rest (round 3). Time & History has no noted start, so no topic is crowned "most" (round 3).
-    // Minutes from the two days whose play was noted (#172); Creativity also under half right this week (#173).
+    // Minutes from the two days whose play was noted, said as theirs, not the week's (#172, #89 review round 1);
+    // Creativity also under half right (#173), named first with its reasons.
     expect(within(glanceList).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       '📅Played on 4 of the last 7 days.',
-      '⏱️About 35 minutes of play in the last 7 days — not recorded on 2 days they played.',
+      "⏱️About 35 minutes of play on 2 recorded days · 2 days played weren't recorded.",
       '🌟Up since they started: Math (level 3 → 6), Science (level 4 → 8) and Nature & Animals (level 4 → 9).',
-      '💡To practise together — below where they started, under half right in the last 7 days: Creativity (2 of 6 right).',
+      '💡To practise together: Creativity (below their start, under half right).',
       '📚8 questions to try again at the Library (listed below).',
     ]);
     expect(screen.getByText('2,340 XP in all')).toBeInTheDocument();
@@ -145,12 +148,13 @@ describe('📈 Progress (#29)', () => {
     ]);
     const [moved, unnoted, notMoved] = within(topicRegion).getAllByRole('list');
     const topics = within(moved).getAllByRole('listitem');
-    // With the last 7 days' answers and the level against the week before (#173), where the days noted them.
-    expect(topics.map((t) => t.textContent)).toEqual([
-      '🔢 Math: level 6 of 10Up 3 from level 3, where they started at age 8Last 7 days: 7 of 10 right · Up 1 since last week',
-      '🔬 Science: level 8 of 10Up 4 from level 4, where they started at age 9 — a stretch for their ageLast 7 days: 4 of 4 right · Same as last week',
+    // With the last 7 days' answers and the level against the week before (#173), where the days noted them —
+    // two days played this week weren't recorded, so the counts are of the days that were (#89 review round 1).
+    expect(topics.map((t) => t.textContent?.replace(/\u00a0/g, ' '))).toEqual([
+      '🔢 Math: level 6 of 10Up 3 from level 3, where they started at age 8Last 7 days: 7 of 10 right on recorded days · Up 1 since last week',
+      '🔬 Science: level 8 of 10Up 4 from level 4, where they started at age 9 — a stretch for their ageLast 7 days: 4 of 4 right on recorded days · Same as last week',
       '⚙️ Engineering: level 4 of 10At level 4, where they started at age 9',
-      '🎨 Creativity: level 3 of 10Below level 4, where they started at age 9 — a good one to practise togetherLast 7 days: 2 of 6 right · Down 1 since last week',
+      '🎨 Creativity: level 3 of 10Below level 4, where they started at age 9 — a good one to practise togetherLast 7 days: 2 of 6 right on recorded days · Down 1 since last week',
       '🦋 Nature & Animals: level 9 of 10Up 5 from level 4, where they started at age 9 — for the strongest at their age',
     ]);
     expect(within(unnoted).getAllByRole('listitem').map((t) => t.textContent)).toEqual(['⏳ Time & History: level 5 of 10']);
@@ -167,7 +171,9 @@ describe('📈 Progress (#29)', () => {
       '🎸 Music',
     ]);
     // Answered at a gate or a chest, but no round moved its level yet (#173).
-    expect(notMovedHeading.parentElement).toHaveTextContent('Answered in the last 7 days: Space (1 of 2 right).');
+    expect(notMovedHeading.parentElement).toHaveTextContent('Answered in the last 7 days, on recorded days: Space (1 of 2 right).');
+    // "Down 1 since last week" never breaks across lines (#89 review round 1).
+    expect(within(moved).getByText('Down 1 since last week')).toHaveClass('whitespace-nowrap');
     // The story: "Act II" only, the crystals the game has named, never one it hasn't (review round 1).
     const story = screen.getByRole('region', { name: 'Story' });
     expect(within(story).getByText('Act II')).toBeInTheDocument();
@@ -480,12 +486,18 @@ describe('📈 Progress (#29)', () => {
       `${range(27)}: No play noted`,
       `${range(20)}: 90 XP`,
       `${range(13)}: 200 XP`,
-      // 120 + 60; the day 4 back was played, its XP not noted — not counted as 0, and keyed.
-      `${range(6)}: 180 XP`,
+      // 120 + 60 on the two days recorded; the days 2 and 4 back were played, their XP not noted — never counted
+      // as 0, never left out of the words (#89 review round 1: "180 XP" read as the whole week), and keyed.
+      `${range(6)}: 180 XP on 2 recorded days · 2 days played weren't recorded`,
     ]);
-    // The columns are decoration (the words and the table carry the values); the tallest is said.
+    // Only the number stands out; a week's words without one are plain, like absence (#89 review round 1).
+    const [quiet, , , partial] = within(weeks).getAllByRole('listitem');
+    expect(within(partial).getByText('180 XP')).toHaveClass('font-semibold');
+    expect(within(quiet).getByText('No play noted')).not.toHaveClass('font-semibold');
+    expect(within(quiet).getByText('No play noted')).toHaveClass('text-gray-600');
+    // The columns are decoration (the words and the table carry the values); the tallest recorded day is said — as that.
     for (const li of within(weeks).getAllByRole('listitem')) expect(li.querySelector('.grid')).toHaveAttribute('aria-hidden', 'true');
-    expect(region).toHaveTextContent(`Most in a day: 200 XP, ${longDay(isoOffset(today, -9))}.`);
+    expect(region).toHaveTextContent(`Most on a recorded day: 200 XP, ${longDay(isoOffset(today, -9))}.`);
     expect(region).toHaveTextContent("Played, but that day's XP wasn't recorded.");
     expect(region).not.toHaveTextContent(/Counted from/);
     const bars = region.querySelectorAll('.grid [style*="height"] > span[style]');
@@ -506,15 +518,20 @@ describe('📈 Progress (#29)', () => {
     expect(row(4)).toBe(`${longDay(isoOffset(today, -4))}played, not recorded`);
     expect(row(5)).toBe(`${longDay(isoOffset(today, -5))}no play noted`);
     expect(row(0)).toBe(`${longDay(today)} (today)no play noted`);
-    // Narrow screens see "Thu 24 Sep" and "about 25 min" — the whole words stay for a screen reader (and from 640 px).
+    // "Thu 24 Sep" and "about 25 min" at every screen width — the table is never wider than 24rem, where the whole
+    // words wrap (#89 review round 1: they switched on the screen's width) — and the whole words for a screen reader.
     const yesterday = rows.find((r) => heard(r).startsWith(longDay(isoOffset(today, -1)))) as HTMLElement;
     const shown = Array.from(yesterday.querySelectorAll('[aria-hidden="true"]')).map((e) => e.textContent);
     expect(shown).toEqual([`${longDay(isoOffset(today, -1)).slice(0, 3)} ${longDay(isoOffset(today, -1)).split(' ')[1]} ${longDay(isoOffset(today, -1)).split(' ')[2].slice(0, 3)}`, 'about 25 min']);
-    expect(yesterday.querySelector('.sr-only.sm\\:not-sr-only')).not.toBeNull();
-    expect(table).toHaveTextContent(`${range(6)} · 180 XP`);
+    for (const e of Array.from(yesterday.querySelectorAll('[aria-hidden="true"]'))) expect(e.className).toBe('');
+    expect(Array.from(yesterday.querySelectorAll('.sr-only')).map((e) => [e.className, e.textContent])).toEqual([
+      ['sr-only', longDay(isoOffset(today, -1))],
+      ['sr-only', 'about 25 minutes'],
+    ]);
+    expect(table).toHaveTextContent(`${range(6)} · 180 XP on 2 recorded days · 2 days played weren't recorded`);
   });
 
-  it('counted from the first day noted (#170): the days before read "not recorded" — never "no play noted" — and a note says so under each chart', async () => {
+  it('counted from the first day noted (#170): the days before read "not recorded" — never "no play noted" — and a note says so once', async () => {
     answers.profiles = ok([{ ...midActTwoRow(sam.id, today), current_streak: 1, last_played_on: today }]);
     answers.saves = ok([{ profile_id: sam.id, data: midActTwoSave() }]);
     answers.play_days = ok([played(sam.id, 2, 40, 10), played(sam.id, 0, 30, 5)]);
@@ -522,24 +539,72 @@ describe('📈 Progress (#29)', () => {
     useFamilyStore.setState({ kids: [sam] });
     await open(sam.id);
     await hero(12);
-    const note = `Counted from ${longDay(isoOffset(today, -2))} — earlier days weren't recorded.`;
+    // True of a kid just starting as of one counted since the update (#89 review round 1).
+    const note = `Counted from ${longDay(isoOffset(today, -2))}, the first day noted.`;
     const level = screen.getByRole('region', { name: 'Player level and play' });
     expect(level).toHaveTextContent(note);
     const week = screen.getByRole('heading', { name: /Last 7 days/ }).nextElementSibling as HTMLElement;
     const daysRead = within(week).getAllByRole('listitem').map((li) => li.querySelector('.sr-only')?.textContent ?? '');
     expect(daysRead.map((t) => t.replace(/^.*: /, ''))).toEqual(['not recorded', 'not recorded', 'not recorded', 'not recorded', 'played · about 10 minutes', 'no play noted', 'played · about 5 minutes']);
-    const xp = screen.getByRole('region', { name: 'XP, the last 4 weeks' });
-    expect(xp).toHaveTextContent(note);
+    // Said once (#89 review round 1): the week above says it, so the XP section doesn't — and it leaves out the
+    // weeks wholly before counting rather than listing three "Not recorded" rows; the title says what's shown.
+    expect(document.body.textContent?.split('Counted from')).toHaveLength(2);
+    const xp = screen.getByRole('region', { name: 'XP this week' });
+    expect(xp).not.toHaveTextContent(/Counted from|Not recorded/);
     const weekRows = within(within(xp).getByRole('list', { name: /XP each week/ })).getAllByRole('listitem');
-    expect(weekRows.map((li) => li.textContent?.replace(/^.*: /, ''))).toEqual(['Not recorded', 'Not recorded', 'Not recorded', '70 XP']);
-    // A week wholly before the first day noted is its words alone: no empty plot (on a phone, 50 px each).
-    expect(weekRows.map((li) => li.querySelector('.grid') !== null)).toEqual([false, false, false, true]);
+    // The week's 70 XP is from the first day counted, said so.
+    const from = longDay(isoOffset(today, -2)).split(' ')[0];
+    expect(weekRows.map((li) => li.textContent?.replace(/^.*: /, ''))).toEqual([`70 XP from ${from}`]);
     fireEvent.click(within(xp).getByText('Every day in a table'));
     const table = within(xp).getByRole('table');
     expect(within(table).getAllByRole('row').map(heard).find((t) => t.startsWith(longDay(isoOffset(today, -3))))).toBe(`${longDay(isoOffset(today, -3))}not recorded`);
-    // …and in the table, its heading alone: this week's seven days, four week headings and the column heads.
-    expect(within(table).getAllByRole('row')).toHaveLength(1 + 4 + 7);
+    // …and in the table: this week's seven days under its heading, and the column heads.
+    expect(within(table).getAllByRole('row')).toHaveLength(1 + 1 + 7);
     expect(document.body).not.toHaveTextContent(/(^|[^\d,])0 XP/);
+  });
+
+  it('a new kid, the first weeks after 0026, a kid gone quiet: the XP section is a line, not rows of nothing (#89 review round 1)', async () => {
+    const kid = (over: Record<string, unknown>) => ({ ...midActTwoRow(sam.id, today), ...over });
+    answers.saves = ok([{ profile_id: sam.id, data: midActTwoSave() }]);
+    useFamilyStore.setState({ kids: [sam] });
+    // First play today: one day of XP — no chart round one bar, no "most in a day", no table.
+    answers.profiles = ok([kid({ current_streak: 1, last_played_on: today })]);
+    answers.play_days = ok([played(sam.id, 0, 35, 6)]);
+    answers.play_history_since = ok([{ profile_id: sam.id, since: today }]);
+    await open(sam.id);
+    await hero(12);
+    let xp = screen.getByRole('region', { name: 'XP this week' });
+    expect(xp).toHaveTextContent(`35 XP and about 5 minutes of play on ${longDay(today)} (today).`);
+    expect(within(xp).queryByRole('list')).toBeNull();
+    expect(within(xp).queryByRole('table')).toBeNull();
+    expect(xp).not.toHaveTextContent(/Most|Not recorded|Counted from/);
+    // "Counted from…" once, under the week.
+    expect(document.body.textContent?.split('Counted from')).toHaveLength(2);
+    cleanup();
+    // 0026 applied this week: the 0025 days carry its zeros, today is the first recorded — and the note is the XP section's.
+    answers.profiles = ok([kid({ current_streak: 4, last_played_on: today })]);
+    answers.play_days = ok([...[12, 10, 9, 7, 5, 3, 2, 1].map((back) => played(sam.id, back, 0, 0)), played(sam.id, 0, 25, 4)]);
+    answers.play_history_since = ok([{ profile_id: sam.id, since: isoOffset(today, -12) }]);
+    await open(sam.id);
+    await hero(12);
+    xp = screen.getByRole('region', { name: 'XP, the last 2 weeks' });
+    expect(xp).toHaveTextContent(`25 XP and a few minutes of play on ${longDay(today)} (today) · 8 other days played weren't recorded.`);
+    expect(xp).toHaveTextContent(`Counted from ${longDay(isoOffset(today, -12))}, the first day noted.`);
+    expect(document.body.textContent?.split('Counted from')).toHaveLength(2);
+    // ⏱️ says what its number covers — never "a few minutes of play in the last 7 days" over five days played.
+    expect(screen.getByRole('list', { name: 'At a glance' })).toHaveTextContent(
+      "⏱️A few minutes of play on 1 recorded day · 4 days played weren't recorded.",
+    );
+    cleanup();
+    // Idle for 20 days, no day noted since 0026: one line.
+    answers.profiles = ok([kid({ current_streak: 0, last_played_on: isoOffset(today, -20) })]);
+    answers.play_days = ok([]);
+    answers.play_history_since = ok([]);
+    await open(sam.id);
+    await hero(12);
+    xp = screen.getByRole('region', { name: 'XP, the last 4 weeks' });
+    expect(xp).toHaveTextContent('Played on 1 day in the last 4 weeks, XP not recorded.');
+    expect(within(xp).queryByRole('list')).toBeNull();
   });
 
   it('a topic reads against where the profile says it started first, then the save (#174)', async () => {
@@ -571,12 +636,19 @@ describe('📈 Progress (#29)', () => {
     await open();
     await hero(12);
     expect(reads).toEqual(['profiles', 'saves', 'play_days', 'play_history_since', 'profiles', 'play_days']);
-    expect(screen.queryByRole('region', { name: 'XP, the last 4 weeks' })).toBeNull();
+    expect(screen.queryByRole('region', { name: /^XP/ })).toBeNull();
     expect(screen.getByRole('heading', { name: /Last 7 days/ })).toHaveTextContent('Last 7 days · played on 4 of 7');
     const glanceList = screen.getByRole('list', { name: 'At a glance' });
     expect(glanceList).toHaveTextContent('Played on 4 of the last 7 days.');
-    expect(glanceList).toHaveTextContent('💡To practise together — below where they started: Creativity.');
+    expect(glanceList).toHaveTextContent('💡To practise together: Creativity (below their start).');
     expect(screen.queryByText(/minutes|Last 7 days:|since last week|not recorded|Answered/)).toBeNull();
+    // Opened again this session: what's there is read straight away, one round, no failed reads first (#89 review round 1).
+    cleanup();
+    reads.length = 0;
+    await open();
+    await hero(12);
+    expect(reads).toEqual(['profiles', 'saves', 'play_days']);
+    expect(screen.getByRole('list', { name: 'At a glance' })).toHaveTextContent('Played on 4 of the last 7 days.');
   });
 
   it('both Back buttons go back to 👪 Grown-ups', async () => {

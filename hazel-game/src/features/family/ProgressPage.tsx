@@ -23,9 +23,10 @@ import {
   streakSummary,
   topicLevels,
   topicStartsOf,
+  topicWeekParts,
   topicWeeks,
-  topicWeekText,
   typingSummary,
+  xpBrief,
   xpWeeks,
   XP_WEEKS,
   type Glance,
@@ -82,9 +83,11 @@ function notSavedLine(stats: boolean, save: boolean): string | null {
 
 /**
  * 👪 Grown-ups → 📈 Progress (#29): how each kid is doing — a few lines at a
- * glance, player level and XP, streak and the last week, XP over the last 4
- * weeks (#169), question level per topic with the week's answers (#173), the
- * story so far, the questions waiting at the Library and touch typing.
+ * glance, player level and XP, streak and the last week, question level per
+ * topic with the week's answers (#173), XP over the last 4 weeks (#169 —
+ * after the topics since review round 1: a game's currency, not what a
+ * grown-up acts on), the story so far, the questions waiting at the Library
+ * and touch typing.
  * Read-only; loads the whole family at once (four reads) so switching kids
  * is instant. Lazy-loaded by `GrownUpsArea`, so the game's first load
  * doesn't carry it.
@@ -256,6 +259,10 @@ function KidProgress({ kid, data, today, headingRef }: { kid: Kid; data: KidProg
   const week = data.playDays && !clockAhead ? days(7) : null;
   const month = history ? days(XP_WEEKS * 7) : null;
   const levels = data.stats ? topicLevels(data.stats.skillLevels, age, topicStartsOf(data), topicWeeks(history, today)) : null;
+  // Days they played in the last 7 whose play wasn't recorded: the week's answers are of the days that were (review round 1).
+  const answersPartial = !!history && !!week && week.some((d) => d.played && d.xp === null);
+  // "Counted from…" is said once (review round 1): under the week when it falls in it, else under the XP chart.
+  const countedInWeek = !!week && countedFromText(week) !== null;
   const notSaved = notSavedLine(!!data.stats, !!data.save);
   return (
     <div>
@@ -273,8 +280,8 @@ function KidProgress({ kid, data, today, headingRef }: { kid: Kid; data: KidProg
       />
       <div className="mt-6 space-y-6">
         {(data.stats || week) && <LevelSection name={name} data={data} week={week} weekUnsure={clockAhead && data.playDays !== null} today={today} />}
-        {data.history && <XpSection days={month} />}
-        {levels && <TopicSection name={name} levels={levels} ageStart={ageToStartLevel(age)} />}
+        {levels && <TopicSection name={name} levels={levels} ageStart={ageToStartLevel(age)} answersPartial={answersPartial} />}
+        {data.history && <XpSection days={month} countedSaid={countedInWeek} />}
         {story && <StorySection name={name} story={story} />}
         {missed && <MissedSection name={name} missed={missed} />}
         {data.save && <TypingSection name={name} typing={typingSummary(data.save)} />}
@@ -476,7 +483,7 @@ function dayPlay(d: RecentDay): string {
   return d.counted ? 'no play noted' : 'not recorded';
 }
 
-/** "Counted from Tuesday 21 October — earlier days weren't recorded." under a chart whose first days came before it (#170). */
+/** "Counted from Tuesday 21 October, the first day noted." under a chart whose first days came before it (#170). */
 function CountedFrom({ days }: { days: RecentDay[] }) {
   const note = countedFromText(days);
   return note ? <p className="mt-1 text-xs text-gray-600">{note}</p> : null;
@@ -491,18 +498,37 @@ const XP_PLOT = 48;
  * were — a row for each week, oldest first, its dates and its XP in words
  * beside it, one scale for all four. A day without play has no mark; a day
  * played whose XP wasn't recorded (an older app, or one only the streak
- * proves) a grey dot, keyed below; days before the first noted have no
- * baseline either, and the note says so (#170). The columns are decoration
- * for a screen reader: the week rows read their totals, and the table under
- * them has every day.
+ * proves) a grey dot, keyed below, and the week's words say what its number
+ * leaves out (review round 1). Weeks wholly before the first day noted are
+ * left out (#170), and the title says how many are shown; with fewer than
+ * two days of XP recorded the section is one line instead (`xpBrief`). The
+ * columns are decoration for a screen reader: the week rows read their
+ * totals, and the table under them has every day. `countedSaid`: the week
+ * above already said "Counted from…", so it isn't said twice.
  */
-function XpSection({ days }: { days: RecentDay[] | null }) {
-  return (
-    <Section emoji="📊" title="XP, the last 4 weeks">
-      {days ? (
-        <XpChart days={days} />
-      ) : (
+function XpSection({ days, countedSaid }: { days: RecentDay[] | null; countedSaid: boolean }) {
+  if (!days) {
+    return (
+      <Section emoji="📊" title="XP, the last 4 weeks">
         <p className="text-sm text-gray-700">Not sure which days they earned it — their device's date is set ahead.</p>
+      </Section>
+    );
+  }
+  const all = xpWeeks(days);
+  const counted = all.filter(recorded);
+  const weeks = counted.length > 0 ? counted : all.slice(-1);
+  const shown = weeks.flatMap((w) => w.days);
+  const brief = xpBrief(shown, weeks.length === 1 ? 'this week' : `in the last ${weeks.length} weeks`);
+  const note = countedSaid ? null : countedFromText(days);
+  return (
+    <Section emoji="📊" title={weeks.length === 1 ? 'XP this week' : `XP, the last ${weeks.length} weeks`}>
+      {brief ? (
+        <div className="max-w-sm space-y-0.5 text-sm text-gray-700">
+          <p>{brief}</p>
+          {note && <p className="text-xs text-gray-600">{note}</p>}
+        </div>
+      ) : (
+        <XpChart weeks={weeks} note={note} />
       )}
     </Section>
   );
@@ -512,18 +538,28 @@ function XpSection({ days }: { days: RecentDay[] | null }) {
 const recorded = (w: XpWeek) => w.days.some((d) => d.counted || d.played);
 
 /**
- * Words with a shorter twin for a narrow table (#169): "Thu 24 Sep", "about 5
- * min" under 640 px, the whole words from there — and always for a screen
- * reader.
+ * Words with a shorter twin in the table (#169): "Thu 24 Sep", "about 5 min"
+ * shown, the whole words read out. The table is never wider than `max-w-sm`
+ * (24rem), where the whole words wrap at any screen width (review round 1:
+ * they switched on the screen's width, so a tablet's rows wrapped).
  */
-function Narrow({ short, long }: { short: string; long: string }) {
+function Short({ short, long }: { short: string; long: string }) {
   return (
     <>
-      <span aria-hidden="true" className="sm:hidden">
-        {short}
-      </span>
-      <span className="sr-only sm:not-sr-only">{long}</span>
+      <span aria-hidden="true">{short}</span>
+      <span className="sr-only">{long}</span>
     </>
+  );
+}
+
+/** A week's XP in words: the number (when there is one) stands out; what it covers, or what's known instead, is plain (review round 1). */
+function WeekTotal({ week: w }: { week: XpWeek }) {
+  if (w.xp === null) return <span className="ml-auto text-right text-gray-600">{w.note}</span>;
+  return (
+    <span className="ml-auto text-right text-gray-600">
+      <span className="font-semibold tabular-nums text-gray-900">{fmt(w.xp)} XP</span>
+      {w.note && ` ${w.note}`}
+    </span>
   );
 }
 
@@ -540,8 +576,8 @@ function dayXp(d: RecentDay): string {
   return d.counted ? 'no play noted' : 'not recorded';
 }
 
-function XpChart({ days }: { days: RecentDay[] }) {
-  const weeks = xpWeeks(days);
+function XpChart({ weeks, note }: { weeks: XpWeek[]; note: string | null }) {
+  const days = weeks.flatMap((w) => w.days);
   const best = bestXpDay(days);
   const max = best?.xp ?? 0;
   const unnoted = days.some((d) => d.played && d.xp === null);
@@ -551,10 +587,10 @@ function XpChart({ days }: { days: RecentDay[] }) {
       <ol aria-label="XP each week, oldest first" className="space-y-2">
         {weeks.map((w) => (
           <li key={w.label}>
-            <p className="flex items-baseline justify-between gap-2 text-xs">
+            <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
               <span className="text-gray-600">{w.label}</span>
               <span className="sr-only">: </span>
-              <span className="shrink-0 font-semibold tabular-nums text-gray-900">{w.total}</span>
+              <WeekTotal week={w} />
             </p>
             {/* A week wholly before the first day noted is its words alone — no empty plot to scroll past. */}
             {recorded(w) && (
@@ -585,9 +621,10 @@ function XpChart({ days }: { days: RecentDay[] }) {
         ))}
       </div>
       <div className="mt-2 space-y-0.5 text-xs text-gray-600">
+        {/* The best of the days recorded — said so when some weren't (review round 1). */}
         {best && (
           <p>
-            Most in a day: {fmt(max)} XP, {best.long}.
+            {unnoted ? 'Most on a recorded day' : 'Most in a day'}: {fmt(max)} XP, {best.long}.
           </p>
         )}
         {unnoted && (
@@ -596,7 +633,7 @@ function XpChart({ days }: { days: RecentDay[] }) {
             Played, but that day's XP wasn't recorded.
           </p>
         )}
-        <CountedFrom days={days} />
+        {note && <p>{note}</p>}
       </div>
       <XpTable weeks={weeks} />
     </div>
@@ -640,13 +677,13 @@ function XpTable({ weeks }: { weeks: XpWeek[] }) {
               w.days.map((d) => (
                 <tr key={d.iso} className="border-b border-gray-100 align-top">
                   <th scope="row" className="py-1 pr-2 font-normal text-gray-800">
-                    <Narrow short={shortDay(d)} long={`${d.long}${d.today ? ' (today)' : ''}`} />
+                    <Short short={shortDay(d)} long={`${d.long}${d.today ? ' (today)' : ''}`} />
                   </th>
                   {d.xp !== null ? (
                     <>
                       <td className="py-1 pr-2 text-right tabular-nums text-gray-900">{fmt(d.xp)}</td>
                       <td className="py-1 text-gray-700">
-                        {d.minutes !== null ? <Narrow short={shortMinutes(d.minutes)} long={minutesWords(d.minutes)} /> : 'not recorded'}
+                        {d.minutes !== null ? <Short short={shortMinutes(d.minutes)} long={minutesWords(d.minutes)} /> : 'not recorded'}
                       </td>
                     </>
                   ) : (
@@ -677,7 +714,18 @@ function Tile({ emoji, label, value, sub }: { emoji: string; label: string; valu
   );
 }
 
-function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicLevel[]; ageStart: number }) {
+function TopicSection({
+  name,
+  levels,
+  ageStart,
+  answersPartial,
+}: {
+  name: string;
+  levels: TopicLevel[];
+  ageStart: number;
+  /** Some days they played in the last 7 weren't recorded: the answers are of the days that were (review round 1). */
+  answersPartial: boolean;
+}) {
   const measured = levels.filter((t) => t.measured);
   // Read against where each really started (round 2) — apart from those whose start wasn't recorded, so
   // their bare levels never read as a step back from "Not moved yet" (#29 review round 3).
@@ -700,6 +748,7 @@ function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicL
           title="Since they started"
           note={shared ? `${noted.length === 2 ? 'Both' : `All ${noted.length}`} started at level ${shared.level}, when ${name} was ${shared.age}.` : null}
           topics={noted}
+          answersPartial={answersPartial}
         />
       )}
       {unnoted.length > 0 && (
@@ -712,6 +761,7 @@ function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicL
               : ''
           }`}
           topics={unnoted}
+          answersPartial={answersPartial}
         />
       )}
       {/* No bar for these (#29 review round 2): a grey bar at today's start outgrew the bars a long-time player
@@ -740,7 +790,7 @@ function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicL
           {/* Answered, but no round moved the level yet (#173): a gate's or a chest's questions don't save one. */}
           {answered.length > 0 && (
             <p className="mt-2 text-xs text-gray-600">
-              Answered in the last 7 days:{' '}
+              Answered in the last 7 days{answersPartial ? ', on recorded days' : ''}:{' '}
               {nameList(answered.map((t) => `${t.label} (${t.answers?.right} of ${t.answers?.asked} right)`), Infinity)}.
             </p>
           )}
@@ -750,8 +800,20 @@ function TopicSection({ name, levels, ageStart }: { name: string; levels: TopicL
   );
 }
 
-/** A group of measured topics under its own small heading: its rows (bar, level, meaning) and a line about them all. */
-function TopicGroup({ title, note, topics, className }: { title: string; note: string | null; topics: TopicLevel[]; className?: string }) {
+/** A group of measured topics under its own small heading: its rows (bar, level, meaning, the week's answers) and a line about them all. */
+function TopicGroup({
+  title,
+  note,
+  topics,
+  className,
+  answersPartial,
+}: {
+  title: string;
+  note: string | null;
+  topics: TopicLevel[];
+  className?: string;
+  answersPartial: boolean;
+}) {
   return (
     <div className={className}>
       <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">{title}</h4>
@@ -771,11 +833,31 @@ function TopicGroup({ title, note, topics, className }: { title: string; note: s
             </div>
             <Segments value={t.level} />
             {t.meaning && <p className="mt-0.5 text-xs text-gray-600">{t.meaning}</p>}
-            {topicWeekText(t) && <p className="mt-0.5 text-xs text-gray-600">{topicWeekText(t)}</p>}
+            <WeekLine parts={topicWeekParts(t, answersPartial)} />
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+/**
+ * A topic's week (#173) on its own line, a little apart from its meaning, and
+ * "Down 2 since last week" never broken across lines (review round 1: at 320
+ * px the two ran together into one grey block).
+ */
+function WeekLine({ parts }: { parts: string[] }) {
+  if (parts.length === 0) return null;
+  return (
+    <p className="mt-1 text-xs text-gray-600">
+      {/* The "·" stays at the end of a line, never the start of the next. */}
+      {parts.map((part, i) => (
+        <span key={part}>
+          <span className={part.endsWith('last week') ? 'whitespace-nowrap' : undefined}>{part}</span>
+          {i < parts.length - 1 && '\u00a0· '}
+        </span>
+      ))}
+    </p>
   );
 }
 

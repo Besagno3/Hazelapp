@@ -43,7 +43,9 @@ describe('the privacy notice and the play history (#169–#174)', () => {
     const { default: migration0026 } = await import('../../supabase/migrations/0026_progress_history.sql?raw');
     const { HISTORY_DAYS } = await import('../lib/progress');
     const collect = PRIVACY_NOTICE.find((s) => s.heading === 'What we collect')?.body ?? '';
-    expect(collect).toMatch(/a note of each day they play: how long they played, the XP they earned, and how many questions of each topic they got right and wrong that day/);
+    expect(collect).toMatch(
+      /a note of each day they play: how long they played, the XP they earned, how many questions of each topic they got right and wrong that day, and the level each topic reached/,
+    );
     expect(collect).toMatch(/the level each topic started at/);
     const keep = PRIVACY_NOTICE.find((s) => s.heading === 'How long we keep it')?.body ?? '';
     expect(keep).toMatch(/the note of each day they play, which is deleted after five weeks/);

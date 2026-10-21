@@ -161,6 +161,26 @@ export function missingColumn(err: unknown): boolean {
   return codeOf(err) === '42703' || codeOf(err) === 'PGRST204' || /column .* does not exist/i.test(messageOf(err));
 }
 
+/** A table the database doesn't have yet (a migration not applied): PostgREST's "not in the schema cache", or Postgres's undefined_table. */
+export function missingTable(err: unknown): boolean {
+  return codeOf(err) === 'PGRST205' || codeOf(err) === '42P01' || /could not find the table|relation .* does not exist/i.test(messageOf(err));
+}
+
+/**
+ * What this session found the database doesn't have (migration 0026 not
+ * applied): the profiles' `skill_starts`, the day's play on `play_days`,
+ * `play_history_since`. Read without them from then on — one round of reads
+ * on every later open, not a failed one first (review round 1).
+ */
+const lacking = { starts: false, history: false, since: false };
+
+/** Forget what this session found missing, so the next read tries it all again (tests). */
+export function forgetMissingProgress(): void {
+  lacking.starts = false;
+  lacking.history = false;
+  lacking.since = false;
+}
+
 /**
  * Every kid's progress in four reads (whatever the family's size): their
  * profiles, their saves, the last five weeks' play (`play_days`) and the
@@ -169,7 +189,8 @@ export function missingColumn(err: unknown): boolean {
  * leaves `playDays` / `history` null and the page leaves those parts out.
  * A database without migration 0026 is read as before it (#169–#174): the
  * profiles without `skill_starts`, the play as the last week's days alone —
- * one more read each, only then.
+ * one more read each the first time, and only those reads after that, for
+ * the session (`lacking`).
  */
 export async function fetchFamilyProgress(kidIds: string[], today: string): Promise<Record<string, KidProgressData>> {
   const out: Record<string, KidProgressData> = {};
@@ -178,18 +199,22 @@ export async function fetchFamilyProgress(kidIds: string[], today: string): Prom
   const readProfiles = (columns: string) => supabase.from('profiles').select(columns).in('id', kidIds);
   const readDays = (columns: string, days: number) =>
     supabase.from('play_days').select(columns).in('profile_id', kidIds).gte('day', isoOffset(today, -(days - 1)));
-  const [profilesNew, saves, history, since] = await Promise.all([
-    readProfiles(`${PROGRESS_COLUMNS}, ${STARTS_COLUMN}`),
+  const readOldDays = () => readDays('profile_id, day', RECENT_DAYS);
+  const [profilesFirst, saves, daysFirst, since] = await Promise.all([
+    readProfiles(lacking.starts ? PROGRESS_COLUMNS : `${PROGRESS_COLUMNS}, ${STARTS_COLUMN}`),
     supabase.from('saves').select('profile_id, data').in('profile_id', kidIds),
-    readDays(HISTORY_COLUMNS, HISTORY_DAYS),
-    supabase.from('play_history_since').select('profile_id, since').in('profile_id', kidIds),
+    lacking.history ? readOldDays() : readDays(HISTORY_COLUMNS, HISTORY_DAYS),
+    lacking.since ? null : supabase.from('play_history_since').select('profile_id, since').in('profile_id', kidIds),
   ]);
-  // No migration 0026: the columns it adds aren't there — read what is.
-  const [profilesOld, daysOld] = await Promise.all([
-    missingColumn(profilesNew.error) ? readProfiles(PROGRESS_COLUMNS) : null,
-    missingColumn(history.error) ? readDays('profile_id, day', RECENT_DAYS) : null,
-  ]);
-  const profiles = profilesOld ?? profilesNew;
+  // No migration 0026: the columns it adds aren't there — read what is, and
+  // remember it for the session.
+  const startsGone = !lacking.starts && missingColumn(profilesFirst.error);
+  const historyGone = !lacking.history && missingColumn(daysFirst.error);
+  if (startsGone) lacking.starts = true;
+  if (historyGone) lacking.history = true;
+  if (since && missingTable(since.error)) lacking.since = true;
+  const [profilesOld, daysOld] = await Promise.all([startsGone ? readProfiles(PROGRESS_COLUMNS) : null, historyGone ? readOldDays() : null]);
+  const profiles = profilesOld ?? profilesFirst;
   if (profiles.error) throw asError(profiles.error);
   if (saves.error) throw asError(saves.error);
   for (const row of (profiles.data ?? []) as unknown as ProgressRow[]) {
@@ -199,13 +224,13 @@ export async function fetchFamilyProgress(kidIds: string[], today: string): Prom
     if (out[row.profile_id] && row.data != null) out[row.profile_id].save = normalizeSave(row.data);
   }
   const weekStart = isoOffset(today, -(RECENT_DAYS - 1));
-  const days = daysOld ?? history;
+  const days = daysOld ?? daysFirst;
   if (days.error) {
     console.warn('Reading the days played failed (the week is left out):', errorMessage(days.error));
   } else {
     for (const id of kidIds) {
       out[id].playDays = [];
-      if (!daysOld) out[id].history = [];
+      if (!lacking.history) out[id].history = [];
     }
     for (const row of (days.data ?? []) as unknown as { profile_id: string }[]) {
       const kid = out[row.profile_id];
@@ -216,7 +241,9 @@ export async function fetchFamilyProgress(kidIds: string[], today: string): Prom
     }
     for (const id of kidIds) out[id].history?.sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   }
-  if (since.error) {
+  if (!since) {
+    // This session found no such table (0026 not applied): nothing to say.
+  } else if (since.error) {
     console.warn('Reading when their days were first noted failed (no "counted from"):', errorMessage(since.error));
   } else {
     for (const row of (since.data ?? []) as { profile_id: string; since: unknown }[]) {
@@ -427,14 +454,22 @@ export function recentDays(
 /**
  * The first day ever noted for them, when it falls after the first of `days`
  * — so the days before it weren't recorded (#170) — as a short note:
- * "Counted from Tuesday 21 October — earlier days weren't recorded." Null
+ * "Counted from Tuesday 21 October, the first day noted." — true of a kid
+ * who just started as of one counted since the update (review round 1:
+ * "earlier days weren't recorded" read as lost data for a new kid). Null
  * when every shown day was counted (or that isn't known).
  */
 export function countedFromText(days: readonly RecentDay[]): string | null {
   const first = days.findIndex((d) => d.counted);
   if (first <= 0) return null;
-  return `Counted from ${days[first].long} — earlier days weren't recorded.`;
+  return `Counted from ${days[first].long}, the first day noted.`;
 }
+
+/** "1 day", "3 recorded days". */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** What a total leaves out (review round 1): "2 days played weren't recorded" (`other`: "2 other days…"). */
+const unrecordedWords = (n: number, other = false) => `${plural(n, other ? 'other day' : 'day')} played ${n === 1 ? "wasn't" : "weren't"} recorded`;
 
 /** Five-minute steps: 37 → 35, 38 → 40. */
 const toFive = (m: number) => Math.round(m / 5) * 5;
@@ -457,9 +492,12 @@ export function minutesWords(minutes: number): string {
 
 /**
  * The ⏱️ line (#172): "About 40 minutes of play in the last 7 days." — the
- * minutes of the days whose play was noted, and how many days they played
- * that weren't ("— not recorded on 2 days they played"). Null when they
- * didn't play (the 📅 line says so).
+ * minutes of the days whose play was noted. When some days they played
+ * weren't, the number says what it covers and what it leaves out (review
+ * round 1: "A few minutes of play in the last 7 days — not recorded on 4
+ * days" read as "barely played"): "About 5 minutes of play on 1 recorded
+ * day · 4 days played weren't recorded." Null when they didn't play (the 📅
+ * line says so).
  */
 export function minutesText(week: readonly RecentDay[]): string | null {
   const played = week.filter((d) => d.played);
@@ -469,8 +507,9 @@ export function minutesText(week: readonly RecentDay[]): string | null {
   if (noted.length === 0) return `How long they played wasn't recorded on ${missing === 1 ? 'that day' : `those ${missing} days`}.`;
   const total = noted.reduce((n, d) => n + (d.minutes ?? 0), 0);
   const words = minutesWords(total);
-  const gap = missing > 0 ? ` — not recorded on ${missing === 1 ? '1 day' : `${missing} days`} they played` : '';
-  return `${words[0].toUpperCase()}${words.slice(1)} of play in the last 7 days${gap}.`;
+  const amount = `${words[0].toUpperCase()}${words.slice(1)} of play`;
+  if (missing === 0) return `${amount} in the last 7 days.`;
+  return `${amount} on ${plural(noted.length, 'recorded day')} · ${unrecordedWords(missing)}.`;
 }
 
 // --- XP over the last 4 weeks (#169) -------------------------------------------
@@ -483,7 +522,17 @@ export interface XpWeek {
   label: string;
   /** Its seven days, oldest first. */
   days: RecentDay[];
-  /** "310 XP", "0 XP", or what's known instead: "XP not recorded", "No play noted", "Not recorded". */
+  /** The XP of its days whose play was recorded, or null when none was. */
+  xp: number | null;
+  /**
+   * The words after the number — what it covers when it isn't the whole
+   * week (review round 1): "on 3 recorded days · 2 days played weren't
+   * recorded", "from Monday" (counting began that day); empty when it is.
+   * With no number, what's known instead: "Played on 2 days · XP not
+   * recorded", "No play noted", "Not recorded".
+   */
+  note: string;
+  /** The whole of it, as shown and read out: "430 XP", "25 XP on 3 recorded days · 2 days played weren't recorded", "No play noted". */
   total: string;
 }
 
@@ -498,25 +547,60 @@ export function dayRange(first: string, last: string): string {
 /**
  * The last `XP_WEEKS` weeks of `days` (each ending on today's weekday), oldest
  * first, each with its dates and its XP in words — only from days whose play
- * was noted: a week whose played days weren't is "XP not recorded", one
- * without play "No play noted", one wholly before counting began "Not
- * recorded" (#169, #170). Never a 0 that wasn't noted.
+ * was noted, and never a part said as the whole (review round 1): a week
+ * with played days whose play wasn't recorded says how many days its number
+ * covers and how many it leaves out; one whose counting began mid-week says
+ * from which day; one whose played days all went unrecorded is "Played on 2
+ * days · XP not recorded", one without play "No play noted", one wholly
+ * before counting began "Not recorded" (#169, #170). Never a 0 that wasn't
+ * noted.
  */
 export function xpWeeks(days: readonly RecentDay[]): XpWeek[] {
   const weeks: XpWeek[] = [];
   for (let end = days.length; end >= 7 && weeks.length < XP_WEEKS; end -= 7) {
     const week = days.slice(end - 7, end);
     const noted = week.filter((d) => d.xp !== null);
-    const total = noted.length
-      ? `${noted.reduce((n, d) => n + (d.xp ?? 0), 0).toLocaleString('en')} XP`
-      : week.some((d) => d.played)
-        ? 'XP not recorded'
-        : week.some((d) => d.counted)
-          ? 'No play noted'
-          : 'Not recorded';
-    weeks.unshift({ label: dayRange(week[0].iso, week[6].iso), days: week, total });
+    const xp = noted.length ? noted.reduce((n, d) => n + (d.xp ?? 0), 0) : null;
+    const unrecorded = week.filter((d) => d.played && d.xp === null).length;
+    const firstCounted = week.findIndex((d) => d.counted);
+    // Counting began mid-week (#170): from its weekday (the week's dates are beside it).
+    const from = firstCounted > 0 ? `from ${week[firstCounted].long.split(' ')[0]}` : '';
+    const gap = unrecorded ? unrecordedWords(unrecorded) : '';
+    let note: string;
+    if (xp !== null) {
+      const covers = [unrecorded ? `on ${plural(noted.length, 'recorded day')}` : '', from].filter(Boolean).join(' ');
+      note = [covers, gap].filter(Boolean).join(' · ');
+    } else if (unrecorded) note = `Played on ${plural(unrecorded, 'day')}${from ? ` ${from}` : ''} · XP not recorded`;
+    else if (firstCounted >= 0) note = `No play noted${from ? ` ${from}` : ''}`;
+    else note = 'Not recorded';
+    const total = xp === null ? note : `${xp.toLocaleString('en')} XP${note ? ` ${note}` : ''}`;
+    weeks.unshift({ label: dayRange(week[0].iso, week[6].iso), days: week, xp, note, total });
   }
   return weeks;
+}
+
+/**
+ * The XP section in a line, when its days hold fewer than two with XP
+ * recorded (review round 1: a new kid's first day, or the first weeks after
+ * migration 0026, drew rows of "Not recorded" round one bar): what was
+ * recorded and what wasn't — "35 XP and about 5 minutes of play on
+ * Wednesday 21 October (today) · 2 other days played weren't recorded.",
+ * "Played on 2 days in the last 4 weeks, XP not recorded.", "No XP noted
+ * in the last 4 weeks." `span` says the stretch ("in the last 4 weeks",
+ * "this week"). Null when there's enough for the chart.
+ */
+export function xpBrief(days: readonly RecentDay[], span: string): string | null {
+  const noted = days.filter((d) => d.xp !== null);
+  if (noted.length >= 2) return null;
+  const unrecorded = days.filter((d) => d.played && d.xp === null).length;
+  const [d] = noted;
+  if (d) {
+    const time = d.minutes !== null ? ` and ${minutesWords(d.minutes)} of play` : '';
+    const gap = unrecorded ? ` · ${unrecordedWords(unrecorded, true)}` : '';
+    return `${(d.xp ?? 0).toLocaleString('en')} XP${time} on ${d.long}${d.today ? ' (today)' : ''}${gap}.`;
+  }
+  if (unrecorded) return `Played on ${plural(unrecorded, 'day')} ${span}, XP not recorded.`;
+  return `No XP noted ${span}.`;
 }
 
 /** The day with the most XP (the latest of a tie), or null when no day has any. */
@@ -638,18 +722,27 @@ export function topicWeeks(history: readonly PlayDayRecord[] | null, today: stri
 }
 
 /**
- * The 🎯 row's line from the days noted (#173): "Last 7 days: 7 of 10 right ·
- * Up 1 since last week" (or "Down 1…", "Same as last week"). Only what the
- * days hold: no answers noted → no count; no level noted the week before →
- * no change. Null when there's neither.
+ * The 🎯 row's line from the days noted (#173), in its parts: "Last 7 days:
+ * 7 of 10 right", "Up 1 since last week" (or "Down 1…", "Same as last
+ * week"). Only what the days hold: no answers noted → no count; no level
+ * noted the week before → no change. `partial`: some days they played in
+ * the last 7 weren't recorded, so the count is of the days that were —
+ * "…right on recorded days" (review round 1: never a part said as the
+ * whole). Empty when there's neither.
  */
-export function topicWeekText(t: Pick<TopicLevel, 'answers' | 'sinceLastWeek'>): string | null {
+export function topicWeekParts(t: Pick<TopicLevel, 'answers' | 'sinceLastWeek'>, partial = false): string[] {
   const parts: string[] = [];
-  if (t.answers) parts.push(`Last 7 days: ${t.answers.right} of ${t.answers.asked} right`);
+  if (t.answers) parts.push(`Last 7 days: ${t.answers.right} of ${t.answers.asked} right${partial ? ' on recorded days' : ''}`);
   if (t.sinceLastWeek !== null) {
     const n = Math.abs(t.sinceLastWeek);
     parts.push(t.sinceLastWeek > 0 ? `Up ${n} since last week` : t.sinceLastWeek < 0 ? `Down ${n} since last week` : 'Same as last week');
   }
+  return parts;
+}
+
+/** The 🎯 row's line as one: "Last 7 days: 7 of 10 right · Up 1 since last week"; null when there's nothing to say. */
+export function topicWeekText(t: Pick<TopicLevel, 'answers' | 'sinceLastWeek'>, partial = false): string | null {
+  const parts = topicWeekParts(t, partial);
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -751,9 +844,17 @@ export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, mi
   const most = Math.max(0, ...started.map((t) => t.level - t.start.level));
   const counts = new Map<string, number>();
   for (const m of missed ?? []) counts.set(m.topicLabel, (counts.get(m.topicLabel) ?? 0) + 1);
+  const lowRight = (levels ?? [])
+    .filter((t) => t.answers !== null && t.answers.asked >= ENOUGH_ANSWERS && t.answers.right * 2 < t.answers.asked)
+    .map((t) => ({ label: t.label, asked: t.answers?.asked ?? 0, right: t.answers?.right ?? 0 }));
+  // A topic in 💡 for under half right isn't crowned in 🌟 too (review round
+  // 1: "Most progress: Science" over "practise together: Science"). "Most"
+  // still means most: another topic never takes its place.
+  const struggling = new Set(lowRight.map((t) => t.label));
+  const climbed = ranked ? (most > 0 ? started.filter((t) => t.level - t.start.level === most) : []) : started.filter((t) => t.level > t.start.level);
   return {
     playedDays: week ? week.filter((d) => d.played).length : null,
-    climbed: ranked ? (most > 0 ? started.filter((t) => t.level - t.start.level === most) : []) : started.filter((t) => t.level > t.start.level),
+    climbed: climbed.filter((t) => !struggling.has(t.label)),
     ranked,
     belowStart: started.filter((t) => t.level < t.start.level),
     missedByTopic: [...counts]
@@ -761,42 +862,44 @@ export function glance(week: RecentDay[] | null, levels: TopicLevel[] | null, mi
       .sort((a, b) => b[1] - a[1])
       .map(([label, count]) => ({ label, count })),
     missedCount: missed?.length ?? 0,
-    lowRight: (levels ?? [])
-      .filter((t) => t.answers !== null && t.answers.asked >= ENOUGH_ANSWERS && t.answers.right * 2 < t.answers.asked)
-      .map((t) => ({ label: t.label, asked: t.answers?.asked ?? 0, right: t.answers?.right ?? 0 })),
+    lowRight,
   };
 }
 
+/** The 💡 line names at most this many topics, each with its reasons; the rest are counted (review round 1). */
+export const PRACTISE_NAMED = 2;
+
 /**
- * What to practise together, grouped by why and every topic named once (#29
- * review round 2: one long line repeated "(below their starting level)" for
- * each and ended "…and 2 more"; round 3: a topic with both reasons was named
- * twice): "To practise together — below where they started, with questions
- * waiting: Creativity (3) · below where they started: Engineering · questions
- * waiting at the Library: Math (4)." Under half right in the last 7 days
- * (#173) is a third why: "· under half right in the last 7 days: Space (2 of
- * 6 right)". Null when nothing stands out.
+ * What to practise together: the topics first, each once with its reasons in
+ * a few words — below where it started, under half right in the last 7 days
+ * (#173), questions to try again at the Library — those with the most
+ * reasons first, at most `PRACTISE_NAMED` named and the rest counted; each
+ * topic's row below says the rest (review round 1: a struggling kid's line,
+ * grouped by why, ran 65 words and 12 lines on a phone, the names buried
+ * after the reasons). "To practise together: Creativity (below their
+ * start, under half right, 3 to try again) and Math (3 to try again)." /
+ * "…, Words & Stories (below their start) and 3 more topics."
+ * Null when nothing stands out.
  */
 export function practiseText(g: Pick<Glance, 'belowStart' | 'missedByTopic'> & Partial<Pick<Glance, 'lowRight'>>): string | null {
   const below = new Set(g.belowStart.map((t) => t.label));
-  const low = new Map((g.lowRight ?? []).map((t) => [t.label, t]));
+  const low = new Set((g.lowRight ?? []).map((t) => t.label));
   const waiting = new Map(g.missedByTopic.map((m) => [m.label, m.count]));
-  // Each topic once, under the reasons it has — groups with more reasons first.
-  const groups = new Map<string, string[]>();
-  for (const label of new Set([...below, ...low.keys(), ...waiting.keys()])) {
-    const key = `${below.has(label) ? 'B' : ''}${low.has(label) ? 'L' : ''}${waiting.has(label) ? 'W' : ''}`;
-    const l = low.get(label);
-    const counts = [l && `${l.right} of ${l.asked} right`, waiting.has(label) && (l ? `${waiting.get(label)} waiting` : `${waiting.get(label)}`)].filter(Boolean);
-    groups.set(key, [...(groups.get(key) ?? []), counts.length ? `${label} (${counts.join(', ')})` : label]);
-  }
-  const parts = ['BLW', 'BL', 'BW', 'LW', 'B', 'L', 'W']
-    .filter((key) => groups.has(key))
-    .map((key) => {
-      const why = [key.includes('B') && 'below where they started', key.includes('L') && 'under half right in the last 7 days'].filter(Boolean);
-      const words = key.includes('W') ? (why.length ? `${why.join(', ')}, with questions waiting` : 'questions waiting at the Library') : why.join(', ');
-      return `${words}: ${nameList(groups.get(key) ?? [], Infinity)}`;
-    });
-  return parts.length > 0 ? `To practise together — ${parts.join(' · ')}.` : null;
+  const topics = [...new Set([...below, ...low, ...waiting.keys()])].map((label) => ({
+    label,
+    why: [
+      below.has(label) && 'below their start',
+      low.has(label) && 'under half right',
+      waiting.has(label) && `${waiting.get(label)} to try again`,
+    ].filter((w): w is string => typeof w === 'string'),
+  }));
+  if (topics.length === 0) return null;
+  // The most reasons first; the sort is stable, so the game's order stays within.
+  topics.sort((a, b) => b.why.length - a.why.length);
+  const named = topics.slice(0, PRACTISE_NAMED).map((t) => `${t.label} (${t.why.join(', ')})`);
+  const rest = topics.length - named.length;
+  const list = rest > 0 ? `${named.join(', ')} and ${plural(rest, 'more topic')}` : nameList(named, Infinity);
+  return `To practise together: ${list}.`;
 }
 
 /**

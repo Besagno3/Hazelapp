@@ -19,7 +19,7 @@ import { GrownUpsLockedError } from '../lib/grownUpsGate';
 import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
-import { forgetPlayDays } from '../lib/playDays';
+import { flushPlayDays, forgetPlayDays } from '../lib/playDays';
 import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
@@ -443,6 +443,15 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
       // Storage unavailable — nothing was kept here.
     }
     forgetPlayDays(id);
+    // The kid this device was playing: their game goes too (#89 review round
+    // 1 — a profile left in the store kept asking for a row that's gone, and
+    // tried to write it), and "Who's playing?" asks again.
+    const { userId, activeKidId } = get();
+    if (activeKidId === id) {
+      set({ activeKidId: null });
+      if (userId) writeActive(userId, null);
+    }
+    if (useProfileStore.getState().profile?.id === id) putAwayGame();
   },
 
   closeAccount: async (password) => {
@@ -483,6 +492,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   },
 
   switchPlayer: async () => {
+    // The kid's play today goes up now, not in a couple of minutes (#89
+    // review round 1: a grown-up looking at 📈 next missed the end of it).
+    const playing = useProfileStore.getState().profile?.id;
+    if (playing) void flushPlayDays(playing, { now: true });
     // Push any pending save before this kid's game is put away.
     await useSaveStore.getState().flush();
     const { userId } = get();
@@ -493,7 +506,14 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
 
   setGrownUpsOpen: (grownUpsOpen) => {
     set({ grownUpsOpen });
-    if (!grownUpsOpen) get().clearReviewRequest();
+    if (!grownUpsOpen) {
+      get().clearReviewRequest();
+      return;
+    }
+    // What any kid played on this device and is still waiting to go is sent
+    // now, before a grown-up reads 📈 (#89 review round 1). Nothing waiting:
+    // no call.
+    for (const k of get().kids) void flushPlayDays(k.id, { now: true });
   },
 
   clearReviewRequest: () => {

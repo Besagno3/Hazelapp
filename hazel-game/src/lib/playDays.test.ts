@@ -167,13 +167,60 @@ describe('noting the days a kid played (#29, migration 0025)', () => {
 });
 
 describe('the play on each day: XP, minutes, answers (#169, #172, #173; migration 0026)', () => {
-  it('a device from before this build: its waiting days (bare dates) are read as days played with nothing else, and sent', async () => {
-    localStorage.setItem(mod.playDaysKey('kid-1'), JSON.stringify(['2026-10-19', 'junk', '2026-10-20']));
+  it('a device from before this build: its waiting days (bare dates, under the old key) are read as days played with nothing else, and sent', async () => {
+    localStorage.setItem(mod.oldPlayDaysKey('kid-1'), JSON.stringify(['2026-10-19', 'junk', '2026-10-20']));
     expect(mod.playDayRecords('kid-1')).toEqual([blank('2026-10-19'), blank('2026-10-20')]);
     rpc.mockResolvedValue(ok);
     await mod.flushPlayDays('kid-1', { now: true });
     expect(sentDays()).toEqual([blank('2026-10-19'), blank('2026-10-20')]);
     expect(localStorage.getItem(mod.playDaysKey('kid-1'))).toBeNull();
+    expect(localStorage.getItem(mod.oldPlayDaysKey('kid-1'))).toBeNull();
+  });
+
+  it('the records have their own key: a tab still on an older build never writes over them, and the days it notes are folded in (review round 1, #178)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    expect(mod.playDaysKey('kid-1')).not.toBe(mod.oldPlayDaysKey('kid-1'));
+    // Yesterday's play, kept here unsent (offline).
+    rpc.mockRejectedValue(offline());
+    void mod.addDayXp('kid-1', '2026-10-20', 300);
+    void mod.addDayMinute('kid-1', '2026-10-20');
+    await mod.notePlayDay('kid-1', '2026-10-20');
+    // The old tab reads its key (nothing there), notes today as it always did, then sends it and clears its key.
+    expect(localStorage.getItem(mod.oldPlayDaysKey('kid-1'))).toBeNull();
+    localStorage.setItem(mod.oldPlayDaysKey('kid-1'), JSON.stringify([TODAY]));
+    expect(mod.playDayRecords('kid-1')).toEqual([{ day: '2026-10-20', xp: 300, minutes: 1, topics: {} }, blank(TODAY)]);
+    expect(mod.pendingPlayDays('kid-1')).toEqual(['2026-10-20', TODAY]);
+    localStorage.removeItem(mod.oldPlayDaysKey('kid-1'));
+    expect(mod.playDayRecords('kid-1')).toEqual([{ day: '2026-10-20', xp: 300, minutes: 1, topics: {} }]);
+    // An old tab's day for a day kept here only marks it played; the next write takes it in and clears the old key.
+    void mod.addDayXp('kid-1', TODAY, 15);
+    localStorage.setItem(mod.oldPlayDaysKey('kid-1'), JSON.stringify([TODAY]));
+    expect(mod.pendingPlayDays('kid-1')).toEqual(['2026-10-20', TODAY]);
+    void mod.addDayMinute('kid-1', TODAY);
+    expect(localStorage.getItem(mod.oldPlayDaysKey('kid-1'))).toBeNull();
+    expect(mod.playDayRecords('kid-1').at(-1)).toEqual({ day: TODAY, xp: 15, minutes: 1, topics: {} });
+    rpc.mockResolvedValue(ok);
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(sentDays()).toEqual([
+      { day: '2026-10-20', xp: 300, minutes: 1, topics: {} },
+      { day: TODAY, xp: 15, minutes: 1, topics: {} },
+    ]);
+    // Forgetting a kid clears both.
+    localStorage.setItem(mod.oldPlayDaysKey('kid-1'), JSON.stringify([TODAY]));
+    mod.forgetPlayDays('kid-1');
+    expect(localStorage.getItem(mod.oldPlayDaysKey('kid-1'))).toBeNull();
+    expect(localStorage.getItem(mod.playDaysKey('kid-1'))).toBeNull();
+  });
+
+  it('a day already played elsewhere (markPlayDay): a record kept here becomes one to send; nothing is made for a day with no play here (review round 1)', () => {
+    void mod.addDayMinute('kid-1', TODAY);
+    expect(mod.pendingPlayDays('kid-1')).toEqual([]);
+    mod.markPlayDay('kid-1', TODAY);
+    expect(mod.pendingPlayDays('kid-1')).toEqual([TODAY]);
+    mod.markPlayDay('kid-2', TODAY);
+    expect(mod.playDayRecords('kid-2')).toEqual([]);
+    // It sends nothing itself.
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it('XP, minutes and answers add up in the day’s record; the tally keeps right ≤ asked and the level last noted', async () => {

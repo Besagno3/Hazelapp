@@ -29,7 +29,7 @@ vi.mock('../lib/supabase', () => {
   return { supabase: { rpc: vi.fn(async () => ({ data: 1, error: null })), from } };
 });
 
-const { useProfileStore, RETRY_READ_MS } = await import('./profileStore');
+const { useProfileStore, RETRY_READ_MS, RETRY_READ_MAX_MS } = await import('./profileStore');
 const { useSaveStore } = await import('./saveStore');
 const { defaultSave } = await import('../lib/save');
 const { todayIso, isoOffset } = await import('../lib/streak');
@@ -233,13 +233,62 @@ describe('a row that wasn\'t read is asked for again, and the levels played mean
     await vi.advanceTimersByTimeAsync(RETRY_READ_MS - 1);
     expect(reads).toHaveLength(2); // not yet
     await vi.advanceTimersByTimeAsync(1);
-    expect(reads).toHaveLength(1); // asked, failed again: still unread, and asked again later
+    expect(reads).toHaveLength(1); // asked, failed again: still unread, and asked again later — twice as long later
     expect(useProfileStore.getState().unread).not.toBeNull();
-    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    await vi.advanceTimersByTimeAsync(2 * RETRY_READ_MS);
     expect(reads).toEqual([]);
     expect(useProfileStore.getState().unread).toBeNull();
     expect(useProfileStore.getState().profile).toMatchObject({ xp: 5000, skillLevels: { math: 7, science: 6 } });
     expect(updates()).toHaveLength(1);
+  });
+
+  it('each read that fails waits twice as long for the next, up to 5 minutes; a read, or the next kid, starts again at 15 s (review round 1)', async () => {
+    timers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    for (let i = 0; i < 7; i++) reads.push(FAILED);
+    // Left to answer, a moment before each read is due and as it comes.
+    const left: number[] = [];
+    for (const sec of [15, 30, 60, 120, 240, 300, 300]) {
+      await vi.advanceTimersByTimeAsync(sec * 1000 - 1);
+      left.push(reads.length);
+      await vi.advanceTimersByTimeAsync(1);
+      left.push(reads.length);
+    }
+    expect(left).toEqual([7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0]);
+    expect(RETRY_READ_MAX_MS).toBe(5 * 60_000);
+    // A change meanwhile waits as long as the timer does: no read every 15 s from play either.
+    reads.length = 0;
+    reads.push(FAILED);
+    vi.setSystemTime(Date.now() + 2 * RETRY_READ_MS);
+    await useProfileStore.getState().addXp(5);
+    expect(reads).toHaveLength(1);
+    // Another kid starts again at 15 s.
+    reads.length = 0;
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-2', birth);
+    reads.push(FAILED);
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    expect(reads).toEqual([]);
+  });
+
+  it("a read still out for the last kid never stops the next kid's timer (review round 1)", async () => {
+    timers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    reads.push(new Promise<Answer>(() => {})); // kid-1's timer read hangs (a fetch with no answer)
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    expect(reads).toEqual([]);
+    useProfileStore.getState().clearProfile();
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-2', birth);
+    reads.push(FAILED, { data: { ...ROW, id: 'kid-2' }, error: null });
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS + 2 * RETRY_READ_MS);
+    expect(reads).toEqual([]);
+    expect(useProfileStore.getState().unread).toBeNull();
+    expect(useProfileStore.getState().profile).toMatchObject({ id: 'kid-2', xp: 5000 });
   });
 
   it('read again the moment the device is back online', async () => {

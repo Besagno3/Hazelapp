@@ -20,10 +20,21 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * and never holds up play: the dashboard can only be missing play, never
  * shows play that didn't happen.
  *
+ * A day the profile already counts as played — on another device or
+ * browser, earlier today — is this device's to send too once it has play of
+ * its own (`markPlayDay`, review round 1): the database keeps the larger of
+ * the two, so this device's play is never left out of 📈.
+ *
  * Not one call per answer: a send asked for without `now` (a round's end,
  * XP, a minute, an answer) goes at most every `SEND_EVERY_MS`; a new day, a
  * profile load and coming back online send at once, and so does the tab
  * being hidden (`watchPlayDays`) unless a send just failed.
+ *
+ * The records have their own storage key (review round 1, #178): a tab still
+ * running a build from before them reads and writes `hazel-play-days-<kid>`
+ * as a list of bare days, and would have written over the records. Days such
+ * a tab leaves there are folded in here (as days played, nothing else
+ * known) and the old key is cleared, so neither build writes over the other.
  *
  * When a send fails it backs off rather than trying after every round
  * (#29 review round 1): no `note_play_history` (0026 not applied) → the days
@@ -35,7 +46,10 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * day or the next time their profile loads.
  */
 
-const PREFIX = 'hazel-play-days-';
+const PREFIX = 'hazel-play-history-';
+
+/** Where a build from before the day records keeps a kid's unsent days (bare `YYYY-MM-DD`s): read and folded in, never written. */
+const OLD_PREFIX = 'hazel-play-days-';
 
 /** At most this many days are kept on a device (today and the week the database takes back). */
 export const PENDING_MAX = 8;
@@ -56,6 +70,11 @@ const TOPIC_KEY = /^[a-z]{1,24}$/;
 /** The localStorage key for a kid's kept days. */
 export function playDaysKey(kidId: string): string {
   return `${PREFIX}${kidId}`;
+}
+
+/** The key a build from before the day records keeps a kid's unsent days under (#29, migration 0025). */
+export function oldPlayDaysKey(kidId: string): string {
+  return `${OLD_PREFIX}${kidId}`;
 }
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -103,22 +122,38 @@ function keptFrom(v: unknown): Kept | null {
   return kept;
 }
 
-function readKept(kidId: string): Kept[] {
-  const held = unstored.get(kidId);
-  if (held) return held;
+/** A stored list, or nothing (missing, not JSON, not a list). */
+function storedList(key: string): unknown[] {
   try {
-    const raw = localStorage.getItem(playDaysKey(kidId));
+    const raw = localStorage.getItem(key);
     const list: unknown = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(list)) return [];
-    const byDay = new Map<string, Kept>();
-    for (const v of list) {
-      const kept = keptFrom(v);
-      if (kept) byDay.set(kept.day, kept);
-    }
-    return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
+    return Array.isArray(list) ? list : [];
   } catch {
     return [];
   }
+}
+
+/**
+ * A kid's kept days, oldest first — with the days an older build's tab left
+ * under the old key folded in: each a day played (the rest of a record kept
+ * here stays as it is).
+ */
+function readKept(kidId: string): Kept[] {
+  const held = unstored.get(kidId);
+  if (held) return held;
+  const byDay = new Map<string, Kept>();
+  for (const v of storedList(playDaysKey(kidId))) {
+    const kept = keptFrom(v);
+    if (kept) byDay.set(kept.day, kept);
+  }
+  for (const v of storedList(oldPlayDaysKey(kidId))) {
+    const kept = keptFrom(v);
+    if (!kept) continue;
+    const had = byDay.get(kept.day);
+    if (!had) byDay.set(kept.day, kept);
+    else if (kept.played) had.played = true;
+  }
+  return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
 /**
@@ -136,6 +171,8 @@ function writeKept(kidId: string, list: Kept[]): void {
   try {
     if (days.length === 0) localStorage.removeItem(playDaysKey(kidId));
     else localStorage.setItem(playDaysKey(kidId), JSON.stringify(days));
+    // An older build's days were read in with the rest (`readKept`): they're here now.
+    localStorage.removeItem(oldPlayDaysKey(kidId));
     unstored.delete(kidId);
   } catch {
     // Private mode / quota: kept in memory instead, so the day is still sent —
@@ -184,7 +221,7 @@ export function playDayRecords(kidId: string): PlayDayRecord[] {
   return readKept(kidId).map(recordOf);
 }
 
-/** Forget a kid's kept days (they were removed, or the family's copies leave this device). */
+/** Forget a kid's kept days, under either key (they were removed, or the family's copies leave this device). */
 export function forgetPlayDays(kidId: string): void {
   writeKept(kidId, []);
   wait.delete(kidId);
@@ -215,6 +252,20 @@ function onOnline(): void {
 export function notePlayDay(kidId: string, day: string): Promise<void> {
   if (!change(kidId, day, (r) => (r.played = true))) return Promise.resolve();
   return flushPlayDays(kidId, { now: true });
+}
+
+/**
+ * `day` already counts as played (the profile says so — another device or
+ * browser played it, review round 1): this device's record of it, if it
+ * keeps one, is sent like any played day's — the database keeps the larger
+ * of the two. Nothing is made for a day this device has no play on, and
+ * nothing is sent here: the caller's own send (throttled, or a load's at
+ * once) takes it.
+ */
+export function markPlayDay(kidId: string, day: string): void {
+  const list = readKept(kidId);
+  if (!list.some((r) => r.day === day && !r.played)) return;
+  writeKept(kidId, list.map((r) => (r.day === day ? { ...r, played: true as const } : r)));
 }
 
 /** `amount` XP earned on `day` (#169): added to the day's total, sent within a couple of minutes. */

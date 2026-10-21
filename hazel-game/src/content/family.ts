@@ -74,8 +74,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
       'For each child you add: a nickname, their birth month and year, the picture you pick ' +
       'for them, their PIN (stored scrambled, so no one can read it back), their game ' +
       "progress (answers, levels, items and saved game, and the level each topic started at), " +
-      'and a note of each day they play: how long they played, the XP they earned, and how ' +
-      'many questions of each topic they got right and wrong that day. We do not ' +
+      'and a note of each day they play: how long they played, the XP they earned, how ' +
+      'many questions of each topic they got right and wrong that day, and the level each ' +
+      'topic reached. We do not ' +
       "ask for a child's full name, email, photo, voice or location.",
   },
   {

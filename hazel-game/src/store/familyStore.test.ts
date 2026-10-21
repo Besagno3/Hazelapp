@@ -468,6 +468,49 @@ describe('useFamilyStore', () => {
     warn.mockRestore();
   });
 
+  it("switchPlayer and opening 👪 Grown-ups send the kids' waiting play at once — not a couple of minutes later (#89 review round 1)", async () => {
+    const { playDaysKey } = await import('../lib/playDays');
+    const { todayIso } = await import('../lib/streak');
+    const today = todayIso();
+    const kept = (xp: number) => JSON.stringify([{ day: today, xp, minutes: 3, topics: {}, played: true }]);
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useFamilyStore.getState().choose('kid-sam');
+    useProfileStore.setState({ profile: { id: 'kid-sam', birthYear: 2017, birthMonth: 3, skillLevels: {}, xp: 40, powerUps: {}, currentStreak: 1, longestStreak: 1, lastPlayedOn: today } });
+    localStorage.setItem(playDaysKey('kid-sam'), kept(40));
+    db.rpc.mockClear();
+    await useFamilyStore.getState().switchPlayer();
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-sam', p_days: [{ day: today, xp: 40, minutes: 3, topics: {} }] }));
+    // 👪 Grown-ups opened from "Who's playing?": every kid's waiting play goes (Kit's here); nothing waiting, no call.
+    localStorage.setItem(playDaysKey('kid-kit'), kept(15));
+    db.rpc.mockClear();
+    useFamilyStore.getState().setGrownUpsOpen(true);
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-kit', p_days: [{ day: today, xp: 15, minutes: 3, topics: {} }] }));
+    expect(db.rpc.mock.calls.filter(([fn]) => fn === 'note_play_history')).toHaveLength(1);
+    useFamilyStore.getState().setGrownUpsOpen(false);
+  });
+
+  it('removeKid: the kid playing on this device is put away too — their profile no longer asks for a row that is gone (#89 review round 1)', async () => {
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useFamilyStore.getState().choose('kid-sam');
+    useProfileStore.setState({ profile: { id: 'kid-sam', birthYear: 2017, birthMonth: 3, skillLevels: {}, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null } });
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    await useFamilyStore.getState().removeKid('kid-sam');
+    expect(useProfileStore.getState().profile).toBeNull();
+    expect(clearSave).toHaveBeenCalled();
+    expect(useFamilyStore.getState().activeKidId).toBeNull();
+    // Another kid removed: the one playing stays.
+    useFamilyStore.getState().choose('kid-kit');
+    useProfileStore.setState({ profile: { id: 'kid-kit', birthYear: 2019, birthMonth: 8, skillLevels: {}, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null } });
+    clearSave.mockClear();
+    family('2026-10-10', [KIT, SAM]);
+    await useFamilyStore.getState().removeKid('kid-sam');
+    expect(useProfileStore.getState().profile?.id).toBe('kid-kit');
+    expect(useFamilyStore.getState().activeKidId).toBe('kid-kit');
+    expect(clearSave).not.toHaveBeenCalled();
+  });
+
   it("removeKid: deletes the kid and the copies of their game on this device", async () => {
     family('2026-10-10', [SAM, KIT]);
     await useFamilyStore.getState().load('grown-up-1');
