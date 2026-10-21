@@ -8,7 +8,7 @@ import { dropSignupParam, hasSignupParam } from '../../lib/signupLink';
 import { cn } from '../../lib/utils';
 import { useRetryWait, waitWords } from './useRetryWait';
 import { useLiveMessage } from './useLiveMessage';
-import { dropLinkError, linkErrorFrom } from './linkError';
+import { dropLinkError, emailLinkWords, linkErrorFrom, takeEmailLinkNotice } from './linkError';
 import { takeAccountClosedNotice } from '../../lib/closeAccount';
 
 /** Supabase refused a sign-in because the email link hasn't been tapped yet. */
@@ -45,14 +45,27 @@ export default function AuthPage() {
   // An email link that came back with an error (run out, used already) says
   // why, once — the address loses it as the page opens (#159 review round 2).
   const [linkError] = useState(() => linkErrorFrom(window.location));
-  // Keyed per message, so the same words said twice are read out twice.
-  const [error, setError] = useLiveMessage(linkError ? authErrorMessage(linkError, { where: 'link' }) : null);
+  // Keyed per message, so the same words said twice are read out twice. It
+  // starts empty, and a link's words go in a beat after the page opens: a
+  // live region doesn't read what it's born with (#167 review round 2).
+  const [error, setError] = useLiveMessage();
   // Just closed the account from 👪 Grown-ups (#124b): a banner at the top,
   // focused as the page opens so it's heard (a live region wouldn't read what
   // it opens with), once.
   const [closedNotice, setClosedNotice] = useState<string | null>(() => takeAccountClosedNotice());
   const closedBanner = useRef<HTMLHeadingElement>(null);
+  // The first of an email change's two links, tapped while signed out: say
+  // the other one is still to tap (#124d, #167 review round 1) — put in the
+  // status line a beat after the page opens, so it's read out (review round 2).
+  const [linkNotice] = useState<string | null>(() =>
+    takeEmailLinkNotice() === 'other-email' ? `📬 ${emailLinkWords('other-email', '')}` : null,
+  );
   const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!linkNotice) return;
+    const t = window.setTimeout(() => setNotice(linkNotice), 50);
+    return () => window.clearTimeout(t);
+  }, [linkNotice]);
   const [loading, setLoading] = useState(false);
   // The address a confirmation link went to: "Check your inbox" replaces the form.
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -82,12 +95,15 @@ export default function AuthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // The link's error is on screen now: off the address, the whole of it in the console.
+  // The link's error: off the address, the whole of it in the console, and
+  // its words in the status line a beat later (read out).
   useEffect(() => {
     if (!linkError) return;
     console.warn('Email link failed:', errorMessage(linkError));
     dropLinkError();
-  }, [linkError]);
+    const t = window.setTimeout(() => setError(authErrorMessage(linkError, { where: 'link' })), 50);
+    return () => window.clearTimeout(t);
+  }, [linkError, setError]);
 
   // The form goes away under the focused button, so focus follows: to the
   // inbox heading, and back to the email field on the way out.

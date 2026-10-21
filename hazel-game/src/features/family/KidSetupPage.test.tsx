@@ -23,4 +23,17 @@ describe('KidSetupPage (#124)', () => {
       expect(updateKid).toHaveBeenCalledWith('kid-old', { name: 'Ada', icon: 'bee', pin: '2468', birthYear: 2015, birthMonth: 1 }),
     );
   });
+
+  it("opens with its title focused, and a player whose PIN just didn't save is told why it's asking (#167 review round 2)", () => {
+    const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: false, birthYear: 2019, birthMonth: 8 };
+    useFamilyStore.setState({ kids: [kit], pinNotSavedFor: 'kid-kit', updateKid: vi.fn(async () => {}) });
+    const { unmount } = render(<KidSetupPage />);
+    expect(screen.getByRole('heading', { name: 'Finish setting up Kit' })).toHaveFocus();
+    expect(screen.getByText("Kit is added, but their PIN didn't save. Enter their 4-digit PIN again and tap Save.")).toBeInTheDocument();
+    unmount();
+    // Any other player needing a PIN gets the usual words.
+    useFamilyStore.setState({ pinNotSavedFor: null });
+    render(<KidSetupPage />);
+    expect(screen.getByText('Every player opens their adventure with their own 4-digit PIN. A grown-up sets it here.')).toBeInTheDocument();
+  });
 });

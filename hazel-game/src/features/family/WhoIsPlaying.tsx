@@ -1,6 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { kidIcon } from '../../content/family';
+import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
+import { emailLinkWords, takeEmailLinkNotice } from '../auth/linkError';
 import { kidLockKey } from '../../lib/pinLock';
 import FamilyCard from './FamilyCard';
 import PinPad from './PinPad';
@@ -15,7 +17,8 @@ export const KID_UNLOCK_HELP =
  * 4-digit PIN (5 wrong in a row and the database gives it a break, #124c — a
  * grown-up typing the PIN again in 👪 Grown-ups unlocks it, and the pad
  * notices). Grown-ups manage the family from 👪 Grown-ups, behind their own
- * PIN or password.
+ * PIN or password. Opened from an email-change link (#124d), it says what the
+ * link did, once, at the top — focused, so it's heard (#167 review round 1).
  */
 export default function WhoIsPlaying() {
   const kids = useFamilyStore((s) => s.kids);
@@ -23,8 +26,15 @@ export default function WhoIsPlaying() {
   const checkKidPin = useFamilyStore((s) => s.checkKidPin);
   const setGrownUpsOpen = useFamilyStore((s) => s.setGrownUpsOpen);
   const pinLocks = useFamilyStore((s) => s.pinLocks);
+  const email = useAuthStore((s) => s.user?.email ?? '');
   const [asking, setAsking] = useState<Kid | null>(null);
   const [resting, setResting] = useState(false);
+  // An email-change link brought the grown-up here: what it did, once.
+  const [linkNotice] = useState(() => takeEmailLinkNotice());
+  const noticeRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (linkNotice) noticeRef.current?.focus({ preventScroll: true });
+  }, [linkNotice]);
   // Who the pad is open for right now: a check that answers after "That's not me" lets nobody in.
   const askingId = useRef<string | null>(null);
   function ask(kid: Kid | null) {
@@ -65,6 +75,18 @@ export default function WhoIsPlaying() {
 
   return (
     <FamilyCard wide title="Who's playing?">
+      {linkNotice && !asking && (
+        <p
+          ref={noticeRef}
+          tabIndex={-1}
+          className={`-mt-2 mb-4 rounded-xl border px-3 py-2 text-center text-sm font-semibold focus:outline-none [overflow-wrap:anywhere] ${
+            linkNotice === 'link-failed' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-green-300 bg-green-50 text-green-800'
+          }`}
+        >
+          <span aria-hidden="true">{linkNotice === 'other-email' ? '📬 ' : linkNotice === 'email-changed' ? '✅ ' : '⚠️ '}</span>
+          {emailLinkWords(linkNotice, email)}
+        </p>
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {kids.map((k) => (
           <button

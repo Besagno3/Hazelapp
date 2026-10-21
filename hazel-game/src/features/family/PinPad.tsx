@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { PIN_LENGTH } from '../../content/family';
 import { cn } from '../../lib/utils';
@@ -80,6 +80,7 @@ export default function PinPad({
   checkLock,
   who = 'kid',
   onLockedChange,
+  beside,
 }: {
   onSubmit: (pin: string) => Promise<boolean | PinVerdict>;
   wrongText?: string;
@@ -97,6 +98,13 @@ export default function PinPad({
   who?: PinPadFor;
   /** Told when the pad locks and opens, so the screen around it can say so too. */
   onLockedChange?: (locked: boolean) => void;
+  /**
+   * The screen's own buttons (another way in, the way out), under the pad's
+   * words: below the pad on a tall screen, and on a short one (a phone on its
+   * side) in the column beside it, so they're on screen with it
+   * (#167 review round 1).
+   */
+  beside?: ReactNode;
 }) {
   const [digits, setDigits] = useState('');
   const [busy, setBusy] = useState(false);
@@ -354,6 +362,7 @@ export default function PinPad({
             {lockedHelp && <p className="mt-1 text-xs text-gray-600">{lockedHelp}</p>}
           </div>
         )}
+        {beside}
       </div>
     </div>
   );

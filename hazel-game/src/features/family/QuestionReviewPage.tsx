@@ -3,6 +3,7 @@ import { errorMessage } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { fetchReviewQueue, NOT_AN_ADMIN, reasonLabel, reviewQuestion, type ReviewDecision, type ReviewItem } from '../../lib/review';
 import { cn } from '../../lib/utils';
+import { asGrownUp } from '../../store/grownUpsStore';
 import FamilyCard from './FamilyCard';
 
 const DONE: Record<ReviewDecision, string> = {
@@ -38,7 +39,8 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     let live = true;
-    fetchReviewQueue().then(
+    // A grown-up action (#167): if 👪 Grown-ups locked meanwhile, the gate is asked for and it loads after.
+    asGrownUp(fetchReviewQueue).then(
       (list) => {
         if (live) setItems(list);
       },
@@ -63,7 +65,7 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
     setItemError(null);
     setConfirmRetire(null);
     try {
-      await reviewQuestion(item.id, decision);
+      await asGrownUp(() => reviewQuestion(item.id, decision));
       setItems((list) => (list ?? []).filter((i) => i.id !== item.id));
       setNotice(`${DONE[decision]}: "${item.text}"`);
     } catch (err) {

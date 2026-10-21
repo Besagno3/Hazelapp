@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { errorMessage } from './errors';
+import { grownUpsLocked } from './grownUpsGate';
 
 /**
  * The owner's question review (#147): the review queue and decisions, through
@@ -66,6 +67,8 @@ export async function fetchReviewQueue(): Promise<ReviewItem[]> {
   const { data, error } = await supabase.rpc('admin_review_queue');
   if (error) {
     if (error.code === '42501') throw new Error(NOT_AN_ADMIN);
+    // 👪 Grown-ups locked again (#167): kept recognisable, so the gate is asked for.
+    if (grownUpsLocked(error)) throw Object.assign(new Error(error.message), { code: error.code });
     throw new Error(`Couldn't load the review queue — ${errorMessage(error)}`);
   }
   return ((data ?? []) as QueueRow[]).map((r) => ({
@@ -92,6 +95,7 @@ export async function reviewQuestion(id: string, decision: ReviewDecision): Prom
   const { error } = await supabase.rpc('admin_review_question', { p_question: id, p_status: decision });
   if (error) {
     if (error.code === '42501') throw new Error(NOT_AN_ADMIN);
+    if (grownUpsLocked(error)) throw Object.assign(new Error(error.message), { code: error.code });
     throw new Error(`Couldn't save that — ${errorMessage(error)}`);
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { authErrorMessage, errorMessage, isExpiredLink } from '../../lib/errors';
+import { allowPasswordChange, dropPasswordChange } from '../../lib/grownUps';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -12,6 +13,12 @@ import { useLiveMessage } from './useLiveMessage';
  * continues; "Cancel" signs them out instead. Once the link has run out,
  * saving can't work: the fields and "Save new password" go, and "Back to
  * sign in" (the same sign-out) is the big button, as its message says.
+ * Before saving, the database is told a change is coming from this reset
+ * link's own sign-in (`allow_password_change` with no sign-in named — the
+ * database ties it to the reset email the auth service recorded, #167 review
+ * round 2): a password changed any other way can't open 👪 Grown-ups for a
+ * day, and a reset link's change ends that wait — how a grown-up takes their
+ * login back (#167 review round 1). A save that fails drops that allowance.
  */
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -42,9 +49,15 @@ export default function ResetPasswordPage() {
       return;
     }
     setLoading(true);
+    // Best effort: without it the new password still saves, but waits a day
+    // before it can open 👪 Grown-ups (the grown-up PIN still can).
+    const notAllowed = await allowPasswordChange(supabase);
+    if (notAllowed) console.warn('Telling the database a password change is coming failed:', errorMessage(notAllowed));
     const { error: authError } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (authError) {
+      // Not saved: the allowance announced for it goes at once (the next try announces again).
+      if (!notAllowed) void dropPasswordChange();
       // Friendly words on screen, the whole error in the console (#130 S6).
       console.warn('Saving the new password failed:', errorMessage(authError));
       setError(authErrorMessage(authError, { where: 'reset', password }));

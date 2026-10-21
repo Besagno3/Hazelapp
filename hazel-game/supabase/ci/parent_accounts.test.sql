@@ -31,6 +31,12 @@ begin
 end $$;
 
 -- From here on, act as grown-up A through the API role.
+-- 👪 Grown-ups is open on this session for every grown-up here (#167,
+-- migration 0024): the grown-up actions below need it.
+-- grown_ups_gate.test.sql tests the gate itself.
+select set_config('request.jwt.claims', '{"session_id": "00000000-0000-0000-0000-00000000c167"}', true);
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a1', true);
 
@@ -130,6 +136,8 @@ end $$;
 -- A login from before parent accounts with no kid (so no row from the
 -- backfill) gets its row when it agrees.
 delete from public.parents where id = '00000000-0000-0000-0000-0000000000c1';
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until)
+  select id, '00000000-0000-0000-0000-00000000c167', now() + interval '1 hour' from auth.users on conflict do nothing;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000c1', true);
 select public.record_consent('2026-10-draft');

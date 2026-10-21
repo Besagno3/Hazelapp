@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import type { Kid } from '../../types';
@@ -11,15 +11,18 @@ const auth = vi.hoisted(() => ({
   resetPasswordForEmail: vi.fn(),
   signUp: vi.fn(),
   resend: vi.fn(),
+  getSession: vi.fn(),
 }));
-// The one-off client every password check signs in on (the gate's and the close's, #124b review round 2).
+// The one-off client every password check signs in on (the gate's and the close's, #124b review round 2);
+// its token opens 👪 Grown-ups on the device's sign-in (#167).
 const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
+const checkRpc = vi.hoisted(() => vi.fn());
 const functions = vi.hoisted(() => ({ invoke: vi.fn() }));
 const rpc = vi.hoisted(() => vi.fn());
 const forgetStoredSession = vi.hoisted(() => vi.fn());
 vi.mock('../../lib/supabase', () => ({
   supabase: { auth, functions, rpc },
-  passwordCheckClient: () => ({ auth: checkAuth }),
+  passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }),
   forgetStoredSession,
 }));
 vi.mock('../../lib/review', async (original) => ({
@@ -33,6 +36,7 @@ const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { saveKey } = await import('../../lib/save');
 const { profileKey } = await import('../../lib/profile');
+const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: true, birthYear: 2019, birthMonth: 8 };
@@ -53,6 +57,8 @@ beforeEach(() => {
   warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   checkAuth.signInWithPassword.mockResolvedValue(signedIn);
   checkAuth.signOut.mockResolvedValue({ error: null });
+  checkRpc.mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
+  auth.getSession.mockResolvedValue(deviceSession);
   auth.signOut.mockResolvedValue({ error: null });
   auth.getUser.mockResolvedValue({ data: { user: { id: 'grown-up-1' } }, error: null });
   rpc.mockResolvedValue({ data: { kids: {}, grown_up: 0 }, error: null });
@@ -165,7 +171,7 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     // Never on the device's own client — neither the gate's check nor the close's (#124b review round 2).
     expect(auth.signInWithPassword).not.toHaveBeenCalled();
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', {
-      body: { confirm: 'DELETE' },
+      body: { confirm: 'DELETE', session: DEVICE_SESSION },
       headers: { Authorization: 'Bearer fresh-token' },
     });
   });
@@ -185,6 +191,40 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(submit()).toHaveTextContent('Close account for good');
     expect(submit()).toHaveAttribute('aria-disabled', 'false');
     expect(auth.signOut).not.toHaveBeenCalled();
+  });
+
+  it("this device's sign-in has ended: said at once with \"Sign in again\" — no gate asked for, nothing sent (#167 review round 1)", async () => {
+    await openCloseAccount();
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    fill('hunter22', 'DELETE');
+    fireEvent.click(submit());
+    expect(await screen.findByText(/sign-in has ended.*Sign in again to carry on\. Nothing was deleted\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it('during the 24-hour password wait: the true reason, calm and amber, right on the page — never the "locked again" dialog, nothing sent (#167 review round 2)', async () => {
+    await openCloseAccount();
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    const scrolled = vi.fn();
+    const scrollBefore = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = scrollBefore;
+    });
+    fill('hunter22', 'DELETE');
+    fireEvent.click(submit());
+    const note = await screen.findByText(/^Your password was changed recently, so for safety it can't close the account until .+\. Nothing was deleted\. Didn't change it, or need it sooner\? Tap "Forgot it\?" under the password box to reset it by email\.$/);
+    expect(note).toHaveClass('bg-amber-50');
+    // It lands over the button, below a phone's fold: it comes into view.
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrolled.mock.contexts.at(-1)).toBe(note);
+    expect(pageStatus()).toContainElement(note);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(functions.invoke).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Your password (not your grown-up PIN)')).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.getByRole('button', { name: 'Forgot it? Email me a reset link' })).toBeInTheDocument();
   });
 
   it('never says "nothing was deleted" when it can\'t know: a lost answer says so, and "safe to repeat"', async () => {
@@ -350,4 +390,21 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(auth.signOut).toHaveBeenCalledTimes(2);
     expect(warn).toHaveBeenCalledWith('Signing out after closing the account:', expect.stringContaining('Failed to fetch'));
   });
+
+  it('👪 Grown-ups locked again (#167): the gate is asked for over the page; "Not now" says nothing was deleted', async () => {
+    const { unlockCancelled, useGrownUpsStore } = await import('../../store/grownUpsStore');
+    await openCloseAccount();
+    functions.invoke.mockResolvedValue(refusedWith(403, { error: 'grown_ups_locked', detail: 'x' }));
+    fill('right', 'DELETE');
+    fireEvent.click(submit());
+    await vi.waitFor(() => expect(useGrownUpsStore.getState().asked).toBe(true));
+    // Still closing while it waits, the password and DELETE as typed.
+    expect(submit()).toHaveTextContent('Closing your account…');
+    await act(async () => unlockCancelled());
+    expect(pageStatus()).toHaveTextContent('Grown-ups locked again. Enter your PIN or password, then tap "Close account for good" again. Nothing was deleted.');
+    expect(screen.getByLabelText('Your password (not your grown-up PIN)')).toHaveValue('right');
+    expect(auth.signOut).not.toHaveBeenCalled();
+    expect(useFamilyStore.getState().kids).toHaveLength(2);
+  });
 });
+

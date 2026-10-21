@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const signOut = vi.fn();
-vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: () => signOut() } } }));
+const rpc = vi.hoisted(() => vi.fn(async () => ({ data: null, error: null })));
+vi.mock('../../lib/supabase', () => ({ supabase: { auth: { signOut: () => signOut() }, rpc } }));
 
 const { default: ConsentPage } = await import('./ConsentPage');
 const { useFamilyStore } = await import('../../store/familyStore');
@@ -44,9 +45,11 @@ describe('ConsentPage (#124)', () => {
     warn.mockRestore();
   });
 
-  it('a grown-up who says no can sign out', () => {
+  it('a grown-up who says no can sign out — 👪 Grown-ups shut on this sign-in first (#167)', async () => {
     render(<ConsentPage />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/ }));
-    expect(signOut).toHaveBeenCalled();
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
+    expect(rpc).toHaveBeenCalledWith('lock_grown_ups');
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(signOut.mock.invocationCallOrder[0]);
   });
 });

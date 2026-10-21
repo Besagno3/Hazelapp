@@ -22,6 +22,10 @@ import { layers, refocusTopLayer } from '../lib/modalLayers';
  * or else on the world's stage (`data-keys-home`, which owns no keys). Where
  * it was has gone or turned off (the Library's "+15 XP" button, under a
  * level-up), the layer now on top takes focus (`refocusTopLayer`, #159 r2).
+ * A layer opened over a page control rather than the world (`RelockDialog`
+ * over a family form, #167 review round 1) passes `restoreFocusOnEscape`:
+ * Escape then puts focus back on the button that opened it, as its own way
+ * out does — there's no world to hand the keys to.
  */
 export default function ModalLayer({
   label,
@@ -30,6 +34,7 @@ export default function ModalLayer({
   describedBy,
   onKeyDown,
   onEscape,
+  restoreFocusOnEscape = false,
   children,
 }: {
   label: string;
@@ -41,6 +46,8 @@ export default function ModalLayer({
   onKeyDown?: (e: KeyboardEvent<HTMLDivElement>) => void;
   /** What Escape does: exactly the overlay's own close / Back / Later — leave it out where there's none. */
   onEscape?: () => void;
+  /** Closed by Escape, focus goes back where it was anyway (a layer over a page, not the world). */
+  restoreFocusOnEscape?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -54,6 +61,10 @@ export default function ModalLayer({
     escapeRef.current = onEscape;
   }, [onEscape]);
   const escaped = useRef(false);
+  const restoreOnEscape = useRef(restoreFocusOnEscape);
+  useEffect(() => {
+    restoreOnEscape.current = restoreFocusOnEscape;
+  }, [restoreFocusOnEscape]);
   useEffect(() => {
     const el = ref.current;
     if (el && !el.contains(document.activeElement)) el.focus({ preventScroll: true });
@@ -96,8 +107,9 @@ export default function ModalLayer({
     () => () => {
       // Runs after this layer has left the stack and let go of `inert`.
       if (before instanceof HTMLElement && before.isConnected && before !== document.body) {
-        // Closed by Escape: the world gets the keys, unless that was in a layer below.
-        if (!escaped.current || before.closest('[role="dialog"]')) before.focus({ preventScroll: true });
+        // Closed by Escape: the world gets the keys, unless that was in a layer
+        // below, or this layer sits over a page (where it was is the way back).
+        if (!escaped.current || restoreOnEscape.current || before.closest('[role="dialog"]')) before.focus({ preventScroll: true });
       }
       refocusTopLayer();
     },

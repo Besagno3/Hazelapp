@@ -106,7 +106,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
     heading: 'Your choices',
     body:
       "You can see, change or delete your children's information at any time in the " +
-      'Grown-ups area. You can close your whole account there too ("Close account", at the ' +
+      'Grown-ups area, which opens with your grown-up PIN or your password and locks again ' +
+      'when you leave it (or after 15 minutes). You can change the email and password you sign ' +
+      'in with there, and close your whole account there too ("Close account", at the ' +
       'bottom): after you type your password and the word DELETE, it deletes your login and everything about ' +
       'your children straight away, and we collect nothing more. If you can\'t sign in, ' +
       'email [CONTACT EMAIL] and we will close it for you.',

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { errorMessage } from '../../lib/errors';
 import { CloseAccountFailure, closeAccountMessage, CONFIRM_WORD, confirmTyped, type CloseFailureCode } from '../../lib/closeAccount';
 import { useAuthStore } from '../../store/authStore';
@@ -7,6 +7,7 @@ import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import FamilyCard from './FamilyCard';
 import ResetLinkButton from './ResetLinkButton';
+import SignInAgainButton from './SignInAgainButton';
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 aria-[invalid=true]:border-red-500';
@@ -70,22 +71,34 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
   const [error, setError] = useLiveMessage();
   // A reset link on its way (said in green where the refusals go).
   const [notice, setNotice] = useLiveMessage();
+  // The 24-hour password wait (#167 review round 2): calm news, amber, not an error.
+  const [caution, setCaution] = useLiveMessage();
   // The family's data went though the login stayed (`login_not_deleted`):
   // the server has no players and no consent now, so leaving reloads the
   // family — the privacy notice comes first again (#124b review round 2).
   const familyGone = useRef(false);
   // The box the last refusal was about (marked aria-invalid, described by the message).
   const [badField, setBadField] = useState<'password' | 'confirm' | null>(null);
+  // This device's sign-in has ended (#167 review round 1): the words ask to sign in again, so the button's here.
+  const [signedOut, setSignedOut] = useState(false);
   const passwordId = useId();
   const confirmId = useId();
   const statusId = useId();
   const passwordBox = useRef<HTMLInputElement | null>(null);
   const confirmBox = useRef<HTMLInputElement>(null);
   const names = kids.map((k) => k.name ?? 'Player');
+  const cautionLine = useRef<HTMLParagraphElement>(null);
+  const cautionKey = caution?.key;
+  // The wait's note lands over the button, often below a phone's fold: it comes into view (#167 review round 2).
+  useEffect(() => {
+    if (cautionKey !== undefined) cautionLine.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [cautionKey]);
 
   function refuse(code: CloseFailureCode, text = closeAccountMessage(code)) {
     setNotice(null);
-    setError(text);
+    setError(code === 'password_changed' ? null : text);
+    setCaution(code === 'password_changed' ? text : null);
+    setSignedOut(code === 'device_signed_out');
     const field = fieldFor(code);
     setBadField(field);
     const box = field === 'password' ? passwordBox.current : field === 'confirm' ? confirmBox.current : null;
@@ -101,6 +114,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
     if (!confirmTyped(typed)) return refuse('confirm_required');
     setError(null);
     setNotice(null);
+    setCaution(null);
     setBadField(null);
     setBusy(true);
     try {
@@ -196,6 +210,11 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
         </div>
         {/* Always there, so a screen reader hears each message as it appears. */}
         <div id={statusId} role="status" className="text-sm">
+          {caution && (
+            <p ref={cautionLine} key={caution.key} className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900 [overflow-wrap:anywhere]">
+              {caution.text}
+            </p>
+          )}
           {error && (
             <p key={error.key} className="text-red-700">
               {error.text}
@@ -207,6 +226,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
             </p>
           )}
         </div>
+        {signedOut && <SignInAgainButton className="mt-0" />}
         <button
           type="submit"
           aria-disabled={busy}

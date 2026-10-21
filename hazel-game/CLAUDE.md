@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `grownUpsStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -95,8 +95,9 @@ zod, react-query. Add the package in the same change that first uses it.
 - **A login is a grown-up's; kids are profiles (#124).** Signing in loads the
   family (`familyStore`: consent + kids). Before the game, `familyScreen()`
   picks, in order: consent (`ConsentPage`) → 👪 Grown-ups if open
-  (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password:
-  add / change / remove kids, set the grown-up PIN, the privacy notice,
+  (`GrownUpsArea`, behind the grown-up's own PIN if set, or their password —
+  `GrownUpsGate`: add / change / remove kids, set the grown-up PIN, change
+  the login's email or password (`AccountChange`, #124d), the privacy notice,
   Sign out, **Close account** — `CloseAccount`, the `delete-account` edge
   function, password + DELETE, #124b) → the first kid (`FirstKidPage`) → any kid without a PIN
   (`KidSetupPage`) → "Who's playing?" (`WhoIsPlaying`: a kid's tile, then
@@ -112,8 +113,91 @@ zod, react-query. Add the package in the same change that first uses it.
   back, every 15 s and on a tap, at most every 3 s), so a PIN typed again on
   another device opens it; 👪 Grown-ups marks a locked kid by name and says
   when a Save unlocked them, `lib/pinLock.ts`); the app only sees
-  `has_pin`. The grown-up PIN / password gate is a lock in the UI only —
-  grown-up actions need just the family's session (#167). Picking a kid (`choose`) loads *their* profile and
+  `has_pin`. **👪 Grown-ups is enforced by the database (#167, migration
+  0024):** opening it — the right grown-up PIN (`try_parent_pin`, while
+  this sign-in is live: a right PIN on one that has ended opens nothing and
+  says `signed_out`), or the password checked on `passwordCheckClient()` (a
+  new throwaway client for each check), whose fresh token calls
+  `unlock_grown_ups(<the device's session id>)` (`openGrownUpsWith`,
+  `lib/grownUps.ts`) — opens a **15-minute** window on that one sign-in
+  (`grown_up_unlocks`, keyed by login + session, readable by no client).
+  Only a real check may name a sign-in (`grown_up_check_refusal(p_target)`,
+  an allow-list the server enforces — review round 2): the device asks for
+  the check first (`askForPasswordCheck` → `ask_grown_up_check`, which
+  stamps `grown_up_sessions.asked_at` on the device's own sign-in and marks
+  it a device), and a check is a password sign-in under a minute old, made
+  after that ask (2 s clock slack), within a minute of it, never a device's,
+  naming a different live sign-in — so the device's own older sign-in can
+  never pass; a check opens one sign-in only (the app also notes each
+  sign-in it runs on, `noteDeviceSession` → `note_device_session`). Every
+  grown-up action needs it
+  (`grown_ups_unlocked()`): adding or removing a player and changing
+  anything about them but their play (the `profiles_grown_up_gate` trigger
+  compares every column not on `profiles_kid_play_columns()`, so a new
+  column is a grown-up one until it's listed — `grown_ups_gate.test.sql`
+  fails until it's classified — plus the insert policy), `set_kid_pin`,
+  `set_parent_pin`, `record_consent`, the admin review functions and
+  `delete_family`; each refuses with SQLSTATE HQ001 `grown_ups_locked`
+  (`grownUpsLocked`, `lib/grownUpsGate.ts`). The kid's own play — saves, the
+  XP / level / streak / power-up columns, 🚩 reports, seen questions, their
+  PIN — never needs it. A sign-in may open itself only while the family is
+  still being set up and only in the minute after it signed in (a password,
+  or an email link — `openForFirstRun` from `familyStore.load`), so the
+  first run needs no gate; a named session must be one of the login's live
+  ones (`auth.sessions`). An unlock refused says why (SQLSTATE HQ002,
+  `unlockRefusal`): `no_session` — this device's sign-in has ended (a
+  password change elsewhere), said with one "Sign in again" and the same
+  words wherever it shows (`DEVICE_SIGNED_OUT_WHY` /
+  `DEVICE_SIGNED_OUT_MESSAGE`; a right PIN on it throws
+  `DeviceSignedOutError`); `password_changed` — below; `reauth_required`.
+  **The password (#167 review rounds 1–2):** a deferred constraint trigger on
+  `auth.users` notes every password change as its transaction commits
+  (`grown_up_password_changes`, after GoTrue has signed the other sessions
+  out); one the app announced first is fine, any other means no password
+  opens 👪 or closes the account for 24 hours (`password_changed`, its
+  DETAIL the end time; the grown-up PIN still opens 👪, and a new password
+  set from a reset link ends the wait). The announcement
+  (`allow_password_change(p_session)`) is for one sign-in, one change,
+  within a minute, and dropped when the app's save fails
+  (`dropPasswordChange` → `drop_password_change`): on Change password, the
+  password check names the device's sign-in, and needs a recorded check that
+  opened 👪 on it; on the reset page, the reset link's own sign-in
+  (`grown_up_reset_sign_in`: the reset email sent and opened —
+  `recovery_sent_at` set, `recovery_token` emptied — and an email-link `amr`
+  entry (`otp` in the implicit flow, `recovery` / `magiclink` in PKCE) from
+  that email, under an hour old, made within a minute of the session, with
+  no password change since). A change made by any other sign-in, or one
+  that's gone by the commit, counts as unannounced. In the wait the gate
+  hides the box and "Open": a calm amber note says until when (`whenWords`:
+  today / tomorrow / a weekday at …), and the main button is "Use my
+  grown-up PIN" (with "Didn't change it? Reset it now" beside it) or, with
+  no PIN, "Email me a reset link" — once the email is on its way the box
+  comes back for the new password (`passwordWaitMessage(until, {
+  hasParentPin, doing })`, `waitLead`). Leaving the
+  grown-up screens for the kids' shuts it (`useLockOnLeave` →
+  `lock_grown_ups`, which drops this sign-in's unused password allowance; a
+  grown-up's Sign out first too, `signOutGrownUp`, from `SignOutButton`,
+  which says "Signing out…" and waits with `aria-disabled`). A refusal
+  mid-action asks again over the page (`asGrownUp` in `store/grownUpsStore`
+  → `RelockDialog`), the page and what was typed kept, and the same step
+  runs again once open. Its words follow where it is (`inArea`: "👪
+  Grown-ups locked again" only in 👪 Grown-ups, "👪 Just checking it's a
+  grown-up" on a setup screen; one line under the title, `relockLead`); on a
+  short screen the PIN pad's ways out sit beside the pad (`PinPad`
+  `beside`); Escape puts focus back on the button pressed (`ModalLayer`
+  `restoreFocusOnEscape`); "Not now" says nothing changed in words for the
+  screen (`grownUpsLockedMessage` — on a setup screen it asks for a
+  grown-up; `GROWN_UPS_LOCKED_MESSAGE` when nothing says where). Back on 👪
+  Grown-ups' list once the 15 minutes have run out, it shows the gate again
+  (`grownUpsStore.openedAt`), saying why (`LAPSED_NOTE`, in its subtitle and
+  read out). Changing the login's email or password asks
+  for the current password too, then calls `updateUser` on the device's own
+  client, a new password with `current_password` (`lib/accountChange.ts`); an
+  email-change link that comes back says what's left on "Who's playing?"
+  (`emailLinkNoticeFrom`, `features/auth/linkError.ts`, read as the page
+  loads). GoTrue's own user update can't be held to the window (#168): the
+  project's auth settings and the database's password wait stand in
+  (Commands). Picking a kid (`choose`) loads *their* profile and
   save, keyed by the kid's id; the kid playing in a tab survives a reload
   (sessionStorage). In the game, **Switch player** (`SwitchPlayerButton`, two
   taps in the world's top bar) replaces Sign out. The active kid's id goes to
@@ -771,24 +855,43 @@ zod, react-query. Add the package in the same change that first uses it.
   Postgres (after `supabase/ci/supabase-stub.sql`) and runs
   `supabase/ci/*.test.sql` (`pin_limits_lock.test.sql` opens two more
   sessions with dblink to prove the PIN row lock; it commits its own family
-  and deletes it again). A new migration must apply cleanly there; put
+  and deletes it again; `grown_ups_gate.test.sql` proves 👪 Grown-ups is held
+  by the database, #167 — and fails when a `profiles` column is on neither
+  side of the gate — and `grown_ups_password.test.sql` the password wait;
+  the other tests that act as a grown-up open it first, on the stub's
+  `request.jwt.claims` session). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.
 - **Closing an account (#124b):** the app signs in again with the typed
   password (`signInWithPassword` from the grown-up's own browser, so Supabase's
   sign-in limit counts that device — never one shared limit for every family,
-  #124b review — on `passwordCheckClient` in `lib/supabase.ts`, a client that
-  keeps nothing: memory only, never refreshed, its own storage key, no other
-  tab told; signed out again unless the close went through; the 👪 gate checks
-  the password on it too, #124b review round 2), then calls `delete-account`
+  #124b review — on `passwordCheckClient()` in `lib/supabase.ts`, a new
+  client for each check that keeps nothing: memory only, never refreshed, its
+  own storage key, no other tab told; signed out again unless the close went
+  through; the 👪 gate checks the password on one too, #124b review round 2),
+  then calls `delete-account`
   (single file; `_shared/closeAccount.ts` canonical, drift-checked by
-  `closeAccount.test.ts`) with that fresh token and `{confirm: 'DELETE'}` —
-  never the password. The function checks the token (`auth.getUser`), the
+  `closeAccount.test.ts`) with that fresh token and `{confirm: 'DELETE',
+  session: <the device's session id>}` — never the password; the password
+  just typed opens 👪 Grown-ups on that session first (#167). A device whose
+  sign-in can't be read or has ended (`no_session`) can't be opened by any
+  PIN or password, so that's said at once with "Sign in again"
+  (`device_signed_out`), never by asking for the gate again. The function checks the token (`auth.getUser`), the
   confirm word and that the token's `amr` claim says "password" within a
   minute (`signedInFreshly`; bare-string `amr` must name a password and then
   `last_sign_in_at` must be just now; no `amr` at all is refused and logged
   loudly; never `iat`), runs
-  `delete_family` (migration 0023, service role only — the whole family in one
-  transaction; today's spent question budget stays without a name, #152) and
+  `delete_family(p_parent, p_session, p_caller)` (migrations 0023 + 0024,
+  service role only — deletes nothing unless 👪 Grown-ups is open on the
+  session named (403 `grown_ups_locked`) and the token's own sign-in
+  (`p_caller`, its `session_id`) is the password check the database recorded
+  opening it (a `grown_up_sessions` row kind `check`, target that session —
+  HQ002 → 403 `reauth_required`), and never during the password wait
+  (HQ002 `password_changed` → 403 `password_changed` with `until`, which the
+  app says calmly in amber, as Change password does — `passwordWaitDb`;
+  the app's own pre-close unlock says it first); the whole family in one
+  transaction; today's spent question budget stays without a name, #152; on
+  a database without 0024 the function refuses, 503 `database_out_of_date`,
+  rather than deleting the login alone) and
   `auth.admin.deleteUser`; refusals are JSON `{error, detail}` codes the app
   words itself (`lib/closeAccount.ts`), each true however it came about: a lost
   reply is `outcome_unknown` ("we can't tell — safe to repeat"), a login
@@ -797,11 +900,15 @@ zod, react-query. Add the package in the same change that first uses it.
   reloads the family (the privacy notice comes first again). Signing out
   afterwards never waits on the server (`signOutHere`, `familyStore`): when
   supabase-js keeps the session because `/logout` failed, the stored session
-  is dropped (`forgetStoredSession`) and the sign-out asked again. Left open
-  (#167): for about a minute after a grown-up really signs in on the family
-  device, that stored session could close the account. Deploy: `supabase
-  functions deploy delete-account` (no secrets beyond the injected
-  `SUPABASE_*`).
+  is dropped (`forgetStoredSession`) and the sign-out asked again. The minute
+  after a grown-up really signs in on the family device (that stored session
+  is a fresh password sign-in too) can no longer close the account: a check
+  must be a sign-in made after the device asked for it, so the device's own
+  earlier sign-in never is one, only the recorded check can close, the
+  session named must have 👪 Grown-ups open, and a sign-in can't open itself
+  once the family is set up (#167, review rounds 1–2). Deploy:
+  `supabase functions deploy delete-account` right after applying 0024 (no
+  secrets beyond the injected `SUPABASE_*`).
 - **Question-generator access (#88):** `generate-questions` requires a signed-in
   caller (401 otherwise) and calls `begin_question_request` (migration 0009):
   per-player calls/minute (429 over it) + per-player, per-family (migration
@@ -928,10 +1035,17 @@ zod, react-query. Add the package in the same change that first uses it.
 - **Password reset (#88):** `AuthPage` "Forgot password?" →
   `resetPasswordForEmail` (redirects back to the app). A recovery link sets
   `authStore.passwordRecovery` (PASSWORD_RECOVERY event or `type=recovery` in
-  the URL), and `App` shows `ResetPasswordPage` before the game. An email link
-  that comes back with an error (`otp_expired`) is said on the sign-in page
-  (`linkError.ts`) and dropped from the address; once a reset link has run out,
-  the reset page's main button is "Back to sign in" (#159).
+  the URL), and `App` shows `ResetPasswordPage` before the game; before
+  saving, it tells the database the change comes from a reset link
+  (`allowPasswordChange`, allowed only for the reset link's own sign-in —
+  `grown_up_reset_sign_in`), which ends any 24-hour password wait (#167 review
+  rounds 1–2; best effort — without it the new password saves but waits; a
+  save that fails drops the announcement, `dropPasswordChange`). An
+  email link that comes back with an error (`otp_expired`) is said on the
+  sign-in page (`linkError.ts`) and dropped from the address, and so is the
+  first of an email change's two links tapped while signed out ("Nearly
+  done!"); once a reset link has run out, the reset page's main button is
+  "Back to sign in" (#159).
 - **Question generation** is a Deno edge function in
   `supabase/functions/generate-questions/` — it calls the Claude API
   server-side (API key never reaches the browser). `lib/questions.ts`
@@ -1058,8 +1172,37 @@ SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --apply   # hold back what fails, mark what passes
 SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… ANTHROPIC_API_KEY=… deno run --allow-env --allow-net supabase/scripts/recheck-questions.ts --reported --apply   # reports no check covered yet
 
-# Close an account (#124b) — after applying 0023
+# Close an account (#124b) and 👪 Grown-ups held by the database (#167) — after applying 0023 + 0024
 supabase functions deploy delete-account   # no secrets beyond the injected SUPABASE_* ones
+#   Order for #167, by the owner:
+#     1. Ship the app (merge; Vercel). A new app on an old database just has no window to open.
+#     2. Apply 0024: re-run apply_all_migrations.sql in the SQL editor (it adds a deferred
+#        constraint trigger on auth.users, so run it there, as the editor's own role).
+#     3. Right after: `supabase functions deploy delete-account`. Until then closing an account is
+#        refused, nothing deleted (the old function can't satisfy 0024); the new function refuses on
+#        a database without 0024 (database_out_of_date), so never deploy it first.
+#   Auth settings (#124d, #168) — dashboard → Authentication (names can differ a little by version):
+#     - "Secure email change" ON (the default): the current address must confirm too, so the login
+#       can't be moved to another inbox (one that could then reset the password and skip the wait).
+#     - "Require current password" for password updates ON (GoTrue
+#       GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD; if the dashboard doesn't show it, ask
+#       Supabase or set it through the Management API's auth config): a password change needs the
+#       current password — except on ANY sign-in made through an email link (a reset link, a magic
+#       link, the sign-up confirmation link), for that sign-in's whole life: GoTrue's IsRecovery()
+#       covers otp / magiclink / recovery. So a family device first signed in through its sign-up
+#       confirmation link skips it; there the database's wait is the real defence. The app always
+#       sends it.
+#     - "Secure password change" ON: an emailed code — but only from a sign-in over a day old, so on
+#       its own it does NOT cover today's sign-in on the family device.
+#     - The "password changed" notification email ON (Authentication → Emails; GoTrue
+#       GOTRUE_MAILER_NOTIFICATIONS_PASSWORD_CHANGED_ENABLED): the grown-up hears at once.
+#     - Keep the /play/ address in Redirect URLs (email-change and reset links come back there).
+#   Whatever the settings, 0024 notes every password change: one the app didn't announce means no
+#   password opens 👪 or closes the account for 24 hours (the grown-up PIN still opens 👪; a new
+#   password from a reset link ends it). An announcement is for one sign-in and one minute: the
+#   password check on Change password, or the reset link's own sign-in (its otp entry, after the
+#   reset email). A password set in the dashboard, or a hash Supabase upgrades on sign-in, counts
+#   as unannounced too (the safe side).
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
@@ -1088,7 +1231,11 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   | 'reset' … })`; `authRetryAfter` / `isExpiredLink` sit beside it. Some
   screen that still shows `errorMessage` is a bug (#130 S6).
   `where` is `'sign-in' | 'sign-up' | 'gate' | 'reset' | 'forgot' | 'resend' |
-  'link'`: an unmapped error says what didn't happen there; a dead sign-in
+  'link' | 'change-email' | 'change-password'` (👪 Grown-ups' login forms,
+  #124d): an unmapped error says what didn't happen there; a wrong password
+  points at "Forgot it?" where it is ("below" on the gate, "under the
+  password box" on the change forms, which also word GoTrue's
+  `current_password_mismatch`); a dead sign-in
   (JWT / refresh token / session) is `SIGNED_OUT_MESSAGE`; a non-JSON error
   page (`AuthUnknownError`) or a 5xx is `TROUBLE_MESSAGE`. Mail buttons count a
   refusal's wait down with `useRetryWait` (`features/auth/`); live error lines
@@ -1097,7 +1244,16 @@ supabase secrets set ALERT_SLACK_WEBHOOK_URL=https://hooks.slack.com/… ALERT_D
   Where a screen's questions didn't come, `questionErrorMessage(err, { what,
   retry })` (a kid offline is asked to fetch a grown-up to check the
   internet); family screens use `plainErrorOr(err, fallback)`
-  (`lib/familyErrors.ts`). Words that say "sign in again" come with the
+  (`lib/familyErrors.ts`; 👪 Grown-ups locked and "Not now" is
+  `grownUpsLockedMessage({ inArea, hasParentPin })` — "locked again" only in
+  👪 Grown-ups; on a setup screen "Nothing changed — this step needs a
+  grown-up's password (or grown-up PIN). Not a grown-up? Please fetch one." —
+  or `GROWN_UPS_LOCKED_MESSAGE` when nothing says where, #167; this device's
+  sign-in ended is `DEVICE_SIGNED_OUT_MESSAGE` with "Sign in again" (a right
+  PIN on it throws `DeviceSignedOutError`, which `plainErrorOr` words the
+  same), and the 24-hour password wait is `passwordWaitMessage(until, {
+  hasParentPin, doing: 'open' | 'change' | 'close' })` — calm news in an
+  amber box, never red, with what works now). Words that say "sign in again" come with the
   button that does it: `App`'s family error, both PIN pads (a kid's reads
   "Grown-ups: sign in again"), KidForm, Remove and the grown-up PIN form offer
   "Sign in again" (`SignInAgainButton` → `signInAgain` in `familyStore`, a
@@ -1199,6 +1355,147 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-21 — Grown-ups review round 2: a reset link really ends the wait, a check the server can tell apart, Close account waits too, and the wait says what works (#167, #124d, #168)
+`/saas-code-review` (1 high, 2 medium, 3 low) and `/saas-ux-review` (2
+medium, 6 low + also noted + a hand-over) of PR #87, all fixed but one
+(below). **The reset link (high):** GoTrue's implicit flow signs every email
+link in with `amr: otp`, so `allow_password_change` refused on the reset page
+and every reset *started* the 24-hour wait. Now `grown_up_reset_sign_in()`
+ties it to the reset email itself: `recovery_sent_at` set and its token used,
+an email-link `amr` entry (`otp` / `recovery` / `magiclink`) from that email,
+under an hour old, made with the sign-in, no password change since — a
+device signed in by its sign-up link long ago doesn't pass. CI now plays
+GoTrue's writes (otp, `recovery_sent_at` / `recovery_token`, the other
+sessions signed out in the change's transaction). **A check the server tells
+apart (medium):** the device asks first (`askForPasswordCheck` →
+`ask_grown_up_check`, `asked_at`), and a check must be a password sign-in
+made after that ask (`grown_up_check_refusal(p_target)`, an allow-list), so
+the device's own older sign-in never passes, noted or not;
+`allow_password_change` from a check and `delete_family` both need the
+recorded check row. **Close account honours the wait (medium):**
+`delete_family` refuses during it (HQ002 `password_changed`),
+`delete-account` answers 403 `password_changed` with `until`
+(`passwordWaitDb`), and the app says it calmly on the page — the pre-close
+unlock's refusal too — instead of the "locked again" dialog. **Low:** the
+docs say "require current password" skips any email-link sign-in for its
+life; the allowance is for one sign-in (`allowed_session`), 60 s, dropped
+when the save fails (`dropPasswordChange`), read by a deferred constraint
+trigger at commit; a network failure no longer marks the current password
+wrong (`currentPasswordWrong`). **UX:** in the wait the gate and dialog drop
+the box and "Open" — "Use my grown-up PIN" (beside "Didn't change it? Reset
+it now") or "Email me a reset link" is the main button, and once the email
+is on its way the box comes back for the new password; the words are calm
+and amber, claim nothing about the old password, and say what works
+(`passwordWaitMessage` `doing`: open / change / close); "today / tomorrow at
+…" (`whenWords`); the setup screens' "Not now" speaks to the grown-up and the
+kid; a player whose PIN didn't save keeps the "Add a player" title, its line
+comes into view ("Tap Save to set their PIN."), and a first player no longer
+flashes "Who's playing?" — the setup page says what happened
+(`pinNotSavedFor`); signed out is one "Sign in again" with an honest lead;
+back at the gate after 15 minutes it says why (`LAPSED_NOTE`); the sign-in
+page's link notices are read out (set a beat after mount). **Also noted:**
+one wording for an ended sign-in (`DeviceSignedOutError`); the reset email's
+next step; the expired-link sentence in two; Done waits while signing out.
+Found rendering: the wait notes on Change password and Close account landed
+below a phone's fold — they come into view now. **Not built:** Tab wrapping
+through `<body>` in `ModalLayer` (shared by every world overlay, as a native
+dialog does; ISSUES #167). Tests 2210 → 2227; 24 migrations + 18 SQL tests on
+Postgres 16; 41 loosenings of 0024, 38 caught and 3 equivalent (redundant
+guards); the function against a stand-in 25/25 (the previous version 22/25);
+`deno check` of both functions; lint, `tsc -b`, `build:web`; the stubbed app
+at 320×568, 740×360 touch and 1024×768 (207 checks). Deploy order unchanged
+(Commands).
+
+### 2026-10-21 — Grown-ups review round 1: a new password can't open 👪 behind the grown-up's back, only a real check names a sign-in, dialogs that fit and say where they are (#167, #124d, #168)
+`/saas-code-review` (1 critical, 1 medium, 4 low) and `/saas-ux-review` (8 +
+also noted + 3 handed to code review) of PR #87, all fixed but one (below).
+**The password (critical):** GoTrue lets any sign-in under a day old set a
+new password with no code and no current password, and a new password is a
+fresh sign-in that could open 👪. Now the app always sends
+`current_password` (`changePassword`), the owner turns on "require the
+current password" (Commands), and whatever the settings **0024 notes every
+password change** (a trigger on `auth.users`, `grown_up_password_changes`):
+one the app announced first (`allow_password_change` — the current password
+checked just now, or a reset link's sign-in within the hour; one change, 10
+minutes) is fine, any other means no password opens 👪 for 24 hours
+(HQ002 `password_changed` with the time; the grown-up PIN still does, and a
+new password from a reset link ends the wait). The reset page and Change
+password announce theirs; the gate and Change password say until when
+(`passwordWaitMessage`); the done page says a pending email change was
+cancelled. **The minute after a sign-in (medium):** the app notes each
+sign-in it runs on (`note_device_session`, `grown_up_sessions`); only a
+password check under a minute old that the app never ran on may name a
+sign-in, one only (`grown_up_check_refusal`), and `delete_family` takes the
+caller's session (`p_caller`) and refuses a device's or none (HQ002
+`reauth_required`). **Low:** the profiles gate lists the kid's columns
+(`profiles_kid_play_columns()`; any other column is a grown-up one, and a CI
+check fails until a new column is classified); Close account says "Sign in
+again" at once when this device's sign-in is gone (`device_signed_out`)
+instead of re-asking the gate; `passwordCheckClient()` is a new client per
+check (no shared sign-out racing the next); `delete-account` on a database
+without 0024 refuses (`database_out_of_date`, 503, nothing deleted) instead
+of deleting the login alone. **UX:** Escape on the dialog puts focus back on
+the button pressed (`ModalLayer` `restoreFocusOnEscape`, opt-in; the world
+rule stays); on a short screen the PIN pad's ways out sit beside it
+(`PinPad` `beside`) and "Not now" fits at 320×568; the words follow where it
+is (`inArea`: "locked again" only in 👪 Grown-ups, "Just checking it's a
+grown-up" on a setup screen, and "Not now" there asks for a grown-up —
+`grownUpsLockedMessage`); `no_session` says this device's sign-in ended
+with "Sign in again" (gate, dialog, Change password); an email-change link
+that comes back says what's left on "Who's playing?" (`emailLinkNoticeFrom`;
+an expired one asks again in 👪 Grown-ups); "Forgot it?" is "under the
+password box" on the change forms; the dialog says what to do once; the
+change pages say why the current password. **Also noted:** Sign out says
+"Signing out…" and waits (`SignOutButton`); "the link in each email";
+👪's list goes back to the gate once the 15 minutes are up
+(`grownUpsStore.openedAt`); focus on the area's and the first player's
+titles; the gate's Back fits at 740×360. **Handed over:** a player added
+whose PIN didn't save makes the form "Change …" (`KidAddedWithoutPin`, no
+duplicate); a right grown-up PIN on an ended sign-in opens nothing and says
+so (`signed_out`). **Not built:** cancelling a pending email change (GoTrue
+has no call for it; a new change replaces it). Tests 2112 → 2210; 24
+migrations + 18 SQL tests (new `grown_ups_password.test.sql`) on Postgres
+16, 33 loosenings of 0024 each caught; the function against a stand-in 20/20
+(the previous version 7/20); `deno check` of both functions; lint, `tsc -b`,
+`build:web`; the stubbed app at 320×568, 740×360 touch and 1024×768 (137
+checks).
+
+### 2026-10-21 — Grown-ups for real: the database holds 👪 Grown-ups, and the login's email and password change there (#167, #124d)
+Every grown-up action needed only the family's sign-in, which a kid on the
+shared device holds, so the 👪 PIN / password gate could be skipped with the
+browser's developer tools. **Migration 0024** keeps a **15-minute** window per
+sign-in (`grown_up_unlocks`, login + session id, no client can touch it):
+the right grown-up PIN opens it (`try_parent_pin`; `check_parent_pin` too,
+for old tabs), and so does a password typed just now — checked on
+`passwordCheckClient`, whose fresh token (`amr` ≤ 60 s, as `delete-account`
+reads it) calls `unlock_grown_ups(<the device's session>)`; a sign-in opens
+*itself* only while the family is still being set up, so the first run
+(consent → first player → their PIN) needs no gate and the minute after a
+real sign-in can't be borrowed afterwards. Adding / removing / renaming
+players (a trigger, plus the insert policy), `set_kid_pin`, `set_parent_pin`,
+`record_consent`, the admin review and `delete_family` (the session the app
+names — closing #167's last gap) refuse with SQLSTATE HQ001
+`grown_ups_locked`; the kid's own play never does. The app opens it from the
+gate (`GrownUpsGate`, shared), asks again over the page when it shuts
+mid-action (`RelockDialog`: "👪 Grown-ups locked again", what was typed
+kept, the step re-run — `asGrownUp`, `grownUpsStore`), and shuts it on
+leaving 👪 Grown-ups or finishing setup (`useLockOnLeave`) and before a
+grown-up's Sign out. **#124d:** 👪 Grown-ups → **Your sign-in** → Change
+email… / Change password…, the current password typed again: the email via
+`updateUser({ email })` on the device's own client (the page says which links
+come, that the old email works until they're tapped, that devices stay signed
+in; "already in use", bad addresses and rate limits in words), the password
+via `updateUser({ password })` there too (this sign-in stays, Supabase signs
+the others out; the emailed code when "Secure password change" wants one).
+The privacy notice says how 👪 locks and that the login can be changed.
+`delete-account` names the session and answers `grown_ups_locked`. Tests:
+`grown_ups_gate.test.sql` + `close_account.test.sql` (12 loosenings of 0024,
+each caught), the function against a stand-in 15/15 (the old one 5/15),
+tests 2045 → 2112, lint, `tsc -b`, `build:web`, `deno check` of both functions, all
+24 migrations + 17 SQL tests on Postgres 16, and the screens rendered at
+320×568, 740×360 and 1024×768 (72/72). Logged: #168 (the auth service's own
+user updates can't be held to the window).
 
 ### 2026-10-20 — Quiz review round 2: the next round asked for at its own level, held questions that never outlive the server's hold, a wait that starts when the slot is free, a results card that fits a sideways phone (#163)
 `/saas-code-review` (2 medium, 1 low) and `/saas-ux-review` (4 low + 2 also

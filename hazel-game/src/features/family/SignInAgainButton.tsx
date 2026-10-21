@@ -6,10 +6,19 @@ import { cn } from '../../lib/utils';
  * sign-out on this device (`signInAgain`), then the sign-in page. On a kid's
  * screen its label says it's a grown-up's job.
  */
-export default function SignInAgainButton({ label = 'Sign in again', className }: { label?: string; className?: string }) {
+export default function SignInAgainButton({
+  label = 'Sign in again',
+  className,
+  autoFocus = false,
+}: {
+  label?: string;
+  className?: string;
+  autoFocus?: boolean;
+}) {
   return (
     <button
       type="button"
+      autoFocus={autoFocus}
       onClick={() => void signInAgain()}
       className={cn('mt-2 w-full min-h-11 rounded-lg bg-purple-600 font-semibold text-white transition hover:bg-purple-700', className)}
     >

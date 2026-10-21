@@ -57,11 +57,43 @@ describe('the password-check client keeps nothing (#124b review round 2, #167)',
     expect(check.persistSession).toBe(false);
     expect(check.autoRefreshToken).toBe(false);
     expect(check.detectSessionInUrl).toBe(false);
-    expect(check.storageKey).toBe('hazel-password-check');
+    expect(check.storageKey).toMatch(/^hazel-password-check-\d+$/);
     expect(check.storageKey).not.toBe(AUTH_STORAGE_KEY);
     expect(check.broadcastChannel).toBeNull();
-    // One client, made once.
-    expect(passwordCheckClient()).toBe(passwordCheckClient());
+  });
+
+  it('is a new client for each check, with its own name (#167 review round 1)', () => {
+    const one = passwordCheckClient();
+    const two = passwordCheckClient();
+    expect(one).not.toBe(two);
+    expect(internals(one.auth).storageKey).not.toBe(internals(two.auth).storageKey);
+  });
+
+  it("one check's late sign-out never signs the next check out (#167 review round 1)", async () => {
+    // The first check's /logout answers slowly; meanwhile a second check signs in.
+    let releaseLogout!: () => void;
+    const logoutHeld = new Promise<void>((res) => (releaseLogout = res));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const u = String(url instanceof Request ? url.url : url);
+        if (u.includes('/auth/v1/token')) return new Response(JSON.stringify(session), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        if (u.includes('/auth/v1/logout')) {
+          await logoutHeld;
+          return new Response(null, { status: 204 });
+        }
+        return new Response('{}', { status: 404, headers: { 'Content-Type': 'application/json' } });
+      }),
+    );
+    const first = passwordCheckClient().auth;
+    await first.signInWithPassword({ email: 'mum@example.com', password: 'hunter22' });
+    const signingOut = first.signOut({ scope: 'local' });
+    const second = passwordCheckClient().auth;
+    await second.signInWithPassword({ email: 'mum@example.com', password: 'hunter22' });
+    releaseLogout();
+    await signingOut;
+    expect((await first.getSession()).data.session).toBeNull();
+    expect((await second.getSession()).data.session?.access_token).toBe('fresh.access.token');
   });
 
   it('a password checked on it leaves no session on the device — the stored one is untouched — and it signs out', async () => {
