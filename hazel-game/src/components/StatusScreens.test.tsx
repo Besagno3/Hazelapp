@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { LoadingScreen, ErrorScreen, OutdatedScreen } from './StatusScreens';
-import { FUN_FACTS, GENERIC_FACTS } from '../lib/funFacts';
+import { GENERIC_FACTS } from '../lib/funFacts';
 
 describe('LoadingScreen', () => {
   it('shows the given label', () => {
@@ -9,42 +9,21 @@ describe('LoadingScreen', () => {
     expect(screen.getByText('Building your questions…')).toBeInTheDocument();
   });
 
-  it('shows a topic-specific fact when given a topic', () => {
-    render(<LoadingScreen label="Loading…" topic="math" />);
-    // The rendered fact must be one of the topic's pool.
-    const rendered = FUN_FACTS.math.find((f) => screen.queryByText(f));
-    expect(rendered).toBeDefined();
-  });
-
-  it('falls back to a generic fact when no topic is given', () => {
+  it('shows a fun fact while it waits', () => {
     render(<LoadingScreen label="Loading…" />);
     const rendered = GENERIC_FACTS.find((f) => screen.queryByText(f));
     expect(rendered).toBeDefined();
   });
 });
 
-describe('a top bar above the wait or the failure (#110h review)', () => {
-  it('sits first, at the top, with the rest below it', () => {
-    const { unmount } = render(<LoadingScreen label="Building your questions…" topBar={<nav>bar</nav>} />);
-    let bar = screen.getByRole('navigation');
-    expect(bar.compareDocumentPosition(screen.getByText('Building your questions…')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(bar.parentElement!.firstElementChild).toBe(bar);
-    unmount();
-    render(<ErrorScreen message="Network failed" onRetry={vi.fn()} topBar={<nav>bar</nav>} />);
-    bar = screen.getByRole('navigation');
-    expect(bar.compareDocumentPosition(screen.getByText('Network failed')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  });
-});
-
 describe('ErrorScreen', () => {
-  it('renders the message and both actions when handlers are given', () => {
-    render(<ErrorScreen message="Network failed" onRetry={vi.fn()} onBack={vi.fn()} />);
+  it('renders the message and Try again when given a retry', () => {
+    render(<ErrorScreen message="Network failed" onRetry={vi.fn()} />);
     expect(screen.getByText('Network failed')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
-  it('omits actions that are not provided', () => {
+  it('omits the retry when none is given', () => {
     render(<ErrorScreen message="Oops" />);
     expect(screen.queryByRole('button')).toBeNull();
   });

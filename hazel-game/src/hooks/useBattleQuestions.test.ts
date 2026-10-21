@@ -5,21 +5,33 @@ import type { Question } from '../types';
 const q = (id: string): Question => ({ id, topic: 'math', level: 4, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
 
 const { quick, more } = vi.hoisted(() => ({ quick: vi.fn(), more: vi.fn() }));
-vi.mock('../lib/questions', () => ({
+vi.mock('../lib/questions', async (orig) => ({
+  ...(await orig<typeof import('../lib/questions')>()),
   quickQuestions: quick,
   moreQuestions: more,
-  QUICK_WAIT_MS: 3000,
-  waitFor: (ms: number) => new Promise((resolve) => setTimeout(() => resolve(null), ms)),
 }));
 /** A quick start with nothing coming late. */
 const started = (qs: Question[]) => ({ questions: qs, late: Promise.resolve([]) });
 
 import { useBattleQuestions } from './useBattleQuestions';
+import { carriedCount, carryOver, clearCarried } from '../lib/questions';
+import { useFamilyStore } from '../store/familyStore';
 
 beforeEach(() => {
   quick.mockReset();
   more.mockReset();
+  clearCarried();
+  useFamilyStore.setState({ activeKidId: 'kid-1' });
 });
+
+/** `carriedCount` for `kid` (it reads the kid playing). */
+function carriedFor(kid: string | null, level = 4) {
+  const playing = useFamilyStore.getState().activeKidId;
+  useFamilyStore.setState({ activeKidId: kid });
+  const n = carriedCount('math', level);
+  useFamilyStore.setState({ activeKidId: playing });
+  return n;
+}
 
 describe('useBattleQuestions (#158)', () => {
   it('starts on the first saved questions, then adds the rest when they arrive', async () => {
@@ -75,5 +87,105 @@ describe('useBattleQuestions (#158)', () => {
     await waitFor(() => expect(more).toHaveBeenCalled());
     expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 7, 4, { flavor: 'spell' });
     expect(more.mock.calls[0][5]).toBe('spell');
+  });
+});
+
+describe('useBattleQuestions — a failure is logged in words, never shown (#163)', () => {
+  it('logs the reason as text, not the raw error, and never errors', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    quick.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useBattleQuestions('math', 5, 4));
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('Questions failed to load:', 'boom'));
+    expect(result.current.error).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('…and never waits for ever: with no pool yet, starter questions (#163 review)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    quick.mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => useBattleQuestions('math', 5, 4));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.questions).toHaveLength(5);
+    expect(result.current.questions.every((x) => x.id.startsWith('starter-math-'))).toBe(true);
+    warn.mockRestore();
+  });
+});
+
+describe('useBattleQuestions — carry (the quiz, #163 review)', () => {
+  it('a battle drops what lands after it is done with; the quiz keeps it for its next round', async () => {
+    for (const carry of [false, true]) {
+      clearCarried();
+      quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3')]));
+      let finish!: (qs: Question[]) => void;
+      more.mockReturnValue(new Promise<Question[]>((resolve) => (finish = resolve)));
+      const { result, unmount } = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry }));
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      await waitFor(() => expect(more).toHaveBeenCalled());
+      unmount();
+      await act(async () => finish([q('n1'), q('n2')]));
+      expect(carriedCount('math', 4)).toBe(carry ? 2 : 0);
+    }
+  });
+
+  it('a quick start that lands after the quiz left is kept too', async () => {
+    let land!: (v: { questions: Question[]; late: Promise<Question[]> }) => void;
+    quick.mockReturnValue(new Promise((r) => (land = r)));
+    const { unmount } = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    unmount();
+    await act(async () => land(started([q('s1'), q('s2'), q('starter-math-middle-1')])));
+    expect(carriedCount('math', 4)).toBe(2);
+  });
+});
+
+describe('useBattleQuestions — carry, review round 2 (#163)', () => {
+  it('what lands once the quiz is gone goes to the kid it was for, even after a switch of player', async () => {
+    quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3')]));
+    let finish!: (qs: Question[]) => void;
+    more.mockReturnValue(new Promise<Question[]>((resolve) => (finish = resolve)));
+    const { result, unmount } = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await waitFor(() => expect(more).toHaveBeenCalled());
+    // Switch player: no kid for a moment, the quiz unmounts.
+    useFamilyStore.setState({ activeKidId: null });
+    unmount();
+    await act(async () => finish([q('n1'), q('n2')]));
+    expect(carriedFor('kid-1')).toBe(2);
+    expect(carriedFor(null)).toBe(0);
+  });
+
+  it('a quick start that fails keeps the carried questions: first in the pool, or carried again once the quiz is gone', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    carryOver('kid-1', 'math', [q('c1'), q('c2')]);
+    quick.mockRejectedValue(new Error('boom'));
+    const on = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    await waitFor(() => expect(on.result.current.loading).toBe(false));
+    const pool = on.result.current.questions.map((x) => x.id);
+    expect(pool.slice(0, 2)).toEqual(['c1', 'c2']);
+    expect(pool.slice(2).every((id) => id.startsWith('starter-math-'))).toBe(true);
+    on.unmount();
+
+    clearCarried();
+    carryOver('kid-1', 'math', [q('c1'), q('c2')]);
+    let fail!: (e: Error) => void;
+    quick.mockReturnValue(new Promise((_, reject) => (fail = reject)));
+    const gone = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    expect(carriedCount('math', 4)).toBe(0); // taken for this round
+    gone.unmount();
+    await act(async () => fail(new Error('boom')));
+    expect(carriedCount('math', 4)).toBe(2);
+    warn.mockRestore();
+  });
+
+  it("says when the quiz's bank covered its round, so nothing more was asked — never for a battle", async () => {
+    quick.mockResolvedValue(started([q('s1'), q('s2'), q('s3'), q('s4'), q('s5')]));
+    more.mockResolvedValue([]);
+    const quiz = renderHook(() => useBattleQuestions('math', 5, 4, undefined, { carry: true }));
+    await waitFor(() => expect(quiz.result.current.covered).toBe(true));
+    expect(more).not.toHaveBeenCalled();
+    quiz.unmount();
+
+    const battle = renderHook(() => useBattleQuestions('math', 5, 4));
+    await waitFor(() => expect(more).toHaveBeenCalled());
+    expect(battle.result.current.covered).toBe(false);
   });
 });
