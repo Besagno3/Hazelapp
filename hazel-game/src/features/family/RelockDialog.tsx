@@ -67,7 +67,7 @@ function RelockLayer({ inArea }: { inArea: boolean }) {
                   id={leadId}
                   className="mb-4 mt-1 text-center text-sm text-gray-700 [overflow-wrap:anywhere] [@media(max-height:500px)]:mb-2"
                 >
-                  {relockLead(way, email)}
+                  {relockLead(way, email, hasParentPin)}
                 </p>
                 {controls}
               </>

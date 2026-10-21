@@ -9,13 +9,24 @@ import { signOutGrownUp } from '../../store/familyStore';
  * `LOCK_BEFORE_SIGN_OUT_MS`), so the button says it's on its way and waits
  * with `aria-disabled` — a second tap does nothing rather than signing out
  * twice (#167 review round 1). If the sign-out fails it's ready again.
+ * `onBusyChange` lets the screen hold its other ways out meanwhile (👪's
+ * "Done", #167 review round 2).
  */
-export default function SignOutButton({ label = 'Sign out', className }: { label?: string; className?: string }) {
+export default function SignOutButton({
+  label = 'Sign out',
+  className,
+  onBusyChange,
+}: {
+  label?: string;
+  className?: string;
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const [busy, setBusy] = useState(false);
 
   async function handleClick() {
     if (busy) return;
     setBusy(true);
+    onBusyChange?.(true);
     try {
       await signOutGrownUp();
     } catch (err) {
@@ -23,6 +34,7 @@ export default function SignOutButton({ label = 'Sign out', className }: { label
     } finally {
       // Usually gone by now (the sign-in page replaces this screen).
       setBusy(false);
+      onBusyChange?.(false);
     }
   }
 

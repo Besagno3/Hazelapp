@@ -181,7 +181,7 @@ const NOT_DONE: Record<AuthWhere, string> = {
   reset: "We couldn't save your new password just now. Please try again in a few minutes.",
   forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
   resend: "We couldn't send the link again just now. Please try again in a few minutes.",
-  link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+  link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.',
   'change-email': "We couldn't change your email just now. Please try again in a few minutes.",
   'change-password': "We couldn't change your password just now. Please try again in a few minutes.",
 };
@@ -366,7 +366,7 @@ export function authErrorMessage(err: unknown, { where = 'sign-in', password }: 
   if (isExpiredLink(err, { where })) {
     return where === 'reset'
       ? 'That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.'
-      : 'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.';
+      : 'That email link has run out. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.';
   }
   if (sessionRanOut(err)) return SIGNED_OUT_MESSAGE;
   if (is(['signup_disabled'], /signups not allowed/i)) {

@@ -153,7 +153,7 @@ describe('authErrorMessage (#130 S6)', () => {
       reset: "We couldn't save your new password just now. Please try again in a few minutes.",
       forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
       resend: "We couldn't send the link again just now. Please try again in a few minutes.",
-      link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.',
       'change-email': "We couldn't change your email just now. Please try again in a few minutes.",
       'change-password': "We couldn't change your password just now. Please try again in a few minutes.",
     };
@@ -218,7 +218,7 @@ describe('authErrorMessage — review round 2 (#159)', () => {
 
   it('an email link that came back with an error says why, on sign-in (#159 r2 also noted)', () => {
     expect(authErrorMessage({ code: 'otp_expired', message: 'Email link is invalid or has expired' }, { where: 'link' })).toBe(
-      'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      'That email link has run out. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.',
     );
     expect(authErrorMessage({ code: 'access_denied', message: 'Email link is invalid or has expired' }, { where: 'link' })).toMatch(/run out/);
   });

@@ -67,7 +67,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.101.1';
 
-// --- close-account:start (identical in _shared/closeAccount.ts)
+// --- close-account:start (identical in delete-account/index.ts)
 /** The word the grown-up types to confirm. The app asks for it; the function checks it too. */
 export const CONFIRM_WORD = 'DELETE';
 
@@ -80,8 +80,8 @@ export const CONFIRM_WORD = 'DELETE';
  * fresh sign-in on the token it's sent. It never sees the password. A minute:
  * the app asks within a second of signing in. A grown-up's ordinary sign-in
  * on the family device is fresh for that minute too, but `delete_family`
- * turns away a sign-in the family's app runs on (`callerSessionOf`, #167
- * review round 1).
+ * takes only a password check the database itself recorded opening the
+ * named session (`callerSessionOf`, #167 review rounds 1–2).
  */
 export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */
@@ -98,6 +98,7 @@ export const CLOSE_ACCOUNT_ERRORS = [
   'confirm_required',
   'reauth_required',
   'grown_ups_locked',
+  'password_changed',
   'database_out_of_date',
   'data_not_deleted',
   'login_not_deleted',
@@ -124,6 +125,11 @@ const REFUSALS: Record<CloseAccountError, Omit<CloseAccountRefusal, 'error'>> = 
   grown_ups_locked: {
     status: 403,
     detail: 'Open 👪 Grown-ups again with your grown-up PIN or password, then close the account. Nothing was deleted.',
+  },
+  password_changed: {
+    status: 403,
+    detail:
+      "The password was changed recently without a check, so it can't close the account until the wait ends (`until`). Nothing was deleted.",
   },
   database_out_of_date: {
     status: 503,
@@ -176,9 +182,10 @@ export function grownUpsLockedDb(err: { code?: string | null }): boolean {
 
 /**
  * The database's "that wasn't a password typed just now" (SQLSTATE HQ002,
- * migration 0024): `delete_family` refuses a close asked with the family
- * device's own sign-in — noted by the app as it loads the family — however
- * fresh its token (#167 review round 1). Nothing was deleted.
+ * migration 0024): `delete_family` refuses a close asked by any sign-in it
+ * didn't record as the password check that opened the named session — the
+ * family device's own, however fresh its token, included (#167 review
+ * rounds 1–2). Nothing was deleted.
  */
 export const GROWN_UPS_REAUTH_SQLSTATE = 'HQ002';
 
@@ -187,10 +194,21 @@ export function reauthRequiredDb(err: { code?: string | null }): boolean {
 }
 
 /**
+ * The database's "the password was changed without a check" (HQ002 with
+ * `password_changed`, migration 0024, #167 review round 2): for a day that
+ * password can't close the account. Its DETAIL is when the wait ends (an ISO
+ * time). Nothing was deleted.
+ */
+export function passwordWaitDb(err: { code?: string | null; message?: string | null }): boolean {
+  return err.code === GROWN_UPS_REAUTH_SQLSTATE && /^password_changed\b/.test(err.message ?? '');
+}
+
+/**
  * The sign-in (session id) the caller's token belongs to — the password
- * check the app made just now. `delete_family` refuses one the family's app
- * runs on (`p_caller`), so the device's own fresh sign-in can't close the
- * account; null when the token names none, which it refuses too.
+ * check the app made just now. `delete_family` takes only one it recorded
+ * opening the named session (`p_caller`), so the device's own fresh sign-in
+ * can't close the account; null when the token names none, which it refuses
+ * too.
  */
 export function callerSessionOf(claims: Record<string, unknown> | null): string | null {
   const s = claims?.session_id;
@@ -297,8 +315,8 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-function refuse(r: CloseAccountRefusal): Response {
-  return json({ error: r.error, detail: r.detail }, r.status);
+function refuse(r: CloseAccountRefusal, extra: Record<string, unknown> = {}): Response {
+  return json({ error: r.error, detail: r.detail, ...extra }, r.status);
 }
 
 /** A server-side client: no session kept, nothing refreshed, nothing read from a URL. */
@@ -366,9 +384,13 @@ Deno.serve(async (req) => {
       p_caller: callerSessionOf(claims),
     });
     if (famErr) {
-      // 👪 Grown-ups is shut on that sign-in, or the token is the device's
-      // own (0024): it raised before deleting anything.
+      // 👪 Grown-ups is shut on that sign-in, the token isn't the check that
+      // opened it, or a password changed without a check waits out its day
+      // (0024): it raised before deleting anything.
       if (grownUpsLockedDb(famErr)) return refuse(refusal('grown_ups_locked'));
+      if (passwordWaitDb(famErr)) {
+        return refuse(refusal('password_changed'), { until: typeof famErr.details === 'string' ? famErr.details : null });
+      }
       if (reauthRequiredDb(famErr)) return refuse(refusal('reauth_required'));
       if (functionMissingDb(famErr)) {
         console.error('DELETE_FAMILY(p_parent, p_session, p_caller) MISSING — apply migrations 0023 + 0024 before this function; nothing deleted:', famErr.message);

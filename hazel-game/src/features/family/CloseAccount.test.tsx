@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import type { Kid } from '../../types';
@@ -202,6 +202,29 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(functions.invoke).not.toHaveBeenCalled();
+  });
+
+  it('during the 24-hour password wait: the true reason, calm and amber, right on the page — never the "locked again" dialog, nothing sent (#167 review round 2)', async () => {
+    await openCloseAccount();
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    const scrolled = vi.fn();
+    const scrollBefore = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = scrollBefore;
+    });
+    fill('hunter22', 'DELETE');
+    fireEvent.click(submit());
+    const note = await screen.findByText(/^Your password was changed recently, so for safety it can't close the account until .+\. Nothing was deleted\. Didn't change it, or need it sooner\? Tap "Forgot it\?" under the password box to reset it by email\.$/);
+    expect(note).toHaveClass('bg-amber-50');
+    // It lands over the button, below a phone's fold: it comes into view.
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrolled.mock.contexts.at(-1)).toBe(note);
+    expect(pageStatus()).toContainElement(note);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(functions.invoke).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Your password (not your grown-up PIN)')).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.getByRole('button', { name: 'Forgot it? Email me a reset link' })).toBeInTheDocument();
   });
 
   it('never says "nothing was deleted" when it can\'t know: a lost answer says so, and "safe to repeat"', async () => {

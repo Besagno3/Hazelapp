@@ -4,10 +4,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const auth = vi.hoisted(() => ({ getSession: vi.fn(), updateUser: vi.fn(), reauthenticate: vi.fn() }));
 const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn(), updateUser: vi.fn() }));
 const checkRpc = vi.hoisted(() => vi.fn());
-vi.mock('./supabase', () => ({ supabase: { auth }, passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }) }));
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock('./supabase', () => ({ supabase: { auth, rpc }, passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }) }));
 
-const { changePassword, checkCurrentPassword, currentPasswordRefused, looksLikeEmail, needsReauthCode, pendingEmailLine, requestEmailChange, sendReauthCode } =
-  await import('./accountChange');
+const {
+  changePassword,
+  checkCurrentPassword,
+  currentPasswordRefused,
+  currentPasswordWrong,
+  looksLikeEmail,
+  needsReauthCode,
+  pendingEmailLine,
+  requestEmailChange,
+  sendReauthCode,
+} = await import('./accountChange');
 const { DEVICE_SESSION, deviceSession } = await import('../test/grownUps');
 
 beforeEach(() => {
@@ -18,6 +28,7 @@ beforeEach(() => {
   checkAuth.signInWithPassword.mockResolvedValue({ data: { session: { access_token: 'fresh' } }, error: null });
   checkAuth.signOut.mockResolvedValue({ error: null });
   checkRpc.mockResolvedValue({ data: { unlocked: true }, error: null });
+  rpc.mockResolvedValue({ data: null, error: null });
 });
 
 describe('changing the login from 👪 Grown-ups (#124d)', () => {
@@ -28,6 +39,9 @@ describe('changing the login from 👪 Grown-ups (#124d)', () => {
 
   it('the current password is checked on the one-off client, opens 👪 Grown-ups again, and is signed out before anything changes', async () => {
     await expect(checkCurrentPassword('mum@example.com', 'right')).resolves.toBeNull();
+    // The device asks the database for the check before it signs in (#167 review round 2).
+    expect(rpc).toHaveBeenCalledWith('ask_grown_up_check');
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(checkAuth.signInWithPassword.mock.invocationCallOrder[0]);
     expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'right' });
     expect(checkRpc).toHaveBeenCalledWith('unlock_grown_ups', { p_session: DEVICE_SESSION });
     expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
@@ -76,7 +90,8 @@ describe('changing the login from 👪 Grown-ups (#124d)', () => {
   it('for a password change, the check also says the change is coming — and its refusal comes back (#167 review round 1)', async () => {
     await expect(checkCurrentPassword('mum@example.com', 'right', { forPasswordChange: true })).resolves.toBeNull();
     expect(checkRpc).toHaveBeenNthCalledWith(1, 'unlock_grown_ups', { p_session: DEVICE_SESSION });
-    expect(checkRpc).toHaveBeenNthCalledWith(2, 'allow_password_change');
+    // …for this device's sign-in, which that check has just opened (review round 2).
+    expect(checkRpc).toHaveBeenNthCalledWith(2, 'allow_password_change', { p_session: DEVICE_SESSION });
     expect(checkRpc.mock.invocationCallOrder[1]).toBeLessThan(checkAuth.signOut.mock.invocationCallOrder[0]);
     // Changed without the old one: the database says so, and so does the check.
     const wait = { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' };
@@ -90,6 +105,24 @@ describe('changing the login from 👪 Grown-ups (#124d)', () => {
     checkRpc.mockReset().mockResolvedValue({ data: null, error: wait });
     await expect(checkCurrentPassword('mum@example.com', 'right')).resolves.toBeNull();
     expect(checkRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('only the sign-in\'s "invalid login credentials" is a wrong current password — never a refusal or a lost connection (review round 2)', async () => {
+    expect(currentPasswordWrong({ code: 'invalid_credentials', message: 'Invalid login credentials', status: 400 })).toBe(true);
+    expect(currentPasswordWrong({ message: 'Invalid login credentials' })).toBe(true);
+    for (const other of [
+      new TypeError('Failed to fetch'),
+      { code: 'HQ002', message: 'reauth_required: x' },
+      { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' },
+      null,
+    ]) {
+      expect(currentPasswordWrong(other), JSON.stringify(other)).toBe(false);
+    }
+    // Announcing the change failing on the network comes back as that failure (not a wrong password).
+    checkRpc.mockResolvedValueOnce({ data: { unlocked: true }, error: null }).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    const lost = await checkCurrentPassword('mum@example.com', 'right', { forPasswordChange: true });
+    expect(lost).toBeInstanceOf(TypeError);
+    expect(currentPasswordWrong(lost)).toBe(false);
   });
 
   it('the waiting-email line: links still to tap within a day, else no longer working (#167 review round 1)', () => {

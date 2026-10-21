@@ -8,7 +8,9 @@
 -- shuts it, and another sign-in's or another family's window never counts.
 -- Since review round 1: only a real password check names a sign-in (made
 -- within the minute, live, never the device's own — note_device_session —
--- and one sign-in each), a right PIN on an ended sign-in opens nothing, and
+-- and one sign-in each; since round 2 only a sign-in made just AFTER the
+-- named one asked for a check — ask_grown_up_check — the server's own rule,
+-- not the app's note), a right PIN on an ended sign-in opens nothing, and
 -- every profiles column is classified (the kid's play listed, the rest a
 -- grown-up's). Any failed assertion raises and exits non-zero under
 -- `psql -v ON_ERROR_STOP=1`.
@@ -240,6 +242,10 @@ declare
     -- Bare names (a custom hook): a password, then the login's last sign-in
     -- must be just now (it is: set above); any other name is refused.
     jsonb_build_array(jsonb_build_object('sub', a, 'session_id', chk, 'amr', '["otp"]'::jsonb), dev, 'HQ002 reauth_required'),
+    -- An email link opened just now (a magic link, a reset link) is no
+    -- password check: it names nothing.
+    jsonb_build_array(jsonb_build_object('sub', a, 'session_id', chk,
+      'amr', jsonb_build_array(jsonb_build_object('method', 'otp', 'timestamp', now_s - 5))), dev, 'HQ002 reauth_required'),
     -- A fresh password, but the device's own sign-in opening itself once the
     -- family is set up: the minute after a real sign-in is no proof.
     jsonb_build_array(jsonb_build_object('sub', a, 'session_id', dev,
@@ -268,6 +274,10 @@ declare
   );
   c jsonb;
 begin
+  -- The device asks for a check first, as the app does before every password
+  -- check (review round 2); the cases below are sign-ins made after it.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', dev)::text, true);
+  perform public.ask_grown_up_check();
   for c in select * from jsonb_array_elements(cases) loop
     perform set_config('request.jwt.claims', (c -> 0)::text, true);
     got := null;
@@ -375,12 +385,14 @@ begin
   foreach f in array array['public.grown_up_open(uuid, uuid)', 'public.require_grown_up()', 'public.grown_up_first_run(uuid)',
                            'public.grown_up_signed_in_freshly()', 'public.jwt_session_id()', 'public.delete_family(uuid, uuid, uuid)',
                            'public.grown_up_session_live(uuid, uuid)', 'public.grown_up_password_wait(uuid)',
-                           'public.grown_up_refuse_password_wait(timestamptz)', 'public.grown_up_check_refusal()',
+                           'public.grown_up_refuse_password_wait(timestamptz)', 'public.grown_up_check_refusal(uuid)',
+                           'public.grown_up_reset_sign_in()',
                            'public.grown_up_password_wait_seconds()', 'public.grown_up_note_password_change()'] loop
     assert not has_function_privilege('authenticated', f, 'execute'), f || ' is the database''s own';
   end loop;
   foreach f in array array['public.unlock_grown_ups(uuid)', 'public.lock_grown_ups()', 'public.grown_ups_unlocked()',
-                           'public.note_device_session()', 'public.allow_password_change()'] loop
+                           'public.note_device_session()', 'public.ask_grown_up_check()',
+                           'public.allow_password_change(uuid)', 'public.drop_password_change()'] loop
     assert not has_function_privilege('anon', f, 'execute'), f || ' needs a sign-in';
     assert has_function_privilege('authenticated', f, 'execute'), f || ' is the app''s';
   end loop;
@@ -456,6 +468,9 @@ begin
   fresh := jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', now_s));
   perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', dev, 'amr', fresh)::text, true);
   perform public.note_device_session();
+  -- The other browser asks for a check before each case's sign-in.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', other)::text, true);
+  perform public.ask_grown_up_check();
   for c in select * from jsonb_array_elements(cases) loop
     perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', c ->> 0, 'amr', fresh)::text, true);
     got := null;
@@ -507,6 +522,94 @@ begin
     'a signed-out check''s note is tidied';
   assert exists (select 1 from public.grown_up_sessions where session_id = '00000000-0000-0000-0000-0000000000d0'),
     'the live device''s stays';
+end $$;
+
+-- 7c) Review round 2: a check is a sign-in made just AFTER the sign-in it
+--     names asked for one (ask_grown_up_check) — a rule the database keeps
+--     with its own clock, so a device's sign-in the app never noted (an old
+--     tab, a note that failed) still can't pass for a check: it was made
+--     before any ask. …u1 is such a sign-in: a password typed 20 s ago, never
+--     noted. …a1 is a live sign-in that never asks; …e3 asked over a minute ago.
+insert into auth.sessions (id, user_id, created_at, not_after) values
+  ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000a6', now() - interval '20 seconds', null),
+  ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a6', now() - interval '1 hour', null),
+  ('00000000-0000-0000-0000-0000000000e3', '00000000-0000-0000-0000-0000000000a6', now() - interval '1 hour', null),
+  ('00000000-0000-0000-0000-0000000000c5', '00000000-0000-0000-0000-0000000000a6', now(), null);
+insert into public.grown_up_sessions (user_id, session_id, kind, asked_at) values
+  ('00000000-0000-0000-0000-0000000000a6', '00000000-0000-0000-0000-0000000000e3', 'device', now() - interval '61 seconds');
+delete from public.grown_up_sessions where session_id = '00000000-0000-0000-0000-0000000000e1';
+set local role authenticated;
+do $$
+declare
+  a constant text := '00000000-0000-0000-0000-0000000000a6';
+  now_s constant bigint := extract(epoch from now())::bigint;
+  got text;
+  t uuid;
+begin
+  -- The other browser (…e2) asks now; the un-noted sign-in …e1 was made 20 s
+  -- before, with a password typed then: it can't open …e2.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', '00000000-0000-0000-0000-0000000000e2')::text, true);
+  perform public.ask_grown_up_check();
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', '00000000-0000-0000-0000-0000000000e1',
+    'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', now_s - 20)))::text, true);
+  got := null;
+  begin
+    perform public.unlock_grown_ups('00000000-0000-0000-0000-0000000000e2');
+    got := 'ok';
+  exception when others then got := sqlstate || ' ' || sqlerrm;
+  end;
+  assert got like 'HQ002 reauth_required%', format('a sign-in made before the ask is no check, noted or not (%s)', got);
+  -- A fresh check naming a sign-in that never asked, or asked over a minute ago.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', '00000000-0000-0000-0000-0000000000c5',
+    'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', now_s)))::text, true);
+  foreach t in array array['00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e3']::uuid[] loop
+    got := null;
+    begin
+      perform public.unlock_grown_ups(t);
+      got := 'ok';
+    exception when others then got := sqlstate || ' ' || sqlerrm;
+    end;
+    assert got like 'HQ002 reauth_required%', format('naming %s, which asked for no check just now (%s)', t, got);
+  end loop;
+  -- …c5 opens …e2 (which asked); then it asks itself, so it's a device's
+  -- now and opens nothing more, not even …e2 again.
+  perform public.unlock_grown_ups('00000000-0000-0000-0000-0000000000e2');
+  perform public.ask_grown_up_check();
+  got := null;
+  begin
+    perform public.unlock_grown_ups('00000000-0000-0000-0000-0000000000e2');
+    got := 'ok';
+  exception when others then got := sqlstate || ' ' || sqlerrm;
+  end;
+  assert got like 'HQ002 reauth_required%', format('a check that asks is a device''s from then on (%s)', got);
+  -- A sign-in that has ended can't ask.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', '00000000-0000-0000-0000-00000000001d')::text, true);
+  got := null;
+  begin
+    perform public.ask_grown_up_check();
+    got := 'ok';
+  exception when others then got := sqlstate || ' ' || sqlerrm;
+  end;
+  assert got like 'HQ002 no_session%', format('an ended sign-in can''t ask (%s)', got);
+  -- Asking makes a sign-in a device's: …e2, which asked, is no check itself.
+  perform set_config('request.jwt.claims', jsonb_build_object('sub', a, 'session_id', '00000000-0000-0000-0000-0000000000e2',
+    'amr', jsonb_build_array(jsonb_build_object('method', 'password', 'timestamp', now_s)))::text, true);
+  got := null;
+  begin
+    perform public.unlock_grown_ups('00000000-0000-0000-0000-0000000000d0');
+    got := 'ok';
+  exception when others then got := sqlstate || ' ' || sqlerrm;
+  end;
+  assert got like 'HQ002 reauth_required%', format('a sign-in that asked is no check (%s)', got);
+end $$;
+reset role;
+do $$
+begin
+  assert (select asked_at = now() and kind = 'device' from public.grown_up_sessions
+           where session_id = '00000000-0000-0000-0000-0000000000e2'), 'the ask is noted on the device''s row';
+  assert not exists (select 1 from public.grown_up_unlocks where session_id in
+           ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000e3')),
+    'nothing opened a sign-in that didn''t ask';
 end $$;
 
 -- 7b) The right grown-up PIN on a sign-in that has ended (a password change

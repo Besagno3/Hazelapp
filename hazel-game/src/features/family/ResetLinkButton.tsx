@@ -11,7 +11,9 @@ import { useRetryWait, waitWords } from '../auth/useRetryWait';
  * and counts a refusal's wait down (`useRetryWait`). It waits with
  * `aria-disabled`, so the keyboard keeps its place. What happened goes to
  * `onSent` / `onFailed` in plain words, for the screen's own status line;
- * `onStart` clears that line as it sends.
+ * `onStart` clears that line as it sends. `label` is what it says when idle
+ * (the gate's 24-hour wait asks "Didn't change it? Reset it now", #167 review
+ * round 2).
  */
 export default function ResetLinkButton({
   email,
@@ -19,12 +21,16 @@ export default function ResetLinkButton({
   onSent,
   onFailed,
   className,
+  label = 'Forgot it? Email me a reset link',
+  autoFocus = false,
 }: {
   email: string;
   onStart?: () => void;
   onSent: (words: string) => void;
   onFailed: (words: string) => void;
   className?: string;
+  label?: string;
+  autoFocus?: boolean;
 }) {
   const [sending, setSending] = useState(false);
   const wait = useRetryWait();
@@ -50,6 +56,7 @@ export default function ResetLinkButton({
   return (
     <button
       type="button"
+      autoFocus={autoFocus}
       onClick={() => void send()}
       aria-disabled={sending || waiting}
       aria-label={waiting ? `Email me a reset link ${waitWords(wait.left).said}` : undefined}
@@ -59,7 +66,7 @@ export default function ResetLinkButton({
         ? 'Sending a reset link…'
         : waiting
           ? `Email me a reset link ${waitWords(wait.left).shown}`
-          : 'Forgot it? Email me a reset link'}
+          : label}
     </button>
   );
 }

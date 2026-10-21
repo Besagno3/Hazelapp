@@ -5,8 +5,11 @@
 -- login's own delete afterwards goes through. Since 0024 (#167) the session
 -- the app names must have 👪 Grown-ups open, or nothing goes, and the token
 -- that asks (its session, `p_caller`) must be a password check — never a
--- sign-in the family's app runs on (#167 review round 1). Any failed
--- assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
+-- sign-in the family's app runs on (#167 review round 1), and since review
+-- round 2 one the database itself recorded opening that session (an
+-- allow-list, not a note the app sends) — and not while a password changed
+-- without a check waits out its day. Any failed assertion raises and exits
+-- non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
 
 insert into auth.users (id, raw_user_meta_data) values
@@ -126,9 +129,66 @@ begin
   exception when others then refused := sqlstate || ' ' || sqlerrm;
   end;
   assert refused like 'HQ002 reauth_required%', 'a two-argument call (the first draft''s function) is refused';
+  -- Review round 2: a fresh sign-in the app never noted (an old tab, a note
+  -- that failed) is no check either: the database never recorded it opening
+  -- c167.
+  refused := null;
+  begin
+    perform public.delete_family(a, '00000000-0000-0000-0000-00000000c167', chk);
+  exception when others then refused := sqlstate || ' ' || sqlerrm;
+  end;
+  assert refused like 'HQ002 reauth_required%', format('a caller never recorded opening c167: refused (%s)', refused);
   assert (select count(*) from public.profiles where parent_id = a) = 2, 'nothing of A''s went';
 end $$;
 reset role;
+
+-- The checks the database recorded (unlock_grown_ups writes these as a
+-- password check opens a sign-in): c4ec4 opened c167; c0de opened another.
+insert into public.grown_up_sessions (user_id, session_id, kind, target) values
+  ('00000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-0000000c4ec4', 'check', '00000000-0000-0000-0000-00000000c167'),
+  ('00000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-00000000c0de', 'check', '00000000-0000-0000-0000-00000000beef');
+set local role service_role;
+do $$
+declare
+  refused text;
+begin
+  begin
+    perform public.delete_family('00000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-00000000c167',
+                                 '00000000-0000-0000-0000-00000000c0de');
+  exception when others then refused := sqlstate || ' ' || sqlerrm;
+  end;
+  assert refused like 'HQ002 reauth_required%', format('a check that opened another sign-in can''t close it (%s)', refused);
+  assert (select count(*) from public.profiles where parent_id = '00000000-0000-0000-0000-0000000000a4') = 2, 'nothing went';
+end $$;
+reset role;
+
+-- Review round 2: a password changed without a check (the wait, 0024 §9) —
+-- that password is the one in doubt, so it can't close the account for its
+-- day, however 👪 Grown-ups was opened. Nothing goes; the refusal says when.
+insert into public.grown_up_password_changes (user_id, changed_at, unchecked_at)
+  values ('00000000-0000-0000-0000-0000000000a4', now(), now());
+set local role service_role;
+do $$
+declare
+  refused text;
+  detail text;
+begin
+  begin
+    perform public.delete_family('00000000-0000-0000-0000-0000000000a4', '00000000-0000-0000-0000-00000000c167',
+                                 '00000000-0000-0000-0000-0000000c4ec4');
+  exception when others then
+    get stacked diagnostics refused = returned_sqlstate, detail = pg_exception_detail;
+    refused := refused || ' ' || sqlerrm;
+  end;
+  assert refused like 'HQ002 password_changed%', format('closing during the wait is refused (%s)', refused);
+  assert detail = to_char((now() + interval '1 day') at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+    format('and says when the wait ends (%s)', detail);
+  assert (select count(*) from public.profiles where parent_id = '00000000-0000-0000-0000-0000000000a4') = 2,
+    'nothing of A''s went during the wait';
+end $$;
+reset role;
+update public.grown_up_password_changes set unchecked_at = now() - interval '25 hours'
+ where user_id = '00000000-0000-0000-0000-0000000000a4';
 
 -- The edge function, as the service role, naming the open session.
 set local role service_role;

@@ -1,18 +1,18 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { authErrorMessage, errorMessage, sessionRanOut, type AuthWhere } from '../../lib/errors';
 import {
   changePassword,
   checkCurrentPassword,
   currentPasswordRefused,
+  currentPasswordWrong,
   looksLikeEmail,
   needsReauthCode,
   pendingEmailLine,
   requestEmailChange,
   sendReauthCode,
 } from '../../lib/accountChange';
-import { signInEmail } from '../../lib/grownUps';
+import { dropPasswordChange, signInEmail } from '../../lib/grownUps';
 import { DEVICE_SIGNED_OUT_MESSAGE, passwordWaitMessage, unlockRefusal } from '../../lib/grownUpsGate';
-import { useFamilyStore } from '../../store/familyStore';
 import { noteGrownUpsOpen } from '../../store/grownUpsStore';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
@@ -61,10 +61,27 @@ export function SignInSection({ onChange }: { onChange: (what: 'email' | 'passwo
   );
 }
 
-/** The status line every form here keeps: always there, so a screen reader hears each message as it appears. */
-function Status({ id, error, notice }: { id: string; error: { text: string; key: number } | null; notice: { text: string; key: number } | null }) {
+type LiveLine = { text: string; key: number } | null;
+
+/**
+ * The status line every form here keeps: always there, so a screen reader
+ * hears each message as it appears. `caution` is calm news, not a mistake
+ * (the 24-hour password wait, #167 review round 2): amber, not red.
+ */
+function Status({ id, error, notice, caution = null }: { id: string; error: LiveLine; notice: LiveLine; caution?: LiveLine }) {
+  const cautionLine = useRef<HTMLParagraphElement>(null);
+  const cautionKey = caution?.key;
+  // The wait's note lands over the button, often below a phone's fold: it comes into view (#167 review round 2).
+  useEffect(() => {
+    if (cautionKey !== undefined) cautionLine.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [cautionKey]);
   return (
     <div id={id} role="status" className="text-sm">
+      {caution && (
+        <p ref={cautionLine} key={caution.key} className="rounded-lg bg-amber-50 px-3 py-2 text-amber-900 [overflow-wrap:anywhere]">
+          {caution.text}
+        </p>
+      )}
       {error && (
         <p key={error.key} className="text-red-700">
           {error.text}
@@ -188,7 +205,8 @@ export function ChangeEmailPage({ onDone }: { onDone: () => void }) {
     if (wrong) {
       setBusy(false);
       wait.refused(wrong);
-      return refused('Checking the password', wrong, 'change-email', 'password');
+      // Only a wrong password is about the box; a lost connection isn't (#167 review round 2).
+      return refused('Checking the password', wrong, 'change-email', currentPasswordWrong(wrong) ? 'password' : null);
     }
     // The password typed just now opened 👪 Grown-ups again (its home counts from here).
     noteGrownUpsOpen();
@@ -295,7 +313,6 @@ export function ChangeEmailPage({ onDone }: { onDone: () => void }) {
  */
 export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
-  const hasParentPin = useFamilyStore((s) => s.hasParentPin);
   // An email change waiting for its links: a new password cancels it (the
   // auth service clears its links), so the done page says so.
   const [pendingEmail] = useState(() => {
@@ -311,6 +328,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useLiveMessage();
   const [notice, setNotice] = useLiveMessage();
+  const [caution, setCaution] = useLiveMessage();
   const [bad, setBad] = useState<'current' | 'next' | 'again' | 'code' | null>(null);
   const [signedOut, setSignedOut] = useState(false);
   const wait = useRetryWait();
@@ -328,6 +346,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
 
   function refuse(text: string, field: typeof bad) {
     setNotice(null);
+    setCaution(null);
     setError(text);
     setBad(field);
     const box = { current: currentBox.current, next: nextBox.current, again: againBox.current, code: codeBox.current }[field ?? 'current'];
@@ -345,10 +364,12 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
 
   /**
    * The current password checked again on a client of its own, telling the
-   * database the change is coming (#167 review round 1). True when it's right
-   * and the change may go ahead; otherwise the page says why: a wrong password
-   * (its box), this device signed out ("Sign in again"), or a password changed
-   * without the old one that can't be changed here for a day.
+   * database the change is coming (#167 review rounds 1–2). True when it's
+   * right and the change may go ahead; otherwise the page says why: a wrong
+   * password (its box — and only then, never for a lost connection), this
+   * device signed out ("Sign in again"), or a password changed without a
+   * check that can't be changed here for a day (calm, amber, with the way to
+   * end it now).
    */
   async function checked(): Promise<boolean> {
     const wrong = await checkCurrentPassword(await signInEmail(email), current, { forPasswordChange: true });
@@ -359,14 +380,17 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     const refusal = unlockRefusal(wrong);
     if (refusal?.kind === 'password_changed') {
       console.warn('Changing the password refused:', errorMessage(wrong));
-      refuse(passwordWaitMessage(refusal.until, { hasParentPin, changing: true }), null);
+      setError(null);
+      setNotice(null);
+      setBad(null);
+      setCaution(passwordWaitMessage(refusal.until, { doing: 'change' }));
     } else if (refusal?.kind === 'no_session') {
       console.warn('Changing the password refused:', errorMessage(wrong));
       refuse(DEVICE_SIGNED_OUT_MESSAGE, null);
       setSignedOut(true);
     } else {
       wait.refused(wrong);
-      refused('Checking the password', wrong, refusal ? null : 'current');
+      refused('Checking the password', wrong, currentPasswordWrong(wrong) ? 'current' : null);
     }
     return false;
   }
@@ -374,6 +398,9 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
   /** Set the new password; a code wanted first moves to the code step and sends it. */
   async function save(nonce?: string) {
     const failed = await changePassword(next, current, nonce);
+    // Not changed: the allowance announced for it goes at once (#167 review
+    // round 2) — the code step announces again before it saves.
+    if (failed) void dropPasswordChange();
     if (!failed) {
       setCurrent('');
       setNext('');
@@ -421,6 +448,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     if (next === current) return refuse("That's the password you have now. Choose a new one.", 'next');
     setError(null);
     setNotice(null);
+    setCaution(null);
     setBad(null);
     setBusy(true);
     if (!(await checked())) {
@@ -438,6 +466,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     if (!/^\d{6}$/.test(code.trim())) return refuse('The code is the 6 numbers in the email.', 'code');
     setError(null);
     setNotice(null);
+    setCaution(null);
     setBad(null);
     setBusy(true);
     // The emailed code can take a while: the password is checked again so the
@@ -500,7 +529,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
               className={fieldClass}
             />
           </div>
-          <Status id={statusId} error={error} notice={notice} />
+          <Status id={statusId} error={error} notice={notice} caution={caution} />
           {signedOut && <SignInAgainButton />}
           <button type="submit" aria-disabled={busy} className={`w-full min-h-11 ${gatePrimaryClass}`}>
             {busy ? 'Saving…' : 'Save new password'}
@@ -579,7 +608,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
             className={fieldClass}
           />
         </div>
-        <Status id={statusId} error={error} notice={notice} />
+        <Status id={statusId} error={error} notice={notice} caution={caution} />
         {signedOut && <SignInAgainButton />}
         <button
           type="submit"

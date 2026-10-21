@@ -217,6 +217,21 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids).toEqual([kid]);
   });
 
+  it('addKid: the player is listed once their PIN is in — never without one in between (the first-player page flashed "Finish setting up", #167 review round 2)', async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [], consentAt: '2026-10-10T10:00:00Z' });
+    db.answer.mockImplementation(() => ({ data: { ...SAM, has_pin: false }, error: null }));
+    const seen: string[] = [];
+    const stop = useFamilyStore.subscribe((st) => seen.push(familyScreen(st)));
+    try {
+      await useFamilyStore.getState().addKid({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 });
+    } finally {
+      stop();
+    }
+    expect(seen).not.toContain('kidSetup');
+    expect(useFamilyStore.getState().kids.map((k) => k.hasPin)).toEqual([true]);
+    expect(useFamilyStore.getState().pinNotSavedFor).toBeNull();
+  });
+
   it("addKid: a PIN that didn't save leaves the kid listed without one (setup asks again)", async () => {
     useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [] });
     db.answer.mockImplementation(() => ({ data: { ...SAM, has_pin: false }, error: null }));
@@ -231,6 +246,10 @@ describe('useFamilyStore', () => {
     expect((failed as InstanceType<typeof KidAddedWithoutPin>).kid.id).toBe(SAM.id);
     expect((failed as InstanceType<typeof KidAddedWithoutPin>).pinError).toMatchObject({ message: 'Failed to fetch' });
     expect(useFamilyStore.getState().kids.map((k) => k.hasPin)).toEqual([false]);
+    // …and the setup page knows why it's asking (review round 2); a PIN set then clears it.
+    expect(useFamilyStore.getState().pinNotSavedFor).toBe(SAM.id);
+    await useFamilyStore.getState().updateKid(SAM.id, { name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 });
+    expect(useFamilyStore.getState().pinNotSavedFor).toBeNull();
   });
 
   it('addKid: a refused insert throws the reason to show', async () => {

@@ -250,6 +250,11 @@ interface FamilyStore {
   /** The Grown-ups area is open (from "Who's playing?"). */
   grownUpsOpen: boolean;
   /**
+   * A player just added whose PIN didn't save (`KidAddedWithoutPin`): the
+   * setup page says why it's asking for their PIN (#167 review round 2).
+   */
+  pinNotSavedFor: string | null;
+  /**
    * The page was opened with `?review` (the link in a review alert, #147):
    * open 👪 Grown-ups, and once it's unlocked, 🛡️ Question review.
    */
@@ -303,10 +308,11 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   kids: [],
   activeKidId: null,
   grownUpsOpen: false,
+  pinNotSavedFor: null,
   reviewRequested: reviewLinkFollowed(),
 
   load: async (userId) => {
-    set({ userId, status: 'loading', error: null, sessionGone: false, kids: [], activeKidId: null, grownUpsOpen: false });
+    set({ userId, status: 'loading', error: null, sessionGone: false, kids: [], activeKidId: null, grownUpsOpen: false, pinNotSavedFor: null });
     const [parent, kids] = await Promise.all([
       supabase.from('parents').select('consent_at, has_pin').eq('id', userId).maybeSingle(),
       supabase.from('profiles').select(KID_COLUMNS).eq('parent_id', userId).order('created_at'),
@@ -351,17 +357,24 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
       return res.data;
     });
     const kid = fromRow(data as KidRow);
-    set((s) => ({ kids: [...s.kids, kid] }));
-    // Listed first: if the PIN fails, "finish setting up" asks for it again —
-    // and a form that added them changes them from now on (never adds twice).
-    if (!input.pin) return kid;
+    // Listed once their PIN is in (#167 review round 2): listed before it, the
+    // first-player page flashed "Finish setting up …" on every add. If the PIN
+    // fails they're listed without one, so "finish setting up" asks for it
+    // again — and a form that added them changes them from now on (never adds
+    // twice).
+    if (!input.pin) {
+      set((s) => ({ kids: [...s.kids, kid] }));
+      return kid;
+    }
     try {
       await setKidPin(kid.id, input.pin);
     } catch (err) {
+      set((s) => ({ kids: [...s.kids, kid], pinNotSavedFor: kid.id }));
       throw new KidAddedWithoutPin(kid, err);
     }
-    set((s) => ({ kids: s.kids.map((k) => (k.id === kid.id ? { ...k, hasPin: true } : k)) }));
-    return { ...kid, hasPin: true };
+    const added = { ...kid, hasPin: true };
+    set((s) => ({ kids: [...s.kids, added] }));
+    return added;
   },
 
   updateKid: async (id, input) => {
@@ -375,6 +388,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     if (input.pin) await setKidPin(id, input.pin);
     const row = toRow(input);
     set((s) => ({
+      pinNotSavedFor: input.pin && s.pinNotSavedFor === id ? null : s.pinNotSavedFor,
       kids: s.kids.map((k) =>
         k.id === id
           ? { ...k, name: row.display_name, icon: row.icon, birthYear: row.birth_year, birthMonth: row.birth_month, hasPin: k.hasPin || !!input.pin }
@@ -506,6 +520,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
       kids: [],
       activeKidId: null,
       grownUpsOpen: false,
+      pinNotSavedFor: null,
       reviewRequested: false,
     });
   },

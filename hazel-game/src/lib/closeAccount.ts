@@ -2,8 +2,8 @@ import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import { passwordCheckClient, supabase } from './supabase';
 import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE, TROUBLE_MESSAGE } from './errors';
 import { PRIVACY_IS_DRAFT } from '../content/family';
-import { deviceSessionId, openGrownUpsWith } from './grownUps';
-import { DEVICE_SIGNED_OUT_MESSAGE, unlockRefusal } from './grownUpsGate';
+import { askForPasswordCheck, openGrownUpsWith } from './grownUps';
+import { DEVICE_SIGNED_OUT_MESSAGE, passwordWaitMessage, unlockRefusal } from './grownUpsGate';
 import {
   CLOSE_ACCOUNT_ERRORS,
   CONFIRM_WORD,
@@ -44,16 +44,27 @@ export type CloseFailureCode =
   | 'lost_touch'
   | 'device_signed_out';
 
-/** Thrown by `requestCloseAccount`: `message` is what to show, `log` the whole story. */
+/**
+ * Thrown by `requestCloseAccount`: `message` is what to show, `log` the whole
+ * story; `until` is when a password wait ends (`password_changed`).
+ */
 export class CloseAccountFailure extends Error {
   readonly code: CloseFailureCode;
   readonly log: string;
-  constructor(code: CloseFailureCode, log: string) {
-    super(closeAccountMessage(code));
+  readonly until: Date | null;
+  constructor(code: CloseFailureCode, log: string, until: Date | null = null) {
+    super(closeAccountMessage(code, until));
     this.name = 'CloseAccountFailure';
     this.code = code;
     this.log = log;
+    this.until = until;
   }
+}
+
+/** An ISO time (a wait's end) as a Date, or null when it isn't one. */
+function dateOrNull(v: unknown): Date | null {
+  const d = typeof v === 'string' ? new Date(v) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
 }
 
 const NOTHING_DELETED = 'Nothing was deleted.';
@@ -62,9 +73,10 @@ const SAFE_AGAIN = 'tap "Close account for good" again — it\'s safe to repeat.
 /**
  * What each refusal means for the grown-up, and what to do — plain and
  * specific, and true however it came about: "Nothing was deleted" only where
- * this try deleted nothing; a lost answer says we can't tell.
+ * this try deleted nothing; a lost answer says we can't tell. A password
+ * wait says until when (`until`).
  */
-export function closeAccountMessage(code: CloseFailureCode): string {
+export function closeAccountMessage(code: CloseFailureCode, until: Date | null = null): string {
   switch (code) {
     case 'password_required':
       return 'Enter your password to close your account.';
@@ -102,6 +114,9 @@ export function closeAccountMessage(code: CloseFailureCode): string {
       return ACCOUNT_CLOSED_MESSAGE;
     case 'device_signed_out':
       return `${DEVICE_SIGNED_OUT_MESSAGE} ${NOTHING_DELETED}`;
+    case 'password_changed':
+      // The password was changed without a check: for a day it can't close the account (#167 review round 2).
+      return passwordWaitMessage(until, { doing: 'close' });
     default:
       // data_not_deleted, auth_unavailable, server_config, bad_request, method_not_allowed…
       return `We couldn't close your account just now. ${NOTHING_DELETED} Please try again in a few minutes.`;
@@ -139,7 +154,7 @@ export async function closeFailure(err: unknown): Promise<CloseAccountFailure> {
     }
     const said = [body.error, body.detail ?? body.message].filter((v) => typeof v === 'string' && v).join(' — ');
     const log = `delete-account ${res.status}: ${said || errorMessage(err)}`;
-    if (isRefusal(body.error)) return new CloseAccountFailure(body.error, log);
+    if (isRefusal(body.error)) return new CloseAccountFailure(body.error, log, dateOrNull(body.until));
     // The gateway's own refusal of a dead token ({"code":401,"message":"Invalid JWT"}): the function never ran.
     if (res.status === 401) return new CloseAccountFailure('not_signed_in', log);
     // A gateway's 5xx may have come after the function ran; a 4xx means it never did.
@@ -180,6 +195,10 @@ async function loginIsGone(): Promise<boolean> {
  */
 export async function requestCloseAccount(email: string, password: string): Promise<{ kids: number; alreadyClosed: boolean }> {
   if (!email) throw new CloseAccountFailure('no_password_login', 'this login has no email to sign in with');
+  // This device asks the database for the check before it's made: only a
+  // sign-in made after that may open (and close) this device's (#167 review
+  // round 2).
+  const session = await askForPasswordCheck();
   // One client for this whole check (its sign-in, opening 👪 Grown-ups, its sign-out).
   const client = passwordCheckClient();
   const check = client.auth;
@@ -199,19 +218,24 @@ export async function requestCloseAccount(email: string, password: string): Prom
   try {
     if (!token) throw new CloseAccountFailure('password_check_failed', 'signing in again gave no session');
     // The function deletes nothing unless 👪 Grown-ups is open on this
-    // device's sign-in (#167): name it, and — the password having just been
-    // typed — open it for the window first (best effort: if this fails, the
-    // function's refusal says so and the gate is asked for). A device whose
-    // sign-in can't be read, or has ended (a password change elsewhere signs
-    // the others out), can't be opened by any PIN or password: that's said
-    // at once, with "Sign in again", never by asking for the gate again
-    // (#167 review round 1).
-    const session = await deviceSessionId();
+    // device's sign-in, opened by this very check (#167): name it, and — the
+    // password having just been typed — open it for the window first (best
+    // effort: if this fails, the function's refusal says so and the gate is
+    // asked for). A device whose sign-in can't be read, or has ended (a
+    // password change elsewhere signs the others out), can't be opened by any
+    // PIN or password: that's said at once, with "Sign in again", never by
+    // asking for the gate again (#167 review round 1). A password changed
+    // without a check can't close the account for a day: said at once, with
+    // until when, not as a gate to open again (#167 review round 2).
     if (!session) throw new CloseAccountFailure('device_signed_out', "this device's sign-in couldn't be read");
     try {
       await openGrownUpsWith(client, session);
     } catch (err) {
-      if (unlockRefusal(err)?.kind === 'no_session') throw new CloseAccountFailure('device_signed_out', `opening 👪 Grown-ups: ${errorMessage(err)}`);
+      const refusal = unlockRefusal(err);
+      if (refusal?.kind === 'no_session') throw new CloseAccountFailure('device_signed_out', `opening 👪 Grown-ups: ${errorMessage(err)}`);
+      if (refusal?.kind === 'password_changed') {
+        throw new CloseAccountFailure('password_changed', `opening 👪 Grown-ups: ${errorMessage(err)}`, refusal.until);
+      }
       console.warn('Opening 👪 Grown-ups before closing:', errorMessage(err));
     }
     let result: Awaited<ReturnType<typeof supabase.functions.invoke>>;

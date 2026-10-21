@@ -1,6 +1,6 @@
 import { passwordCheckClient, supabase } from './supabase';
 import { errorMessage } from './errors';
-import { allowPasswordChange, openGrownUpsWith } from './grownUps';
+import { allowPasswordChange, askForPasswordCheck, openGrownUpsWith } from './grownUps';
 import { unlockRefusal } from './grownUpsGate';
 
 /**
@@ -19,7 +19,7 @@ import { unlockRefusal } from './grownUpsGate';
  *     session of the login (they're signed out when their token runs out,
  *     within about an hour) and keeps this one.
  * What stops a kid holding the device's sign-in from changing the password
- * themselves (#167 review round 1, #168): the auth service accepts
+ * themselves (#167 review rounds 1–2, #168): the auth service accepts
  * `updateUser({ password })` from any sign-in of the login unless the project
  * asks for more —
  *   - "Secure password change" (`GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_REAUTHENTICATION`)
@@ -27,13 +27,19 @@ import { unlockRefusal } from './grownUpsGate';
  *     only from a sign-in over 24 hours old — a grown-up who signed in today
  *     is not covered;
  *   - "require the current password" (`GOTRUE_SECURITY_UPDATE_PASSWORD_REQUIRE_CURRENT_PASSWORD`)
- *     wants `current_password` with every change, except from a reset link's
- *     sign-in. The app always sends it, so this can be on.
- * And whatever the project's settings, the database notes every password
- * change: one this page announced first (`allow_password_change`, from the
- * password check — `checkCurrentPassword`'s `forPasswordChange`) is fine; any
- * other means no password can open 👪 Grown-ups for a day (the grown-up PIN
- * still can, and a reset link ends the wait) — migration 0024.
+ *     wants `current_password` with every change — except from a sign-in
+ *     made by ANY emailed link (the auth service's "recovery" sessions: a
+ *     reset link, a magic link, or the sign-up confirmation link a new family
+ *     signs in with), for as long as that sign-in lasts. The app always sends
+ *     it, so this can be on, but a family device signed in by its sign-up
+ *     link isn't covered.
+ * So whatever the project's settings, the database notes every password
+ * change: one this page announced first, for this device's sign-in
+ * (`allow_password_change`, from the password check, which must be a sign-in
+ * made just after this device asked for one — `checkCurrentPassword`'s
+ * `forPasswordChange`) is fine; any other means no password can open
+ * 👪 Grown-ups or close the account for a day (the grown-up PIN still opens
+ * 👪, and a reset link ends the wait) — migration 0024.
  * The Supabase errors come back as they are; the screen words them
  * (`authErrorMessage(err, { where: 'change-email' | 'change-password' })`).
  */
@@ -44,33 +50,37 @@ export function looksLikeEmail(s: string): boolean {
 }
 
 /**
- * Check the password typed is the login's, on a throwaway client of its own,
- * and open 👪 Grown-ups again for the window (best effort — an email change
- * doesn't need it). With `forPasswordChange`, that check also tells the
- * database the password change is coming (`allow_password_change`), and a
- * refusal comes back: this device's sign-in has ended, or the password was
- * changed without the old one and can't be changed here for a day
- * (`unlockRefusal` reads both) — the change would only start the wait again.
- * Resolves with the sign-in's error or that refusal, or null.
+ * Check the password typed is the login's, on a throwaway client of its own
+ * (asked for by this device first, `askForPasswordCheck`), and open
+ * 👪 Grown-ups again for the window (best effort — an email change doesn't
+ * need it). With `forPasswordChange`, that check also tells the database the
+ * password change is coming, for this device's sign-in
+ * (`allow_password_change`), and a refusal comes back: this device's sign-in
+ * has ended, or the password was changed without a check and can't be
+ * changed here for a day (`unlockRefusal` reads both) — the change would
+ * only start the wait again. Resolves with the sign-in's error, that
+ * refusal, or what kept the database from answering, or null.
+ * `currentPasswordWrong` tells a wrong password from the rest.
  */
 export async function checkCurrentPassword(
   email: string,
   password: string,
   { forPasswordChange = false }: { forPasswordChange?: boolean } = {},
 ): Promise<unknown> {
+  const session = await askForPasswordCheck();
   const check = passwordCheckClient();
   const { error } = await check.auth.signInWithPassword({ email, password });
   if (error) return error;
   let refused: unknown = null;
   try {
     try {
-      await openGrownUpsWith(check);
+      await openGrownUpsWith(check, session);
     } catch (err) {
       const kind = unlockRefusal(err)?.kind;
       if (forPasswordChange && (kind === 'no_session' || kind === 'password_changed')) refused = err;
       else console.warn('Opening 👪 Grown-ups after the password check:', errorMessage(err));
     }
-    if (forPasswordChange && !refused) refused = await allowPasswordChange(check);
+    if (forPasswordChange && !refused) refused = await allowPasswordChange(check, session);
   } finally {
     // Not kept a moment longer than needed: signed out before anything changes.
     await check.auth.signOut({ scope: 'local' }).then(
@@ -127,6 +137,17 @@ export async function changePassword(password: string, current: string, nonce?: 
     nonce ? { password, current_password: current, nonce: nonce.trim() } : { password, current_password: current },
   );
   return error ?? null;
+}
+
+/**
+ * The password check said the password typed isn't the login's (the
+ * sign-in's own "invalid login credentials") — the one failure that's about
+ * the current-password box. A database refusal or a lost connection while
+ * announcing the change is not (#167 review round 2).
+ */
+export function currentPasswordWrong(err: unknown): boolean {
+  const o = (typeof err === 'object' && err !== null ? err : {}) as { code?: unknown; message?: unknown };
+  return o.code === 'invalid_credentials' || /invalid login credentials/i.test(String(o.message ?? ''));
 }
 
 /** The auth service wanted the current password and it didn't match ("require the current password" on). */

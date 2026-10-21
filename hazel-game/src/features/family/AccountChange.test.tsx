@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import type { Kid } from '../../types';
 
@@ -163,6 +163,17 @@ describe('Change email (#124d)', () => {
     expect(screen.getByLabelText('New email')).toHaveAttribute('aria-invalid', 'true');
   });
 
+  it('a lost connection while checking the password never marks its box as wrong (#167 review round 2)', async () => {
+    await open('Change email…');
+    checkAuth.signInWithPassword.mockResolvedValue({ data: { session: null }, error: { name: 'AuthRetryableFetchError', status: 0, message: 'Failed to fetch' } });
+    type('New email', 'new@example.com');
+    type(/Your password now/, 'right');
+    fireEvent.click(screen.getByRole('button', { name: 'Change email' }));
+    await waitFor(() => expect(pageStatus()).toHaveTextContent(/reach Hazel Quest|connection/));
+    expect(screen.getByLabelText(/Your password now/)).toHaveAttribute('aria-invalid', 'false');
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
   it('a rate limit counts its wait down on the button; the email cap says an hour', async () => {
     auth.updateUser.mockResolvedValueOnce({
       data: { user: null },
@@ -230,8 +241,14 @@ describe('Change password (#124d)', () => {
     // The current password goes with the change (so "require the current password" can be on), and the
     // check told the database the change was coming first (#167 review round 1).
     expect(auth.updateUser).toHaveBeenCalledWith({ password: 'n3w-secret!', current_password: 'old-secret' });
-    expect(checkRpc).toHaveBeenCalledWith('allow_password_change');
+    // …asked for by this device before the check signed in, and announced for this device's sign-in (#167 review round 2).
+    expect(rpc).toHaveBeenCalledWith('ask_grown_up_check');
+    expect(rpc.mock.invocationCallOrder[rpc.mock.calls.findIndex((c) => c[0] === 'ask_grown_up_check')]).toBeLessThan(
+      checkAuth.signInWithPassword.mock.invocationCallOrder[0],
+    );
+    expect(checkRpc).toHaveBeenCalledWith('allow_password_change', { p_session: DEVICE_SESSION });
     expect(checkRpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
+    expect(rpc).not.toHaveBeenCalledWith('drop_password_change');
     expect(checkAuth.signOut.mock.invocationCallOrder[0]).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
     const page = screen.getByRole('heading', { name: '🔑 Password changed' }).parentElement!;
     expect(page).toHaveTextContent('Use your new password from now on.');
@@ -253,6 +270,18 @@ describe('Change password (#124d)', () => {
     await fillAndSave('old-secret', 'password1');
     await waitFor(() => expect(pageStatus()).toHaveTextContent('That password has shown up in a data leak. Choose a different one.'));
     expect(screen.getByLabelText('New password')).toHaveAttribute('aria-invalid', 'true');
+    // Not changed: the allowance announced for it is dropped at once (#167 review round 2).
+    expect(rpc).toHaveBeenCalledWith('drop_password_change');
+  });
+
+  it('a lost connection while announcing the change never marks the current password as wrong (#167 review round 2)', async () => {
+    await open('Change password…');
+    checkRpc.mockResolvedValueOnce({ data: { unlocked: true, seconds: 900 }, error: null }).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await fillAndSave();
+    await waitFor(() => expect(pageStatus()).toHaveTextContent(/We couldn't reach Hazel Quest|couldn't change your password/));
+    expect(screen.getByLabelText(/Your password now/)).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.getByLabelText(/Your password now/)).not.toHaveFocus();
+    expect(auth.updateUser).not.toHaveBeenCalled();
   });
 
   it('when Supabase wants a code first, it is emailed and asked for; the code saves the new password', async () => {
@@ -274,20 +303,38 @@ describe('Change password (#124d)', () => {
     fireEvent.click(save);
     await waitFor(() => expect(pageStatus()).toHaveTextContent('That code isn\'t right, or it has run out. Check the newest email, or tap "Send a new code".'));
     expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', current_password: 'old-secret', nonce: '111111' });
+    // Each refused try drops what it announced; the next try announces again (#167 review round 2).
+    expect(rpc.mock.calls.filter((c) => c[0] === 'drop_password_change')).toHaveLength(2);
     type('Code from the email', '123456');
     checkRpc.mockClear();
     fireEvent.click(save);
     expect(await screen.findByRole('heading', { name: '🔑 Password changed' })).toBeInTheDocument();
     expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', current_password: 'old-secret', nonce: '123456' });
     // The emailed code can take a while: the check runs again, so the change is announced just before it's made.
-    expect(checkRpc).toHaveBeenCalledWith('allow_password_change');
+    expect(checkRpc).toHaveBeenCalledWith('allow_password_change', { p_session: DEVICE_SESSION });
   });
 
-  it("a password changed without the old one can't be changed here for a day — said with when, and the way that works (#167 review round 1)", async () => {
+  it("a password changed without a check can't be changed here for a day — said calmly (amber, not red), with when and the way that works (#167 review round 2)", async () => {
     await open('Change password…');
     checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    const scrolled = vi.fn();
+    const scrollBefore = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = scrollBefore;
+    });
     await fillAndSave();
-    await waitFor(() => expect(pageStatus()).toHaveTextContent(/can't be changed here until \w+ at .* Tap "Forgot it\?" to set a new one from your email instead\./));
+    await waitFor(() =>
+      expect(pageStatus()).toHaveTextContent(
+        /^Your password was changed recently, so for safety it can't be changed here until .+ at .+\. Didn't change it, or need it sooner\? Tap "Forgot it\?" under the password box to reset it by email\.$/,
+      ),
+    );
+    expect(screen.getByText(/can't be changed here/)).toHaveClass('bg-amber-50');
+    // It lands over the button, below a phone's fold: it comes into view.
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrolled.mock.contexts.at(-1)).toBe(screen.getByText(/can't be changed here/));
+    expect(screen.getByText(/can't be changed here/)).not.toHaveClass('text-red-700');
+    expect(screen.getByLabelText(/Your password now/)).toHaveAttribute('aria-invalid', 'false');
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
 

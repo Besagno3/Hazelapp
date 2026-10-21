@@ -18,6 +18,11 @@ create table if not exists auth.users (
 alter table auth.users add column if not exists last_sign_in_at timestamptz;
 -- The password's hash: 0024 notes each change (a trigger on its column).
 alter table auth.users add column if not exists encrypted_password text;
+-- When a reset (or magic-link) email last went out, and its token — the auth
+-- service empties the token once the link is opened, and clears both on a
+-- password change; 0024's reset-link rule reads them.
+alter table auth.users add column if not exists recovery_sent_at timestamptz;
+alter table auth.users add column if not exists recovery_token varchar(255);
 -- A login's sign-ins (Supabase keeps one row per session; 0024 checks a
 -- session named to unlock is one of the caller's).
 create table if not exists auth.sessions (

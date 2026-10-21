@@ -112,10 +112,10 @@ describe('AuthPage — forgot password', () => {
 });
 
 describe('AuthPage — an email link that came back with an error (#159 review round 2)', () => {
-  function at(address: string, test: () => void) {
+  async function at(address: string, test: () => void | Promise<void>) {
     window.history.replaceState(null, '', address);
     try {
-      test();
+      await test();
     } finally {
       window.history.replaceState(null, '', '/');
     }
@@ -128,18 +128,25 @@ describe('AuthPage — an email link that came back with an error (#159 review r
       vi.resetModules();
       const { default: FreshAuthPage } = await import('./AuthPage');
       render(<FreshAuthPage />);
-      expect(screen.getByText(/📬 Nearly done! Now tap the link in the other email we sent/)).toBeInTheDocument();
+      // The status line opens empty and the words go in a beat later, so a
+      // screen reader reads them out (#167 review round 2).
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+      expect(await screen.findByText(/📬 Nearly done! Now tap the link in the other email we sent/)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(/Nearly done!/);
       expect(window.location.hash).toBe('');
     } finally {
       window.history.replaceState(null, '', '/');
     }
   });
 
-  it('a link that ran out says so on the sign-in page, and leaves the address', () => {
-    at('/play/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', () => {
+  it('a link that ran out says so on the sign-in page — in the status line a beat after it opens, so it\'s read out — and leaves the address', async () => {
+    await at('/play/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', async () => {
       render(<AuthPage />);
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(
+          'That email link has run out. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.',
+        ),
       );
       expect(screen.getByText('Forgot password?')).toBeInTheDocument();
       expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/');
@@ -147,27 +154,30 @@ describe('AuthPage — an email link that came back with an error (#159 review r
     });
   });
 
-  it('…a PKCE link\'s error in the query too, keeping the rest of the address', () => {
-    at('/play/?keep=1&error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired#top', () => {
+  it('…a PKCE link\'s error in the query too, keeping the rest of the address', async () => {
+    await at('/play/?keep=1&error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired#top', async () => {
       render(<AuthPage />);
-      expect(screen.getByText(/That email link has run out/)).toBeInTheDocument();
+      expect(await screen.findByText(/That email link has run out/)).toBeInTheDocument();
       expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/?keep=1#top');
     });
   });
 
-  it('another link error says the link didn\'t work, in plain words', () => {
-    at('/play/#error=server_error&error_code=bad_code_verifier&error_description=code+challenge+does+not+match', () => {
+  it('another link error says the link didn\'t work, in plain words', async () => {
+    await at('/play/#error=server_error&error_code=bad_code_verifier&error_description=code+challenge+does+not+match', async () => {
       render(<AuthPage />);
-      expect(screen.getByRole('status')).toHaveTextContent(
-        'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent(
+          'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?". Was it to change your sign-in email? Ask again in 👪 Grown-ups.',
+        ),
       );
       expect(screen.queryByText(/code challenge/)).toBeNull();
     });
   });
 
-  it('an ordinary address says nothing', () => {
-    at('/play/#top', () => {
+  it('an ordinary address says nothing', async () => {
+    await at('/play/#top', async () => {
       render(<AuthPage />);
+      await new Promise((r) => setTimeout(r, 80));
       expect(screen.getByRole('status')).toBeEmptyDOMElement();
     });
   });
@@ -570,7 +580,8 @@ describe('ResetPasswordPage', () => {
     render(<ResetPasswordPage />);
     fill('dragonfire', 'dragonfire');
     await waitFor(() => expect(auth.updateUser).toHaveBeenCalled());
-    expect(rpc).toHaveBeenCalledWith('allow_password_change');
+    // No sign-in named: the reset link's own sign-in says it (the database ties it to the reset email, #167 review round 2).
+    expect(rpc).toHaveBeenCalledWith('allow_password_change', {});
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
     // Best effort: refused (or offline), the new password still saves; it's only logged.
     rpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: 'reauth_required: x' } });
@@ -579,6 +590,21 @@ describe('ResetPasswordPage', () => {
     fill('dragonfire2', 'dragonfire2');
     await waitFor(() => expect(auth.updateUser).toHaveBeenCalledWith({ password: 'dragonfire2' }));
     expect(console.warn).toHaveBeenCalledWith('Telling the database a password change is coming failed:', expect.stringContaining('reauth_required'));
+  });
+
+  it('a save that fails drops the allowance it announced at once (#167 review round 2)', async () => {
+    auth.updateUser.mockResolvedValue({ error: { code: 'same_password', message: 'New password should be different from the old password.' } });
+    useAuthStore.setState({ passwordRecovery: true });
+    render(<ResetPasswordPage />);
+    fill('dragonfire', 'dragonfire');
+    await waitFor(() => expect(rpc).toHaveBeenCalledWith('drop_password_change'));
+    expect(rpc.mock.invocationCallOrder[1]).toBeGreaterThan(auth.updateUser.mock.invocationCallOrder[0]);
+    // Saved: nothing to drop.
+    rpc.mockClear();
+    auth.updateUser.mockResolvedValue({ error: null });
+    fill('dragonfire3', 'dragonfire3');
+    await waitFor(() => expect(useAuthStore.getState().passwordRecovery).toBe(false));
+    expect(rpc).not.toHaveBeenCalledWith('drop_password_change');
   });
 
   it('stays in recovery mode and says what went wrong in plain words if saving fails (#130 S6)', async () => {

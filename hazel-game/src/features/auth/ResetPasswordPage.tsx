@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { authErrorMessage, errorMessage, isExpiredLink } from '../../lib/errors';
-import { allowPasswordChange } from '../../lib/grownUps';
+import { allowPasswordChange, dropPasswordChange } from '../../lib/grownUps';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
@@ -14,9 +14,11 @@ import { useLiveMessage } from './useLiveMessage';
  * saving can't work: the fields and "Save new password" go, and "Back to
  * sign in" (the same sign-out) is the big button, as its message says.
  * Before saving, the database is told a change is coming from this reset
- * link (`allow_password_change`): a password changed any other way can't
- * open 👪 Grown-ups for a day, and a reset link's change ends that wait —
- * how a grown-up takes their login back (#167 review round 1).
+ * link's own sign-in (`allow_password_change` with no sign-in named — the
+ * database ties it to the reset email the auth service recorded, #167 review
+ * round 2): a password changed any other way can't open 👪 Grown-ups for a
+ * day, and a reset link's change ends that wait — how a grown-up takes their
+ * login back (#167 review round 1). A save that fails drops that allowance.
  */
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('');
@@ -54,6 +56,8 @@ export default function ResetPasswordPage() {
     const { error: authError } = await supabase.auth.updateUser({ password });
     setLoading(false);
     if (authError) {
+      // Not saved: the allowance announced for it goes at once (the next try announces again).
+      if (!notAllowed) void dropPasswordChange();
       // Friendly words on screen, the whole error in the console (#130 S6).
       console.warn('Saving the new password failed:', errorMessage(authError));
       setError(authErrorMessage(authError, { where: 'reset', password }));

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach, onTestFinished } from 'vitest';
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react';
 import type { Kid } from '../../types';
 import type { PinVerdict } from '../../lib/pinLock';
 
@@ -113,6 +113,10 @@ describe('GrownUpsArea (#124)', () => {
     // That check's token opens 👪 Grown-ups on the device's own sign-in, which it names (#167).
     expect(checkRpc).toHaveBeenCalledWith('unlock_grown_ups', { p_session: DEVICE_SESSION });
     expect(checkRpc.mock.invocationCallOrder[0]).toBeLessThan(checkAuth.signOut.mock.invocationCallOrder[0]);
+    // …once the device has asked the database for that check, before it signed in (#167 review round 2).
+    const ask = rpc.mock.calls.findIndex(([fn]) => fn === 'ask_grown_up_check');
+    expect(ask).toBeGreaterThan(-1);
+    expect(rpc.mock.invocationCallOrder[ask]).toBeLessThan(checkAuth.signInWithPassword.mock.invocationCallOrder[0]);
   });
 
   it('a right password the database won\'t open on says so plainly, and stays shut (#167)', async () => {
@@ -309,6 +313,23 @@ describe('GrownUpsArea (#124)', () => {
     expect(rpc.mock.calls.filter(([fn]) => fn === 'lock_grown_ups')).toHaveLength(1);
   });
 
+  it('the gate\'s top line follows what can work: the wait names the reset, an ended sign-in says to sign in again — never "Enter the password…" (#167 review round 2)', async () => {
+    render(<GrownUpsArea />);
+    checkRpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText('Reset your password to open it now.')).toBeInTheDocument();
+    expect(screen.queryByText(/^Enter the password for/)).toBeNull();
+    expect(screen.getByRole('button', { name: '← Back to Who\'s playing' })).toBeInTheDocument();
+    cleanup();
+    render(<GrownUpsArea />);
+    checkRpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText('Sign in again to carry on.')).toBeInTheDocument();
+    expect(screen.getAllByRole('button').filter((b) => b.className.includes('bg-purple-600')).map((b) => b.textContent)).toEqual(['Sign in again']);
+  });
+
   it("the gate gives way to the list with its title focused, not the page (#167 review round 1 also noted)", async () => {
     await unlock();
     expect(screen.getByRole('heading', { name: '👪 Grown-ups' })).toHaveFocus();
@@ -322,6 +343,32 @@ describe('GrownUpsArea (#124)', () => {
     expect(screen.getByText('Sam')).toBeInTheDocument();
     expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
     expect(screen.queryByText('Sam')).toBeNull();
+    // …and says why, on the gate and out loud (#167 review round 2) — in the area's own live
+    // region, there before the swap, so it's read; focus is on the gate's title.
+    expect(screen.getByText(/^👪 Grown-ups locked after 15 minutes\. Enter the password for mum@example\.com\.$/)).toBeInTheDocument();
+    const live = screen.getAllByRole('status').find((el) => el.classList.contains('sr-only'))!;
+    expect(live).toHaveTextContent('👪 Grown-ups locked after 15 minutes.');
+    expect(screen.getByRole('heading', { name: '👪 Grown-ups' })).toHaveFocus();
+    // Opened again: the note goes.
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    await screen.findByText('Sam');
+    expect(live).toBeEmptyDOMElement();
+  });
+
+  it('while Sign out is on its way, "Done" waits — no second lock, no flicker to Who\'s playing (#167 review round 2)', async () => {
+    let release!: () => void;
+    auth.signOut.mockImplementation(() => new Promise((ok) => (release = () => ok({ error: null }))));
+    await unlock();
+    const setGrownUpsOpen = vi.fn();
+    useFamilyStore.setState({ setGrownUpsOpen });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+    const done = screen.getByRole('button', { name: "Done — back to Who's playing" });
+    await waitFor(() => expect(done).toHaveAttribute('aria-disabled', 'true'));
+    fireEvent.click(done);
+    expect(setGrownUpsOpen).not.toHaveBeenCalled();
+    await act(async () => release());
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalledTimes(1));
   });
 
   it('…but a page part-filled keeps its place, and the list checks again when it comes back', async () => {
@@ -347,12 +394,25 @@ describe('GrownUpsArea (#124)', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Birth year' }), { target: { value: String(kit.birthYear) } });
     fireEvent.click(screen.getByRole('button', { name: /Panda/ }));
     fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '2468' } });
+    const heading = screen.getByRole('heading', { name: 'Add a player' });
+    const scrolled = vi.fn();
+    const scrollBefore = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrolled;
+    onTestFinished(() => {
+      Element.prototype.scrollIntoView = scrollBefore;
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
-    expect(await screen.findByRole('heading', { name: 'Change Kit' })).toBeInTheDocument();
-    expect(screen.getByText("Kit is added, but their PIN didn't save. Enter their PIN again and tap Save to finish.")).toBeInTheDocument();
+    // Review round 2: the title stays "Add a player" (a new one sent the page to its top, away
+    // from the words), the words come into view where they're said, and the PIN still in its box
+    // means Save is all it takes.
+    expect(await screen.findByText("Kit is added, but their PIN didn't save. Tap Save to set their PIN.")).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add a player' })).toBe(heading);
+    expect(screen.queryByRole('heading', { name: 'Change Kit' })).toBeNull();
+    expect(scrolled).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(scrolled.mock.contexts.at(-1)).toHaveAttribute('role', 'status');
     // What was typed is still there; Save changes Kit (sets the PIN) — no second add.
     expect(screen.getByRole('textbox', { name: 'Nickname' })).toHaveValue('Kit');
-    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '2468' } });
+    expect(screen.getByLabelText('PIN')).toHaveValue('2468');
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(updateKid).toHaveBeenCalledWith('kid-kit', expect.objectContaining({ name: 'Kit', pin: '2468' })));
     expect(addKid).toHaveBeenCalledTimes(1);

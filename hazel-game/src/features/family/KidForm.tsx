@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { grownUpsLocked } from '../../lib/grownUpsGate';
@@ -20,13 +20,15 @@ const MONTHS = [
  * the connection's trouble, else a plain "didn't save" — never the raw error,
  * which goes to the console.
  */
-function kidSaveMessage(err: unknown): string {
+function kidSaveMessage(err: unknown, pinStillTyped: boolean): string {
   // Added, but the PIN step didn't happen: say so plainly — the player IS on
-  // the list now — and the form changes them from here (#167 review round 1).
+  // the list now — and the form changes them from here (#167 review round 1);
+  // with the PIN still in its box, Save is all it takes (review round 2).
   if (err instanceof KidAddedWithoutPin) {
     // Why, when it's something to fix (offline, signed out); a "Not now" needs no more words.
     const why = grownUpsLocked(err.pinError) ? '' : plainErrorOr(err.pinError, '');
-    return `${err.kid.name ?? 'Your player'} is added, but their PIN didn't save.${why ? ` ${why}` : ''} Enter their PIN again and tap Save to finish.`;
+    const next = pinStillTyped ? 'Tap Save to set their PIN.' : 'Enter their PIN and tap Save to finish.';
+    return `${err.kid.name ?? 'Your player'} is added, but their PIN didn't save.${why ? ` ${why}` : ''} ${next}`;
   }
   const raw = errorMessage(err);
   // Said in 👪 Grown-ups, where the Remove buttons are one tap back.
@@ -67,6 +69,13 @@ export default function KidForm({
   // The save failed because the sign-in ran out: the words ask to sign in again, so the button's here.
   const [signedOut, setSignedOut] = useState(false);
   const [saving, setSaving] = useState(false);
+  // A refusal comes into view where it's said, just above Save — never
+  // somewhere off the screen (#167 review round 2: a phone's page had
+  // scrolled away from it).
+  const status = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (error) status.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [error]);
   // An older kid's birth year stays pickable when changing them.
   const years = kid && !KID_BIRTH_YEARS.includes(kid.birthYear) ? [...KID_BIRTH_YEARS, kid.birthYear] : KID_BIRTH_YEARS;
 
@@ -87,7 +96,7 @@ export default function KidForm({
     } catch (err) {
       // Plain words on screen, the whole error in the console (#130 S6).
       console.warn('Saving a player failed:', errorMessage(err));
-      setError(kidSaveMessage(err));
+      setError(kidSaveMessage(err, isPin(pin)));
       setSignedOut(sessionRanOut(err instanceof KidAddedWithoutPin ? err.pinError : err));
     } finally {
       setSaving(false);
@@ -148,7 +157,7 @@ export default function KidForm({
         </p>
       </div>
       {/* Always there, so a screen reader hears each message as it appears. */}
-      <div role="status" className="text-sm text-red-700">
+      <div ref={status} role="status" className="text-sm text-red-700">
         {error && <p>{error}</p>}
       </div>
       {signedOut && <SignInAgainButton />}

@@ -42,7 +42,7 @@ const { default: RelockDialog } = await import('./RelockDialog');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { resetGrownUps, useGrownUpsStore, asGrownUp } = await import('../../store/grownUpsStore');
-const { DEVICE_SIGNED_OUT_MESSAGE, grownUpsLockedMessage } = await import('../../lib/grownUpsGate');
+const { DEVICE_SIGNED_OUT_WHY, grownUpsLockedMessage } = await import('../../lib/grownUpsGate');
 const { plainErrorOr } = await import('../../lib/familyErrors');
 const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
 
@@ -164,15 +164,15 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
-  it('on a setup screen (never open) a kid is asked to fetch a grown-up — never "again" (#167 review round 1)', async () => {
+  it('on a setup screen (never open) "Not now" says what the step needs, for the parent and a kid alike — never "again" (#167 review rounds 1–2)', async () => {
     render(<RelockDialog />);
     const done = asGrownUp(vi.fn().mockRejectedValue(LOCKED));
     expect(await screen.findByRole('dialog', { name: "👪 Just checking it's a grown-up" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
     const err = await done.catch((e: unknown) => e);
     const words = plainErrorOr(err, 'fallback');
-    expect(words).toBe('Nothing changed — a grown-up needs to unlock this. Ask a grown-up to try again and enter their password.');
-    expect(words).not.toMatch(/again,|your PIN/);
+    expect(words).toBe("Nothing changed — this step needs a grown-up's password. Not a grown-up? Please fetch one.");
+    expect(words).not.toMatch(/again,|your PIN|Ask a grown-up/);
   });
 
   it("this device's sign-in has ended (a password change elsewhere): the password path says so, with \"Sign in again\" — no loop of \"try again\" (#167 review round 1)", async () => {
@@ -182,12 +182,18 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
     fireEvent.change(screen.getByRole('dialog').querySelector('input')!, { target: { value: 'right' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(await screen.findByText(DEVICE_SIGNED_OUT_MESSAGE)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(await screen.findByText(DEVICE_SIGNED_OUT_WHY)).toBeInTheDocument();
     expect(screen.queryByText(/couldn't open 👪 Grown-ups just now/)).toBeNull();
+    // Review round 2: one way on, "Sign in again" (focused) — no "Open" that can only fail, no box —
+    // and the line under the title no longer promises the page stays.
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(screen.getByRole('dialog').querySelector('input')).toBeNull();
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription("Sign in again to carry on — what you typed here won't be kept.");
+    expect(screen.getByRole('button', { name: 'Not now' })).toBeInTheDocument();
   });
 
-  it('a password changed without the old one says when it can open 👪 again, and that the PIN can now (#167 review round 1)', async () => {
+  it('the 24-hour wait: calm words, and the grown-up PIN is the main way on — the password box and "Open" go (#167 review round 2)', async () => {
     useFamilyStore.setState({ hasParentPin: true });
     render(<RelockDialog />);
     void asGrownUp(vi.fn().mockRejectedValue(LOCKED)).catch(() => {});
@@ -196,7 +202,47 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
     fireEvent.change(screen.getByRole('dialog').querySelector('input')!, { target: { value: 'right' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
-    expect(await screen.findByText(/can't open 👪 Grown-ups until \w+ at .* Use your grown-up PIN, or tap "Forgot it\?"/)).toBeInTheDocument();
+    const note = await screen.findByText(/^Your password was changed recently, so for safety it can't open 👪 Grown-ups until .+ at .+\. Your grown-up PIN still works\.$/);
+    expect(note).toHaveClass('bg-amber-50');
+    expect(note.closest('[role="status"]')).not.toBeNull();
+    expect(screen.queryByText(/without the old one/)).toBeNull();
+    const pin = screen.getByRole('button', { name: 'Use my grown-up PIN' });
+    expect(pin).toHaveFocus();
+    expect(pin.className).toMatch(/bg-purple-600/);
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(screen.getByRole('dialog').querySelector('input')).toBeNull();
+    expect(screen.getByRole('button', { name: "Didn't change it? Reset it now" })).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Use your grown-up PIN for now. Everything on this page stays as it was.');
+    // The PIN is one tap away; back on the password, the wait is still said honestly.
+    fireEvent.click(pin);
+    expect(await screen.findByRole('button', { name: '9' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
+    expect(await screen.findByRole('button', { name: 'Use my grown-up PIN' })).toBeInTheDocument();
+  });
+
+  it('the 24-hour wait with no grown-up PIN: "Email me a reset link" is the main button; once sent, the box comes back for the new password (#167 review round 2)', async () => {
+    auth.resetPasswordForEmail.mockResolvedValue({ data: {}, error: null });
+    render(<RelockDialog />);
+    void asGrownUp(vi.fn().mockRejectedValue(LOCKED)).catch(() => {});
+    await screen.findByRole('dialog');
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    fireEvent.change(screen.getByRole('dialog').querySelector('input')!, { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(
+      await screen.findByText(/can't open 👪 Grown-ups until .+\. Didn't change it, or need it sooner\? A new password from a reset email works at once\.$/),
+    ).toBeInTheDocument();
+    const reset = screen.getByRole('button', { name: 'Email me a reset link' });
+    expect(reset).toHaveFocus();
+    expect(reset.className).toMatch(/bg-purple-600/);
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Reset your password to open it now. Everything on this page stays as it was.');
+    fireEvent.click(reset);
+    expect(await screen.findByText('A reset link is on its way to mum@example.com. Choose a new password from it, then enter the new one here.')).toBeInTheDocument();
+    const box = screen.getByRole('dialog').querySelector('input')!;
+    expect(box).toHaveFocus();
+    expect(box).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument();
+    expect(screen.queryByText(/can't open 👪 Grown-ups until/)).toBeNull();
   });
 
   it('with a grown-up PIN, the PIN opens it again (on this sign-in, by the database)', async () => {
@@ -229,9 +275,12 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     void asGrownUp(step).catch(() => {});
     await screen.findByRole('dialog');
     for (const d of '9090') await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
-    expect(await screen.findByText('Your sign-in ran out — please sign in again.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // The same words as the password's refusal (review round 2), one "Sign in again", the pad gone.
+    expect(await screen.findByText(DEVICE_SIGNED_OUT_WHY)).toBeInTheDocument();
+    expect(screen.queryByText('Your sign-in ran out — please sign in again.')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: '9' })).toBeNull();
+    expect(screen.getByRole('dialog')).toHaveAccessibleDescription("Sign in again to carry on — what you typed here won't be kept.");
     expect(step).toHaveBeenCalledTimes(1);
   });
 

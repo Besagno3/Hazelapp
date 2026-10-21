@@ -17,6 +17,7 @@ import {
   dbCallRefused,
   functionMissingDb,
   grownUpsLockedDb,
+  passwordWaitDb,
   reauthRequiredDb,
   jwtClaims,
   loginGone,
@@ -33,7 +34,9 @@ const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.f
 const checkRpc = vi.hoisted(() => vi.fn());
 // A new client for each check (#167 review round 1): counted, so a close is seen to use one.
 const makeCheck = vi.hoisted(() => vi.fn());
-vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth }, passwordCheckClient: makeCheck }));
+// The device's own database calls: it asks for the password check first (#167 review round 2).
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth, rpc }, passwordCheckClient: makeCheck }));
 
 const {
   ACCOUNT_CLOSED_MESSAGE,
@@ -76,6 +79,7 @@ beforeEach(() => {
   auth.getSession.mockReset().mockResolvedValue(deviceSession);
   checkRpc.mockReset().mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
   makeCheck.mockReset().mockImplementation(() => ({ auth: checkAuth, rpc: checkRpc }));
+  rpc.mockReset().mockResolvedValue({ data: null, error: null });
   sessionStorage.clear();
   takeAccountClosedNotice();
 });
@@ -141,6 +145,19 @@ describe('the delete-account function (#124b)', () => {
     expect(functionMissingDb({ code: 'PGRST202' })).toBe(true);
     expect(functionMissingDb({ code: '42883' })).toBe(true);
     expect(functionMissingDb({ code: 'HQ001' })).toBe(false);
+  });
+
+  it('answers a password changed without a check as its own refusal, with when the wait ends — before "not a password check" (#167 review round 2)', () => {
+    const wait = fnSource.indexOf('if (passwordWaitDb(famErr)) {');
+    const reauth = fnSource.indexOf("if (reauthRequiredDb(famErr)) return refuse(refusal('reauth_required'));");
+    expect(wait).toBeGreaterThan(fnSource.indexOf("if (grownUpsLockedDb(famErr)) return refuse(refusal('grown_ups_locked'));"));
+    expect(wait).toBeLessThan(reauth);
+    expect(fnSource).toMatch(/return refuse\(refusal\('password_changed'\), \{ until: typeof famErr\.details === 'string' \? famErr\.details : null \}\);/);
+    expect(refusal('password_changed')).toMatchObject({ status: 403, detail: expect.stringMatching(/Nothing was deleted\.$/) });
+    expect(passwordWaitDb({ code: 'HQ002', message: 'password_changed: the password was changed without a check…' })).toBe(true);
+    expect(passwordWaitDb({ code: 'HQ002', message: 'reauth_required: x' })).toBe(false);
+    expect(passwordWaitDb({ code: 'HQ001', message: 'password_changed: x' })).toBe(false);
+    expect(passwordWaitDb({ code: 'HQ002' })).toBe(false);
   });
 
   it("tells delete_family the token's own session, and knows its \"not a password check\" refusal (#167 review round 1)", () => {
@@ -286,6 +303,9 @@ describe('closing an account from the app', () => {
   it("the password typed just now opens 👪 Grown-ups on this device's sign-in first, and the function is told which sign-in that is (#167)", async () => {
     invoke.mockResolvedValue({ data: { ok: true, kids: 1 }, error: null });
     await requestCloseAccount('mum@example.com', 'hunter22');
+    // The device asked for the check before it signed in (#167 review round 2).
+    expect(rpc).toHaveBeenCalledWith('ask_grown_up_check');
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(checkAuth.signInWithPassword.mock.invocationCallOrder[0]);
     expect(checkRpc).toHaveBeenCalledWith('unlock_grown_ups', { p_session: DEVICE_SESSION });
     expect(checkRpc.mock.invocationCallOrder[0]).toBeLessThan(invoke.mock.invocationCallOrder[0]);
     // Opening it is best effort: if it fails, the close is still asked (the function says if it's shut).
@@ -313,6 +333,26 @@ describe('closing an account from the app', () => {
     expect(failure).toMatchObject({ code: 'device_signed_out' });
     expect(invoke).not.toHaveBeenCalled();
     expect(closeAccountMessage('device_signed_out')).toMatch(/sign-in has ended.*Sign in again to carry on\. Nothing was deleted\.$/);
+  });
+
+  it('a password changed without a check: said at once with until when — never the "locked again" dialog, nothing asked of the function (#167 review round 2)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    checkRpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    const failure = (await requestCloseAccount('m@e.com', 'x').catch((e: unknown) => e)) as InstanceType<typeof CloseAccountFailure>;
+    expect(failure).toBeInstanceOf(CloseAccountFailure);
+    expect(failure.code).toBe('password_changed');
+    expect(failure.until?.toISOString()).toBe('2026-10-22T15:40:00.000Z');
+    expect(failure.message).toMatch(/^Your password was changed recently, so for safety it can't close the account until .+\. Nothing was deleted\. Didn't change it, or need it sooner\? Tap "Forgot it\?" under the password box to reset it by email\.$/);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    // The function's own refusal (the backstop) says the same, with its end time.
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(403, { error: 'password_changed', detail: 'x', until: '2026-10-22T15:40:00Z' }) });
+    const fromFn = (await requestCloseAccount('m@e.com', 'x').catch((e: unknown) => e)) as InstanceType<typeof CloseAccountFailure>;
+    expect(fromFn.code).toBe('password_changed');
+    expect(fromFn.until?.toISOString()).toBe('2026-10-22T15:40:00.000Z');
+    expect((await closeFailure(httpError(403, { error: 'password_changed', until: 'junk' }))).until).toBeNull();
+    expect(closeAccountMessage('password_changed')).toMatch(/until tomorrow\. Nothing was deleted\./);
+    warn.mockRestore();
   });
 
   it('"Grown-ups locked again" from the function is its own refusal: nothing was deleted', async () => {

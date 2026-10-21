@@ -33,9 +33,32 @@ export async function signInEmail(known: string): Promise<string> {
 }
 
 /**
- * After a password check signed in on `client` (a password typed just now),
- * open 👪 Grown-ups on this device's own sign-in (`known`, else read) for
- * the window. 'no-gate':
+ * Before a password check signs in: this device's sign-in asks the database
+ * for one (`ask_grown_up_check`, #167 review round 2). Only a password
+ * sign-in made after this, within the minute, may then name this sign-in to
+ * open 👪 Grown-ups (or close the account, or announce a password change) —
+ * a rule the database keeps with its own clock, so the device's own fresh
+ * sign-in can never pass for a check, noted or not. Resolves with this
+ * device's session id (null when there's none to read). Never throws: if the
+ * ask fails, the check that follows is refused and says why (a sign-in that
+ * has ended says `no_session`); a database from before this has nothing to ask.
+ */
+export async function askForPasswordCheck(): Promise<string | null> {
+  const session = await deviceSessionId();
+  if (!session) return null;
+  try {
+    const { error } = await supabase.rpc('ask_grown_up_check');
+    if (error && !functionMissing(error)) console.warn('Asking for a password check failed:', errorMessage(error));
+  } catch (err) {
+    console.warn('Asking for a password check failed:', errorMessage(err));
+  }
+  return session;
+}
+
+/**
+ * After a password check signed in on `client` (a password typed just now —
+ * asked for first, `askForPasswordCheck`), open 👪 Grown-ups on this
+ * device's own sign-in (`known`, else read) for the window. 'no-gate':
  * the database is from before 0024, so there's nothing to open. Throws when
  * the database refused or couldn't be reached.
  */
@@ -70,20 +93,38 @@ export async function noteDeviceSession(): Promise<void> {
 }
 
 /**
- * Tell the database a password change is coming, from `client`'s sign-in —
- * the password check made just now (the change-password page), or a reset
- * link's sign-in (the reset page). A change it hasn't been told about makes
- * the password unable to open 👪 Grown-ups for a day (#167 review round 1).
- * Resolves with the refusal (`unlockRefusal` reads it), or null — also on a
- * database from before this.
+ * Tell the database a password change is coming, for the one sign-in that
+ * will make it — from `client`'s sign-in: the password check made just now,
+ * naming this device's sign-in (`forSession`, which that check has just
+ * opened — the change-password page), or the reset link's own sign-in with
+ * no session named (the reset page). It holds for a minute, for one change
+ * by that sign-in. A change the database wasn't told about makes the
+ * password unable to open 👪 Grown-ups for a day (#167 review rounds 1–2).
+ * Resolves with the database's refusal (`unlockRefusal` reads it) or the
+ * failure that kept it from answering, or null — also on a database from
+ * before this.
  */
-export async function allowPasswordChange(client: SupabaseClient): Promise<unknown> {
+export async function allowPasswordChange(client: SupabaseClient, forSession?: string | null): Promise<unknown> {
   try {
-    const { error } = await client.rpc('allow_password_change');
+    const { error } = await client.rpc('allow_password_change', forSession ? { p_session: forSession } : {});
     if (!error || functionMissing(error)) return null;
     return refusalError(error, 'password change refused');
   } catch (err) {
     return err ?? new Error('password change refused');
+  }
+}
+
+/**
+ * The change didn't go through (a weak or same password, the network…):
+ * drop the allowance this sign-in asked for at once, rather than leave it
+ * for its minute (#167 review round 2). Never throws.
+ */
+export async function dropPasswordChange(): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('drop_password_change');
+    if (error && !functionMissing(error)) console.warn('Dropping the password-change allowance failed:', errorMessage(error));
+  } catch (err) {
+    console.warn('Dropping the password-change allowance failed:', errorMessage(err));
   }
 }
 

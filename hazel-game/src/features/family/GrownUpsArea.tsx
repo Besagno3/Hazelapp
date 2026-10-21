@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
 import { KidAddedWithoutPin, useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
-import { GROWN_UP_UNLOCK_MINUTES } from '../../lib/grownUpsGate';
+import { GROWN_UP_UNLOCK_MINUTES, LAPSED_NOTE } from '../../lib/grownUpsGate';
 import { useGrownUpsStore } from '../../store/grownUpsStore';
 import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
@@ -35,41 +35,48 @@ const fieldClass =
  * shut again when the area is left (`App`) or the time runs out
  * (`RelockDialog` then asks again, keeping the page). Back on the list once
  * the time has run out, it shows the gate again rather than controls that
- * would only ask (#167 review round 1). Closing the account and changing
- * the login ask for the password again, never the PIN.
+ * would only ask (#167 review round 1) — and says why, on the gate and out
+ * loud (`LAPSED_NOTE`, #167 review round 2). Closing the account and
+ * changing the login ask for the password again, never the PIN.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
-  const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
-  if (unlocked) return <GrownUpsHome onLapse={() => setUnlocked(false)} />;
-  return (
-    <GrownUpsGate
-      onUnlock={() => setUnlocked(true)}
-      frame={(subtitle, controls) => (
-        // Opens with its title focused, like the screens it replaces (#124 review round 2).
-        <FamilyCard focusTitle title="👪 Grown-ups" subtitle={subtitle}>
-          {controls}
-        </FamilyCard>
-      )}
-      back={
-        <button onClick={close} className={`mt-1 ${gateLinkClass} text-purple-600`}>
-          ← Back to Who's playing
-        </button>
-      }
-    />
-  );
-}
-
-/**
- * The unlocked area: its pages, and one live region for all of them — there
- * from the start, so what's said in it is read out even as the page under
- * it changes (a region's first words aren't).
- */
-function GrownUpsHome({ onLapse }: { onLapse: () => void }) {
+  // Back at the gate because the window ran out: the gate says so.
+  const [lapsed, setLapsed] = useState(false);
+  // One live region for the area — gate and pages alike — there from the
+  // start, so what's said in it is read out even as the page under it
+  // changes (a region's first words aren't).
   const [said, say] = useLiveMessage();
+  const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
+  const onLapse = useCallback(() => {
+    setUnlocked(false);
+    setLapsed(true);
+    say(LAPSED_NOTE);
+  }, [say]);
   return (
     <>
-      <GrownUpsPages say={say} onLapse={onLapse} />
+      {unlocked ? (
+        <GrownUpsPages say={say} onLapse={onLapse} />
+      ) : (
+        <GrownUpsGate
+          onUnlock={() => {
+            setUnlocked(true);
+            setLapsed(false);
+            say(null);
+          }}
+          frame={(subtitle, controls) => (
+            // Opens with its title focused, like the screens it replaces (#124 review round 2).
+            <FamilyCard focusTitle title="👪 Grown-ups" subtitle={lapsed ? `${LAPSED_NOTE} ${subtitle}` : subtitle}>
+              {controls}
+            </FamilyCard>
+          )}
+          back={
+            <button onClick={close} className={`mt-1 ${gateLinkClass} text-purple-600`}>
+              ← Back to Who's playing
+            </button>
+          }
+        />
+      )}
       <div role="status" className="sr-only">
         {said && <p key={said.key}>{said.text}</p>}
       </div>
@@ -85,6 +92,12 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
   /** Which kid is being changed ('new' = adding one). */
   const [editing, setEditing] = useState<string | null>(null);
+  // A player this form just added whose PIN didn't save: it's still "Add a
+  // player" (no new title, so the page doesn't jump to its top and away from
+  // the words saying why — #167 review round 2), but Save sets their PIN.
+  const [addedNoPin, setAddedNoPin] = useState<string | null>(null);
+  // Sign out is on its way: "Done" waits (it would only lock again and flicker, #167 review round 2).
+  const [signingOut, setSigningOut] = useState(false);
   const [removing, setRemoving] = useState<Kid | null>(null);
   const [closing, setClosing] = useState(false);
   // Changing the login's email or password (#124d).
@@ -106,6 +119,7 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
   function leave(to: string) {
     returnTo.current = to;
     setUnlockedId(null);
+    setAddedNoPin(null);
     say(null);
   }
 
@@ -171,8 +185,9 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
 
   if (editing) {
     const kid = kids.find((k) => k.id === editing);
+    const stillAdding = kid !== undefined && kid.id === addedNoPin;
     return (
-      <FamilyCard wide focusTitle title={kid ? `Change ${kid.name ?? 'player'}` : 'Add a player'}>
+      <FamilyCard wide focusTitle title={kid && !stillAdding ? `Change ${kid.name ?? 'player'}` : 'Add a player'}>
         <KidForm
           kid={kid}
           submitLabel={kid ? 'Save' : 'Add player'}
@@ -184,7 +199,10 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
               } catch (err) {
                 // Added, but the PIN didn't save: this form changes them now, so
                 // trying again sets the PIN rather than adding them twice.
-                if (err instanceof KidAddedWithoutPin) setEditing(err.kid.id);
+                if (err instanceof KidAddedWithoutPin) {
+                  setAddedNoPin(err.kid.id);
+                  setEditing(err.kid.id);
+                }
                 throw err;
               }
             }
@@ -200,8 +218,12 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
               });
             }
             setEditing(null);
+            setAddedNoPin(null);
           }}
-          onCancel={() => setEditing(null)}
+          onCancel={() => {
+            setEditing(null);
+            setAddedNoPin(null);
+          }}
         />
       </FamilyCard>
     );
@@ -305,12 +327,13 @@ function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; 
         <PrivacyNotice />
       </div>
       <button
-        onClick={close}
-        className="mt-6 w-full min-h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition"
+        onClick={() => !signingOut && close()}
+        aria-disabled={signingOut}
+        className="mt-6 w-full min-h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg py-2 transition aria-disabled:cursor-default aria-disabled:opacity-50 aria-disabled:hover:bg-purple-600"
       >
         Done — back to Who's playing
       </button>
-      <SignOutButton className="mt-1" />
+      <SignOutButton className="mt-1" onBusyChange={setSigningOut} />
       <CloseAccountSection
         onOpen={() => {
           leave('close');
