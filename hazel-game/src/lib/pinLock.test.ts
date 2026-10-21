@@ -30,6 +30,9 @@ describe('reading a PIN try (#124c)', () => {
     expect(pinVerdict({ ok: false, tries_left: 0, wait_seconds: 299.2 })).toEqual({ ok: false, triesLeft: 0, waitSeconds: 300, limited: true });
     // Not your kid / no PIN: nothing counted.
     expect(pinVerdict({ ok: false, tries_left: null, wait_seconds: 0 })).toMatchObject({ triesLeft: null, limited: true });
+    // The right grown-up PIN on a sign-in that has ended (#167 review round 1): ok, but signed out — nothing opened.
+    expect(pinVerdict({ ok: true, tries_left: 5, wait_seconds: 0, signed_out: true })).toEqual({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true, signedOut: true });
+    expect(pinVerdict({ ok: true, tries_left: 5, wait_seconds: 0, grown_ups_seconds: 900 })).not.toHaveProperty('signedOut');
   });
 
   it('an older database (a bare true / false) counts nothing; junk is a plain no', () => {

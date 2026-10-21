@@ -14,9 +14,9 @@ import {
   type PinVerdict,
 } from '../lib/pinLock';
 import { CloseAccountFailure, noteAccountClosed, requestCloseAccount } from '../lib/closeAccount';
-import { lockGrownUps, openForFirstRun } from '../lib/grownUps';
+import { lockGrownUps, noteDeviceSession, openForFirstRun } from '../lib/grownUps';
 import { GrownUpsLockedError } from '../lib/grownUpsGate';
-import { asGrownUp, noteGrownUpsOpen, resetGrownUps } from './grownUpsStore';
+import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
 import { profileKey } from '../lib/profile';
 import { CONSENT_VERSION } from '../content/family';
@@ -87,6 +87,24 @@ export function familyLoadMessage(err: unknown): string {
   if (words === OFFLINE_MESSAGE) return `You're offline. Check your internet connection, then tap "Try again".`;
   if (words === NETWORK_MESSAGE) return `We couldn't reach Hazel Quest. Check your internet connection, then tap "Try again".`;
   return words;
+}
+
+/**
+ * A new player was added, but their PIN didn't save (👪 Grown-ups locked in
+ * between and the grown-up chose "Not now", or the connection dropped): the
+ * player is listed without one, so the form becomes "Change <name>" and a
+ * second try sets the PIN instead of adding the player again
+ * (#167 review round 1). `pinError` is why the PIN didn't save.
+ */
+export class KidAddedWithoutPin extends Error {
+  readonly kid: Kid;
+  readonly pinError: unknown;
+  constructor(kid: Kid, pinError: unknown) {
+    super(`kid_added_without_pin: ${kid.name ?? 'the player'} was added, but their PIN didn't save`);
+    this.name = 'KidAddedWithoutPin';
+    this.kid = kid;
+    this.pinError = pinError;
+  }
 }
 
 /**
@@ -292,6 +310,9 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     const [parent, kids] = await Promise.all([
       supabase.from('parents').select('consent_at, has_pin').eq('id', userId).maybeSingle(),
       supabase.from('profiles').select(KID_COLUMNS).eq('parent_id', userId).order('created_at'),
+      // This sign-in is the family device's: however fresh, it never names
+      // another sign-in to open or closes the account (#167 review round 1).
+      noteDeviceSession(),
     ]);
     if (get().userId !== userId) return; // signed out meanwhile
     const failed = parent.error ?? kids.error;
@@ -307,7 +328,7 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     // Still being set up, right after signing up or in: that fresh sign-in
     // opens 👪 Grown-ups for itself, so consent, the first kid and their PIN
     // need no gate (#167). The database decides; not fresh, nothing opens.
-    if (settingUp(consentAt, list) && (await openForFirstRun())) noteGrownUpsOpen();
+    if (settingUp(consentAt, list)) await openForFirstRun();
     if (get().userId !== userId) return; // signed out meanwhile
     set({ status: 'ready', consentAt, hasParentPin: row?.has_pin === true, kids: list });
     // A reload keeps the kid who was playing in this tab.
@@ -331,9 +352,14 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     });
     const kid = fromRow(data as KidRow);
     set((s) => ({ kids: [...s.kids, kid] }));
-    // Listed first: if the PIN fails, "finish setting up" asks for it again.
+    // Listed first: if the PIN fails, "finish setting up" asks for it again —
+    // and a form that added them changes them from now on (never adds twice).
     if (!input.pin) return kid;
-    await setKidPin(kid.id, input.pin);
+    try {
+      await setKidPin(kid.id, input.pin);
+    } catch (err) {
+      throw new KidAddedWithoutPin(kid, err);
+    }
     set((s) => ({ kids: s.kids.map((k) => (k.id === kid.id ? { ...k, hasPin: true } : k)) }));
     return { ...kid, hasPin: true };
   },

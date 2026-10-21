@@ -1,5 +1,6 @@
-import { kidNeedingPin, signOutGrownUp, useFamilyStore } from '../../store/familyStore';
+import { kidNeedingPin, useFamilyStore } from '../../store/familyStore';
 import FamilyCard from './FamilyCard';
+import SignOutButton from './SignOutButton';
 import KidForm from './KidForm';
 
 /**
@@ -25,12 +26,7 @@ export default function KidSetupPage() {
           await updateKid(kid.id, input);
         }}
       />
-      <button
-        onClick={() => void signOutGrownUp()}
-        className="mt-3 w-full text-center text-sm text-gray-500 hover:underline"
-      >
-        Sign out
-      </button>
+      <SignOutButton className="mt-3" />
     </FamilyCard>
   );
 }

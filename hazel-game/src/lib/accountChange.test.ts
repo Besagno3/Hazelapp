@@ -6,7 +6,8 @@ const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.f
 const checkRpc = vi.hoisted(() => vi.fn());
 vi.mock('./supabase', () => ({ supabase: { auth }, passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }) }));
 
-const { changePassword, checkCurrentPassword, looksLikeEmail, needsReauthCode, requestEmailChange, sendReauthCode } = await import('./accountChange');
+const { changePassword, checkCurrentPassword, currentPasswordRefused, looksLikeEmail, needsReauthCode, pendingEmailLine, requestEmailChange, sendReauthCode } =
+  await import('./accountChange');
 const { DEVICE_SESSION, deviceSession } = await import('../test/grownUps');
 
 beforeEach(() => {
@@ -61,12 +62,46 @@ describe('changing the login from 👪 Grown-ups (#124d)', () => {
     await expect(requestEmailChange('taken@example.com')).resolves.toBe(taken);
   });
 
-  it("sets the new password on the device's own sign-in (so it stays signed in), with the emailed code when there is one", async () => {
-    await expect(changePassword('n3w-secret')).resolves.toBeNull();
-    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret' });
-    await changePassword('n3w-secret', ' 123456 ');
-    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret', nonce: '123456' });
+  it("sets the new password on the device's own sign-in (so it stays signed in), always with the current one (#167 review round 1), and the emailed code when there is one", async () => {
+    await expect(changePassword('n3w-secret', 'old-one')).resolves.toBeNull();
+    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret', current_password: 'old-one' });
+    await changePassword('n3w-secret', 'old-one', ' 123456 ');
+    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret', current_password: 'old-one', nonce: '123456' });
     expect(checkAuth.updateUser).not.toHaveBeenCalled();
+    expect(currentPasswordRefused({ code: 'current_password_mismatch', message: 'Current password required when setting new password.' })).toBe(true);
+    expect(currentPasswordRefused({ code: 'current_password_required' })).toBe(true);
+    expect(currentPasswordRefused({ code: 'weak_password' })).toBe(false);
+  });
+
+  it('for a password change, the check also says the change is coming — and its refusal comes back (#167 review round 1)', async () => {
+    await expect(checkCurrentPassword('mum@example.com', 'right', { forPasswordChange: true })).resolves.toBeNull();
+    expect(checkRpc).toHaveBeenNthCalledWith(1, 'unlock_grown_ups', { p_session: DEVICE_SESSION });
+    expect(checkRpc).toHaveBeenNthCalledWith(2, 'allow_password_change');
+    expect(checkRpc.mock.invocationCallOrder[1]).toBeLessThan(checkAuth.signOut.mock.invocationCallOrder[0]);
+    // Changed without the old one: the database says so, and so does the check.
+    const wait = { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' };
+    checkRpc.mockReset().mockResolvedValue({ data: null, error: wait });
+    await expect(checkCurrentPassword('mum@example.com', 'right', { forPasswordChange: true })).resolves.toMatchObject({ code: 'HQ002', details: wait.details });
+    expect(checkRpc).toHaveBeenCalledTimes(1);
+    // This device's sign-in has ended: said, nothing more asked.
+    checkRpc.mockReset().mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    await expect(checkCurrentPassword('mum@example.com', 'right', { forPasswordChange: true })).resolves.toMatchObject({ message: /^no_session/ });
+    // An email change needs neither: the check counts whatever opening said.
+    checkRpc.mockReset().mockResolvedValue({ data: null, error: wait });
+    await expect(checkCurrentPassword('mum@example.com', 'right')).resolves.toBeNull();
+    expect(checkRpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('the waiting-email line: links still to tap within a day, else no longer working (#167 review round 1)', () => {
+    const now = Date.parse('2026-10-21T12:00:00Z');
+    expect(pendingEmailLine('mum@example.com', '', null, now)).toBeNull();
+    expect(pendingEmailLine('mum@example.com', 'MUM@example.com', '2026-10-21T11:00:00Z', now)).toBeNull();
+    expect(pendingEmailLine('mum@example.com', 'new@example.com', '2026-10-21T11:00:00Z', now)).toBe(
+      'Waiting for you to tap the link in each email we sent, to change it to new@example.com.',
+    );
+    expect(pendingEmailLine('mum@example.com', 'new@example.com', '2026-10-19T11:00:00Z', now)).toMatch(/don't work any more\. Tap "Change email…"/);
+    // A password change clears when they were sent (it cancels them).
+    expect(pendingEmailLine('mum@example.com', 'new@example.com', null, now)).toMatch(/don't work any more/);
   });
 
   it('knows when Supabase wants the emailed code first, and sends it', async () => {

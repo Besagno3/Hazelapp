@@ -221,9 +221,15 @@ describe('useFamilyStore', () => {
     useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [] });
     db.answer.mockImplementation(() => ({ data: { ...SAM, has_pin: false }, error: null }));
     db.rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' } } as never);
-    await expect(
-      useFamilyStore.getState().addKid({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 }),
-    ).rejects.toThrow(/Failed to fetch/);
+    const failed = await useFamilyStore
+      .getState()
+      .addKid({ name: 'Sam', icon: 'fox', pin: '4821', birthYear: 2017, birthMonth: 3 })
+      .catch((e: unknown) => e);
+    // Added, but the PIN didn't save: said as such, with the player it was (#167 review round 1).
+    const { KidAddedWithoutPin } = await import('./familyStore');
+    expect(failed).toBeInstanceOf(KidAddedWithoutPin);
+    expect((failed as InstanceType<typeof KidAddedWithoutPin>).kid.id).toBe(SAM.id);
+    expect((failed as InstanceType<typeof KidAddedWithoutPin>).pinError).toMatchObject({ message: 'Failed to fetch' });
     expect(useFamilyStore.getState().kids.map((k) => k.hasPin)).toEqual([false]);
   });
 
@@ -477,8 +483,14 @@ describe('👪 Grown-ups enforced by the database (#167)', () => {
     db.rpc.mockImplementation(async () => ({ data: null, error: null }));
   });
 
+  it("load: notes this sign-in as the family device's, before anything shows (#167 review round 1)", async () => {
+    family('2026-10-10', [SAM]);
+    await useFamilyStore.getState().load('grown-up-1');
+    expect(db.rpc).toHaveBeenCalledWith('note_device_session');
+    expect(useFamilyStore.getState().status).toBe('ready');
+  });
+
   it('load: a family still being set up opens 👪 Grown-ups on the fresh sign-in, before anything shows (the first run needs no gate)', async () => {
-    const { useGrownUpsStore } = await import('./grownUpsStore');
     for (const [consent, kids] of [
       [null, []],
       ['2026-10-10', []],
@@ -490,7 +502,6 @@ describe('👪 Grown-ups enforced by the database (#167)', () => {
       expect(db.rpc, JSON.stringify([consent, kids])).toHaveBeenCalledWith('unlock_grown_ups');
       expect(useFamilyStore.getState().status).toBe('ready');
     }
-    expect(useGrownUpsStore.getState().wasOpen).toBe(true);
   });
 
   it('load: a set-up family opens nothing — the gate does that', async () => {
@@ -501,12 +512,12 @@ describe('👪 Grown-ups enforced by the database (#167)', () => {
 
   it('load: a sign-in that isn\'t fresh is refused quietly, and the family still loads', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { useGrownUpsStore } = await import('./grownUpsStore');
-    db.rpc.mockImplementation(async () => ({ data: null, error: { code: 'HQ002', message: 'reauth_required' } }));
+    db.rpc.mockImplementation(async (fn: string) =>
+      fn === 'unlock_grown_ups' ? { data: null, error: { code: 'HQ002', message: 'reauth_required' } } : { data: null, error: null },
+    );
     family(null, []);
     await useFamilyStore.getState().load('grown-up-1');
     expect(useFamilyStore.getState().status).toBe('ready');
-    expect(useGrownUpsStore.getState().wasOpen).toBe(false);
     expect(warn).not.toHaveBeenCalled();
     warn.mockRestore();
   });

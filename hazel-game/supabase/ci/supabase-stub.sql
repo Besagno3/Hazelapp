@@ -16,6 +16,8 @@ create table if not exists auth.users (
 );
 -- When the login last signed in (read by the 👪 Grown-ups unlock, 0024).
 alter table auth.users add column if not exists last_sign_in_at timestamptz;
+-- The password's hash: 0024 notes each change (a trigger on its column).
+alter table auth.users add column if not exists encrypted_password text;
 -- A login's sign-ins (Supabase keeps one row per session; 0024 checks a
 -- session named to unlock is one of the caller's).
 create table if not exists auth.sessions (

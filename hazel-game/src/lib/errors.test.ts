@@ -153,7 +153,7 @@ describe('authErrorMessage (#130 S6)', () => {
       reset: "We couldn't save your new password just now. Please try again in a few minutes.",
       forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
       resend: "We couldn't send the link again just now. Please try again in a few minutes.",
-      link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".',
+      link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
       'change-email': "We couldn't change your email just now. Please try again in a few minutes.",
       'change-password': "We couldn't change your password just now. Please try again in a few minutes.",
     };
@@ -218,7 +218,7 @@ describe('authErrorMessage — review round 2 (#159)', () => {
 
   it('an email link that came back with an error says why, on sign-in (#159 r2 also noted)', () => {
     expect(authErrorMessage({ code: 'otp_expired', message: 'Email link is invalid or has expired' }, { where: 'link' })).toBe(
-      'That email link has run out. Sign in to get a new one, or tap "Forgot password?".',
+      'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
     );
     expect(authErrorMessage({ code: 'access_denied', message: 'Email link is invalid or has expired' }, { where: 'link' })).toMatch(/run out/);
   });
@@ -343,10 +343,18 @@ describe('authRetryAfter: how long the resend button counts down after a refusal
 });
 
 describe('authErrorMessage — changing the login from 👪 Grown-ups (#124d)', () => {
-  it("a wrong current password reads like the gate's, with its \"Forgot it?\" link", () => {
+  it("a wrong current password reads like the gate's, its \"Forgot it?\" link where it is: under the password box (#167 review round 1)", () => {
     const wrong = { code: 'invalid_credentials', message: 'Invalid login credentials', status: 400 };
     for (const where of ['change-email', 'change-password'] as const) {
-      expect(authErrorMessage(wrong, { where })).toBe('That password isn\'t right. Try again, or tap "Forgot it?" below.');
+      expect(authErrorMessage(wrong, { where })).toBe('That password isn\'t right. Try again, or tap "Forgot it?" under the password box.');
+    }
+    // The gate's link is below its message.
+    expect(authErrorMessage(wrong, { where: 'gate' })).toBe('That password isn\'t right. Try again, or tap "Forgot it?" below.');
+    // "Require the current password" refusing on Change password reads the same.
+    for (const code of ['current_password_mismatch', 'current_password_required']) {
+      expect(authErrorMessage({ code, message: 'Current password required when setting new password.', status: 400 }, { where: 'change-password' })).toBe(
+        'That password isn\'t right. Try again, or tap "Forgot it?" under the password box.',
+      );
     }
   });
 

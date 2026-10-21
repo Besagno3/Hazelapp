@@ -7,6 +7,7 @@ import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import FamilyCard from './FamilyCard';
 import ResetLinkButton from './ResetLinkButton';
+import SignInAgainButton from './SignInAgainButton';
 
 const fieldClass =
   'w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 aria-[invalid=true]:border-red-500';
@@ -76,6 +77,8 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
   const familyGone = useRef(false);
   // The box the last refusal was about (marked aria-invalid, described by the message).
   const [badField, setBadField] = useState<'password' | 'confirm' | null>(null);
+  // This device's sign-in has ended (#167 review round 1): the words ask to sign in again, so the button's here.
+  const [signedOut, setSignedOut] = useState(false);
   const passwordId = useId();
   const confirmId = useId();
   const statusId = useId();
@@ -86,6 +89,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
   function refuse(code: CloseFailureCode, text = closeAccountMessage(code)) {
     setNotice(null);
     setError(text);
+    setSignedOut(code === 'device_signed_out');
     const field = fieldFor(code);
     setBadField(field);
     const box = field === 'password' ? passwordBox.current : field === 'confirm' ? confirmBox.current : null;
@@ -207,6 +211,7 @@ export default function CloseAccountPage({ onCancel }: { onCancel: () => void })
             </p>
           )}
         </div>
+        {signedOut && <SignInAgainButton className="mt-0" />}
         <button
           type="submit"
           aria-disabled={busy}

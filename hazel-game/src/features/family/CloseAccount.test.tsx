@@ -193,6 +193,17 @@ describe('Close account in 👪 Grown-ups (#124b)', () => {
     expect(auth.signOut).not.toHaveBeenCalled();
   });
 
+  it("this device's sign-in has ended: said at once with \"Sign in again\" — no gate asked for, nothing sent (#167 review round 1)", async () => {
+    await openCloseAccount();
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    fill('hunter22', 'DELETE');
+    fireEvent.click(submit());
+    expect(await screen.findByText(/sign-in has ended.*Sign in again to carry on\. Nothing was deleted\./)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(functions.invoke).not.toHaveBeenCalled();
+  });
+
   it('never says "nothing was deleted" when it can\'t know: a lost answer says so, and "safe to repeat"', async () => {
     functions.invoke.mockResolvedValueOnce({ data: null, error: new FunctionsFetchError(new TypeError('Failed to fetch')) });
     await openCloseAccount();

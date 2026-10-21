@@ -1,7 +1,19 @@
 import { useId, useRef, useState } from 'react';
 import { authErrorMessage, errorMessage, sessionRanOut, type AuthWhere } from '../../lib/errors';
-import { changePassword, checkCurrentPassword, looksLikeEmail, needsReauthCode, requestEmailChange, sendReauthCode } from '../../lib/accountChange';
+import {
+  changePassword,
+  checkCurrentPassword,
+  currentPasswordRefused,
+  looksLikeEmail,
+  needsReauthCode,
+  pendingEmailLine,
+  requestEmailChange,
+  sendReauthCode,
+} from '../../lib/accountChange';
 import { signInEmail } from '../../lib/grownUps';
+import { DEVICE_SIGNED_OUT_MESSAGE, passwordWaitMessage, unlockRefusal } from '../../lib/grownUpsGate';
+import { useFamilyStore } from '../../store/familyStore';
+import { noteGrownUpsOpen } from '../../store/grownUpsStore';
 import { MIN_PASSWORD_LENGTH } from '../../content/family';
 import { useAuthStore } from '../../store/authStore';
 import PasswordInput from '../../components/PasswordInput';
@@ -23,15 +35,18 @@ const linkButton = 'mt-2 w-full min-h-11 text-center text-sm text-purple-600 hov
 export function SignInSection({ onChange }: { onChange: (what: 'email' | 'password') => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
   const pending = useAuthStore((s) => s.user?.new_email ?? '');
+  const sentAt = useAuthStore((s) => s.user?.email_change_sent_at);
+  const waiting = pendingEmailLine(email, pending, sentAt);
   return (
     <section aria-labelledby="sign-in-heading" className="mt-6 rounded-xl border border-gray-200 p-3 text-sm">
       <h2 id="sign-in-heading" className="font-semibold text-gray-700">
         Your sign-in
       </h2>
       <p className="mt-0.5 text-xs text-gray-500 [overflow-wrap:anywhere]">{email || 'No email on this login'}</p>
-      {pending && pending !== email && (
+      {waiting && (
         <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-xs text-amber-900 [overflow-wrap:anywhere]">
-          <span aria-hidden="true">📬 </span>Waiting for you to tap the link we emailed to change it to {pending}.
+          <span aria-hidden="true">📬 </span>
+          {waiting}
         </p>
       )}
       <div className="flex flex-wrap justify-end gap-x-2">
@@ -175,6 +190,8 @@ export function ChangeEmailPage({ onDone }: { onDone: () => void }) {
       wait.refused(wrong);
       return refused('Checking the password', wrong, 'change-email', 'password');
     }
+    // The password typed just now opened 👪 Grown-ups again (its home counts from here).
+    noteGrownUpsOpen();
     const failed = await requestEmailChange(to);
     setBusy(false);
     if (failed) {
@@ -210,7 +227,8 @@ export function ChangeEmailPage({ onDone }: { onDone: () => void }) {
   return (
     <FamilyCard wide focusTitle title="Change your sign-in email">
       <p className="text-sm text-gray-600 [overflow-wrap:anywhere]">
-        You sign in with <strong>{email}</strong>. We'll email a link to the new address, to check it's yours.
+        You sign in with <strong>{email}</strong>. We'll email a link to the new address, to check it's yours. Type
+        your password too, so we know it's you.
       </p>
       {/* Our own checks, in our own words (a browser's bubble would come first). */}
       <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3 text-left">
@@ -277,6 +295,13 @@ export function ChangeEmailPage({ onDone }: { onDone: () => void }) {
  */
 export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
   const email = useAuthStore((s) => s.user?.email ?? '');
+  const hasParentPin = useFamilyStore((s) => s.hasParentPin);
+  // An email change waiting for its links: a new password cancels it (the
+  // auth service clears its links), so the done page says so.
+  const [pendingEmail] = useState(() => {
+    const u = useAuthStore.getState().user;
+    return u?.new_email && u.new_email.toLowerCase() !== (u.email ?? '').toLowerCase() ? u.new_email : null;
+  });
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [again, setAgain] = useState('');
@@ -318,9 +343,37 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     setSignedOut(sessionRanOut(err));
   }
 
+  /**
+   * The current password checked again on a client of its own, telling the
+   * database the change is coming (#167 review round 1). True when it's right
+   * and the change may go ahead; otherwise the page says why: a wrong password
+   * (its box), this device signed out ("Sign in again"), or a password changed
+   * without the old one that can't be changed here for a day.
+   */
+  async function checked(): Promise<boolean> {
+    const wrong = await checkCurrentPassword(await signInEmail(email), current, { forPasswordChange: true });
+    if (!wrong) {
+      noteGrownUpsOpen();
+      return true;
+    }
+    const refusal = unlockRefusal(wrong);
+    if (refusal?.kind === 'password_changed') {
+      console.warn('Changing the password refused:', errorMessage(wrong));
+      refuse(passwordWaitMessage(refusal.until, { hasParentPin, changing: true }), null);
+    } else if (refusal?.kind === 'no_session') {
+      console.warn('Changing the password refused:', errorMessage(wrong));
+      refuse(DEVICE_SIGNED_OUT_MESSAGE, null);
+      setSignedOut(true);
+    } else {
+      wait.refused(wrong);
+      refused('Checking the password', wrong, refusal ? null : 'current');
+    }
+    return false;
+  }
+
   /** Set the new password; a code wanted first moves to the code step and sends it. */
   async function save(nonce?: string) {
-    const failed = await changePassword(next, nonce);
+    const failed = await changePassword(next, current, nonce);
     if (!failed) {
       setCurrent('');
       setNext('');
@@ -338,7 +391,7 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     }
     wait.refused(failed);
     const weak = /weak_password|same_password/.test(String((failed as { code?: unknown }).code ?? ''));
-    refused('Saving the new password', failed, nonce ? 'code' : weak ? 'next' : null);
+    refused('Saving the new password', failed, nonce ? 'code' : currentPasswordRefused(failed) ? 'current' : weak ? 'next' : null);
   }
 
   async function sendCode() {
@@ -370,11 +423,9 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     setNotice(null);
     setBad(null);
     setBusy(true);
-    const wrong = await checkCurrentPassword(await signInEmail(email), current);
-    if (wrong) {
+    if (!(await checked())) {
       setBusy(false);
-      wait.refused(wrong);
-      return refused('Checking the password', wrong, 'current');
+      return;
     }
     await save();
     setBusy(false);
@@ -389,6 +440,13 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
     setNotice(null);
     setBad(null);
     setBusy(true);
+    // The emailed code can take a while: the password is checked again so the
+    // change is announced just before it's made (the database holds that for
+    // ten minutes).
+    if (!(await checked())) {
+      setBusy(false);
+      return;
+    }
     await save(code);
     setBusy(false);
   }
@@ -402,6 +460,12 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
             This device stays signed in. Other phones, tablets and computers signed in to this account are signed out
             within about an hour, and need the new password to sign in again.
           </p>
+          {pendingEmail && (
+            <p className="[overflow-wrap:anywhere]">
+              Changing your password cancelled the change of your sign-in email to <strong>{pendingEmail}</strong>. To
+              still change it, tap "Change email…" again.
+            </p>
+          )}
         </div>
         <button onClick={onDone} className={`mt-5 w-full min-h-11 ${gatePrimaryClass}`}>
           Done
@@ -462,7 +526,8 @@ export function ChangePasswordPage({ onDone }: { onDone: () => void }) {
   return (
     <FamilyCard wide focusTitle title="Change your password">
       <p className="text-sm text-gray-600 [overflow-wrap:anywhere]">
-        For <strong>{email}</strong>. This device stays signed in; other devices will need the new password.
+        For <strong>{email}</strong>. Type the password you have now, so we know it's you. This device stays signed in;
+        other devices will need the new password.
       </p>
       <form onSubmit={handleSubmit} noValidate className="mt-4 space-y-3 text-left">
         <CurrentPassword

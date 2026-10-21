@@ -3,6 +3,7 @@ import { passwordCheckClient, supabase } from './supabase';
 import { errorMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE, TROUBLE_MESSAGE } from './errors';
 import { PRIVACY_IS_DRAFT } from '../content/family';
 import { deviceSessionId, openGrownUpsWith } from './grownUps';
+import { DEVICE_SIGNED_OUT_MESSAGE, unlockRefusal } from './grownUpsGate';
 import {
   CLOSE_ACCOUNT_ERRORS,
   CONFIRM_WORD,
@@ -40,7 +41,8 @@ export type CloseFailureCode =
   | 'offline'
   | 'network'
   | 'trouble'
-  | 'lost_touch';
+  | 'lost_touch'
+  | 'device_signed_out';
 
 /** Thrown by `requestCloseAccount`: `message` is what to show, `log` the whole story. */
 export class CloseAccountFailure extends Error {
@@ -98,6 +100,8 @@ export function closeAccountMessage(code: CloseFailureCode): string {
       return 'Your players and their games are deleted, but the login itself is still here. Tap "Close account for good" again to finish.';
     case 'already_closed':
       return ACCOUNT_CLOSED_MESSAGE;
+    case 'device_signed_out':
+      return `${DEVICE_SIGNED_OUT_MESSAGE} ${NOTHING_DELETED}`;
     default:
       // data_not_deleted, auth_unavailable, server_config, bad_request, method_not_allowed…
       return `We couldn't close your account just now. ${NOTHING_DELETED} Please try again in a few minutes.`;
@@ -176,7 +180,9 @@ async function loginIsGone(): Promise<boolean> {
  */
 export async function requestCloseAccount(email: string, password: string): Promise<{ kids: number; alreadyClosed: boolean }> {
   if (!email) throw new CloseAccountFailure('no_password_login', 'this login has no email to sign in with');
-  const check = passwordCheckClient().auth;
+  // One client for this whole check (its sign-in, opening 👪 Grown-ups, its sign-out).
+  const client = passwordCheckClient();
+  const check = client.auth;
   let signedIn: Awaited<ReturnType<typeof check.signInWithPassword>>;
   try {
     signedIn = await check.signInWithPassword({ email, password });
@@ -195,11 +201,17 @@ export async function requestCloseAccount(email: string, password: string): Prom
     // The function deletes nothing unless 👪 Grown-ups is open on this
     // device's sign-in (#167): name it, and — the password having just been
     // typed — open it for the window first (best effort: if this fails, the
-    // function's refusal says so and the gate is asked for).
+    // function's refusal says so and the gate is asked for). A device whose
+    // sign-in can't be read, or has ended (a password change elsewhere signs
+    // the others out), can't be opened by any PIN or password: that's said
+    // at once, with "Sign in again", never by asking for the gate again
+    // (#167 review round 1).
     const session = await deviceSessionId();
+    if (!session) throw new CloseAccountFailure('device_signed_out', "this device's sign-in couldn't be read");
     try {
-      if (session) await openGrownUpsWith(passwordCheckClient(), session);
+      await openGrownUpsWith(client, session);
     } catch (err) {
+      if (unlockRefusal(err)?.kind === 'no_session') throw new CloseAccountFailure('device_signed_out', `opening 👪 Grown-ups: ${errorMessage(err)}`);
       console.warn('Opening 👪 Grown-ups before closing:', errorMessage(err));
     }
     let result: Awaited<ReturnType<typeof supabase.functions.invoke>>;

@@ -8,7 +8,7 @@ import { dropSignupParam, hasSignupParam } from '../../lib/signupLink';
 import { cn } from '../../lib/utils';
 import { useRetryWait, waitWords } from './useRetryWait';
 import { useLiveMessage } from './useLiveMessage';
-import { dropLinkError, linkErrorFrom } from './linkError';
+import { dropLinkError, emailLinkWords, linkErrorFrom, takeEmailLinkNotice } from './linkError';
 import { takeAccountClosedNotice } from '../../lib/closeAccount';
 
 /** Supabase refused a sign-in because the email link hasn't been tapped yet. */
@@ -52,7 +52,11 @@ export default function AuthPage() {
   // it opens with), once.
   const [closedNotice, setClosedNotice] = useState<string | null>(() => takeAccountClosedNotice());
   const closedBanner = useRef<HTMLHeadingElement>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // The first of an email change's two links, tapped while signed out: say
+  // the other one is still to tap (#124d, #167 review round 1).
+  const [notice, setNotice] = useState<string | null>(() =>
+    takeEmailLinkNotice() === 'other-email' ? `📬 ${emailLinkWords('other-email', '')}` : null,
+  );
   const [loading, setLoading] = useState(false);
   // The address a confirmation link went to: "Check your inbox" replaces the form.
   const [sentTo, setSentTo] = useState<string | null>(null);

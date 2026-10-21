@@ -159,7 +159,7 @@ export default function App() {
     return (
       <>
         {grownUpPage}
-        <RelockDialog />
+        <RelockDialog inArea={family === 'grownUps'} />
       </>
     );
   }

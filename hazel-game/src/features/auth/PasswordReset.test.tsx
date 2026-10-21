@@ -9,7 +9,8 @@ const auth = vi.hoisted(() => ({
   signUp: vi.fn(),
   resend: vi.fn(),
 }));
-vi.mock('../../lib/supabase', () => ({ supabase: { auth } }));
+const rpc = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/supabase', () => ({ supabase: { auth, rpc } }));
 
 const { default: AuthPage } = await import('./AuthPage');
 const { default: ResetPasswordPage } = await import('./ResetPasswordPage');
@@ -19,6 +20,7 @@ const { CONSENT_VERSION, MIN_PASSWORD_LENGTH } = await import('../../content/fam
 
 beforeEach(() => {
   vi.clearAllMocks();
+  rpc.mockResolvedValue({ data: { allowed: true }, error: null });
   useAuthStore.setState({ passwordRecovery: false });
   // The raw errors go to the console (#130 S6); keep the test output quiet.
   vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -119,10 +121,26 @@ describe('AuthPage — an email link that came back with an error (#159 review r
     }
   }
 
+  it("the first of an email change's two links, tapped while signed out, says the other is still to tap (#167 review round 1)", async () => {
+    window.history.replaceState(null, '', '/play/#message=Confirmation+link+accepted.+Please+proceed+to+confirm+link+sent+to+the+other+email');
+    try {
+      // The address is read as the page loads (supabase-js may clear it after): a fresh copy of the page.
+      vi.resetModules();
+      const { default: FreshAuthPage } = await import('./AuthPage');
+      render(<FreshAuthPage />);
+      expect(screen.getByText(/📬 Nearly done! Now tap the link in the other email we sent/)).toBeInTheDocument();
+      expect(window.location.hash).toBe('');
+    } finally {
+      window.history.replaceState(null, '', '/');
+    }
+  });
+
   it('a link that ran out says so on the sign-in page, and leaves the address', () => {
     at('/play/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired', () => {
       render(<AuthPage />);
-      expect(screen.getByRole('status')).toHaveTextContent('That email link has run out. Sign in to get a new one, or tap "Forgot password?".');
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      );
       expect(screen.getByText('Forgot password?')).toBeInTheDocument();
       expect(window.location.pathname + window.location.search + window.location.hash).toBe('/play/');
       expect(console.warn).toHaveBeenCalledWith('Email link failed:', 'Email link is invalid or has expired [otp_expired]');
@@ -140,7 +158,9 @@ describe('AuthPage — an email link that came back with an error (#159 review r
   it('another link error says the link didn\'t work, in plain words', () => {
     at('/play/#error=server_error&error_code=bad_code_verifier&error_description=code+challenge+does+not+match', () => {
       render(<AuthPage />);
-      expect(screen.getByRole('status')).toHaveTextContent('That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".');
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
+      );
       expect(screen.queryByText(/code challenge/)).toBeNull();
     });
   });
@@ -544,6 +564,23 @@ describe('ResetPasswordPage', () => {
     expect(auth.updateUser).toHaveBeenCalledWith({ password: 'dragonfire' });
   });
 
+  it("tells the database a change is coming from this reset link first, so the new password can open 👪 Grown-ups at once (#167 review round 1)", async () => {
+    auth.updateUser.mockResolvedValue({ error: null });
+    useAuthStore.setState({ passwordRecovery: true });
+    render(<ResetPasswordPage />);
+    fill('dragonfire', 'dragonfire');
+    await waitFor(() => expect(auth.updateUser).toHaveBeenCalled());
+    expect(rpc).toHaveBeenCalledWith('allow_password_change');
+    expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
+    // Best effort: refused (or offline), the new password still saves; it's only logged.
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: 'reauth_required: x' } });
+    auth.updateUser.mockClear();
+    useAuthStore.setState({ passwordRecovery: true });
+    fill('dragonfire2', 'dragonfire2');
+    await waitFor(() => expect(auth.updateUser).toHaveBeenCalledWith({ password: 'dragonfire2' }));
+    expect(console.warn).toHaveBeenCalledWith('Telling the database a password change is coming failed:', expect.stringContaining('reauth_required'));
+  });
+
   it('stays in recovery mode and says what went wrong in plain words if saving fails (#130 S6)', async () => {
     auth.updateUser.mockResolvedValue({
       error: { code: 'weak_password', message: 'Password is known to be weak and easy to guess, please choose a different one.', reasons: ['pwned'] },
@@ -617,7 +654,7 @@ describe('ResetPasswordPage', () => {
     expect(save).not.toBeDisabled();
     expect(save).toHaveFocus();
     fireEvent.click(save);
-    expect(auth.updateUser).toHaveBeenCalledOnce();
+    await waitFor(() => expect(auth.updateUser).toHaveBeenCalledOnce());
     await act(async () => answer({ error: { code: 'same_password', message: 'New password should be different from the old password.' } }));
     expect(save).toHaveTextContent('Save new password');
   });

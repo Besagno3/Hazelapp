@@ -8,13 +8,16 @@ import questionsFnSource from '../../supabase/functions/generate-questions/index
 import {
   amrMissing,
   authCallRefused,
+  callerSessionOf,
   CLOCK_SLACK_S,
   CLOSE_ACCOUNT_ERRORS,
   closeRequestRefusal,
   CONFIRM_WORD,
   closeSessionOf,
   dbCallRefused,
+  functionMissingDb,
   grownUpsLockedDb,
+  reauthRequiredDb,
   jwtClaims,
   loginGone,
   REAUTH_WINDOW_S,
@@ -28,7 +31,9 @@ const auth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), getUser: vi.fn(), 
 const checkAuth = vi.hoisted(() => ({ signInWithPassword: vi.fn(), signOut: vi.fn() }));
 // The check's token opens 👪 Grown-ups on the device's sign-in before the close (#167).
 const checkRpc = vi.hoisted(() => vi.fn());
-vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth }, passwordCheckClient: () => ({ auth: checkAuth, rpc: checkRpc }) }));
+// A new client for each check (#167 review round 1): counted, so a close is seen to use one.
+const makeCheck = vi.hoisted(() => vi.fn());
+vi.mock('./supabase', () => ({ supabase: { functions: { invoke }, auth }, passwordCheckClient: makeCheck }));
 
 const {
   ACCOUNT_CLOSED_MESSAGE,
@@ -70,6 +75,7 @@ beforeEach(() => {
   auth.getUser.mockReset().mockResolvedValue({ data: { user: { id: 'u1' } }, error: null });
   auth.getSession.mockReset().mockResolvedValue(deviceSession);
   checkRpc.mockReset().mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
+  makeCheck.mockReset().mockImplementation(() => ({ auth: checkAuth, rpc: checkRpc }));
   sessionStorage.clear();
   takeAccountClosedNotice();
 });
@@ -102,10 +108,12 @@ describe('the delete-account function (#124b)', () => {
       at('.auth.getUser(token)'),
       at('closeRequestRefusal(body)'),
       at('signedInFreshly(claims, user.last_sign_in_at,'),
-      at("admin.rpc('delete_family', { p_parent: user.id, p_session: closeSessionOf(body) })"),
+      at("admin.rpc('delete_family', {"),
       at('admin.auth.admin.deleteUser(user.id)'),
     ];
     expect([...steps].sort((a, b) => a - b)).toEqual(steps);
+    // The family's data goes for the session the app names, asked by the token's own session (#167 review round 1).
+    expect(fnSource).toMatch(/admin\.rpc\('delete_family', \{\s*p_parent: user\.id,\s*p_session: closeSessionOf\(body\),\s*p_caller: callerSessionOf\(claims\),\s*\}\)/);
     // The token's claims are this very login's, and the function never signs in itself.
     expect(fnSource).toMatch(/claims\?\.sub !== user\.id/);
     // A token with no amr is refused AND logged loudly (an auth set-up to fix, #124b review round 2).
@@ -116,9 +124,31 @@ describe('the delete-account function (#124b)', () => {
 
   it('names the device\'s sign-in to delete_family and answers its "👪 Grown-ups is shut" as grown_ups_locked, before any other database refusal (#167)', () => {
     const locked = fnSource.indexOf('if (grownUpsLockedDb(famErr)) return refuse(refusal(\'grown_ups_locked\'));');
+    const reauth = fnSource.indexOf('if (reauthRequiredDb(famErr)) return refuse(refusal(\'reauth_required\'));');
+    const missing = fnSource.indexOf('if (functionMissingDb(famErr)) {');
     expect(locked).toBeGreaterThan(-1);
-    expect(locked).toBeLessThan(fnSource.indexOf('if (!FUNCTION_MISSING.includes(famErr.code'));
+    expect(reauth).toBeGreaterThan(locked);
+    expect(missing).toBeGreaterThan(reauth);
+    expect(missing).toBeLessThan(fnSource.indexOf("refuse(refusal(dbCallRefused(famErr) ? 'data_not_deleted' : 'outcome_unknown'))"));
     expect(locked).toBeLessThan(fnSource.indexOf('admin.auth.admin.deleteUser(user.id)'));
+  });
+
+  it('on a database older than it, refuses — never deletes the login alone, which would skip the 👪 check (#167 review round 1)', () => {
+    const missing = fnSource.slice(fnSource.indexOf('if (functionMissingDb(famErr)) {'));
+    expect(missing).toMatch(/^if \(functionMissingDb\(famErr\)\) \{\s*console\.error\([\s\S]*?\);\s*return refuse\(refusal\('database_out_of_date'\)\);/);
+    expect(fnSource).not.toMatch(/deleting the login alone/);
+    expect(refusal('database_out_of_date')).toMatchObject({ status: 503, detail: expect.stringMatching(/migrations 0023 \+ 0024.*Nothing was deleted\./) });
+    expect(functionMissingDb({ code: 'PGRST202' })).toBe(true);
+    expect(functionMissingDb({ code: '42883' })).toBe(true);
+    expect(functionMissingDb({ code: 'HQ001' })).toBe(false);
+  });
+
+  it("tells delete_family the token's own session, and knows its \"not a password check\" refusal (#167 review round 1)", () => {
+    expect(callerSessionOf({ session_id: DEVICE_SESSION })).toBe(DEVICE_SESSION);
+    for (const bad of [{}, { session_id: 'nope' }, { session_id: 7 }, null]) expect(callerSessionOf(bad), JSON.stringify(bad)).toBeNull();
+    expect(reauthRequiredDb({ code: 'HQ002' })).toBe(true);
+    expect(reauthRequiredDb({ code: 'HQ001' })).toBe(false);
+    expect(grownUpsLockedDb({ code: 'HQ002' })).toBe(false);
   });
 
   it('answers CORS the way generate-questions does', () => {
@@ -265,6 +295,24 @@ describe('closing an account from the app', () => {
     await requestCloseAccount('mum@example.com', 'hunter22');
     expect(invoke).toHaveBeenCalledTimes(1);
     warn.mockRestore();
+  });
+
+  it('one check, one client: its sign-in, opening 👪 Grown-ups and its sign-out (#167 review round 1)', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: httpError(403, { error: 'reauth_required' }) });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'reauth_required' });
+    expect(makeCheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("this device's sign-in can't be read, or has ended: said at once, with nothing asked of the function — never the gate again (#167 review round 1)", async () => {
+    auth.getSession.mockResolvedValueOnce({ data: { session: null }, error: null });
+    await expect(requestCloseAccount('m@e.com', 'x')).rejects.toMatchObject({ code: 'device_signed_out' });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(checkAuth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    checkRpc.mockResolvedValueOnce({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    const failure = await requestCloseAccount('m@e.com', 'x').catch((e: unknown) => e);
+    expect(failure).toMatchObject({ code: 'device_signed_out' });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(closeAccountMessage('device_signed_out')).toMatch(/sign-in has ended.*Sign in again to carry on\. Nothing was deleted\.$/);
   });
 
   it('"Grown-ups locked again" from the function is its own refusal: nothing was deleted', async () => {

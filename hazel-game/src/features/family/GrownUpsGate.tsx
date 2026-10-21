@@ -3,6 +3,7 @@ import { passwordCheckClient } from '../../lib/supabase';
 import { authErrorMessage, errorMessage } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { openGrownUpsWith, signInEmail } from '../../lib/grownUps';
+import { DEVICE_SIGNED_OUT_MESSAGE, passwordWaitMessage, unlockRefusal, type GateWay } from '../../lib/grownUpsGate';
 import { GROWN_UP_LOCKED_TEXT, grownUpLockKey } from '../../lib/pinLock';
 import { useAuthStore } from '../../store/authStore';
 import { useFamilyStore } from '../../store/familyStore';
@@ -10,6 +11,7 @@ import { noteGrownUpsOpen } from '../../store/grownUpsStore';
 import PasswordInput from '../../components/PasswordInput';
 import PinPad from './PinPad';
 import ResetLinkButton from './ResetLinkButton';
+import SignInAgainButton from './SignInAgainButton';
 import { gateLinkClass, gatePrimaryClass } from './familyStyles';
 
 const fieldClass =
@@ -25,7 +27,12 @@ const fieldClass =
  * sign-in (`openGrownUpsWith` → `unlock_grown_ups`). Used by 👪 Grown-ups'
  * own gate and by `RelockDialog` when it locks again mid-action; `frame`
  * puts the controls in that screen's card or dialog with the subtitle for
- * the way in shown now.
+ * the way in shown now (and which way that is). On the PIN pad, the other
+ * way in and the way out sit in the pad's `beside` slot, so a sideways phone
+ * shows them beside the pad (#167 review round 1). A device whose sign-in
+ * has ended (a password change elsewhere) is told so, with "Sign in again"
+ * — the PIN or password can't open a sign-in that's gone; a password changed
+ * without the old one says when it can open 👪 Grown-ups again.
  */
 export default function GrownUpsGate({
   onUnlock,
@@ -34,7 +41,7 @@ export default function GrownUpsGate({
   autoFocusPassword = false,
 }: {
   onUnlock: () => void;
-  frame: (subtitle: string, controls: ReactNode) => ReactNode;
+  frame: (subtitle: string, controls: ReactNode, way: GateWay) => ReactNode;
   /** The way out, under the controls ("← Back to Who's playing", "Not now"). */
   back: ReactNode;
   autoFocusPassword?: boolean;
@@ -51,6 +58,8 @@ export default function GrownUpsGate({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // This device's sign-in has ended: the words ask to sign in again, so the button's here.
+  const [signedOut, setSignedOut] = useState(false);
 
   function opened() {
     noteGrownUpsOpen();
@@ -63,6 +72,7 @@ export default function GrownUpsGate({
     if (loading) return;
     setError(null);
     setNotice(null);
+    setSignedOut(false);
     setLoading(true);
     // Signing in again with the same login proves it's the grown-up — on a
     // client that keeps nothing, so the device's own session stays as it was
@@ -83,12 +93,22 @@ export default function GrownUpsGate({
     } catch (err) {
       failed = err ?? new Error('unlock failed');
     }
-    // The check's sign-in is signed out at once either way.
+    // The check's sign-in is signed out at once either way (its own client, so
+    // a sign-out still on its way never touches the next check's).
     void check.auth.signOut({ scope: 'local' }).catch((err: unknown) => console.warn('Signing out the password check:', errorMessage(err)));
     setLoading(false);
     if (failed) {
       console.warn('Opening 👪 Grown-ups failed:', errorMessage(failed));
-      setError(plainErrorOr(failed, "We couldn't open 👪 Grown-ups just now. Please try again."));
+      const refusal = unlockRefusal(failed);
+      if (refusal?.kind === 'no_session') {
+        // This device's sign-in has ended: no password can open it again, only signing in.
+        setError(DEVICE_SIGNED_OUT_MESSAGE);
+        setSignedOut(true);
+      } else if (refusal?.kind === 'password_changed') {
+        setError(passwordWaitMessage(refusal.until, { hasParentPin }));
+      } else {
+        setError(plainErrorOr(failed, "We couldn't open 👪 Grown-ups just now. Please try again."));
+      }
       return;
     }
     opened();
@@ -97,30 +117,38 @@ export default function GrownUpsGate({
   if (hasParentPin && !usePassword) {
     return frame(
       pinResting ? 'Use your password for now.' : 'Type your grown-up PIN.',
-      <>
-        <PinPad
-          onSubmit={async (pin) => {
-            const verdict = await checkParentPin(pin);
-            if (verdict.ok) opened();
-            return verdict;
-          }}
-          lockKey={grownUpLockKey(userId)}
-          lockedText={GROWN_UP_LOCKED_TEXT}
-          who="grown-up"
-          checkLock={async () => {
-            const locks = await pinLocks();
-            return locks === null ? null : locks.grownUp;
-          }}
-          onLockedChange={setPinResting}
-        />
-        <button
-          onClick={() => setUsePassword(true)}
-          className={pinResting ? `mt-2 w-full min-h-[44px] ${gatePrimaryClass}` : `${gateLinkClass} text-gray-500`}
-        >
-          Use my password instead
-        </button>
-        {back}
-      </>,
+      <PinPad
+        onSubmit={async (pin) => {
+          const verdict = await checkParentPin(pin);
+          // Right, but this device's sign-in has ended: nothing opened. The pad
+          // says so and offers "Sign in again" (a session-gone error).
+          if (verdict.ok && verdict.signedOut) {
+            throw Object.assign(new Error("session_not_found: this device's sign-in has ended"), { code: 'session_not_found' });
+          }
+          if (verdict.ok) opened();
+          return verdict;
+        }}
+        lockKey={grownUpLockKey(userId)}
+        lockedText={GROWN_UP_LOCKED_TEXT}
+        who="grown-up"
+        checkLock={async () => {
+          const locks = await pinLocks();
+          return locks === null ? null : locks.grownUp;
+        }}
+        onLockedChange={setPinResting}
+        beside={
+          <>
+            <button
+              onClick={() => setUsePassword(true)}
+              className={pinResting ? `mt-2 w-full min-h-[44px] ${gatePrimaryClass}` : `${gateLinkClass} text-gray-500`}
+            >
+              Use my password instead
+            </button>
+            {back}
+          </>
+        }
+      />,
+      pinResting ? 'pin-resting' : 'pin',
     );
   }
 
@@ -144,6 +172,7 @@ export default function GrownUpsGate({
             {error && <p className="text-red-700">{error}</p>}
             {notice && <p className="text-green-700">{notice}</p>}
           </div>
+          {signedOut && <SignInAgainButton className="mt-0 mb-3" />}
           <button type="submit" aria-disabled={loading} className={`w-full min-h-[44px] ${gatePrimaryClass}`}>
             {loading ? 'Checking…' : 'Open'}
           </button>
@@ -166,5 +195,6 @@ export default function GrownUpsGate({
       )}
       {back}
     </>,
+    'password',
   );
 }

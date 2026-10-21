@@ -25,25 +25,30 @@
 //      auth service's sign-in limit counts that grown-up's device — a
 //      sign-in from this function would share one limit with every family
 //      (#124b review). Never a 4-digit grown-up PIN, which a kid may know.
-//      The minute after a grown-up really signs in on the family device
-//      (that session's token is fresh too) is closed by step 4 (#167).
+//      In the minute after a grown-up really signs in on the family device
+//      that sign-in's token is fresh too; step 4 turns it away.
 //   4. The family's data: `delete_family` (migrations 0023 + 0024, service
-//      role) — only while 👪 Grown-ups is open on the sign-in the app names
+//      role), told the session the token belongs to (`p_caller`) — 403
+//      `reauth_required` if it's one the family's app runs on (the app notes
+//      every sign-in it loads the family on, `note_device_session`: the
+//      device's own fresh sign-in can't close the account, #167 review round
+//      1) — and only while 👪 Grown-ups is open on the sign-in the app names
 //      (`session`): 403 `grown_ups_locked` otherwise, nothing deleted. A
-//      sign-in can't open it for itself once the family is set up, so a kid
-//      holding the device's fresh session after a real sign-in can't close
-//      the account with it (#167). Then —
+//      sign-in can't open itself once the family is set up, nor name another
+//      unless it's a password check. (An app tab from before the device was
+//      noted is the one way round this, until it reloads.) Then —
 //      kids with their saves, seen questions, reports and PINs, the grown-up
 //      PIN, consent and admin rows, all in one transaction; today's spent
 //      question budget stays without a name, so it still counts for a day
 //      (#152). 500 `data_not_deleted` if it refused (rolled back: nothing
 //      deleted); 502 `outcome_unknown` if the reply was lost (it may have
-//      run). On a project without 0023 it logs loudly and goes on: the
-//      login's delete cascades the same tables.
+//      run). On a database without 0024's `delete_family` (deployed before
+//      the migration) it refuses, 503 `database_out_of_date`, and logs
+//      loudly: going on would skip the 👪 check (#167 review round 1).
 //   5. The login: `auth.admin.deleteUser` (service role); already gone counts
-//      as done. 500 `login_not_deleted` if it refused after the family went
-//      (calling again finishes the job), `data_not_deleted` if nothing had
-//      gone yet, `outcome_unknown` if the reply was lost.
+//      as done. 500 `login_not_deleted` if it refused (the family went in
+//      step 4; calling again finishes the job), `outcome_unknown` if the
+//      reply was lost.
 //   Every answer is true whatever happened before it: "nothing deleted" only
 //   when nothing was.
 //
@@ -73,9 +78,10 @@ export const CONFIRM_WORD = 'DELETE';
  * every family at once (#124b review), and on a client that keeps nothing,
  * so that sign-in never lands on the device — and the function checks that
  * fresh sign-in on the token it's sent. It never sees the password. A minute:
- * the app asks within a second of signing in, and any other password
- * sign-in on the device (a grown-up signing in) can't close the account for
- * long (#124b review round 2, #167).
+ * the app asks within a second of signing in. A grown-up's ordinary sign-in
+ * on the family device is fresh for that minute too, but `delete_family`
+ * turns away a sign-in the family's app runs on (`callerSessionOf`, #167
+ * review round 1).
  */
 export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */
@@ -92,6 +98,7 @@ export const CLOSE_ACCOUNT_ERRORS = [
   'confirm_required',
   'reauth_required',
   'grown_ups_locked',
+  'database_out_of_date',
   'data_not_deleted',
   'login_not_deleted',
   'outcome_unknown',
@@ -117,6 +124,10 @@ const REFUSALS: Record<CloseAccountError, Omit<CloseAccountRefusal, 'error'>> = 
   grown_ups_locked: {
     status: 403,
     detail: 'Open 👪 Grown-ups again with your grown-up PIN or password, then close the account. Nothing was deleted.',
+  },
+  database_out_of_date: {
+    status: 503,
+    detail: 'The database needs updating (migrations 0023 + 0024) before an account can be closed. Nothing was deleted.',
   },
   data_not_deleted: { status: 500, detail: 'Nothing was deleted: the family data could not be removed.' },
   login_not_deleted: {
@@ -161,6 +172,34 @@ export const GROWN_UPS_LOCKED_SQLSTATE = 'HQ001';
 
 export function grownUpsLockedDb(err: { code?: string | null }): boolean {
   return err.code === GROWN_UPS_LOCKED_SQLSTATE;
+}
+
+/**
+ * The database's "that wasn't a password typed just now" (SQLSTATE HQ002,
+ * migration 0024): `delete_family` refuses a close asked with the family
+ * device's own sign-in — noted by the app as it loads the family — however
+ * fresh its token (#167 review round 1). Nothing was deleted.
+ */
+export const GROWN_UPS_REAUTH_SQLSTATE = 'HQ002';
+
+export function reauthRequiredDb(err: { code?: string | null }): boolean {
+  return err.code === GROWN_UPS_REAUTH_SQLSTATE;
+}
+
+/**
+ * The sign-in (session id) the caller's token belongs to — the password
+ * check the app made just now. `delete_family` refuses one the family's app
+ * runs on (`p_caller`), so the device's own fresh sign-in can't close the
+ * account; null when the token names none, which it refuses too.
+ */
+export function callerSessionOf(claims: Record<string, unknown> | null): string | null {
+  const s = claims?.session_id;
+  return typeof s === 'string' && UUID_RE.test(s) ? s : null;
+}
+
+/** The database is older than this function: `delete_family(p_parent, p_session, p_caller)` isn't there (PostgREST's code, or Postgres's). */
+export function functionMissingDb(err: { code?: string | null; message?: string | null }): boolean {
+  return err.code === 'PGRST202' || err.code === '42883';
 }
 
 /**
@@ -262,9 +301,6 @@ function refuse(r: CloseAccountRefusal): Response {
   return json({ error: r.error, detail: r.detail }, r.status);
 }
 
-/** A missing function: the migration isn't applied (PostgREST's code, or Postgres's). */
-const FUNCTION_MISSING = ['PGRST202', '42883'];
-
 /** A server-side client: no session kept, nothing refreshed, nothing read from a URL. */
 function serverClient(url: string, key: string) {
   return createClient(url, key, {
@@ -323,30 +359,34 @@ Deno.serve(async (req) => {
 
     // 4) The family's data, in one transaction.
     const admin = serverClient(url, serviceKey);
-    let kids = 0;
-    let familyGone = false;
     deleting = true;
-    const { data: gone, error: famErr } = await admin.rpc('delete_family', { p_parent: user.id, p_session: closeSessionOf(body) });
+    const { data: gone, error: famErr } = await admin.rpc('delete_family', {
+      p_parent: user.id,
+      p_session: closeSessionOf(body),
+      p_caller: callerSessionOf(claims),
+    });
     if (famErr) {
-      // 👪 Grown-ups is shut on that sign-in (0024): it raised before deleting anything.
+      // 👪 Grown-ups is shut on that sign-in, or the token is the device's
+      // own (0024): it raised before deleting anything.
       if (grownUpsLockedDb(famErr)) return refuse(refusal('grown_ups_locked'));
-      if (!FUNCTION_MISSING.includes(famErr.code ?? '')) {
-        console.error('delete-account: delete_family failed:', famErr.code ?? '', famErr.message);
-        return refuse(refusal(dbCallRefused(famErr) ? 'data_not_deleted' : 'outcome_unknown'));
+      if (reauthRequiredDb(famErr)) return refuse(refusal('reauth_required'));
+      if (functionMissingDb(famErr)) {
+        console.error('DELETE_FAMILY(p_parent, p_session, p_caller) MISSING — apply migrations 0023 + 0024 before this function; nothing deleted:', famErr.message);
+        return refuse(refusal('database_out_of_date'));
       }
-      console.error('DELETE_FAMILY MISSING (are migrations 0023 + 0024 applied?) — deleting the login alone; its cascades remove the family:', famErr.message);
-    } else {
-      familyGone = true;
-      const n = Number((gone as { kids?: unknown } | null)?.kids);
-      kids = Number.isFinite(n) ? n : 0;
+      console.error('delete-account: delete_family failed:', famErr.code ?? '', famErr.message);
+      return refuse(refusal(dbCallRefused(famErr) ? 'data_not_deleted' : 'outcome_unknown'));
     }
+    const n = Number((gone as { kids?: unknown } | null)?.kids);
+    const kids = Number.isFinite(n) ? n : 0;
 
     // 5) The login (already gone — a second tab got there first — is done too).
     const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
     if (delErr && !loginGone(delErr)) {
       console.error('delete-account: deleting the login failed:', delErr.status ?? '', delErr.message);
       if (!authCallRefused(delErr)) return refuse(refusal('outcome_unknown'));
-      return refuse(refusal(familyGone ? 'login_not_deleted' : 'data_not_deleted'));
+      // The family's data went in step 4; only the login is left.
+      return refuse(refusal('login_not_deleted'));
     }
 
     // No email or id in the log: just that it happened.

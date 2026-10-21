@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import type { Kid } from '../../types';
 
 // The Supabase client, mocked: a query builder whose answers the test picks,
@@ -42,7 +42,8 @@ const { default: RelockDialog } = await import('./RelockDialog');
 const { useFamilyStore } = await import('../../store/familyStore');
 const { useAuthStore } = await import('../../store/authStore');
 const { resetGrownUps, useGrownUpsStore, asGrownUp } = await import('../../store/grownUpsStore');
-const { GROWN_UPS_LOCKED_MESSAGE } = await import('../../lib/grownUpsGate');
+const { DEVICE_SIGNED_OUT_MESSAGE, grownUpsLockedMessage } = await import('../../lib/grownUpsGate');
+const { plainErrorOr } = await import('../../lib/familyErrors');
 const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
@@ -64,6 +65,7 @@ beforeEach(() => {
   useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
   useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [sam], consentAt: '2026-10-10T10:00:00Z', hasParentPin: false, reviewRequested: false });
 });
+const IN_AREA_LOCKED = () => grownUpsLockedMessage({ inArea: true, hasParentPin: false });
 afterEach(() => warn.mockRestore());
 
 /** 👪 Grown-ups open (by password), with the dialog beside it as App renders it, then "＋ Add a player" filled in. */
@@ -71,7 +73,7 @@ async function addKitWhileLocked() {
   render(
     <>
       <GrownUpsArea />
-      <RelockDialog />
+      <RelockDialog inArea />
     </>,
   );
   fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
@@ -102,7 +104,9 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
   it('asks over the page — the form and what was typed stay — and the save carries on once it opens', async () => {
     const run = await addKitWhileLocked();
     const dialog = await screen.findByRole('dialog', { name: '👪 Grown-ups locked again' });
-    expect(dialog).toHaveAccessibleDescription('Enter your password to carry on. Everything on this page stays as it was.');
+    // One line says what to do (with the email), not two "Enter…"s (#167 review round 1).
+    expect(dialog).toHaveAccessibleDescription('Enter the password for mum@example.com to carry on. Everything on this page stays as it was.');
+    expect(screen.queryByText('Enter the password for mum@example.com.')).toBeNull();
     // The form is still there behind it, as it was typed, still saving.
     expect(screen.getByRole('textbox', { name: 'Nickname', hidden: true })).toHaveValue('Kit');
     expect(screen.getByLabelText('PIN', { selector: 'input' })).toHaveValue('2468');
@@ -125,17 +129,74 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(await screen.findByText(GROWN_UPS_LOCKED_MESSAGE)).toBeInTheDocument();
+    expect(await screen.findByText(IN_AREA_LOCKED())).toBeInTheDocument();
+    expect(IN_AREA_LOCKED()).toMatch(/^👪 Grown-ups locked again, so nothing changed\./);
     expect(screen.getByRole('textbox', { name: 'Nickname' })).toHaveValue('Kit');
     expect(run.inserts()).toBe(1);
     expect(useGrownUpsStore.getState().asked).toBe(false);
   });
 
-  it('Escape is "Not now"', async () => {
-    await addKitWhileLocked();
+  it('Escape is "Not now" — and puts focus back on the button that was pressed, not the page (#167 review round 1)', async () => {
+    const button = () => screen.getByRole('button', { name: /^(Add player|Saving…)$/, hidden: true });
+    render(
+      <>
+        <GrownUpsArea />
+        <RelockDialog inArea />
+      </>,
+    );
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    await screen.findByText('Sam');
+    fireEvent.click(screen.getByRole('button', { name: /Add a player/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nickname' }), { target: { value: 'Kit' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Birth month' }), { target: { value: '8' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Birth year' }), { target: { value: String(new Date().getFullYear() - 7) } });
+    fireEvent.click(screen.getByRole('button', { name: /Panda/ }));
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '2468' } });
+    db.answer.mockImplementation(() => ({ data: null, error: LOCKED }));
+    // A keyboard user presses Add player: it has the focus as the dialog opens.
+    button().focus();
+    fireEvent.click(button());
     const dialog = await screen.findByRole('dialog');
     fireEvent.keyDown(dialog, { key: 'Escape' });
-    expect(await screen.findByText(GROWN_UPS_LOCKED_MESSAGE)).toBeInTheDocument();
+    expect(await screen.findByText(IN_AREA_LOCKED())).toBeInTheDocument();
+    await waitFor(() => expect(button()).toHaveFocus());
+    expect(document.activeElement).not.toBe(document.body);
+  });
+
+  it('on a setup screen (never open) a kid is asked to fetch a grown-up — never "again" (#167 review round 1)', async () => {
+    render(<RelockDialog />);
+    const done = asGrownUp(vi.fn().mockRejectedValue(LOCKED));
+    expect(await screen.findByRole('dialog', { name: "👪 Just checking it's a grown-up" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    const err = await done.catch((e: unknown) => e);
+    const words = plainErrorOr(err, 'fallback');
+    expect(words).toBe('Nothing changed — a grown-up needs to unlock this. Ask a grown-up to try again and enter their password.');
+    expect(words).not.toMatch(/again,|your PIN/);
+  });
+
+  it("this device's sign-in has ended (a password change elsewhere): the password path says so, with \"Sign in again\" — no loop of \"try again\" (#167 review round 1)", async () => {
+    render(<RelockDialog />);
+    void asGrownUp(vi.fn().mockRejectedValue(LOCKED)).catch(() => {});
+    await screen.findByRole('dialog');
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    fireEvent.change(screen.getByRole('dialog').querySelector('input')!, { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText(DEVICE_SIGNED_OUT_MESSAGE)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(screen.queryByText(/couldn't open 👪 Grown-ups just now/)).toBeNull();
+  });
+
+  it('a password changed without the old one says when it can open 👪 again, and that the PIN can now (#167 review round 1)', async () => {
+    useFamilyStore.setState({ hasParentPin: true });
+    render(<RelockDialog />);
+    void asGrownUp(vi.fn().mockRejectedValue(LOCKED)).catch(() => {});
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Use my password instead' }));
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    fireEvent.change(screen.getByRole('dialog').querySelector('input')!, { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(await screen.findByText(/can't open 👪 Grown-ups until \w+ at .* Use your grown-up PIN, or tap "Forgot it\?"/)).toBeInTheDocument();
   });
 
   it('with a grown-up PIN, the PIN opens it again (on this sign-in, by the database)', async () => {
@@ -145,13 +206,33 @@ describe('👪 Grown-ups locked again mid-action (#167)', () => {
     render(<RelockDialog />);
     const done = asGrownUp(vi.fn().mockRejectedValueOnce(LOCKED).mockResolvedValueOnce('done'));
     const dialog = await screen.findByRole('dialog', { name: "👪 Just checking it's a grown-up" });
-    expect(dialog).toHaveAccessibleDescription('Enter your grown-up PIN or password to carry on. Everything on this page stays as it was.');
-    expect(screen.getByText('Type your grown-up PIN.')).toBeInTheDocument();
+    expect(dialog).toHaveAccessibleDescription('Type your grown-up PIN to carry on. Everything on this page stays as it was.');
+    // Said once: the gate's own subtitle isn't shown in the dialog (#167 review round 1).
+    expect(screen.queryByText('Type your grown-up PIN.')).toBeNull();
+    // The ways out sit in the pad's own column (beside it on a sideways phone, under it otherwise).
+    const padColumn = within(dialog).getAllByRole('status').find((el) => el.closest('[class*="flex-1"]'))!.parentElement!;
+    expect(within(padColumn).getByRole('button', { name: 'Use my password instead' })).toBeInTheDocument();
+    expect(within(padColumn).getByRole('button', { name: 'Not now' })).toBeInTheDocument();
     for (const d of '9090') await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
     await expect(done).resolves.toBe('done');
     expect(checkParentPin).toHaveBeenCalledWith('9090');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(useGrownUpsStore.getState().wasOpen).toBe(true);
+    expect(useGrownUpsStore.getState().openedAt).toBeGreaterThan(0);
+  });
+
+  it("the right grown-up PIN on a sign-in that has ended opens nothing, and offers \"Sign in again\" (#167 review round 1)", async () => {
+    useFamilyStore.setState({ hasParentPin: true });
+    const checkParentPin = vi.fn(async () => ({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true, signedOut: true as const }));
+    useFamilyStore.setState({ checkParentPin });
+    render(<RelockDialog />);
+    const step = vi.fn().mockRejectedValue(LOCKED);
+    void asGrownUp(step).catch(() => {});
+    await screen.findByRole('dialog');
+    for (const d of '9090') await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
+    expect(await screen.findByText('Your sign-in ran out — please sign in again.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(step).toHaveBeenCalledTimes(1);
   });
 
   it('a wrong password keeps it shut and says so; the action keeps waiting', async () => {

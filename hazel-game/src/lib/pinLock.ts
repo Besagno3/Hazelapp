@@ -19,6 +19,8 @@ export interface PinVerdict {
   waitSeconds: number;
   /** The database counted this try (0022 is applied); false for a bare true / false. */
   limited: boolean;
+  /** The grown-up PIN was right, but this device's sign-in has ended, so nothing opened (`try_parent_pin`, #167 review round 1). */
+  signedOut?: true;
 }
 
 /** What `try_kid_pin` / `try_parent_pin` (or the old boolean checks) returned, read safely. */
@@ -33,6 +35,7 @@ export function pinVerdict(data: unknown): PinVerdict {
       triesLeft: typeof tries === 'number' && Number.isFinite(tries) ? Math.max(0, Math.floor(tries)) : null,
       waitSeconds: Number.isFinite(wait) && wait > 0 ? Math.ceil(wait) : 0,
       limited: true,
+      ...(o.signed_out === true ? { signedOut: true as const } : {}),
     };
   }
   return { ok: false, triesLeft: null, waitSeconds: 0, limited: false };

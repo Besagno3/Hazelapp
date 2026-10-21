@@ -45,7 +45,46 @@ export async function openGrownUpsWith(client: SupabaseClient, known?: string | 
   const { error } = await client.rpc('unlock_grown_ups', { p_session: session });
   if (!error) return 'open';
   if (functionMissing(error)) return 'no-gate';
-  throw Object.assign(new Error(typeof error.message === 'string' ? error.message : 'unlock refused'), { code: error.code });
+  throw refusalError(error, 'unlock refused');
+}
+
+/** A database refusal as a thrown `Error` that keeps its `code` and `details` (HQ002's DETAIL says when a wait ends). */
+function refusalError(error: { message?: unknown; code?: unknown; details?: unknown }, fallback: string): Error {
+  return Object.assign(new Error(typeof error.message === 'string' ? error.message : fallback), { code: error.code, details: error.details });
+}
+
+/**
+ * Tell the database this device's sign-in is one the family's app runs on
+ * (as the family loads, #167 review round 1): such a sign-in — however
+ * fresh, as in the minute after a grown-up signs in — never names another
+ * to open, nor closes the account; only a password check does. Never throws;
+ * a database from before this has nothing to note.
+ */
+export async function noteDeviceSession(): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('note_device_session');
+    if (error && !functionMissing(error)) console.warn('Noting this device\'s sign-in failed:', errorMessage(error));
+  } catch (err) {
+    console.warn('Noting this device\'s sign-in failed:', errorMessage(err));
+  }
+}
+
+/**
+ * Tell the database a password change is coming, from `client`'s sign-in —
+ * the password check made just now (the change-password page), or a reset
+ * link's sign-in (the reset page). A change it hasn't been told about makes
+ * the password unable to open 👪 Grown-ups for a day (#167 review round 1).
+ * Resolves with the refusal (`unlockRefusal` reads it), or null — also on a
+ * database from before this.
+ */
+export async function allowPasswordChange(client: SupabaseClient): Promise<unknown> {
+  try {
+    const { error } = await client.rpc('allow_password_change');
+    if (!error || functionMissing(error)) return null;
+    return refusalError(error, 'password change refused');
+  } catch (err) {
+    return err ?? new Error('password change refused');
+  }
 }
 
 /**

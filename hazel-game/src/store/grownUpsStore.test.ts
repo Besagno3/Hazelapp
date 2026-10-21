@@ -24,7 +24,8 @@ describe('asking for 👪 Grown-ups again mid-action (#167)', () => {
     unlockedAgain();
     await expect(done).resolves.toBe('saved');
     expect(step).toHaveBeenCalledTimes(2);
-    expect(useGrownUpsStore.getState()).toMatchObject({ asked: false, wasOpen: true });
+    expect(useGrownUpsStore.getState().asked).toBe(false);
+    expect(useGrownUpsStore.getState().openedAt).toBeGreaterThan(0);
   });
 
   it('"Not now" ends it locked, and the step is never run again', async () => {
@@ -35,6 +36,13 @@ describe('asking for 👪 Grown-ups again mid-action (#167)', () => {
     await expect(done).rejects.toBeInstanceOf(GrownUpsLockedError);
     expect(step).toHaveBeenCalledTimes(1);
     expect(useGrownUpsStore.getState().asked).toBe(false);
+  });
+
+  it('"Not now" carries the words the dialog chose for its page (#167 review round 1)', async () => {
+    const done = asGrownUp(vi.fn().mockRejectedValue(locked()));
+    await tick();
+    unlockCancelled('Nothing changed — a grown-up needs to unlock this.');
+    await expect(done).rejects.toMatchObject({ words: 'Nothing changed — a grown-up needs to unlock this.' });
   });
 
   it('asks twice at most: a third refusal is passed on', async () => {
@@ -63,6 +71,6 @@ describe('asking for 👪 Grown-ups again mid-action (#167)', () => {
     const waiting = askToUnlock();
     resetGrownUps();
     await expect(waiting).rejects.toBeInstanceOf(GrownUpsLockedError);
-    expect(useGrownUpsStore.getState()).toEqual({ asked: false, wasOpen: false });
+    expect(useGrownUpsStore.getState()).toEqual({ asked: false, openedAt: null });
   });
 });

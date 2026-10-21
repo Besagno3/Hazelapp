@@ -181,7 +181,7 @@ const NOT_DONE: Record<AuthWhere, string> = {
   reset: "We couldn't save your new password just now. Please try again in a few minutes.",
   forgot: "We couldn't send a reset link just now. Please try again in a few minutes.",
   resend: "We couldn't send the link again just now. Please try again in a few minutes.",
-  link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?".',
+  link: 'That email link didn\'t work. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.',
   'change-email': "We couldn't change your email just now. Please try again in a few minutes.",
   'change-password': "We couldn't change your password just now. Please try again in a few minutes.",
 };
@@ -315,10 +315,20 @@ export function authErrorMessage(err: unknown, { where = 'sign-in', password }: 
   const words = ownWords(err);
   const is = (codes: string[], pattern: RegExp) => codes.includes(code) || pattern.test(words);
 
+  // The change forms' "Forgot it?" is under the password box, above the
+  // message (on Change password, three boxes up); the gate's is below it.
+  const wrongPassword = (): string =>
+    where === 'gate'
+      ? 'That password isn\'t right. Try again, or tap "Forgot it?" below.'
+      : 'That password isn\'t right. Try again, or tap "Forgot it?" under the password box.';
   if (is(['invalid_credentials'], /invalid login credentials/i)) {
     return where === 'gate' || where === 'change-email' || where === 'change-password'
-      ? 'That password isn\'t right. Try again, or tap "Forgot it?" below.'
+      ? wrongPassword()
       : "That email and password don't match. Check them and try again, or tap \"Forgot password?\".";
+  }
+  // "Require the current password" on (#167 review round 1): it didn't match, or none came.
+  if (where === 'change-password' && is(['current_password_mismatch', 'current_password_required'], /current password required/i)) {
+    return wrongPassword();
   }
   if (is(['email_not_confirmed'], /email not confirmed/i)) {
     return 'Please confirm your email first: tap the link we sent you. Can\'t find it? Look in your spam or junk folder.';
@@ -356,7 +366,7 @@ export function authErrorMessage(err: unknown, { where = 'sign-in', password }: 
   if (isExpiredLink(err, { where })) {
     return where === 'reset'
       ? 'That link has run out. Tap "Back to sign in", then "Forgot password?" for a new one.'
-      : 'That email link has run out. Sign in to get a new one, or tap "Forgot password?".';
+      : 'That email link has run out. Sign in to get a new one, or tap "Forgot password?" — or, for a new sign-in email, ask again in 👪 Grown-ups.';
   }
   if (sessionRanOut(err)) return SIGNED_OUT_MESSAGE;
   if (is(['signup_disabled'], /signups not allowed/i)) {

@@ -5,9 +5,21 @@ const auth = vi.hoisted(() => ({ getSession: vi.fn(), getUser: vi.fn() }));
 const rpc = vi.hoisted(() => vi.fn());
 vi.mock('./supabase', () => ({ supabase: { auth, rpc } }));
 
-const { deviceSessionId, lockGrownUps, openForFirstRun, openGrownUpsWith, signInEmail } = await import('./grownUps');
-const { GROWN_UP_UNLOCK_MINUTES, GROWN_UPS_LOCKED_MESSAGE, GrownUpsLockedError, grownUpsLocked, relockLead, relockTitle, sessionIdOf } =
-  await import('./grownUpsGate');
+const { allowPasswordChange, deviceSessionId, lockGrownUps, noteDeviceSession, openForFirstRun, openGrownUpsWith, signInEmail } =
+  await import('./grownUps');
+const {
+  DEVICE_SIGNED_OUT_MESSAGE,
+  GROWN_UP_UNLOCK_MINUTES,
+  GROWN_UPS_LOCKED_MESSAGE,
+  GrownUpsLockedError,
+  grownUpsLocked,
+  grownUpsLockedMessage,
+  passwordWaitMessage,
+  relockLead,
+  relockTitle,
+  sessionIdOf,
+  unlockRefusal,
+} = await import('./grownUpsGate');
 const { plainErrorOr } = await import('./familyErrors');
 const { DEVICE_SESSION, deviceSession, tokenWith } = await import('../test/grownUps');
 
@@ -42,18 +54,64 @@ describe('👪 Grown-ups locked (#167): telling the refusal', () => {
     }
   });
 
-  it('family screens say it plainly — and true whichever button it was', () => {
+  it('family screens say it plainly — in the words chosen for where it happened (#167 review round 1)', () => {
+    // No situation known (the database's own refusal): plain, with no "again".
     expect(plainErrorOr({ code: 'HQ001', message: 'grown_ups_locked: x' }, 'fallback')).toBe(GROWN_UPS_LOCKED_MESSAGE);
     expect(plainErrorOr(new GrownUpsLockedError(), 'fallback')).toBe(GROWN_UPS_LOCKED_MESSAGE);
-    expect(GROWN_UPS_LOCKED_MESSAGE).toBe('Grown-ups locked again, so nothing changed. Try again and enter your PIN or password when asked.');
+    expect(GROWN_UPS_LOCKED_MESSAGE).not.toMatch(/again,/);
+    // The store's error carries the dialog's words for its page.
+    expect(plainErrorOr(new GrownUpsLockedError('words for here'), 'fallback')).toBe('words for here');
   });
 
-  it("the dialog's words: \"again\" only once it's been open; the PIN only when there is one", () => {
+  it('"locked again" only in 👪 Grown-ups; a setup screen asks for a grown-up; the PIN only when there is one', () => {
+    expect(grownUpsLockedMessage({ inArea: true, hasParentPin: true })).toBe(
+      '👪 Grown-ups locked again, so nothing changed. Try again and enter your grown-up PIN or password when asked.',
+    );
+    expect(grownUpsLockedMessage({ inArea: true, hasParentPin: false })).toBe(
+      '👪 Grown-ups locked again, so nothing changed. Try again and enter your password when asked.',
+    );
+    expect(grownUpsLockedMessage({ inArea: false, hasParentPin: false })).toBe(
+      'Nothing changed — a grown-up needs to unlock this. Ask a grown-up to try again and enter their password.',
+    );
+    expect(grownUpsLockedMessage({ inArea: false, hasParentPin: true })).not.toMatch(/again,|your PIN/);
+  });
+
+  it("the dialog's words: \"again\" only in 👪 Grown-ups; one line saying what to do for the way in shown", () => {
     expect(relockTitle(true)).toBe('👪 Grown-ups locked again');
     expect(relockTitle(false)).toBe("👪 Just checking it's a grown-up");
-    expect(relockLead(true)).toBe('Enter your grown-up PIN or password to carry on. Everything on this page stays as it was.');
-    expect(relockLead(false)).toBe('Enter your password to carry on. Everything on this page stays as it was.');
+    expect(relockLead('pin', 'mum@example.com')).toBe('Type your grown-up PIN to carry on. Everything on this page stays as it was.');
+    expect(relockLead('pin-resting', 'mum@example.com')).toBe('Use your password for now. Everything on this page stays as it was.');
+    expect(relockLead('password', 'mum@example.com')).toBe(
+      'Enter the password for mum@example.com to carry on. Everything on this page stays as it was.',
+    );
+    expect(relockLead('password', '')).toBe('Enter your password to carry on. Everything on this page stays as it was.');
+    // One "Enter…", never two.
+    for (const way of ['pin', 'pin-resting', 'password'] as const) expect(relockLead(way, 'mum@example.com').match(/Enter/g)?.length ?? 0).toBeLessThan(2);
     expect(GROWN_UP_UNLOCK_MINUTES).toBe(15);
+  });
+
+  it("reads the unlock's refusals: a sign-in that ended, a password changed without the old one (and when the wait ends), not fresh", () => {
+    expect(unlockRefusal({ code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" })).toEqual({ kind: 'no_session', until: null });
+    expect(unlockRefusal(new Error("no_session: this device's sign-in couldn't be read"))).toEqual({ kind: 'no_session', until: null });
+    const wait = unlockRefusal({ code: 'HQ002', message: 'password_changed: …', details: '2026-10-22T15:40:00Z' });
+    expect(wait?.kind).toBe('password_changed');
+    expect(wait?.until?.toISOString()).toBe('2026-10-22T15:40:00.000Z');
+    expect(unlockRefusal({ code: 'HQ002', message: 'password_changed: …', details: 'junk' })).toEqual({ kind: 'password_changed', until: null });
+    expect(unlockRefusal({ code: 'HQ002', message: 'reauth_required: x' })?.kind).toBe('reauth_required');
+    for (const other of [{ code: 'HQ001', message: 'grown_ups_locked: x' }, new Error('Failed to fetch'), null, 'no_session']) {
+      expect(unlockRefusal(other), JSON.stringify(other)).toBeNull();
+    }
+  });
+
+  it('the wait says when it ends and the ways that work now; a signed-out device says so', () => {
+    const until = new Date('2026-10-22T15:40:00Z');
+    const withPin = passwordWaitMessage(until, { hasParentPin: true });
+    expect(withPin).toMatch(/^Your password was changed recently without the old one being typed, so for safety it can't open 👪 Grown-ups until \w+ at /);
+    expect(withPin).toMatch(/Use your grown-up PIN, or tap "Forgot it\?"/);
+    expect(passwordWaitMessage(until, { hasParentPin: false })).not.toMatch(/PIN/);
+    expect(passwordWaitMessage(null, { hasParentPin: false })).toMatch(/until tomorrow\./);
+    expect(passwordWaitMessage(until, { hasParentPin: true, changing: true })).toMatch(/can't be changed here until .* Tap "Forgot it\?" to set a new one from your email instead\.$/);
+    expect(DEVICE_SIGNED_OUT_MESSAGE).toMatch(/Sign in again/);
   });
 });
 
@@ -119,6 +177,29 @@ describe('opening and shutting it on the server', () => {
     expect(warn).toHaveBeenCalledWith('Opening 👪 Grown-ups for the first run failed:', 'boom [XX000]');
     rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'));
     await expect(openForFirstRun()).resolves.toBe(false);
+  });
+
+  it("notes this device's sign-in (never throws; silent on a database from before it)", async () => {
+    await noteDeviceSession();
+    expect(rpc).toHaveBeenCalledWith('note_device_session');
+    rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'missing' } });
+    await noteDeviceSession();
+    expect(warn).not.toHaveBeenCalled();
+    rpc.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    await expect(noteDeviceSession()).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('says a password change is coming from the given sign-in; the refusal comes back with its details', async () => {
+    const ok = vi.fn(async () => ({ data: { allowed: true }, error: null }));
+    await expect(allowPasswordChange({ rpc: ok } as never)).resolves.toBeNull();
+    expect(ok).toHaveBeenCalledWith('allow_password_change');
+    const missing = vi.fn(async () => ({ data: null, error: { code: 'PGRST202', message: 'missing' } }));
+    await expect(allowPasswordChange({ rpc: missing } as never)).resolves.toBeNull();
+    const waiting = vi.fn(async () => ({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } }));
+    await expect(allowPasswordChange({ rpc: waiting } as never)).resolves.toMatchObject({ code: 'HQ002', details: '2026-10-22T15:40:00Z' });
+    const offline = vi.fn(async () => Promise.reject(new TypeError('Failed to fetch')));
+    await expect(allowPasswordChange({ rpc: offline } as never)).resolves.toBeInstanceOf(TypeError);
   });
 
   it('locking never throws, and a database from before 0024 is silent', async () => {

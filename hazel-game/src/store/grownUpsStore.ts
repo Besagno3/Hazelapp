@@ -7,17 +7,21 @@ import { GrownUpsLockedError, grownUpsLocked } from '../lib/grownUpsGate';
  * sign-in), the action waits — `asGrownUp` asks for the gate (`asked`), the
  * screen shows `RelockDialog` over the page (so nothing typed is lost), and
  * once the grown-up's PIN or password opens it again the same step runs
- * again. "Not now" ends it with `GrownUpsLockedError`, which the page words
- * plainly (`GROWN_UPS_LOCKED_MESSAGE`).
+ * again. "Not now" ends it with `GrownUpsLockedError`, carrying the words
+ * the dialog chose for that screen (`grownUpsLockedMessage`).
  */
 interface GrownUpsStore {
   /** A refused grown-up action is waiting for the gate. */
   asked: boolean;
-  /** 👪 Grown-ups was open in this tab before (the dialog then says "locked again"). */
-  wasOpen: boolean;
+  /**
+   * When 👪 Grown-ups was last opened in this tab (the gate, the dialog, a
+   * password typed again), so its home can go back to the gate once the
+   * window has run out (`GROWN_UP_UNLOCK_MINUTES`); null when it hasn't been.
+   */
+  openedAt: number | null;
 }
 
-export const useGrownUpsStore = create<GrownUpsStore>(() => ({ asked: false, wasOpen: false }));
+export const useGrownUpsStore = create<GrownUpsStore>(() => ({ asked: false, openedAt: null }));
 
 let pending: { promise: Promise<void>; resolve: () => void; reject: (err: Error) => void } | null = null;
 
@@ -36,9 +40,9 @@ export function askToUnlock(): Promise<void> {
   return pending.promise;
 }
 
-/** 👪 Grown-ups was opened (the area's gate, the dialog, the first run). */
+/** 👪 Grown-ups was opened just now (the area's gate, the dialog, a password typed again). */
 export function noteGrownUpsOpen(): void {
-  useGrownUpsStore.setState({ wasOpen: true });
+  useGrownUpsStore.setState({ openedAt: Date.now() });
 }
 
 /** The dialog opened it again: the waiting action runs again. */
@@ -50,18 +54,18 @@ export function unlockedAgain(): void {
   p?.resolve();
 }
 
-/** "Not now" (or the dialog went away): the waiting action ends, locked. */
-export function unlockCancelled(): void {
+/** "Not now" (or the dialog went away): the waiting action ends, locked, with `words` for its page. */
+export function unlockCancelled(words?: string): void {
   const p = pending;
   pending = null;
   useGrownUpsStore.setState({ asked: false });
-  p?.reject(new GrownUpsLockedError());
+  p?.reject(new GrownUpsLockedError(words));
 }
 
 /** Signed out: nothing waits, and the next login starts fresh. */
 export function resetGrownUps(): void {
   unlockCancelled();
-  useGrownUpsStore.setState({ asked: false, wasOpen: false });
+  useGrownUpsStore.setState({ asked: false, openedAt: null });
 }
 
 /**

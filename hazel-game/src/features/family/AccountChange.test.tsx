@@ -68,14 +68,26 @@ const type = (label: string | RegExp, value: string) => fireEvent.change(screen.
 
 describe('Your sign-in in 👪 Grown-ups (#124d)', () => {
   it('shows the email it signs in with, a change waiting for its link, and both ways to change it', async () => {
-    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com', new_email: 'mum@new.example' } as never });
+    useAuthStore.setState({
+      user: { id: 'grown-up-1', email: 'mum@example.com', new_email: 'mum@new.example', email_change_sent_at: new Date().toISOString() } as never,
+    });
     render(<GrownUpsArea />);
     fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
     fireEvent.click(screen.getByRole('button', { name: 'Open' }));
     const section = (await screen.findByRole('heading', { name: 'Your sign-in' })).closest('section')!;
     expect(section).toHaveTextContent('mum@example.com');
-    expect(section).toHaveTextContent('Waiting for you to tap the link we emailed to change it to mum@new.example.');
+    // "the link in each email": with "Secure email change" there are two (#167 review round 1).
+    expect(section).toHaveTextContent('Waiting for you to tap the link in each email we sent, to change it to mum@new.example.');
     for (const name of ['Change email…', 'Change password…']) expect(screen.getByRole('button', { name })).toHaveClass('min-h-11');
+  });
+
+  it("links that can't work any more (a day old, or cancelled by a password change) are said so, not waited for (#167 review round 1)", async () => {
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com', new_email: 'mum@new.example', email_change_sent_at: null } as never });
+    render(<GrownUpsArea />);
+    fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'right' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    const section = (await screen.findByRole('heading', { name: 'Your sign-in' })).closest('section')!;
+    expect(section).toHaveTextContent('The links to change it to mum@new.example don\'t work any more. Tap "Change email…" to send new ones.');
   });
 });
 
@@ -84,6 +96,8 @@ describe('Change email (#124d)', () => {
     await open('Change email…');
     expect(screen.getByRole('heading', { name: 'Change your sign-in email' })).toHaveFocus();
     expect(screen.getByText(/You sign in with/)).toHaveTextContent('You sign in with mum@example.com.');
+    // Why the password is asked for, in one line (#167 review round 1).
+    expect(screen.getByText(/You sign in with/)).toHaveTextContent("Type your password too, so we know it's you.");
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByRole('button', { name: 'Change email…' })).toHaveFocus();
   });
@@ -112,7 +126,7 @@ describe('Change email (#124d)', () => {
     type('New email', 'new@example.com');
     type(/Your password now/, 'nope');
     fireEvent.click(screen.getByRole('button', { name: 'Change email' }));
-    await waitFor(() => expect(pageStatus()).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" below.'));
+    await waitFor(() => expect(pageStatus()).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" under the password box.'));
     expect(screen.getByLabelText(/Your password now/)).toHaveFocus();
     expect(auth.updateUser).not.toHaveBeenCalled();
     expect(screen.queryByText(/Invalid login credentials/)).toBeNull();
@@ -179,6 +193,8 @@ describe('Change password (#124d)', () => {
   it('holds to the sign-up rules before asking anyone', async () => {
     await open('Change password…');
     expect(screen.getByRole('heading', { name: 'Change your password' })).toHaveFocus();
+    // Why the password is asked for, in one line (#167 review round 1).
+    expect(screen.getByText(/so we know it's you/)).toHaveTextContent("For mum@example.com. Type the password you have now, so we know it's you.");
     const submit = screen.getByRole('button', { name: 'Change password' });
     fireEvent.click(submit);
     expect(pageStatus()).toHaveTextContent('Enter the password you have now.');
@@ -211,7 +227,11 @@ describe('Change password (#124d)', () => {
     await fillAndSave();
     expect(await screen.findByRole('heading', { name: '🔑 Password changed' })).toHaveFocus();
     expect(checkAuth.signInWithPassword).toHaveBeenCalledWith({ email: 'mum@example.com', password: 'old-secret' });
-    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'n3w-secret!' });
+    // The current password goes with the change (so "require the current password" can be on), and the
+    // check told the database the change was coming first (#167 review round 1).
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: 'n3w-secret!', current_password: 'old-secret' });
+    expect(checkRpc).toHaveBeenCalledWith('allow_password_change');
+    expect(checkRpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
     expect(checkAuth.signOut.mock.invocationCallOrder[0]).toBeLessThan(auth.updateUser.mock.invocationCallOrder[0]);
     const page = screen.getByRole('heading', { name: '🔑 Password changed' }).parentElement!;
     expect(page).toHaveTextContent('Use your new password from now on.');
@@ -222,7 +242,7 @@ describe('Change password (#124d)', () => {
     await open('Change password…');
     checkAuth.signInWithPassword.mockResolvedValue(wrongPassword);
     await fillAndSave('nope');
-    await waitFor(() => expect(pageStatus()).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" below.'));
+    await waitFor(() => expect(pageStatus()).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" under the password box.'));
     expect(screen.getByLabelText(/Your password now/)).toHaveAttribute('aria-invalid', 'true');
     expect(auth.updateUser).not.toHaveBeenCalled();
   });
@@ -253,11 +273,47 @@ describe('Change password (#124d)', () => {
     expect(screen.getByLabelText('Code from the email')).toHaveValue('111111');
     fireEvent.click(save);
     await waitFor(() => expect(pageStatus()).toHaveTextContent('That code isn\'t right, or it has run out. Check the newest email, or tap "Send a new code".'));
-    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', nonce: '111111' });
+    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', current_password: 'old-secret', nonce: '111111' });
     type('Code from the email', '123456');
+    checkRpc.mockClear();
     fireEvent.click(save);
     expect(await screen.findByRole('heading', { name: '🔑 Password changed' })).toBeInTheDocument();
-    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', nonce: '123456' });
+    expect(auth.updateUser).toHaveBeenLastCalledWith({ password: 'n3w-secret!', current_password: 'old-secret', nonce: '123456' });
+    // The emailed code can take a while: the check runs again, so the change is announced just before it's made.
+    expect(checkRpc).toHaveBeenCalledWith('allow_password_change');
+  });
+
+  it("a password changed without the old one can't be changed here for a day — said with when, and the way that works (#167 review round 1)", async () => {
+    await open('Change password…');
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: 'password_changed: x', details: '2026-10-22T15:40:00Z' } });
+    await fillAndSave();
+    await waitFor(() => expect(pageStatus()).toHaveTextContent(/can't be changed here until \w+ at .* Tap "Forgot it\?" to set a new one from your email instead\./));
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("this device's sign-in has ended: said, with \"Sign in again\", and nothing changed (#167 review round 1)", async () => {
+    await open('Change password…');
+    checkRpc.mockResolvedValue({ data: null, error: { code: 'HQ002', message: "no_session: that sign-in isn't a live one of yours" } });
+    await fillAndSave();
+    await waitFor(() => expect(pageStatus()).toHaveTextContent(/sign-in has ended/));
+    expect(screen.getByRole('button', { name: 'Sign in again' })).toBeInTheDocument();
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('"require the current password" refusing marks the current box', async () => {
+    auth.updateUser.mockResolvedValue({ data: { user: null }, error: { code: 'current_password_mismatch', status: 400, message: 'Current password required when setting new password.' } });
+    await open('Change password…');
+    await fillAndSave();
+    await waitFor(() => expect(pageStatus()).toHaveTextContent('That password isn\'t right. Try again, or tap "Forgot it?" under the password box.'));
+    expect(screen.getByLabelText(/Your password now/)).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it('a waiting email change is cancelled by a new password: the done page says so (#167 review round 1)', async () => {
+    useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com', new_email: 'mum@new.example' } as never });
+    await open('Change password…');
+    await fillAndSave();
+    const page = (await screen.findByRole('heading', { name: '🔑 Password changed' })).parentElement!;
+    expect(page).toHaveTextContent('Changing your password cancelled the change of your sign-in email to mum@new.example. To still change it, tap "Change email…" again.');
   });
 
   it('"Send a new code" waits a minute after one went out, and counts a refusal\'s wait', async () => {

@@ -32,19 +32,23 @@ export function forgetStoredSession(): void {
   }
 }
 
-let passwordCheck: SupabaseClient | null = null;
+let checks = 0;
 
 /**
  * A client for checking the grown-up's password again (the 👪 gate, Close
- * account) that keeps nothing: its sign-in lives in memory only, is never
- * refreshed, never stored on the device and never told to other tabs (its
- * own storage name). So a password typed to check it's the grown-up never
- * leaves a fresh-password session on the family device — one that could
- * close the account (#124b review round 2, #167). Sign it out once used.
+ * account, changing the login) that keeps nothing: its sign-in lives in
+ * memory only, is never refreshed, never stored on the device and never told
+ * to other tabs. So a password typed to check it's the grown-up never leaves
+ * a fresh-password session on the family device — one that could close the
+ * account (#124b review round 2, #167). A new one for each check, with its
+ * own name: one check's sign-out — signed out once used, and not always
+ * waited for — can never land on the next check's sign-in (they shared one
+ * client, so a quick second check could lose its session, #167 review round
+ * 1). Hold on to it for the whole check.
  */
 export function passwordCheckClient(): SupabaseClient {
-  passwordCheck ??= createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'hazel-password-check' },
+  checks += 1;
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: `hazel-password-check-${checks}` },
   });
-  return passwordCheck;
 }

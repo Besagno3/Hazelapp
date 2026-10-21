@@ -3,14 +3,16 @@ import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
 import { calcAge } from '../../lib/age';
 import { isPin, kidIcon, PIN_LENGTH } from '../../content/family';
-import { signOutGrownUp, useFamilyStore } from '../../store/familyStore';
+import { KidAddedWithoutPin, useFamilyStore } from '../../store/familyStore';
 import { isAdmin } from '../../lib/review';
 import { GROWN_UP_UNLOCK_MINUTES } from '../../lib/grownUpsGate';
+import { useGrownUpsStore } from '../../store/grownUpsStore';
 import PasswordInput from '../../components/PasswordInput';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import { ChangeEmailPage, ChangePasswordPage, SignInSection } from './AccountChange';
 import CloseAccountPage, { CloseAccountSection } from './CloseAccount';
 import FamilyCard from './FamilyCard';
+import SignOutButton from './SignOutButton';
 import GrownUpsGate from './GrownUpsGate';
 import { gateLinkClass, gatePrimaryClass as primaryClass } from './familyStyles';
 import KidForm from './KidForm';
@@ -31,13 +33,15 @@ const fieldClass =
  * (`GrownUpsGate`), and since #167 the database holds it to that: opening it
  * opens a 15-minute window on this sign-in that every grown-up action needs,
  * shut again when the area is left (`App`) or the time runs out
- * (`RelockDialog` then asks again, keeping the page). Closing the account
- * and changing the login ask for the password again, never the PIN.
+ * (`RelockDialog` then asks again, keeping the page). Back on the list once
+ * the time has run out, it shows the gate again rather than controls that
+ * would only ask (#167 review round 1). Closing the account and changing
+ * the login ask for the password again, never the PIN.
  */
 export default function GrownUpsArea() {
   const [unlocked, setUnlocked] = useState(false);
   const close = () => useFamilyStore.getState().setGrownUpsOpen(false);
-  if (unlocked) return <GrownUpsHome />;
+  if (unlocked) return <GrownUpsHome onLapse={() => setUnlocked(false)} />;
   return (
     <GrownUpsGate
       onUnlock={() => setUnlocked(true)}
@@ -61,11 +65,11 @@ export default function GrownUpsArea() {
  * from the start, so what's said in it is read out even as the page under
  * it changes (a region's first words aren't).
  */
-function GrownUpsHome() {
+function GrownUpsHome({ onLapse }: { onLapse: () => void }) {
   const [said, say] = useLiveMessage();
   return (
     <>
-      <GrownUpsPages say={say} />
+      <GrownUpsPages say={say} onLapse={onLapse} />
       <div role="status" className="sr-only">
         {said && <p key={said.key}>{said.text}</p>}
       </div>
@@ -73,7 +77,7 @@ function GrownUpsHome() {
   );
 }
 
-function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
+function GrownUpsPages({ say, onLapse }: { say: (words: string | null) => void; onLapse: () => void }) {
   const kids = useFamilyStore((s) => s.kids);
   const consentAt = useFamilyStore((s) => s.consentAt);
   const addKid = useFamilyStore((s) => s.addKid);
@@ -128,6 +132,22 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
     };
   }, [listing, pinLocks]);
 
+  // On the list once the window has run out (it opened GROWN_UP_UNLOCK_MINUTES
+  // ago, by the gate, the dialog or a password typed again): back to the gate,
+  // so a kid who finds the device sees the way in, not live grown-up controls.
+  // A page part-filled keeps its place; the list checks again when it's back.
+  const openedAt = useGrownUpsStore((s) => s.openedAt);
+  useEffect(() => {
+    if (!listing || openedAt === null) return;
+    const left = openedAt + GROWN_UP_UNLOCK_MINUTES * 60_000 - Date.now();
+    if (left <= 0) {
+      onLapse();
+      return;
+    }
+    const timer = window.setTimeout(onLapse, left);
+    return () => window.clearTimeout(timer);
+  }, [listing, openedAt, onLapse]);
+
   // Back on the list: the keyboard and the page are where they left it.
   useEffect(() => {
     if (!listing || !returnTo.current) return;
@@ -158,7 +178,16 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
           submitLabel={kid ? 'Save' : 'Add player'}
           onSubmit={async (input) => {
             if (kid) await updateKid(kid.id, input);
-            else await addKid(input);
+            else {
+              try {
+                await addKid(input);
+              } catch (err) {
+                // Added, but the PIN didn't save: this form changes them now, so
+                // trying again sets the PIN rather than adding them twice.
+                if (err instanceof KidAddedWithoutPin) setEditing(err.kid.id);
+                throw err;
+              }
+            }
             // Their PIN typed again while it was locked: the database has
             // unlocked it — say so on their row, and drop the 🔒 note now.
             if (kid && input.pin && lockedKids[kid.id] > 0) {
@@ -188,7 +217,9 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
   if (changing === 'password') return <ChangePasswordPage onDone={() => setChanging(null)} />;
 
   return (
-    <FamilyCard wide title="👪 Grown-ups" subtitle={`Locks again when you leave, or after ${GROWN_UP_UNLOCK_MINUTES} minutes.`}>
+    // Its title takes the keyboard as the gate gives way to it (the gate's
+    // button is gone); back from a page, the button that left takes it after.
+    <FamilyCard wide focusTitle title="👪 Grown-ups" subtitle={`Locks again when you leave, or after ${GROWN_UP_UNLOCK_MINUTES} minutes.`}>
       <ul className="space-y-2">
         {kids.map((k) => (
           <li key={k.id} className="rounded-xl border border-gray-200 p-3">
@@ -279,12 +310,7 @@ function GrownUpsPages({ say }: { say: (words: string | null) => void }) {
       >
         Done — back to Who's playing
       </button>
-      <button
-        onClick={() => void signOutGrownUp()}
-        className="mt-1 w-full min-h-11 text-center text-sm text-gray-500 hover:underline"
-      >
-        Sign out
-      </button>
+      <SignOutButton className="mt-1" />
       <CloseAccountSection
         onOpen={() => {
           leave('close');

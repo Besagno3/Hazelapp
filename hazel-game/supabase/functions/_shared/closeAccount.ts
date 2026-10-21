@@ -21,9 +21,10 @@ export const CONFIRM_WORD = 'DELETE';
  * every family at once (#124b review), and on a client that keeps nothing,
  * so that sign-in never lands on the device — and the function checks that
  * fresh sign-in on the token it's sent. It never sees the password. A minute:
- * the app asks within a second of signing in, and any other password
- * sign-in on the device (a grown-up signing in) can't close the account for
- * long (#124b review round 2, #167).
+ * the app asks within a second of signing in. A grown-up's ordinary sign-in
+ * on the family device is fresh for that minute too, but `delete_family`
+ * turns away a sign-in the family's app runs on (`callerSessionOf`, #167
+ * review round 1).
  */
 export const REAUTH_WINDOW_S = 60;
 /** Clock drift allowed between the auth service and the function (seconds). */
@@ -40,6 +41,7 @@ export const CLOSE_ACCOUNT_ERRORS = [
   'confirm_required',
   'reauth_required',
   'grown_ups_locked',
+  'database_out_of_date',
   'data_not_deleted',
   'login_not_deleted',
   'outcome_unknown',
@@ -65,6 +67,10 @@ const REFUSALS: Record<CloseAccountError, Omit<CloseAccountRefusal, 'error'>> = 
   grown_ups_locked: {
     status: 403,
     detail: 'Open 👪 Grown-ups again with your grown-up PIN or password, then close the account. Nothing was deleted.',
+  },
+  database_out_of_date: {
+    status: 503,
+    detail: 'The database needs updating (migrations 0023 + 0024) before an account can be closed. Nothing was deleted.',
   },
   data_not_deleted: { status: 500, detail: 'Nothing was deleted: the family data could not be removed.' },
   login_not_deleted: {
@@ -109,6 +115,34 @@ export const GROWN_UPS_LOCKED_SQLSTATE = 'HQ001';
 
 export function grownUpsLockedDb(err: { code?: string | null }): boolean {
   return err.code === GROWN_UPS_LOCKED_SQLSTATE;
+}
+
+/**
+ * The database's "that wasn't a password typed just now" (SQLSTATE HQ002,
+ * migration 0024): `delete_family` refuses a close asked with the family
+ * device's own sign-in — noted by the app as it loads the family — however
+ * fresh its token (#167 review round 1). Nothing was deleted.
+ */
+export const GROWN_UPS_REAUTH_SQLSTATE = 'HQ002';
+
+export function reauthRequiredDb(err: { code?: string | null }): boolean {
+  return err.code === GROWN_UPS_REAUTH_SQLSTATE;
+}
+
+/**
+ * The sign-in (session id) the caller's token belongs to — the password
+ * check the app made just now. `delete_family` refuses one the family's app
+ * runs on (`p_caller`), so the device's own fresh sign-in can't close the
+ * account; null when the token names none, which it refuses too.
+ */
+export function callerSessionOf(claims: Record<string, unknown> | null): string | null {
+  const s = claims?.session_id;
+  return typeof s === 'string' && UUID_RE.test(s) ? s : null;
+}
+
+/** The database is older than this function: `delete_family(p_parent, p_session, p_caller)` isn't there (PostgREST's code, or Postgres's). */
+export function functionMissingDb(err: { code?: string | null; message?: string | null }): boolean {
+  return err.code === 'PGRST202' || err.code === '42883';
 }
 
 /**

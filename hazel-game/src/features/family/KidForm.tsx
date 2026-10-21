@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { errorMessage, sessionRanOut } from '../../lib/errors';
 import { plainErrorOr } from '../../lib/familyErrors';
+import { grownUpsLocked } from '../../lib/grownUpsGate';
+import { KidAddedWithoutPin } from '../../store/familyStore';
 import { isPin, KID_BIRTH_YEARS, KID_ICONS, MAX_KID_NAME, PIN_LENGTH } from '../../content/family';
 import PasswordInput from '../../components/PasswordInput';
 import PicturePicker from './PicturePicker';
@@ -19,6 +21,13 @@ const MONTHS = [
  * which goes to the console.
  */
 function kidSaveMessage(err: unknown): string {
+  // Added, but the PIN step didn't happen: say so plainly — the player IS on
+  // the list now — and the form changes them from here (#167 review round 1).
+  if (err instanceof KidAddedWithoutPin) {
+    // Why, when it's something to fix (offline, signed out); a "Not now" needs no more words.
+    const why = grownUpsLocked(err.pinError) ? '' : plainErrorOr(err.pinError, '');
+    return `${err.kid.name ?? 'Your player'} is added, but their PIN didn't save.${why ? ` ${why}` : ''} Enter their PIN again and tap Save to finish.`;
+  }
   const raw = errorMessage(err);
   // Said in 👪 Grown-ups, where the Remove buttons are one tap back.
   if (/kid_limit/.test(raw)) return 'A family can have up to 8 players. Tap Cancel, then Remove by a player to make room.';
@@ -79,7 +88,7 @@ export default function KidForm({
       // Plain words on screen, the whole error in the console (#130 S6).
       console.warn('Saving a player failed:', errorMessage(err));
       setError(kidSaveMessage(err));
-      setSignedOut(sessionRanOut(err));
+      setSignedOut(sessionRanOut(err instanceof KidAddedWithoutPin ? err.pinError : err));
     } finally {
       setSaving(false);
     }

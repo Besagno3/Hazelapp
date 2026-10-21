@@ -28,6 +28,9 @@ const { useAuthStore } = await import('../../store/authStore');
 const { calcAge } = await import('../../lib/age');
 const { forgetAllLocks, GROWN_UP_LOCKED_TEXT } = await import('../../lib/pinLock');
 const { DEVICE_SESSION, deviceSession } = await import('../../test/grownUps');
+const { KidAddedWithoutPin } = await import('../../store/familyStore');
+const { GrownUpsLockedError } = await import('../../lib/grownUpsGate');
+const { useGrownUpsStore, resetGrownUps } = await import('../../store/grownUpsStore');
 
 const sam: Kid = { id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2017, birthMonth: 3 };
 const old: Kid = { id: 'kid-old', name: null, icon: null, hasPin: false, birthYear: 2015, birthMonth: 1 };
@@ -45,6 +48,7 @@ async function type(pin: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetGrownUps();
   checkAuth.signOut.mockResolvedValue({ error: null });
   checkRpc.mockResolvedValue({ data: { unlocked: true, seconds: 900 }, error: null });
   rpc.mockResolvedValue({ data: null, error: null });
@@ -287,6 +291,71 @@ describe('GrownUpsArea (#124)', () => {
     await waitFor(() => expect(auth.signOut).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith('lock_grown_ups');
     expect(rpc.mock.invocationCallOrder.at(-1)!).toBeLessThan(auth.signOut.mock.invocationCallOrder[0]);
+  });
+
+  it('Sign out shows it is on its way while 👪 Grown-ups is shut, and a second tap signs out once (#167 review round 1)', async () => {
+    await unlock();
+    let release!: () => void;
+    rpc.mockImplementation((fn: string) =>
+      fn === 'lock_grown_ups' ? new Promise((res) => (release = () => res({ data: null, error: null }))) : Promise.resolve({ data: null, error: null }),
+    );
+    const button = screen.getByRole('button', { name: 'Sign out' });
+    fireEvent.click(button);
+    expect(button).toHaveTextContent('Signing out…');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(button);
+    await act(async () => release());
+    await waitFor(() => expect(auth.signOut).toHaveBeenCalledTimes(1));
+    expect(rpc.mock.calls.filter(([fn]) => fn === 'lock_grown_ups')).toHaveLength(1);
+  });
+
+  it("the gate gives way to the list with its title focused, not the page (#167 review round 1 also noted)", async () => {
+    await unlock();
+    expect(screen.getByRole('heading', { name: '👪 Grown-ups' })).toHaveFocus();
+  });
+
+  it('back on the list once the window has run out, it shows the gate again — not controls that would only ask (#167 review round 1)', async () => {
+    await unlock();
+    expect(useGrownUpsStore.getState().openedAt).toBeGreaterThan(0);
+    // 50 ms left: the list waits it out, then gives way to the gate.
+    act(() => useGrownUpsStore.setState({ openedAt: Date.now() - 15 * 60_000 + 50 }));
+    expect(screen.getByText('Sam')).toBeInTheDocument();
+    expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
+    expect(screen.queryByText('Sam')).toBeNull();
+  });
+
+  it('…but a page part-filled keeps its place, and the list checks again when it comes back', async () => {
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: /Add a player/ }));
+    act(() => useGrownUpsStore.setState({ openedAt: Date.now() - 16 * 60_000 }));
+    expect(screen.getByRole('textbox', { name: 'Nickname' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(await screen.findByPlaceholderText('Password')).toBeInTheDocument();
+  });
+
+  it('a player added whose PIN didn\'t save: the form changes them now, so trying again sets the PIN — never a second player (#167 review round 1)', async () => {
+    const kit: Kid = { id: 'kid-kit', name: 'Kit', icon: 'panda', hasPin: false, birthYear: new Date().getFullYear() - 7, birthMonth: 8 };
+    const addKid = vi.fn(async () => {
+      useFamilyStore.setState((st) => ({ kids: [...st.kids, kit] }));
+      throw new KidAddedWithoutPin(kit, new GrownUpsLockedError('👪 Grown-ups locked again, so nothing changed.'));
+    });
+    useFamilyStore.setState({ addKid });
+    await unlock();
+    fireEvent.click(screen.getByRole('button', { name: /Add a player/ }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nickname' }), { target: { value: 'Kit' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Birth month' }), { target: { value: '8' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Birth year' }), { target: { value: String(kit.birthYear) } });
+    fireEvent.click(screen.getByRole('button', { name: /Panda/ }));
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '2468' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add player' }));
+    expect(await screen.findByRole('heading', { name: 'Change Kit' })).toBeInTheDocument();
+    expect(screen.getByText("Kit is added, but their PIN didn't save. Enter their PIN again and tap Save to finish.")).toBeInTheDocument();
+    // What was typed is still there; Save changes Kit (sets the PIN) — no second add.
+    expect(screen.getByRole('textbox', { name: 'Nickname' })).toHaveValue('Kit');
+    fireEvent.change(screen.getByLabelText('PIN'), { target: { value: '2468' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(updateKid).toHaveBeenCalledWith('kid-kit', expect.objectContaining({ name: 'Kit', pin: '2468' })));
+    expect(addKid).toHaveBeenCalledTimes(1);
   });
 
   it('Add a player opens the kid form; Cancel comes back', async () => {
