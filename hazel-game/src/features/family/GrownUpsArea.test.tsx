@@ -718,10 +718,13 @@ describe('GrownUpsArea (#124)', () => {
     });
     await unlock();
     fireEvent.click(screen.getByRole('button', { name: 'Progress for Sam' }));
-    expect(await screen.findByText(PROGRESS_CRASHED, { selector: 'p' })).toBeInTheDocument();
+    // The card's own line — the area's live region says the same words, so look past it.
+    await waitFor(() =>
+      expect(screen.getAllByText(PROGRESS_CRASHED, { selector: 'p' }).some((p) => !p.closest('[role="status"]'))).toBe(true),
+    );
     expect(screen.getByRole('heading', { level: 1, name: '📈 Progress' })).toHaveFocus();
     // Read out once through the area's live region.
-    expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(true);
+    await waitFor(() => expect(screen.getAllByRole('status').some((el) => el.textContent === PROGRESS_CRASHED)).toBe(true));
     // The real error, folded for a grown-up — and in the console.
     const raw = screen.getByText(/reading 'topicStarts'/, { selector: 'p' });
     expect(raw.closest('details')?.querySelector('summary')).toHaveTextContent('Details for grown-ups');

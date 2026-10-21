@@ -1535,6 +1535,9 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
+CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.
+
 ### 2026-10-21 — Parent dashboard review round 3: nothing written from a profile that wasn't read, no crown from half the data, one honest week, a page that crashes alone, a CI build with the app in it (#29, #175)
 `/saas-code-review` (3 low + answers) and `/saas-ux-review` (1 medium, 6
 low + also noted) of PR #88, plus the lead's items, all fixed. **Never
