@@ -212,8 +212,9 @@ export interface TopicTally {
 
 /**
  * One kid's play on one calendar day (their device's), for 👪 Grown-ups →
- * 📈 Progress (#169, #172, #173; migration 0026): kept on the device as it
- * grows and sent to `note_play_history`, the server keeping the larger total.
+ * 📈 Progress (#169, #172, #173; migrations 0026–0027): kept on the device as
+ * it grows and sent as this browser's part of the day (`note_device_play`,
+ * #179), the server keeping the larger of each part and adding the parts up.
  */
 export interface PlayDayRecord {
   /** `YYYY-MM-DD`. */

@@ -48,6 +48,10 @@ describe('the privacy notice and the play history (#169–#174)', () => {
       /For each day they play, we also keep a note: how long they played, the XP they earned, their right and wrong answers in each topic, and the level each topic reached\./,
     );
     expect(collect).toMatch(/game progress \(answers, levels, items and saved game\)/);
+    // Each device's share of a day (0027, #179): kept under a random code per browser — said, briefly.
+    expect(collect).toMatch(
+      /If they play on more than one device, each one's share of the day is kept under a random code the browser makes up \(linked to nothing outside the game\), so the totals add up\./,
+    );
     const keep = PRIVACY_NOTICE.find((s) => s.heading === 'How long we keep it')?.body ?? '';
     // Exactly what happens (review round 2): the read policy hides a day after five weeks; the tidy-up runs inside
     // the note functions, as children play — no scheduled job, so "deleted after five weeks" claimed too much.
@@ -61,5 +65,13 @@ describe('the privacy notice and the play history (#169–#174)', () => {
     // The purge and the read policy (0026) at the same five weeks.
     expect(Number(migration0026.match(/where o\.day < current_date - (\d+)/)?.[1])).toBe(HISTORY_DAYS);
     expect(Number(migration0026.match(/day >= current_date - (\d+)/)?.[1])).toBe(HISTORY_DAYS);
+    // …and each device's share of a day (0027) goes with the days, by the same notes.
+    const { default: migration0027 } = await import('../../supabase/migrations/0027_play_day_devices.sql?raw');
+    const tidy = migration0027.match(/function public\.play_days_tidy\(\)[\s\S]*?\$\$([\s\S]*?)\$\$;/)?.[1] ?? '';
+    expect([...tidy.matchAll(/from public\.(\w+) o\s+where o\.day < current_date - (\d+)/g)].map((m) => [m[1], Number(m[2])])).toEqual([
+      ['play_days', HISTORY_DAYS],
+      ['play_day_parts', HISTORY_DAYS],
+    ]);
+    expect(migration0027).toMatch(/function public\.play_days_note\([\s\S]*?perform public\.play_days_tidy\(\)/);
   });
 });

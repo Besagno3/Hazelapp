@@ -497,7 +497,7 @@ describe('useFamilyStore', () => {
   });
 
   it("switchPlayer and opening 👪 Grown-ups send the kids' waiting play at once — not a couple of minutes later (#89 review round 1)", async () => {
-    const { playDaysKey } = await import('../lib/playDays');
+    const { deviceId, playDaysKey } = await import('../lib/playDays');
     const { todayIso } = await import('../lib/streak');
     const today = todayIso();
     const kept = (xp: number) => JSON.stringify([{ day: today, xp, minutes: 3, topics: {}, played: true }]);
@@ -508,13 +508,13 @@ describe('useFamilyStore', () => {
     localStorage.setItem(playDaysKey('kid-sam'), kept(40));
     db.rpc.mockClear();
     await useFamilyStore.getState().switchPlayer();
-    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-sam', p_days: [{ day: today, xp: 40, minutes: 3, topics: {}, noted: true }] }));
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-sam', p_device: deviceId(), p_days: [{ day: today, xp: 40, minutes: 3, topics: {}, noted: true }] }));
     // 👪 Grown-ups opened from "Who's playing?": every kid's waiting play goes (Kit's here); nothing waiting, no call.
     localStorage.setItem(playDaysKey('kid-kit'), kept(15));
     db.rpc.mockClear();
     useFamilyStore.getState().setGrownUpsOpen(true);
-    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-kit', p_days: [{ day: today, xp: 15, minutes: 3, topics: {}, noted: true }] }));
-    expect(db.rpc.mock.calls.filter(([fn]) => fn === 'note_play_history')).toHaveLength(1);
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-kit', p_device: deviceId(), p_days: [{ day: today, xp: 15, minutes: 3, topics: {}, noted: true }] }));
+    expect(db.rpc.mock.calls.filter(([fn]) => fn === 'note_device_play')).toHaveLength(1);
     useFamilyStore.getState().setGrownUpsOpen(false);
   });
 

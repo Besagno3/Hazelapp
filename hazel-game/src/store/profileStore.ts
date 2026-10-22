@@ -376,7 +376,7 @@ interface ProfileStore {
   addXp: (amount: number) => Promise<void>;
   /** Record a power-up chosen on level-up (optimistic update). */
   addPowerUp: (id: PowerUpId) => Promise<void>;
-  /** Advance the daily streak and note the day played (#28, #29): after a round, a battle, and any XP earned. */
+  /** Advance the daily streak and note the day played (#28, #29): after a round, a battle, any XP earned, and five active minutes (#177). */
   recordActivity: () => Promise<void>;
   /**
    * A question answered — the final pick (#173): counted in today's tally
@@ -780,11 +780,24 @@ function takeUpNow(userId: string, gen: number, data: unknown): { merged: Profil
  * played, or a day its live streak counts (#29 review round 2). Play noted
  * for such a day goes up like any played day's (`lib/playDays`' `played`):
  * the minute watcher asks (`App`), as `noteAnswer`, `addXp` and
- * `setSkillLevel` do here. A day nobody has played yet proves nothing (#177).
+ * `setSkillLevel` do here. A day nobody has played yet proves nothing — until
+ * five active minutes here count it (`countMinutesPlayed`, #177).
  */
 export function dayPlayed(kidId: string, day: string): boolean {
   const { profile } = useProfileStore.getState();
   return !!profile && profile.id === kidId && provesPlayed(profile, day, todayIso());
+}
+
+/**
+ * Five active minutes on this device count the day as played (#177, the
+ * lead's call — `lib/activeMinutes`, wired in `App`): `recordActivity`, as a
+ * round or XP would, so the 🔥 streak, "last played", 📈's week and the
+ * minutes agree, and the day goes up on the usual sends. For the kid in play
+ * only.
+ */
+export function countMinutesPlayed(kidId: string): void {
+  const { profile, recordActivity } = useProfileStore.getState();
+  if (profile?.id === kidId) void recordActivity();
 }
 
 /**

@@ -11,9 +11,9 @@ vi.mock('../lib/supabase', () => {
   return { supabase: { rpc, from: () => chain } };
 });
 
-const { dayPlayed, useProfileStore } = await import('./profileStore');
+const { countMinutesPlayed, dayPlayed, useProfileStore } = await import('./profileStore');
 const { todayIso, isoOffset } = await import('../lib/streak');
-const { addDayMinute, flushPlayDays, forgetPlayDays, notePlayDay, pendingPlayDays, playDayRecords, SEND_EVERY_MS } = await import('../lib/playDays');
+const { addDayMinute, deviceId, flushPlayDays, forgetPlayDays, notePlayDay, pendingPlayDays, playDayRecords, recheckPlayFunctions, SEND_EVERY_MS } = await import('../lib/playDays');
 
 const kid = (lastPlayedOn: string | null): Profile => ({
   id: 'kid-1',
@@ -36,14 +36,14 @@ beforeEach(() => {
   rpc.mockResolvedValue({ data: 1, error: null });
 });
 
-/** A day as it's sent to note_play_history: all of its play noted on this device (#181). */
+/** A day as it's sent (note_device_play): all of its play noted on this device (#181). */
 const day = (over: Record<string, unknown> = {}) => ({ day: todayIso(), xp: 0, minutes: 0, topics: {}, noted: true, ...over });
 
 describe('a new day played is noted for 📈 Progress (#29)', () => {
   it('the first round of a day notes it', async () => {
     useProfileStore.setState({ profile: kid(isoOffset(todayIso(), -1)) });
     await useProfileStore.getState().recordActivity();
-    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day()] }));
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day()] }));
     expect(useProfileStore.getState().profile?.currentStreak).toBe(3);
   });
 
@@ -51,7 +51,7 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
     useProfileStore.setState({ profile: kid(isoOffset(todayIso(), -1)) });
     await useProfileStore.getState().addXp(30);
     // The day goes up with its XP (#169).
-    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ xp: 30 })] }));
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ xp: 30 })] }));
     const p = useProfileStore.getState().profile;
     expect(p).toMatchObject({ xp: 30, lastPlayedOn: todayIso(), currentStreak: 3 });
     // More XP that day, or a round's end after it: the day isn't noted again —
@@ -87,7 +87,7 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
       // The row says they played today (the tablet, this morning); this browser has nothing of today yet.
       useProfileStore.setState({ profile: { ...kid(todayIso()), skillLevels: { math: 4 } }, unread: null });
       await useProfileStore.getState().addXp(120);
-      await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ xp: 120 })] }));
+      await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ xp: 120 })] }));
       // More play: it grows on the device and goes again after the usual wait — not one call per answer.
       await addDayMinute('kid-1', todayIso());
       useProfileStore.getState().noteAnswer({ id: 'bank-q-1', topic: 'math', level: 4 }, true);
@@ -96,8 +96,9 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
       vi.setSystemTime(Date.now() + SEND_EVERY_MS + 1);
       await useProfileStore.getState().recordActivity();
       await vi.waitFor(() =>
-        expect(rpc).toHaveBeenLastCalledWith('note_play_history', {
+        expect(rpc).toHaveBeenLastCalledWith('note_device_play', {
           p_kid: 'kid-1',
+          p_device: deviceId(),
           p_days: [day({ xp: 120, minutes: 1, topics: { math: { a: 1, r: 1, l: 4 } } })],
         }),
       );
@@ -122,7 +123,7 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
     } finally {
       chain.then = then;
     }
-    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ minutes: 1 })] }));
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ minutes: 1 })] }));
   });
 
 });
@@ -151,12 +152,12 @@ describe('play on a day the profile already counts as played goes up whenever it
     // On the laptop: two gate questions answered wrong (no XP, no round, no recordActivity).
     useProfileStore.getState().noteAnswer({ id: 'bank-q-1', topic: 'math', level: 4 }, false);
     await vi.waitFor(() =>
-      expect(rpc).toHaveBeenLastCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ topics: { math: { a: 1, r: 0, l: 4 } } })] }),
+      expect(rpc).toHaveBeenLastCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ topics: { math: { a: 1, r: 0, l: 4 } } })] }),
     );
     useProfileStore.getState().noteAnswer({ id: 'bank-q-2', topic: 'math', level: 4 }, false);
     expect(rpc).toHaveBeenCalledTimes(1); // the usual wait
     await flushPlayDays('kid-1', { hidden: true }); // the tab is hidden
-    expect(rpc).toHaveBeenLastCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ topics: { math: { a: 2, r: 0, l: 4 } } })] });
+    expect(rpc).toHaveBeenLastCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ topics: { math: { a: 2, r: 0, l: 4 } } })] });
   });
 
   it("the next day: a load that says yesterday was played sends this device's kept record of yesterday", async () => {
@@ -165,7 +166,7 @@ describe('play on a day the profile already counts as played goes up whenever it
     await addDayMinute('kid-1', y);
     expect(pendingPlayDays('kid-1')).toEqual([]);
     await loadWith(rowFor(y));
-    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ day: y, minutes: 2 })] }));
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ day: y, minutes: 2 })] }));
   });
 
   it('a past day inside the live streak is proved too; a day before the streak, or after the last day played, is not (#177)', async () => {
@@ -173,10 +174,27 @@ describe('play on a day the profile already counts as played goes up whenever it
     for (const d of [isoOffset(t, -3), isoOffset(t, -2), t]) await addDayMinute('kid-1', d);
     // Last played yesterday on another device, a streak of 2: yesterday and the day before.
     await loadWith(rowFor(isoOffset(t, -1), 2));
-    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [day({ day: isoOffset(t, -2), minutes: 1 })] }));
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ day: isoOffset(t, -2), minutes: 1 })] }));
     // The day before the streak, and today (nobody has played today yet — only walked here), stay unsent.
     expect(playDayRecords('kid-1').map((r) => r.day)).toEqual([isoOffset(t, -3), t]);
     expect(pendingPlayDays('kid-1')).toEqual([]);
+  });
+
+  it('countMinutesPlayed (#177): five minutes count the day for the kid in play — never for another kid', async () => {
+    const real = useProfileStore.getState().recordActivity;
+    const recordActivity = vi.fn(async () => {});
+    useProfileStore.setState({ profile: kid(isoOffset(todayIso(), -1)), recordActivity });
+    try {
+      countMinutesPlayed('kid-2');
+      expect(recordActivity).not.toHaveBeenCalled();
+      countMinutesPlayed('kid-1');
+      expect(recordActivity).toHaveBeenCalledTimes(1);
+      useProfileStore.setState({ profile: null });
+      countMinutesPlayed('kid-1');
+      expect(recordActivity).toHaveBeenCalledTimes(1);
+    } finally {
+      useProfileStore.setState({ recordActivity: real });
+    }
   });
 
   it('dayPlayed: what the profile in play proves, for that kid only', () => {
@@ -193,16 +211,37 @@ describe('play on a day the profile already counts as played goes up whenever it
 
   it("a profile load asks for note_play_history again, though a send found it missing a moment ago (review round 2)", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+    recheckPlayFunctions();
     rpc.mockImplementation(async (fn: string) =>
-      fn === 'note_play_history' ? { data: null, error: { code: 'PGRST202', message: 'no note_play_history' } } : { data: 1, error: null },
+      fn === 'note_play_days' ? { data: 1, error: null } : { data: null, error: { code: 'PGRST202', message: `no ${fn}` } },
     );
     await notePlayDay('kid-1', isoOffset(todayIso(), -1)); // the day alone went to note_play_days; it waits for 0026
-    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history', 'note_play_days']);
-    // 0026 applied meanwhile; Switch player loads the kid again.
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_play_history', 'note_play_days']);
+    // 0026 (and 0027) applied meanwhile; Switch player loads the kid again. The day was noted alone, so its
+    // play goes to its legacy part (#179).
     rpc.mockReset();
     rpc.mockResolvedValue({ data: 1, error: null });
     await loadWith(rowFor(isoOffset(todayIso(), -1)));
     await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', expect.objectContaining({ p_kid: 'kid-1' })));
+    vi.restoreAllMocks();
+  });
+
+  it('…and note_device_play again (#179): a day first played after the load goes to this browser\'s part', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    recheckPlayFunctions();
+    rpc.mockImplementation(async (fn: string) =>
+      fn === 'note_device_play' ? { data: null, error: { code: 'PGRST202', message: 'no note_device_play' } } : { data: 1, error: null },
+    );
+    await notePlayDay('kid-1', isoOffset(todayIso(), -2)); // 0027 missing: note_play_history, as before it
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_play_history']);
+    await addDayMinute('kid-1', todayIso()); // walked today here; the load will say today was played (the tablet)
+    // 0027 applied meanwhile; a load asks for it again at once.
+    rpc.mockReset();
+    rpc.mockResolvedValue({ data: 1, error: null });
+    await loadWith(rowFor(todayIso()));
+    await vi.waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('note_device_play', { p_kid: 'kid-1', p_device: deviceId(), p_days: [day({ minutes: 1 })] }),
+    );
     vi.restoreAllMocks();
   });
 });

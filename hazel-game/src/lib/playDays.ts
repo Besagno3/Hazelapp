@@ -7,11 +7,12 @@ import type { PlayDayRecord, TopicTally } from '../types';
 /**
  * The days each kid played, and their play on each day — the XP earned
  * (#169), the active minutes (#172) and the answers per topic (#173) — for
- * 👪 Grown-ups → 📈 Progress (#29, migrations 0025 and 0026). Each day is a
+ * 👪 Grown-ups → 📈 Progress (#29, migrations 0025–0027). Each day is a
  * `PlayDayRecord` kept on the device first (localStorage, per kid; in memory
  * when storage can't be written) and grows as the kid plays; it's sent to
- * `note_play_history`, which keeps the larger total for a day (and per topic
- * the tally with more answers). So **today's record stays on the device after
+ * `note_device_play` as this browser's part of the day, which the database
+ * keeps the larger of (per topic the tally with more answers) and adds to
+ * other devices' parts (below). So **today's record stays on the device after
  * a send** and goes again, whole, once it has grown; a past day leaves once
  * the database has it as it stands; a day older than the database takes (7
  * back) is dropped. A day is sent only once it counts as played
@@ -24,8 +25,8 @@ import type { PlayDayRecord, TopicTally } from '../types';
  *
  * A day the profile already counts as played — on another device or
  * browser, earlier today, or a day inside the live streak it proves — is
- * this device's to send too once it has play of its own: the database keeps
- * the larger of the two, so this device's play is never left out of 📈.
+ * this device's to send too once it has play of its own: it's this device's
+ * part of the day, added to the others', so it's never left out of 📈.
  * Play noted for such a day marks it played as it's noted (`played`, review
  * round 2 — round 1 marked only the records kept when a profile loaded, so
  * minutes and wrong answers noted afterwards never went), and a profile
@@ -48,12 +49,26 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * of its own to that day: the old build's XP for it is still missing, so
  * the day is still partial.
  *
+ * Each browser's day is its own part of the kid's day (migration 0027,
+ * #179): days go to `note_device_play` with this browser's device id
+ * (`deviceId`, `hazel-device-id` — the tabs of one browser share it, as they
+ * share these records), and the database adds the devices' parts up, so a
+ * kid on a tablet and a laptop the same day has both counted, while each
+ * device re-sending its whole day never counts it twice. A record keeps the
+ * part it first went to (`part`), so it always goes back to the same one;
+ * one sent before — through `note_play_history`, by this build without 0027
+ * or by an older build — stays in the day's 'legacy' part, where the
+ * database keeps what it had (sending it as a new device's part would count
+ * it twice).
+ *
  * When a send fails it backs off rather than trying after every round
- * (#29 review round 1): no `note_play_history` (0026 not applied) → the days
- * alone go to `note_play_days` as before, and the rest of each record stays
- * on the device until 0026 is found (while it's within the week); neither
- * function (0025 not applied either) → nothing more is sent. Either is
- * asked about again after `MISSING_RECHECK_MS` and on the next profile load
+ * (#29 review round 1): no `note_device_play` (0027 not applied) → the days
+ * go to `note_play_history` as before (a record already in a device's part
+ * waits for 0027); no `note_play_history` either (0026 not applied) → the
+ * days alone go to `note_play_days`, and the rest of each record stays on
+ * the device until 0026 is found (while it's within the week); none of them
+ * (0025 not applied either) → nothing more is sent. Each is asked about
+ * again after `MISSING_RECHECK_MS` and on the next profile load
  * (`recheckPlayFunctions`; review round 2: remembered for the tab's whole
  * life, a family tablet left open across the deploy kept sending days alone
  * and dropped a week of play); offline or unreachable → again once the
@@ -79,12 +94,13 @@ export const SEND_EVERY_MS = 2 * 60_000;
 export const MISSING_RECHECK_MS = 10 * 60_000;
 
 /*
- * The database's limits on a day (migration 0026, `note_play_history`): what
- * a record is clamped to here too, and the days kept for sending. Repeated
- * from 0026 — `playDays.limits.test` reads the migration and holds the two
- * together (#182): drifted apart, the server would skip or clamp quietly.
- * A level is 1–10 (`MIN_SKILL_LEVEL` / `MAX_SKILL_LEVEL`), and a send of at
- * most `PENDING_MAX` days stays under 0026's 31 a call.
+ * The database's limits on a day (migration 0026, `note_play_history`, and
+ * 0027's `note_device_play`, which take a day the same way): what a record is
+ * clamped to here too, and the days kept for sending. Repeated from the
+ * migrations — `playDays.limits.test` reads them and holds the two together
+ * (#182): drifted apart, the server would skip or clamp quietly. A level is
+ * 1–10 (`MIN_SKILL_LEVEL` / `MAX_SKILL_LEVEL`), and a send of at most
+ * `PENDING_MAX` days stays under the 31 a call.
  */
 export const MAX_XP = 100_000;
 export const MAX_MINUTES = 1_440;
@@ -95,6 +111,55 @@ export const TOPIC_KEY = /^[a-z]{1,24}$/;
 export const DAYS_BACK = 7;
 /** …to this many after it. */
 export const DAYS_AHEAD = 1;
+
+/** Where this browser keeps its device id (#179): made once, shared by its tabs. */
+export const DEVICE_KEY = 'hazel-device-id';
+
+/** A device id the database takes (0027's `note_device_play`): 1–64 letters, digits or dashes — and never `LEGACY_PART`. */
+export const DEVICE_ID = /^[A-Za-z0-9-]{1,64}$/;
+
+/** The part of a day the database keeps for a write that names no device (`note_play_history`, an older build's). */
+export const LEGACY_PART = 'legacy';
+
+const isDevice = (v: unknown): v is string => typeof v === 'string' && DEVICE_ID.test(v) && v.toLowerCase() !== LEGACY_PART;
+
+/** A new random device id: a UUID (32 hex digits and 4 dashes) — `crypto.randomUUID` needs a secure page, `getRandomValues` doesn't. */
+function newDeviceId(): string {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (typeof c?.getRandomValues === 'function') c.getRandomValues(bytes);
+  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** This session's device id once known (kept in memory when storage can't be written). */
+let sessionDevice: string | null = null;
+
+/**
+ * This browser's device id (#179): read from storage, or made once and kept
+ * there — for this session only when storage can't be written. A random id,
+ * tied to nothing else; it tells the database which part of a kid's day this
+ * browser's play is.
+ */
+export function deviceId(): string {
+  try {
+    const kept = localStorage.getItem(DEVICE_KEY);
+    if (isDevice(kept)) return (sessionDevice = kept);
+  } catch {
+    // Can't read storage: this session's id.
+  }
+  sessionDevice ??= newDeviceId();
+  try {
+    localStorage.setItem(DEVICE_KEY, sessionDevice);
+  } catch {
+    // Private mode / quota: kept for this session.
+  }
+  return sessionDevice;
+}
 
 /** The localStorage key for a kid's kept days. */
 export function playDaysKey(kidId: string): string {
@@ -112,17 +177,21 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
  * A day as this device keeps it: the record, whether the day counts as
  * played (only then is it sent), what the database has of it — nothing,
  * the day alone (`note_play_days`, before 0026), or all of it as it stands —
- * and whether an older build played it too (`bare`, #181: its play there
- * was never noted, so this record isn't all of the day's).
+ * whether an older build played it too (`bare`, #181: its play there was
+ * never noted, so this record isn't all of the day's), and the device part
+ * it went to (`part`, #179 — none for a record sent another way, which
+ * stays in the day's legacy part).
  */
 interface Kept extends PlayDayRecord {
   played?: true;
   sent?: 'day' | 'all';
   bare?: true;
+  part?: string;
 }
 
 /**
- * A day as it's sent to `note_play_history` (0026): the record, and
+ * A day as it's sent to `note_device_play` (0027) or `note_play_history`
+ * (0026): the record, and
  * `noted: true` when it's all of the day's play this device knows of — the
  * database then marks the day `noted_play` (#181). A `bare` day goes
  * without it, so the flag stays as it was.
@@ -166,6 +235,7 @@ function keptFrom(v: unknown): Kept | null {
   if (v.played === true) kept.played = true;
   if (v.sent === 'day' || v.sent === 'all') kept.sent = v.sent;
   if (v.bare === true) kept.bare = true;
+  if (isDevice(v.part)) kept.part = v.part;
   return kept;
 }
 
@@ -239,7 +309,7 @@ function writeKept(kidId: string, list: Kept[]): void {
 /** The part of a record the database keeps. */
 const contents = (r: PlayDayRecord): string => JSON.stringify([r.xp, r.minutes, r.topics]);
 const recordOf = ({ day, xp, minutes, topics }: Kept): PlayDayRecord => ({ day, xp, minutes, topics });
-/** What goes to `note_play_history` for a kept day: `noted` unless an older build played it too (#181). */
+/** What goes to the database for a kept day: `noted` unless an older build played it too (#181). */
 const sentOf = (r: Kept): SentDay => (r.bare ? recordOf(r) : { ...recordOf(r), noted: true });
 
 /**
@@ -282,6 +352,15 @@ export function pendingPlayDays(kidId: string): string[] {
     .map((r) => r.day);
 }
 
+/**
+ * This device's minutes on a kid's day and whether the day counts as played
+ * here (#177: five active minutes count it) — null when nothing is kept for it.
+ */
+export function keptDay(kidId: string, day: string): { minutes: number; played: boolean } | null {
+  const r = readKept(kidId).find((k) => k.day === day);
+  return r ? { minutes: r.minutes, played: !!r.played } : null;
+}
+
 /** The records kept on this device for a kid (oldest first) — sent or not. */
 export function playDayRecords(kidId: string): PlayDayRecord[] {
   return readKept(kidId).map(recordOf);
@@ -299,8 +378,11 @@ const inFlight = new Map<string, Promise<void>>();
 let missingUntil = 0;
 /** Until when (ms) `note_play_history` isn't asked for (0026 isn't applied): the days alone go to `note_play_days` meanwhile. */
 let historyMissingUntil = 0;
+/** Until when (ms) `note_device_play` isn't asked for (0027 isn't applied): the days go to `note_play_history` meanwhile. */
+let deviceMissingUntil = 0;
 const missing = () => Date.now() < missingUntil;
 const historyMissing = () => Date.now() < historyMissingUntil;
+const deviceMissing = () => Date.now() < deviceMissingUntil;
 
 /**
  * Ask the database for the note functions again on the next send, though a
@@ -311,6 +393,7 @@ const historyMissing = () => Date.now() < historyMissingUntil;
 export function recheckPlayFunctions(): void {
   missingUntil = 0;
   historyMissingUntil = 0;
+  deviceMissingUntil = 0;
 }
 /**
  * When a kid's days may go again without `now` (ms): `SEND_EVERY_MS` after a
@@ -455,32 +538,70 @@ const notYours = (error: { message?: string }): boolean => /not your player/i.te
 /**
  * The database has what was sent: a record unchanged since is done (`all`;
  * a past day then leaves the device), one that grew meanwhile goes again —
- * its day, at least, is there.
+ * its day, at least, is there. `part`: the device part it went to, kept so
+ * it always goes back there (#179).
  */
-function settle(kidId: string, sent: Kept[], what: 'day' | 'all'): void {
+function settle(kidId: string, sent: Kept[], what: 'day' | 'all', part?: string): void {
   const list = readKept(kidId).map((r) => {
     const was = sent.find((s) => s.day === r.day);
     if (!was) return r;
-    if (what === 'all' && contents(r) === contents(was)) return { ...r, sent: 'all' as const };
-    return r.sent ? r : { ...r, sent: 'day' as const };
+    const into = part ? { part } : {};
+    if (what === 'all' && contents(r) === contents(was)) return { ...r, ...into, sent: 'all' as const };
+    return r.sent ? { ...r, ...into } : { ...r, ...into, sent: 'day' as const };
   });
   writeKept(kidId, list);
   wait.set(kidId, { at: Date.now() + SEND_EVERY_MS, failed: false, offline: false });
 }
 
+/**
+ * The device part a record goes to (#179): the one it went to before; none
+ * (`null`: the day's legacy part, through `note_play_history`) for one sent
+ * another way before; else this browser's.
+ */
+const partFor = (r: Kept, device: string): string | null => r.part ?? (r.sent ? null : device);
+
 async function sendPending(kidId: string): Promise<void> {
   const records = toSend(kidId);
   try {
+    // Each device part's days to note_device_play (0027); the rest — days
+    // first sent another way, or every day without 0027 — the old way below.
+    const device = deviceId();
+    const parts = new Map<string, Kept[]>();
+    let rest: Kept[] = [];
+    for (const r of records) {
+      const part = partFor(r, device);
+      if (part) parts.set(part, [...(parts.get(part) ?? []), r]);
+      else rest.push(r);
+    }
+    for (const [part, days] of parts) {
+      if (!deviceMissing()) {
+        const { error } = await supabase.rpc('note_device_play', { p_kid: kidId, p_device: part, p_days: days.map(sentOf) });
+        if (!error) {
+          settle(kidId, days, 'all', part);
+          continue;
+        }
+        if (notYours(error)) return forgetPlayDays(kidId);
+        if (!noFunction(error)) return backOff(kidId, error);
+        // Migration 0027 isn't applied (yet): the days go as before it.
+        deviceMissingUntil = Date.now() + MISSING_RECHECK_MS;
+        console.warn('Noting play per device needs migration 0027 — sent as before:', errorMessage(error));
+      }
+      // A record already in a device's part waits for 0027: sent the old way
+      // as well, it would count twice.
+      rest = [...rest, ...days.filter((r) => !r.part)];
+    }
+    rest.sort((a, b) => (a.day < b.day ? -1 : 1));
+    if (rest.length === 0) return;
     if (!historyMissing()) {
-      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: records.map(sentOf) });
-      if (!error) return settle(kidId, records, 'all');
+      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: rest.map(sentOf) });
+      if (!error) return settle(kidId, rest, 'all');
       if (notYours(error)) return forgetPlayDays(kidId);
       if (!noFunction(error)) return backOff(kidId, error);
       // Migration 0026 isn't applied (yet): the days alone, as before it; the rest waits on the device.
       historyMissingUntil = Date.now() + MISSING_RECHECK_MS;
       console.warn('Noting play history needs migration 0026 — the days alone are sent:', errorMessage(error));
     }
-    const days = records.filter((r) => !r.sent);
+    const days = rest.filter((r) => !r.sent);
     if (days.length === 0) return;
     const { error } = await supabase.rpc('note_play_days', { p_kid: kidId, p_days: days.map((r) => r.day) });
     if (error) {
