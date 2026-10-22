@@ -57,7 +57,8 @@ export const POTS: Record<Band, readonly Pot[]> = {
 /** Pots in a painter's order, so a recipe reads "red and blue". */
 const POT_ORDER: readonly Pot[] = ['red', 'yellow', 'blue', 'white'];
 const pair = (a: Pot, b: Pot) => [a, b].sort((x, y) => POT_ORDER.indexOf(x) - POT_ORDER.indexOf(y)).join('+');
-const MIXES: Record<string, Colour> = {
+// Every pair of the four pots is here, so `mix` is total (tested).
+const MIXES: Partial<Record<string, Colour>> = {
   [pair('red', 'blue')]: 'purple',
   [pair('red', 'yellow')]: 'orange',
   [pair('yellow', 'blue')]: 'green',
@@ -68,7 +69,7 @@ const MIXES: Record<string, Colour> = {
 
 /** Two pots mixed — paint, not light: red and blue make purple. A pot with itself is itself. */
 export function mix(a: Pot, b: Pot): Colour {
-  return a === b ? a : MIXES[pair(a, b)];
+  return a === b ? a : (MIXES[pair(a, b)] ?? a);
 }
 
 /** The two pots that make a colour, or null (a pot's own colour, or one no two pots make). */
@@ -77,8 +78,11 @@ export function recipe(c: Colour): [Pot, Pot] | null {
   return found ? (found[0].split('+') as [Pot, Pot]) : null;
 }
 
+/** The colour wheel's six. */
+export type Wheel = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple';
+
 /** Opposite colours, across the colour wheel: side by side they're brightest, mixed they make brown. */
-export const OPPOSITE: Partial<Record<Colour, Colour>> = {
+export const OPPOSITE: Record<Wheel, Wheel> = {
   red: 'green',
   green: 'red',
   yellow: 'purple',
@@ -168,11 +172,16 @@ export interface Job {
   palette: readonly Colour[];
 }
 
-type Ask = { kind: Kind; a: Colour; b: Colour };
+/** A colour's opposite, if it has one (the wheel's six). */
+export const opposite = (c: Colour): Colour | null => (c in OPPOSITE ? OPPOSITE[c as Wheel] : null);
+
+/** An opposite mirror's two colours are the wheel's, so each has its opposite. */
+type Ask = { kind: Exclude<Kind, 'opposite'>; a: Colour; b: Colour } | { kind: 'opposite'; a: Wheel; b: Wheel };
 /**
  * What each band asks for, in turn: the kind of mirror and the picture's two
  * colours — never two a colour-blind eye mixes up (purple and blue, red and
- * green: review round 1), except where opposites are the lesson.
+ * green, red and orange: review rounds 1 and 2), nor green and blue (rarer).
+ * An opposite mirror paints the other two of a pair beside them.
  */
 const ASKS: Record<Band, readonly Ask[]> = {
   gentle: [
@@ -186,15 +195,15 @@ const ASKS: Record<Band, readonly Ask[]> = {
     { kind: 'down', a: 'green', b: 'yellow' },
     { kind: 'across', a: 'purple', b: 'yellow' },
     { kind: 'down', a: 'orange', b: 'purple' },
-    { kind: 'across', a: 'green', b: 'blue' },
+    { kind: 'across', a: 'green', b: 'purple' },
   ],
   tricky: [
     { kind: 'four', a: 'pink', b: 'purple' },
     { kind: 'turn', a: 'sky', b: 'orange' },
-    { kind: 'opposite', a: 'green', b: 'blue' },
+    { kind: 'opposite', a: 'yellow', b: 'blue' },
     { kind: 'four', a: 'cream', b: 'green' },
     { kind: 'turn', a: 'pink', b: 'blue' },
-    { kind: 'opposite', a: 'orange', b: 'red' },
+    { kind: 'opposite', a: 'red', b: 'yellow' },
     { kind: 'four', a: 'sky', b: 'red' },
   ],
 };
@@ -229,11 +238,11 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Pa
     row.map((_, c) => {
       const [sr, sc] = source(ask.kind, r, c);
       const v = base[sr][sc];
-      return ask.kind === 'opposite' && c >= HALF && v ? (OPPOSITE[v] ?? v) : v;
+      return ask.kind === 'opposite' && c >= HALF && v ? (opposite(v) ?? v) : v;
     }),
   );
   if (ask.kind === 'opposite') {
-    const need = [OPPOSITE[ask.a]!, OPPOSITE[ask.b]!];
+    const need = [OPPOSITE[ask.a], OPPOSITE[ask.b]];
     const mixColour = need.find((c) => recipe(c)) ?? need[0];
     return { pattern, kind: ask.kind, goal, mixColour, palette: [mixColour, ...WHEEL.filter((c) => c !== mixColour)] };
   }
@@ -258,8 +267,10 @@ export function mismatches(job: Job, painted: Grid): [number, number][] {
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
-const num = (n: number) => NUM[n] ?? String(n);
+const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty'];
+/** A count said in words, up to the 27 squares a kid paints: "fourteen", "twenty-one". */
+export const num = (n: number) => NUM[n] ?? (n < 40 ? `${TENS[Math.floor(n / 10)]}${n % 10 ? `-${NUM[n % 10]}` : ''}` : String(n));
 
 const MIRROR_WORDS: Record<Kind, string> = {
   across: 'Paint the right half as the left half’s mirror.',
@@ -287,11 +298,28 @@ export function mixWords(a: Pot, b: Pot, need: Colour): string {
   return `${cap(a)} and ${b} make ${NAME[got]} — the picture needs ${NAME[need]}. Try two others!`;
 }
 
+/** The mirror's marks, said: "Two squares don't match yet — they're marked. …" */
+export function markWords(n: number): string {
+  return `${cap(num(n))} square${n === 1 ? ' doesn’t match yet — it’s' : 's don’t match yet — they’re'} marked. Look at the square the mirror copies.`;
+}
+
 /** After the mirror's held up. */
 export function checkWords(job: Job, painted: Grid): string {
   const n = mismatches(job, painted).length;
-  if (n === 0) return 'A perfect match!';
-  return `${cap(num(n))} square${n === 1 ? ' doesn’t match yet — it’s' : 's don’t match yet — they’re'} marked. Look at the square the mirror copies.`;
+  return n === 0 ? 'A perfect match!' : markWords(n);
+}
+
+const PART: Record<Kind, string> = {
+  across: 'the right half',
+  down: 'the bottom half',
+  four: 'the other three quarters',
+  turn: 'the bottom half',
+  opposite: 'the right half',
+};
+
+/** The mirror held up before a square is painted (review round 2: it marked them all). */
+export function paintFirstWords(kind: Kind): string {
+  return `Paint ${PART[kind]} first, darling — then hold up the mirror!`;
 }
 
 /** What a finished picture teaches, for the reward. */

@@ -16,6 +16,8 @@ vi.mock('../../../lib/audio', async (orig) => ({
   playMusic: () => {},
   sfx: () => {},
 }));
+// A step's buttons always ready here (the wait after a step starts has its own test: MirrorMural.taps.test).
+vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 
 const { default: MiniGameStage } = await import('../MiniGameStage');
 const { default: MirrorMural } = await import('./MirrorMural');
@@ -26,7 +28,7 @@ const { roundsPlayed } = await import('../../../lib/minigames');
 const { MINIGAMES, mineFlag, pageFlag, starFlag } = await import('../../../content/minigames');
 const { MINIGAME_PAGE_XP } = await import('../../../content/items');
 const mural = await import('../../../lib/minigames/mural');
-const { HEX, NAME, OPPOSITE, decodeMine, jobFor, learnedLine, roundQueue, toPaint, recipe } = mural;
+const { HEX, NAME, decodeMine, jobFor, learnedLine, opposite, roundQueue, toPaint, recipe } = mural;
 type Job = import('../../../lib/minigames/mural').Job;
 type Colour = import('../../../lib/minigames/mural').Colour;
 
@@ -56,7 +58,8 @@ afterEach(() => {
 const save = () => useSaveStore.getState().save!;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const cell = (r: number, c: number) => screen.getByRole('button', { name: new RegExp(`^Row ${r + 1}, square ${c + 1}:`) });
-const square = (r: number, c: number) => screen.getByRole('group', { name: /^(The picture|Your canvas)$/ }).querySelector<HTMLElement>(`[data-cell="${r},${c}"]`)!;
+// By its place: quick, for the many clicks a whole picture takes (review round 2: role queries timed the tests out).
+const square = (r: number, c: number) => document.querySelector<HTMLElement>(`[data-cell="${r},${c}"]`)!;
 const paints = () => within(screen.getByRole('group', { name: 'Paints' }));
 const pots = () => within(screen.getByRole('group', { name: 'Paint pots' }));
 const marked = () => screen.queryAllByRole('button', { name: /Doesn’t match yet\.$/ });
@@ -91,7 +94,7 @@ function paintGoal(job: Job) {
     const v = job.goal[r][c];
     if (!v) continue;
     brush(v);
-    fireEvent.click(cell(r, c));
+    fireEvent.click(square(r, c));
   }
 }
 
@@ -137,19 +140,41 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(screen.getByRole('heading', { name: 'Step 2 · Paint the other half' })).toBeInTheDocument();
     expect(cell(0, 3)).toHaveFocus();
     expect(paints().getByRole('button', { name: 'Purple' })).toHaveAttribute('aria-pressed', 'true');
+    // Held up before a square is painted: nothing to mark — paint first.
+    mirror();
+    expect(marked()).toHaveLength(0);
+    expect(screen.getByText('Paint the right half first, darling — then hold up the mirror!')).toBeInTheDocument();
+    expect(cell(0, 3)).toHaveFocus();
+    // A square or two painted, then the mirror: it marks the rest, focus on the first marked.
+    const [pr, pc] = toPaint('across').find(([r, c]) => first.goal[r][c] === 'purple')!;
+    fireEvent.click(square(pr, pc));
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
     mirror();
     expect(screen.getByRole('heading', { name: 'Step 2 · Paint the other half' })).toBeInTheDocument();
     const off = marked();
-    expect(off.length).toBe(toPaint('across').filter(([r, c]) => first.goal[r][c]).length);
+    expect(off.length).toBe(toPaint('across').filter(([r, c]) => first.goal[r][c]).length - 1);
     expect(off[0]).toHaveFocus();
-    expect(screen.getByText(/^Nearly, darling! \w+ squares don’t match yet — they’re marked\./)).toBeInTheDocument();
+    expect(screen.getByText(new RegExp(`^Nearly, darling! ${cap(mural.num(off.length))} squares don’t match yet — they’re marked\\.`))).toBeInTheDocument();
     expect(screen.getByText(/squares to fix — each has a ! mark\.$/)).toBeInTheDocument();
     // The canvas, with its marks, comes into view as the mirror marks them.
     expect(scroll.mock.contexts.some((el) => (el as HTMLElement).getAttribute('aria-labelledby') === 'mm-canvas')).toBe(true);
     delete (Element.prototype as Partial<Element>).scrollIntoView;
     expect(save().flags[pageFlag('mirror-mural', first.pattern)]).toBeUndefined();
+    // A marked square tapped with what it already has (bare, rubbed out) keeps its mark; Madame Hue counts the marks
+    // down as they're fixed.
+    const [mr, mc] = off[0].getAttribute('data-cell')!.split(',').map(Number);
+    fireEvent.click(screen.getByRole('button', { name: 'Rub out' }));
+    fireEvent.click(square(mr, mc));
+    expect(marked()).toHaveLength(off.length);
+    brush(first.goal[mr][mc]!);
+    fireEvent.click(square(mr, mc));
+    expect(marked()).toHaveLength(off.length - 1);
+    expect(screen.getByText(new RegExp(`^Nearly, darling! ${cap(mural.num(off.length - 1))} squares`))).toBeInTheDocument();
+    // Held up again: focus on the first marked square now — another one.
+    mirror();
+    expect(marked()[0]).toHaveFocus();
+    expect(marked()[0]).not.toBe(off[0]);
 
     // A wrong paint is marked too; painting it right takes its mark away.
     paintGoal(first);
@@ -162,6 +187,8 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     brush('red');
     fireEvent.click(cell(wr, wc));
     expect(marked()).toHaveLength(0);
+    // Every mark fixed: a nudge to hold the mirror up again.
+    expect(screen.getByText('All fixed? Hold up the mirror again, darling!')).toBeInTheDocument();
     // Each painted square shows its paint's letter.
     expect(cell(wr, wc)).toHaveTextContent('R');
 
@@ -198,7 +225,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
 
     // A canvas of the kid's own: focus on its first square; paint the left half, the mirror paints the right as you go.
     fireEvent.click(screen.getByRole('button', { name: 'Next — paint your own!' }));
-    const canvas = screen.getByRole('group', { name: 'Your canvas' });
+    const canvas = screen.getByRole('group', { name: 'Your picture' });
     expect(canvas).toHaveAccessibleDescription(/^Paint the left half — the mirror paints the right\./);
     expect(cell(0, 0)).toHaveFocus();
     expect(screen.getByRole('button', { name: 'Paint a square first' })).toHaveAttribute('aria-disabled', 'true');
@@ -207,12 +234,14 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(screen.queryByRole('heading', { name: /^Three pictures/ })).toBeNull();
     brush('green');
     fireEvent.click(cell(2, 0));
-    expect(screen.queryByRole('button', { name: /^Row 3, square 6:/ })).toBeNull(); // the right half is the mirror's
+    // The right half is the mirror's: none of its squares can be pressed, and it paints itself as you go.
+    for (let r = 0; r < 6; r++) for (const c of [3, 4, 5]) expect(square(r, c).tagName).toBe('DIV');
     expect(square(2, 5).style.background).toBe(hexToRgb(HEX.green));
     fireEvent.click(screen.getByRole('button', { name: '🖼️ Hang it in the Gallery' }));
 
-    // The reward says the picture's hung, and what the last picture taught; nothing is paid twice.
+    // The reward says the picture's hung — and shows it — and what the last picture taught; nothing is paid twice.
     expect(screen.getByRole('heading', { level: 1, name: 'Three pictures — and one of yours!' })).toHaveFocus();
+    expect(document.querySelector(`svg rect[fill="${HEX.green}"]`)).not.toBeNull();
     expect(screen.getAllByText(learnedLine(third)).length).toBeGreaterThan(0);
     expect(save().items.mirror).toBe(defaultSave().items.mirror + 1);
     expect(roundsPlayed('kid-1', 'mirror-mural')).toBe(1);
@@ -224,13 +253,13 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     const pic = decodeMine(mine[0].slice(mineFlag('mirror-mural').length))!;
     expect(pic[2][0]).toBe('green');
     expect(pic[2][5]).toBe('green');
-  });
+  }, 20_000);
 
   it('leaving from the free canvas keeps the round’s pay', async () => {
     const queue = roundQueue(() => false, 0);
     await open();
     for (const i of [0, 1, 2]) await finishPicture(jobFor('gentle', 0, i, queue), i);
-    expect(screen.getByRole('group', { name: 'Your canvas' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Your picture' })).toBeInTheDocument();
     expect(save().flags[starFlag('mirror-mural', 1)]).toBe(true);
     expect(save().items.mirror).toBe(defaultSave().items.mirror + 1);
     expect(roundsPlayed('kid-1', 'mirror-mural')).toBe(1);
@@ -240,7 +269,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(screen.getByText(/A star for your first round/)).toBeInTheDocument();
     expect(save().items.mirror).toBe(defaultSave().items.mirror + 1);
     expect(roundsPlayed('kid-1', 'mirror-mural')).toBe(1);
-  });
+  }, 20_000);
 
   it('squares from the keyboard: arrows move between the kid’s squares, Enter paints, and each says what it copies', () => {
     play('gentle');
@@ -264,6 +293,30 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Rub out' }));
     fireEvent.click(cell(1, 3));
     expect(cell(1, 3)).toHaveAccessibleName(/^Row 2, square 4: bare\./);
+    // A held Enter's repeats press nothing (they'd paint the square focus just came to).
+    const held = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+    cell(1, 3).dispatchEvent(held);
+    expect(held.defaultPrevented).toBe(true);
+    const once = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    cell(1, 3).dispatchEvent(once);
+    expect(once.defaultPrevented).toBe(false);
+  });
+
+  it('a new picture starts on its own first square, wherever focus was in the last', async () => {
+    play('gentle');
+    const queue = roundQueue(() => false, 0);
+    const job = jobFor('gentle', 0, 0, queue);
+    mixFor(job);
+    fireEvent.keyDown(cell(0, 3), { key: 'ArrowDown' });
+    fireEvent.keyDown(cell(1, 3), { key: 'ArrowRight' });
+    expect(cell(1, 4)).toHaveFocus();
+    paintGoal(job);
+    mirror();
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    await screen.findByText('Picture 2 of 3');
+    mixFor(jobFor('gentle', 0, 1, queue));
+    expect(cell(0, 3)).toHaveFocus();
+    expect(cell(1, 4)).toHaveAttribute('tabindex', '-1');
   });
 
   it('a drag paints each square it crosses (the given half untouched), till the finger lifts or leaves; one finger, the main button', () => {
@@ -311,9 +364,9 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     }
   });
 
-  it('Medium mirrors down: the bottom half is the kid’s', async () => {
+  it('Medium mirrors down: the bottom half is the kid’s; the reward keeps the last picture’s lesson', async () => {
     setUp(5);
-    play('medium');
+    const { onFinish } = play('medium');
     const queue = roundQueue(() => false, 0);
     await finishPicture(jobFor('medium', 0, 0, queue), 0);
     expect(screen.getByRole('heading', { name: 'Step 1 · Mix the paint' })).toHaveAccessibleDescription('Paint the bottom half as the top half’s mirror. Mix green first.');
@@ -323,7 +376,16 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(squares.every((r) => r >= 4)).toBe(true);
     // Its first square copies the one across the line, straight up.
     expect(cell(3, 0)).toHaveAccessibleName(/It copies the square at row 3, square 1:/);
-  });
+    paintGoal(jobFor('medium', 0, 1, queue));
+    mirror();
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    await screen.findByText('Picture 3 of 3');
+    const third = jobFor('medium', 0, 2, queue);
+    await finishPicture(third, 2);
+    fireEvent.click(screen.getByRole('button', { name: 'Not this time' }));
+    expect(learnedLine(third)).not.toBe(learnedLine(jobFor('medium', 0, 1, queue)));
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three pictures finished!', learned: learnedLine(third) });
+  }, 20_000);
 
   it('Tricky: four ways with white among the pots; a half turn; an opposite mirror with its key, painted from the whole colour wheel', async () => {
     setUp(9);
@@ -372,8 +434,14 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     const [r, c] = toPaint('opposite').find(([rr, cc]) => opp.goal[rr][cc])!;
     const across = opp.goal[r][5 - c]!;
     expect(cell(r, c)).toHaveAccessibleName(`Row ${r + 1}, square ${c + 1}: bare. It copies the square at row ${r + 1}, square ${6 - c}: ${NAME[across]} — paint its opposite.`);
-    expect(opp.goal[r][c]).toBe(OPPOSITE[across]);
-  });
+    expect(opp.goal[r][c]).toBe(opposite(across));
+    // After it, the free canvas has its own paints — not the pairs.
+    paintGoal(opp);
+    mirror();
+    fireEvent.click(screen.getByRole('button', { name: 'Next — paint your own!' }));
+    expect(paints().queryByRole('group', { name: /opposites$/ })).toBeNull();
+    for (const c of ['Pink', 'Sky blue']) expect(paints().getByRole('button', { name: c })).toBeInTheDocument();
+  }, 20_000);
 
   it('hanging a new picture takes the old one’s place', async () => {
     const old = mineFlag('mirror-mural', 'r'.repeat(18));
@@ -388,10 +456,10 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     fireEvent.click(cell(0, 0));
     fireEvent.click(screen.getByRole('button', { name: '🖼️ Hang it in the Gallery' }));
     expect(onFinish).toHaveBeenCalledTimes(1);
-    expect(onFinish).toHaveBeenCalledWith({ title: 'Three pictures — and one of yours!', learned: learnedLine(jobFor('gentle', 0, 2, queue)) });
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ title: 'Three pictures — and one of yours!', learned: learnedLine(jobFor('gentle', 0, 2, queue)) }));
     const mine = Object.keys(save().flags).filter((f) => f.startsWith(mineFlag('mirror-mural')));
     expect(mine).toEqual([mineFlag('mirror-mural', 's' + '-'.repeat(17))]);
-  });
+  }, 20_000);
 
   it('“Not this time” hangs nothing: the old picture stays', async () => {
     const old = mineFlag('mirror-mural', 'r'.repeat(18));
@@ -404,7 +472,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Not this time' }));
     expect(onFinish).toHaveBeenCalledWith({ title: 'Three pictures finished!', learned: learnedLine(jobFor('gentle', 0, 2, queue)) });
     expect(Object.keys(save().flags).filter((f) => f.startsWith(mineFlag('mirror-mural')))).toEqual([old]);
-  });
+  }, 20_000);
 
   it('a picture already in the Gallery isn’t said to be new', () => {
     play('gentle', { isNew: false });

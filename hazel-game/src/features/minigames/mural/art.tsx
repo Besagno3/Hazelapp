@@ -9,12 +9,16 @@ import { HEX, type Grid } from '../../../lib/minigames/mural';
 
 const INK = '#1b0f22';
 
-/** A grid drawn small: its squares in their colours, bare wall pale. Decorative (`aria-hidden`). */
+/**
+ * A grid drawn small: its squares in their colours, bare wall a darker stone
+ * (review round 2: cream on the canvas's pale wall all but vanished, and these
+ * have no letters). Decorative (`aria-hidden`).
+ */
 export function PixelPicture({ grid, size = 48 }: { grid: Grid; size?: number }) {
   const n = grid.length;
   return (
     <svg width={size} height={size} viewBox={`0 0 ${n} ${n}`} aria-hidden="true" className="block" shapeRendering="crispEdges">
-      <rect width={n} height={n} fill="#f4ecdc" />
+      <rect width={n} height={n} fill="#cbbfa8" />
       {grid.map((row, r) => row.map((v, c) => (v ? <rect key={`${r}-${c}`} x={c} y={r} width="1" height="1" fill={HEX[v]} /> : null)))}
     </svg>
   );

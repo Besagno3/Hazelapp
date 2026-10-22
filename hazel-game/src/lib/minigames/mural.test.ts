@@ -18,11 +18,15 @@ import {
   jobFor,
   jobWords,
   learnedLine,
+  markWords,
   mirrorWords,
   mirrored,
   mismatches,
   mix,
   mixWords,
+  num,
+  opposite,
+  paintFirstWords,
   recipe,
   roundQueue,
   source,
@@ -49,10 +53,13 @@ describe('paint (docs/DESIGN-MINIGAMES.md §5.4)', () => {
     expect(recipe('purple')).toEqual(['red', 'blue']);
     expect(recipe('cream')).toEqual(['yellow', 'white']);
     expect(recipe('red')).toBeNull();
+    // Every pair of pots makes a colour (mix is total).
+    for (const a of POTS.tricky) for (const b of POTS.tricky) expect(HEX[mix(a, b)], `${a}+${b}`).toBeTruthy();
   });
 
   it('opposites go both ways round the colour wheel', () => {
-    for (const [a, b] of Object.entries(OPPOSITE)) expect(OPPOSITE[b!]).toBe(a);
+    for (const [a, b] of Object.entries(OPPOSITE)) expect(opposite(b)).toBe(a);
+    expect(opposite('pink')).toBeNull();
   });
 
   it('every colour has a name, a paint and its own letter', () => {
@@ -127,7 +134,7 @@ describe('the jobs', () => {
         for (const [r, c] of toPaint(job.kind)) {
           const [sr, sc] = source(job.kind, r, c);
           const v = job.goal[sr][sc];
-          expect(job.goal[r][c]).toBe(job.kind === 'opposite' && v ? OPPOSITE[v] : v);
+          expect(job.goal[r][c]).toBe(job.kind === 'opposite' && v ? opposite(v) : v);
         }
       }
     }
@@ -150,16 +157,23 @@ describe('the jobs', () => {
     }
   });
 
-  it('a picture’s two colours are never a pair a colour-blind eye mixes up (but opposites, where that’s the lesson)', () => {
-    const muddled = [new Set(['purple', 'blue']), new Set(['red', 'green'])];
+  it('no half of a picture is two colours a colour-blind eye mixes up — opposites set side by side, the halves apart', () => {
+    const muddled = [new Set(['purple', 'blue']), new Set(['red', 'green']), new Set(['red', 'orange']), new Set(['green', 'blue'])];
+    const mixedUp = (cs: Set<unknown>) => muddled.some((m) => [...cs].every((c) => m.has(c as string)));
     for (const band of BANDS) {
       for (const job of jobs(band)) {
-        if (job.kind === 'opposite') continue;
-        const two = new Set(job.goal.flat().filter(Boolean));
-        expect(two.size).toBe(2);
-        for (const m of muddled) expect([...two].every((c) => m.has(c!)), `${band} ${job.pattern}`).toBe(false);
+        const given = new Set(job.goal.flatMap((row, r) => row.filter((v, c) => v && !toPaint(job.kind).some(([rr, cc]) => rr === r && cc === c))));
+        const painted = new Set(toPaint(job.kind).map(([r, c]) => job.goal[r][c]).filter(Boolean));
+        expect(given.size, `${band} ${job.pattern}`).toBe(2);
+        expect(mixedUp(given), `${band} ${job.pattern} given`).toBe(false);
+        if (job.kind === 'opposite') expect(mixedUp(painted), `${band} ${job.pattern} painted`).toBe(false);
       }
     }
+  });
+
+  it('a round’s three pictures are its queue’s first three, in turn', () => {
+    const q = roundQueue((id) => id === 'butterfly', 0);
+    for (const band of BANDS) for (const i of [0, 1, 2]) expect(jobFor(band, 0, i, q).pattern).toBe(q[i]);
   });
 
   it('each band asks in turn: Medium across then down; Tricky four ways, a half turn, opposites', () => {
@@ -207,8 +221,15 @@ describe('the check and the words', () => {
     one[r][c] = null;
     expect(mismatches(job, one)).toEqual([[r, c]]);
     expect(checkWords(job, one)).toBe('One square doesn’t match yet — it’s marked. Look at the square the mirror copies.');
-    one[r][c + (c < 5 ? 1 : -1)] = 'red';
-    expect(checkWords(job, one)).toMatch(/^(Two squares don’t match yet — they’re marked\.|One square)/);
+    // Paint on a square that should stay bare doesn't match either.
+    const bare = job.goal.map((row) => [...row]);
+    const [br, bc] = toPaint(job.kind).find(([rr, cc]) => !job.goal[rr][cc])!;
+    bare[br][bc] = 'red';
+    expect(mismatches(job, bare)).toEqual([[br, bc]]);
+    expect(markWords(2)).toBe('Two squares don’t match yet — they’re marked. Look at the square the mirror copies.');
+    expect(markWords(14)).toMatch(/^Fourteen squares/);
+    expect([13, 20, 21, 27].map(num)).toEqual(['thirteen', 'twenty', 'twenty-one', 'twenty-seven']);
+    expect(paintFirstWords('four')).toBe('Paint the other three quarters first, darling — then hold up the mirror!');
   });
 
   it('the ticket, the mix and what it teaches', () => {
@@ -219,6 +240,7 @@ describe('the check and the words', () => {
     expect(mixWords('blue', 'white', 'sky')).toBe('Blue and white make sky blue!');
     expect(learnedLine(job)).toBe('Red and blue make purple; a mirror line down the middle makes the right half the left half flipped.');
     expect(learnedLine(jobs('tricky').find((j) => j.kind === 'turn')!)).toMatch(/rotational symmetry\.$/);
+    expect(jobWords(jobs('tricky').find((j) => j.kind === 'turn')!)).toMatch(/^Turn it half round: paint the bottom half as the top half upside down\. Mix /);
     const opp = jobs('tricky').find((j) => j.kind === 'opposite')!;
     expect(learnedLine(opp)).toMatch(/; opposite colours sit across the colour wheel: red and green, yellow and purple, blue and orange\.$/);
     expect(mirrorWords('down')).toBe('Paint the bottom half as the top half’s mirror.');

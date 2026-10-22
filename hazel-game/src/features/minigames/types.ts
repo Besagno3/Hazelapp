@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Band, MiniGameDef } from '../../content/minigames';
 
 /**
@@ -33,4 +34,6 @@ export interface RoundOutcome {
   learned: string;
   /** A colour to show beside it (the potion's). */
   swatch?: string;
+  /** Or a picture (the one the kid hung in Mirror Mural's Gallery). Decorative: the title says what it is. */
+  picture?: ReactNode;
 }

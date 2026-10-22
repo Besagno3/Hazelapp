@@ -554,6 +554,7 @@ function RewardScreen({
           {reward.swatch && (
             <span className="mb-4 h-20 w-20 rounded-full border-4 border-[#1b0f22] shadow-[inset_-10px_-10px_0_rgba(0,0,0,0.2)]" style={{ background: reward.swatch }} />
           )}
+          {reward.picture && <span className="mb-2">{reward.picture}</span>}
           {host && (
             <span className={cn(!still && 'motion-safe:animate-bounce [animation-delay:150ms]')}>
               <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={scale} className="text-5xl" />

@@ -244,7 +244,10 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   two colours are never a pair a colour-blind eye mixes up (but opposites);
   the mirror's marks stay on the canvas to fix there and then; an opposite
   mirror's paints come in their pairs, side by side; the round is paid as the
-  third picture matches, so the free canvas is just for fun.
+  third picture matches, so the free canvas is just for fun. After round 2:
+  no picture's half is red and orange or green and blue either; the mirror
+  held up before painting asks for paint first; the reward shows the picture
+  hung.
 
 ### 5.5 🎵 Echo's Call — Music · Bard Lyra, the Music House, Chromaria
 

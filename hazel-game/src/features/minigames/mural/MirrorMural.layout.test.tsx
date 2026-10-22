@@ -17,6 +17,7 @@ const { default: MirrorMural } = await import('./MirrorMural');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES } = await import('../../../content/minigames');
+const { FLOOR_PX, controlsHeight, fitCanvas } = await import('./layout');
 
 const disconnect = vi.fn();
 class FakeResizeObserver {
@@ -39,11 +40,11 @@ function screenIs(wide: boolean, short = false) {
   }));
 }
 
-/** The space is `w` × `h`; the heading over the canvas 32 px tall, the paints and the mirror `controls`. */
-function spaceIs(w: number, h: number, controls = 200) {
+/** The space is `w` × `h`; the heading over the canvas 32 px tall (the paints aren't measured: `layout.ts` knows them). */
+function spaceIs(w: number, h: number) {
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ width: w, height: h, top: 0, left: 0, right: w, bottom: h, x: 0, y: 0, toJSON() {} } as DOMRect);
   vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
-    return this.id === 'mm-canvas' ? 32 : controls;
+    return this.id === 'mm-canvas' ? 32 : 0;
   });
 }
 
@@ -61,6 +62,7 @@ afterEach(() => {
 const column = () => screen.getByRole('group', { name: 'The picture' }).parentElement!;
 const controls = () => screen.getByRole('group', { name: 'Paints' }).parentElement!.parentElement!;
 const play = () => render(<MirrorMural def={MINIGAMES['mirror-mural']} band="gentle" round={0} onPage={() => true} onFinish={() => {}} />);
+const gentle = { paints: 2, pairs: false, free: false };
 
 describe('🪞 the canvas fits its space', () => {
   it('a wide space: the paints and the mirror beside the canvas, which is as tall as the space under its heading', () => {
@@ -71,34 +73,30 @@ describe('🪞 the canvas fits its space', () => {
     expect(controls()).toHaveClass('flex-1');
   });
 
-  it('a tall space: under it, keeping their real height', () => {
+  it('a tall space: under it, at the height its paints and mirror stand', () => {
     screenIs(true);
     spaceIs(600, 700);
     play();
-    expect(column().style.width).toBe(`${700 - 40 - 8 - 200}px`);
+    expect(column().style.width).toBe(`${700 - 40 - 8 - controlsHeight(gentle, 600, false, false)}px`);
     expect(controls()).not.toHaveClass('flex-1');
   });
 
-  it('taller paints leave a smaller canvas', () => {
-    screenIs(true);
-    spaceIs(600, 700, 300);
-    play();
-    expect(column().style.width).toBe(`${700 - 40 - 8 - 300}px`);
-  });
-
-  it('a short screen: always beside, however narrow — under, they’d be below the fold', () => {
+  it('a short screen: compact paints; the same as `fitCanvas` works out', () => {
     screenIs(true, true);
     spaceIs(450, 400);
     play();
-    expect(column().style.width).toBe(`${450 - 180 - 12}px`);
-    expect(controls()).toHaveClass('flex-1');
+    const fit = fitCanvas({ w: 450, h: 400, heading: 40, short: true }, gentle);
+    expect(fit.compact).toBe(true);
+    expect(column().style.width).toBe(`${fit.size}px`);
+    expect(screen.getByRole('button', { name: 'Purple' })).toHaveClass('w-14');
   });
 
-  it('the same narrow space on a taller screen puts them under', () => {
+  it('too small a space to tap in: the canvas keeps the floor’s size, and its space scrolls — never a canvas that hides the mirror', () => {
     screenIs(true);
-    spaceIs(450, 400);
+    spaceIs(308, 260);
     play();
-    expect(column().style.width).toBe(`${400 - 40 - 8 - 200}px`);
+    expect(column().style.width).toBe(`${FLOOR_PX}px`);
+    expect(column().parentElement!.parentElement).toHaveClass('sm:items-start');
   });
 
   it('on a phone: the space’s width (the page scrolls)', () => {

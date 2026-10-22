@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   CRANK_TEETH,
@@ -38,6 +38,7 @@ import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
 import { useFitWidth } from '../useFitWidth';
+import { useStickyHeight } from '../useStickyHeight';
 import { GearShape } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -110,7 +111,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   }, [done, again]);
   // On a phone the board stays at the top of the page: the page keeps that much room at its top when it scrolls
   // something into view, so nothing lands under the board (review round 2: what happened, and why, did).
-  const [boardEl, boardH] = useHeight();
+  const [boardEl, boardH] = useStickyHeight<HTMLElement>();
 
   // What happened, in sight below the board.
   useEffect(() => {
@@ -347,23 +348,6 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
 /** Room under the board for its labels, in px (two lines on a narrow screen). */
 const LABELS_PX = 76;
 
-/**
- * The board's height while it sticks to the top of the page (a phone held
- * upright), kept up to date; null when it doesn't stick, and where it can't
- * be measured, as in tests.
- */
-function useHeight() {
-  const ref = useRef<HTMLElement>(null);
-  const [h, setH] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setH(getComputedStyle(el).position === 'sticky' ? Math.round(el.getBoundingClientRect().height) : null));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, h] as const;
-}
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const gearsWord = (n: number) => `${NUM[n] ?? n} gear${n === 1 ? '' : 's'}`;

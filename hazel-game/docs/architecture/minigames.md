@@ -167,13 +167,24 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   in the save as one flag whose name holds its code (`mineFlag(id,
   encodeMine(grid))`, the old one dropped — §3.5; the whole copy wins
   between devices, so flags aren't merged), shown under the Gallery; this
-  round's pictures show there, and on the wall, in the kid's colours. From
-  `sm` up `useCanvasSize` sizes the canvas with its paints and the mirror
-  measured: beside it (a column at least `BESIDE_PX` wide, compact paints on
-  a short screen) on a short screen or wherever the canvas stays nearly as
-  tall as its space, else under it at their real height — kept in place,
-  unseen, while mixing and after a match so the canvas never changes size;
-  on a phone the mirror's rule sits over the canvas. The room above (this
-  round's three frames) from `sm` up. The
+  round's pictures show there, and on the wall, in the kid's colours, and the
+  reward shows the one hung (`RoundOutcome.picture`). From `sm` up
+  `mural/layout.ts` (`fitCanvas`, pure) fits the canvas: the paints are drawn
+  at fixed sizes, so how tall they stand at a width is worked out
+  (`controlsHeight`) rather than measured — only the space is — and the
+  canvas goes beside them (a column at least `BESIDE_PX` wide) or under them,
+  whichever leaves it bigger, compact paints where they save room; below a
+  floor (26 px squares) it keeps that size and the board scrolls (`tight`;
+  the board keeps its scrollbar's room so one can't change the space). They
+  stay in place, unseen, while mixing and after a match so the canvas never
+  changes size; on a phone the mirror's rule sits over the canvas. A step's
+  buttons wait `SETTLE_MS` as it starts (`useSettled`, shared): a double
+  tap's second tap does nothing to what came under the finger; the mirror held
+  up before a square is painted marks nothing; a held Enter paints once. The
+  mark is sized from the canvas (container units), so a square's letter shows
+  in it; the focus ring is drawn over it. On a tall enough screen Madame
+  Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
+  Clocktower Gears' board). The room above (this round's three frames) from
+  `sm` up. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
