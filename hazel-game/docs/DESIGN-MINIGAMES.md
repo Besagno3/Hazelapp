@@ -194,8 +194,13 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   more than one pie (1 and a half).
 - **Tricky:** percentages and decimals ("75% of a pie", "0.25"); two
   customers' orders added in one box.
-- **Collection:** the regulars served — eight townsfolk, each with a favourite
-  order.
+- **Collection:** the Regulars' Book — eight Lumina Village townsfolk
+  (Grandmother Wick, Keeper Sol, Mayor Marigold, Guard Rook, Nib, Pip, Bramble,
+  Innkeeper Poppy), each with a favourite pie; a page the first time each is
+  served right. Three orders make a morning (a round).
+- **Built (PR 2):** Baker Dot also gives a quest, so the 🥧 button shows over
+  her quest's offer and reminders (leaving them as they were) and never over its
+  reward; the first morning gives a Sunseed Snack.
 
 ### 5.3 ⚙️ Clocktower Gears — Engineering · Tock, Gearfall Canyon
 

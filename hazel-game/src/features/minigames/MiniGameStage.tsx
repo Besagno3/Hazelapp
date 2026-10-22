@@ -282,7 +282,7 @@ function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; 
         <span aria-hidden="true">🗺️ Map</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
-        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px]')}>
+        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px] [@media(max-width:359px)]:text-[24px]')}>
           {def.name}
         </h1>
         <span className="mt-1 hidden text-sm leading-none text-[#c9c5f2] sm:block [@media(max-height:500px)]:hidden">{def.place}</span>

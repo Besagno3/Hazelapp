@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -76,6 +76,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'shrine',
     backdrop: '/backgrounds/verdara.png',
     firstItem: 'potion',
+  },
+  'dots-bakery': {
+    id: 'dots-bakery',
+    name: 'Dot’s Bakery',
+    emoji: '🥧',
+    topic: 'math',
+    host: 'village-baker',
+    place: 'Dot’s Bakery · Lumina Village',
+    where: 'Baker Dot, Lumina Village',
+    playLabel: 'Let’s bake!',
+    againLabel: 'Another morning',
+    hello: 'Pies are out of the oven and the regulars are queueing! Can you cut them fair and fill the boxes?',
+    steps: [
+      { title: 'Cut the pie', text: 'Halves, quarters, thirds… pick how many equal slices.' },
+      { title: 'Fill the box', text: 'Tap slices to put just the right amount in the box.' },
+      { title: 'Close the box', text: 'Two quarters make a half — any cut that makes it is right!' },
+    ],
+    collection: 'Regulars’ Book',
+    pages: 8,
+    bandNote: 'Medium cuts thirds, sixths and eighths; Tricky says it in numbers.',
+    music: 'town',
+    backdrop: '/backgrounds/lumina-village.png',
+    firstItem: 'snack',
   },
 };
 

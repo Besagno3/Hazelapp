@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import type { MiniGameId } from '../../content/minigames';
 import { retryableLazy, type RetryableLazy } from '../../lib/lazyRetry';
 import { PotionLabLogo, StepGuess, StepPour, StepStir } from './potionLab/art';
+import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import type { PlayProps } from './types';
 
 /**
@@ -20,5 +21,10 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./potionLab/PotionLab')),
     Logo: PotionLabLogo,
     steps: [StepPour, StepGuess, StepStir],
+  },
+  'dots-bakery': {
+    Play: retryableLazy(() => import('./bakery/DotsBakery')),
+    Logo: BakeryLogo,
+    steps: [StepCut, StepFill, StepClose],
   },
 };

@@ -514,13 +514,30 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(useSaveStore.getState().save!.coins).toBe(coins + 50);
   });
 
-  it('…nor over its offer, which only “I’m on it!” takes', () => {
+  it('over its offer the game is on offer too, and leaves the quest offered — only “I’m on it!” takes it (PR 2: Baker Dot)', () => {
+    const finish = vi.fn((s: object) => ({ ...s, flags: { 'test-offered': true } }));
     quests.override = (id) =>
-      id === 'verdara-merchant'
-        ? { lines: ['Will you help me?'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish: (s: object) => ({ ...s, flags: { 'test-offered': true } }) }
-        : null;
+      id === 'verdara-merchant' ? { lines: ['Will you help me?', 'It’s a big job.'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish } : null;
     render(<DialogueOverlay npcId="verdara-merchant" />);
-    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(finish).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.flags['test-offered']).toBeUndefined();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('…and over a reminder of a quest under way', () => {
+    quests.override = (id) => (id === 'verdara-merchant' ? { lines: ['Still looking? Try the pond!'], badge: 'A test quest', finishKind: null, finish: null } : null);
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('Baker Dot offers 🥧 Dot’s Bakery over her own quest’s offer', () => {
+    render(<DialogueOverlay npcId="village-baker" />);
+    expect(screen.getByText(/Busy Morning/)).toBeInTheDocument(); // her quest's offer
+    fireEvent.click(screen.getByText('🥧 Dot’s Bakery'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'dots-bakery' });
+    expect(Object.keys(useSaveStore.getState().save!.flags).filter((f) => f.includes('bakery-deliveries'))).toEqual([]);
   });
 
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
