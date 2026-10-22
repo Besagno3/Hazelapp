@@ -1,12 +1,14 @@
 import { QUIZ_QUESTION_COUNT, spareStarter } from './questions';
+import { isStarterId } from '../content/starterQuestions';
 import type { Question, Topic } from '../types';
 
 /**
  * 🆚 Quiz Duel (#177): two players on one screen take turns — the kid playing
  * first, then Player 2, round and round — each answering questions at their
  * own level, so a 6-year-old and a 12-year-old (or a grown-up) play fair.
- * The most right answers wins. Pure rules here; the screen is
- * `features/duel/QuizDuel.tsx`.
+ * The most right answers wins. Each family kid earns XP for their right
+ * answers (`duelXp`); question levels never move. Pure rules here; the screen
+ * is `features/duel/QuizDuel.tsx`.
  */
 
 /** Questions each player answers in a duel — a quiz round's worth. */
@@ -60,4 +62,15 @@ export function withDuelStarters(asked: BySeat<Question[]>, seat: SeatIndex, num
   }
   if (mine === asked[seat]) return asked;
   return seat === 0 ? [mine, asked[1]] : [asked[0], mine];
+}
+
+/**
+ * XP each player earned: their right answers on bank questions (a starter
+ * pays none, #153) at their seat's XP a right answer (0 for a guest, or a kid
+ * whose world isn't open yet).
+ */
+export function duelXp(perRight: BySeat<number>, asked: BySeat<Question[]>, answers: BySeat<boolean[]>): BySeat<number> {
+  const xp = (seat: SeatIndex) =>
+    answers[seat].filter((right, i) => right && asked[seat][i] !== undefined && !isStarterId(asked[seat][i].id)).length * perRight[seat];
+  return [xp(0), xp(1)];
 }

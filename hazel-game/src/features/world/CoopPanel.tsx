@@ -6,6 +6,9 @@ import { companionLook, companionsInParty } from '../../content/companion';
 import { kidName, playerTwoLook } from '../../lib/playerTwo';
 import PlayerTwoPicker from '../duel/PlayerTwoPicker';
 
+/** Who earns what playing together, said as Player 2 is picked. */
+export const COOP_XP_NOTE = 'A family player earns XP for their own right answers; a guest plays just for fun.';
+
 /**
  * 👥 Play together (#178), in the world's 📜 Menu: co-op battles on or off.
  * Off, one row says what it is; tapping it asks who's Player 2
@@ -22,6 +25,8 @@ export default function CoopPanel() {
   const loading = usePlayerTwoStore((s) => s.loading);
   const setCoop = usePlayerTwoStore((s) => s.setCoop);
   const [picking, setPicking] = useState(false);
+  // A sibling typing their PIN: "Play together!" waits until they're in.
+  const [asking, setAsking] = useState(false);
   const oneName = kidName(kids.find((k) => k.id === activeKidId), 'you');
   const party = save ? companionsInParty(save) : [];
   const companion = companionLook(save?.companionId && party.includes(save.companionId) ? save.companionId : 'ember', save?.flags);
@@ -46,9 +51,11 @@ export default function CoopPanel() {
       ) : picking ? (
         <div className="bg-white text-gray-800 rounded-xl p-3">
           <p className="font-bold mb-2">Who's playing with {oneName}?</p>
-          <PlayerTwoPicker playerOne={oneName} />
+          <PlayerTwoPicker playerOne={oneName} onAsking={setAsking} />
+          {!asking && (
+            <>
           <p className="mt-2 text-xs text-gray-600">
-            They play {companion.emoji} {companion.name}. Only {oneName}'s answers earn XP; nothing of theirs is saved.
+            They play {companion.emoji} {companion.name}. {COOP_XP_NOTE}
           </p>
           <button
             aria-disabled={!ready}
@@ -64,6 +71,8 @@ export default function CoopPanel() {
           <button onClick={() => setPicking(false)} className="mt-1 w-full min-h-[44px] text-sm text-gray-600 hover:underline">
             Not now
           </button>
+            </>
+          )}
         </div>
       ) : (
         <button

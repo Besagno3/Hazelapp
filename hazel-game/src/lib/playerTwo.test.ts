@@ -1,21 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Kid } from '../types';
 
-// The `profiles` read, stood in for: `row` answers it (or `error`, or never).
-const { read } = vi.hoisted(() => ({ read: vi.fn() }));
+// The `profiles` and `saves` reads, stood in for: each answers a row (or an error, or never).
+const { profileRead, saveRead } = vi.hoisted(() => ({ profileRead: vi.fn(), saveRead: vi.fn() }));
 vi.mock('./supabase', () => ({
-  supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: read }) }) }) },
+  supabase: {
+    from: (table: string) => ({ select: () => ({ eq: () => ({ maybeSingle: table === 'profiles' ? profileRead : saveRead }) }) }),
+  },
 }));
 
-const { guestName, kidName, playerOneSeat, playerTwoChoices, playerTwoLook, playerTwoSeat, readKidLevels, GUEST_NAME, LEVELS_WAIT_MS } = await import('./playerTwo');
+const { guestName, kidName, playerOneSeat, playerTwoChoices, playerTwoLook, playerTwoSeat, readKidPlay, seatXpPerRight, GUEST_NAME, LEVELS_WAIT_MS } =
+  await import('./playerTwo');
 const { profileKey } = await import('./profile');
+const { saveKey } = await import('./save');
 
 const kid = (id: string, name: string | null, birthYear = 2014): Kid => ({ id, name, icon: 'fox', hasPin: true, birthYear, birthMonth: 1 });
 const NOW = new Date(2026, 9, 22);
 
 beforeEach(() => {
   vi.useFakeTimers({ now: NOW, toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-  read.mockReset();
+  profileRead.mockReset();
+  saveRead.mockReset();
+  saveRead.mockResolvedValue({ data: { world: true }, error: null });
   localStorage.clear();
 });
 afterEach(() => vi.useRealTimers());
@@ -23,7 +29,7 @@ afterEach(() => vi.useRealTimers());
 describe('Player 2 (#177)', () => {
   it('the kid playing plays at their own age and level for the topic', () => {
     const one = playerOneSeat({ name: 'Ada', icon: 'panda' }, { birthYear: 2019, birthMonth: 1, skillLevels: { math: 3 } }, 7, 'math');
-    expect(one).toEqual({ name: 'Ada', icon: '🐼', kid: null, age: 7, skillLevel: 3 });
+    expect(one).toEqual({ name: 'Ada', icon: '🐼', kid: null, age: 7, skillLevel: 3, xpPerRight: 0, worldOpen: false });
     // A topic never played starts where a player of their age would (7 → level 2).
     expect(playerOneSeat({ name: 'Ada', icon: 'panda' }, null, 7, 'space').skillLevel).toBe(2);
     expect(playerOneSeat(undefined, null, 7, 'math').name).toBe('Player 1');
@@ -32,17 +38,32 @@ describe('Player 2 (#177)', () => {
   it("a family kid plays as themselves: their own id, age and level — the server pitches to their age", () => {
     const one = playerOneSeat({ name: 'Ada', icon: 'panda' }, null, 7, 'math');
     const two = playerTwoSeat(
-      { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: { math: 5 } },
+      { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: { math: 5 }, powerUps: {}, worldOpen: true },
       one,
       'math',
     );
-    expect(two).toEqual({ name: 'Mia', icon: '🦊', kid: 'kid-2', age: 12, skillLevel: 5 });
+    expect(two).toEqual({ name: 'Mia', icon: '🦊', kid: 'kid-2', age: 12, skillLevel: 5, xpPerRight: 10, worldOpen: true });
+  });
+
+  it('XP a right answer: 10 and the Scholar bonus, once the world is open; a guest earns none', () => {
+    expect(seatXpPerRight({}, true)).toBe(10);
+    expect(seatXpPerRight({ scholar: 2 }, true)).toBe(20);
+    expect(seatXpPerRight({ scholar: 2 }, false)).toBe(0);
+    const one = playerOneSeat({ name: 'Ada', icon: 'panda' }, { birthYear: 2019, birthMonth: 1, skillLevels: {}, powerUps: { scholar: 1 } }, 7, 'math', true);
+    expect(one).toMatchObject({ xpPerRight: 15, worldOpen: true });
+    expect(playerTwoSeat({ kind: 'guest', name: 'Dad', pace: 'same' }, one, 'math')).toMatchObject({ xpPerRight: 0, worldOpen: false });
+    const closed = playerTwoSeat(
+      { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: {}, powerUps: { scholar: 3 }, worldOpen: false },
+      one,
+      'math',
+    );
+    expect(closed).toMatchObject({ xpPerRight: 0, worldOpen: false });
   });
 
   it("a guest plays under the kid playing (their age, B8), at the kid's level moved by their pace", () => {
     const one = playerOneSeat({ name: 'Ada', icon: 'panda' }, { birthYear: 2019, birthMonth: 1, skillLevels: { math: 3 } }, 7, 'math');
     const guest = (pace: 'easier' | 'same' | 'harder', name = 'Mom') => playerTwoSeat({ kind: 'guest', name, pace }, one, 'math');
-    expect(guest('same')).toEqual({ name: 'Mom', icon: '🙂', kid: null, age: 7, skillLevel: 3 });
+    expect(guest('same')).toEqual({ name: 'Mom', icon: '🙂', kid: null, age: 7, skillLevel: 3, xpPerRight: 0, worldOpen: false });
     expect(guest('harder').skillLevel).toBe(5);
     expect(guest('easier').skillLevel).toBe(1);
     // Never past the ends of the scale.
@@ -61,7 +82,8 @@ describe('Player 2 (#177)', () => {
 
   it("Player 2's name and emoji for the screen (#178)", () => {
     expect(playerTwoLook({ kind: 'guest', name: '  ', pace: 'same' })).toEqual({ name: 'Guest', icon: '🙂' });
-    expect(playerTwoLook({ kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: {} })).toEqual({ name: 'Mia', icon: '🦊' });
+    const mia = { kind: 'kid' as const, id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: {}, powerUps: {}, worldOpen: true };
+    expect(playerTwoLook(mia)).toEqual({ name: 'Mia', icon: '🦊' });
   });
 
   it('Player 2 can be any kid of the family but the one playing', () => {
@@ -71,28 +93,39 @@ describe('Player 2 (#177)', () => {
   });
 });
 
-describe("readKidLevels — Player 2's levels, read only (#177)", () => {
-  it('reads their row, keeping only real numbers', async () => {
-    read.mockResolvedValue({ data: { skill_levels: { math: 6, space: 'x', science: Number.NaN, history: 2 } }, error: null });
-    expect(await readKidLevels('kid-2')).toEqual({ math: 6, history: 2 });
+describe("readKidPlay — what Player 2 plays with, read only (#177)", () => {
+  it('reads their levels and power-ups (real numbers only) and whether their world is open', async () => {
+    profileRead.mockResolvedValue({
+      data: { skill_levels: { math: 6, space: 'x', science: Number.NaN, history: 2 }, power_ups: { scholar: 2, attack: 'lots' } },
+      error: null,
+    });
+    expect(await readKidPlay('kid-2')).toEqual({ skillLevels: { math: 6, history: 2 }, powerUps: { scholar: 2 }, worldOpen: true });
+    saveRead.mockResolvedValue({ data: { world: null }, error: null });
+    expect((await readKidPlay('kid-2')).worldOpen).toBe(false);
+    saveRead.mockResolvedValue({ data: null, error: null });
+    expect((await readKidPlay('kid-2')).worldOpen).toBe(false);
   });
 
-  it("…falls back to this device's copy when the row can't be read", async () => {
+  it("…falls back to this device's copies when the rows can't be read", async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    localStorage.setItem(profileKey('kid-2'), JSON.stringify({ id: 'kid-2', skillLevels: { math: 4 } }));
-    read.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
-    expect(await readKidLevels('kid-2')).toEqual({ math: 4 });
+    localStorage.setItem(profileKey('kid-2'), JSON.stringify({ id: 'kid-2', skillLevels: { math: 4 }, powerUps: { scholar: 1 } }));
+    localStorage.setItem(saveKey('kid-2'), JSON.stringify({ worldUnlocked: true }));
+    profileRead.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+    saveRead.mockResolvedValue({ data: null, error: { message: 'offline' } });
+    expect(await readKidPlay('kid-2')).toEqual({ skillLevels: { math: 4 }, powerUps: { scholar: 1 }, worldOpen: true });
     expect(warn).toHaveBeenCalledWith("Player 2's levels didn't load — using this device's copy:", 'permission denied');
+    expect(warn).toHaveBeenCalledWith("Player 2's save didn't load — using this device's copy:", 'offline');
     warn.mockRestore();
   });
 
-  it('…and never waits for ever: a read that hangs gives way after LEVELS_WAIT_MS', async () => {
+  it('…and never waits for ever: reads that hang give way after LEVELS_WAIT_MS (no copy: no XP rather than XP not earned)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    read.mockReturnValue(new Promise(() => {}));
-    const levels = readKidLevels('kid-2');
+    profileRead.mockReturnValue(new Promise(() => {}));
+    saveRead.mockReturnValue(new Promise(() => {}));
+    const play = readKidPlay('kid-2');
     await vi.advanceTimersByTimeAsync(LEVELS_WAIT_MS);
-    // No copy on this device: every topic starts where a player of their age would.
-    expect(await levels).toEqual({});
+    // No copy on this device: every topic starts where a player of their age would, and no XP until the world is known open.
+    expect(await play).toEqual({ skillLevels: {}, powerUps: {}, worldOpen: false });
     warn.mockRestore();
   });
 });

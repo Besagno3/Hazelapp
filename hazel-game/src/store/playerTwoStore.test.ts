@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Kid } from '../types';
 
-const { readKidLevels } = vi.hoisted(() => ({ readKidLevels: vi.fn() }));
-vi.mock('../lib/playerTwo', async (orig) => ({ ...(await orig<typeof import('../lib/playerTwo')>()), readKidLevels }));
+const { readKidPlay } = vi.hoisted(() => ({ readKidPlay: vi.fn() }));
+vi.mock('../lib/playerTwo', async (orig) => ({ ...(await orig<typeof import('../lib/playerTwo')>()), readKidPlay }));
 
 const { usePlayerTwoStore } = await import('./playerTwoStore');
 const { putAwayGame } = await import('./familyStore');
@@ -10,36 +10,39 @@ const { putAwayGame } = await import('./familyStore');
 const kid = (id: string, name: string | null): Kid => ({ id, name, icon: 'fox', hasPin: true, birthYear: 2014, birthMonth: 3 });
 
 beforeEach(() => {
-  readKidLevels.mockReset();
+  readKidPlay.mockReset();
   usePlayerTwoStore.getState().clear();
 });
 
 describe('playerTwoStore (#177)', () => {
-  it('a kid is Player 2 at once; their levels follow once read', async () => {
+  it('a kid is Player 2 at once; their levels, power-ups and open world follow once read', async () => {
     let answer!: (levels: object) => void;
-    readKidLevels.mockReturnValue(new Promise((r) => (answer = r)));
+    readKidPlay.mockReturnValue(new Promise((r) => (answer = r)));
     const picked = usePlayerTwoStore.getState().chooseKid(kid('kid-2', 'Mia'));
     expect(usePlayerTwoStore.getState()).toMatchObject({
       loading: true,
-      playerTwo: { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 3, skillLevels: {} },
+      playerTwo: { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 3, skillLevels: {}, powerUps: {}, worldOpen: false },
     });
-    answer({ math: 6 });
+    answer({ skillLevels: { math: 6 }, powerUps: { scholar: 2 }, worldOpen: true });
     await picked;
-    expect(usePlayerTwoStore.getState()).toMatchObject({ loading: false, playerTwo: { id: 'kid-2', skillLevels: { math: 6 } } });
+    expect(usePlayerTwoStore.getState()).toMatchObject({
+      loading: false,
+      playerTwo: { id: 'kid-2', skillLevels: { math: 6 }, powerUps: { scholar: 2 }, worldOpen: true },
+    });
   });
 
-  it('levels that come back after another pick are dropped', async () => {
+  it('a read that comes back after another pick is dropped', async () => {
     let answer!: (levels: object) => void;
-    readKidLevels.mockReturnValue(new Promise((r) => (answer = r)));
+    readKidPlay.mockReturnValue(new Promise((r) => (answer = r)));
     const picked = usePlayerTwoStore.getState().chooseKid(kid('kid-2', 'Mia'));
     usePlayerTwoStore.getState().chooseGuest('Dad', 'harder');
-    answer({ math: 6 });
+    answer({ skillLevels: { math: 6 }, powerUps: {}, worldOpen: true });
     await picked;
     expect(usePlayerTwoStore.getState()).toEqual(expect.objectContaining({ loading: false, playerTwo: { kind: 'guest', name: 'Dad', pace: 'harder' } }));
   });
 
   it('a kid with no name is "Player 2"', async () => {
-    readKidLevels.mockResolvedValue({});
+    readKidPlay.mockResolvedValue({ skillLevels: {}, powerUps: {}, worldOpen: false });
     await usePlayerTwoStore.getState().chooseKid(kid('kid-2', null));
     expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ name: 'Player 2' });
   });

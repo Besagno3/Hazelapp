@@ -77,8 +77,9 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   asked to play with a sibling or a friend, so same-screen play is in scope
   now (it reverses `docs/DESIGN-JRPG.md` §6 question 4 for one screen;
   playing online, across devices or families, stays out). Player 2 is
-  another kid of the family or a guest (`lib/playerTwo.ts`); nothing of
-  theirs is saved. The 🆚 Quiz Duel is the first mode.
+  another kid of the family — who types their own PIN and earns XP as
+  themselves (the owner's call, #179) — or a guest, who earns nothing
+  (`lib/playerTwo.ts`). The 🆚 Quiz Duel came first, then 👥 co-op battles.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
@@ -353,10 +354,14 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   machine owns *where the player is*; Zustand stores own *what they have*.
 - **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `duel`, `battle`, `world`.
 - **Two players (#177, `lib/playerTwo.ts`, `store/playerTwoStore.ts`,
-  `features/duel/`):** **Player 2** is another kid of the family — no PIN,
-  since nothing of theirs changes: their `skill_levels` are read once
-  (`readKidLevels`: their `profiles` row within `LEVELS_WAIT_MS` (3 s), else
-  this device's copy, else none — every topic at their age's start) and their
+  `features/duel/`):** **Player 2** is another kid of the family — who
+  types their own PIN first (`PlayerTwoPicker`'s `PinPad`, the limits and
+  locks of "Who's playing?"; the screen's own buttons wait meanwhile,
+  `onAsking`; a kid already picked this session, or with no PIN yet, isn't
+  asked; #179) — whose levels, power-ups and open world are read once
+  (`readKidPlay`: their `profiles` row and their save's `worldUnlocked`, each
+  within `LEVELS_WAIT_MS` (3 s), else this device's copies, else none — every
+  topic at their age's start, no XP) and whose
   questions are asked for **as them** (`profileId` = their id), so the server
   pitches them to their own age (it never takes an age from the app, B8),
   charges their budget and keeps their seen questions their own — or a
@@ -368,9 +373,21 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   `playerTwoSeat` turn them into a `Seat` (`QuestionSeat` in `types` — kid,
   age, level — plus name and emoji). The pick lives in `playerTwoStore` for
   the session (a later pick drops a slower read, `pickGen`) and goes with
-  the game (`putAwayGame`). **Nothing of Player 2's is saved**, and a duel
-  pays the kid playing nothing either: no XP, no level moves, no Library —
-  said on the setup and results screens. The question plumbing takes a kid:
+  the game (`putAwayGame`). **XP for every family player (#179):** right
+  answers on bank questions (a starter pays none) pay each kid their own rate
+  (`Seat.xpPerRight`, `seatXpPerRight`: 10 + their Scholar bonus, once their
+  world is open, #122; a guest none) — the kid playing's through `addXp`, a
+  sibling's straight to their row (`lib/kidXp.ts` `giveKidXp`: a read, then
+  an update guarded on the XP read — read again if their own device wrote in
+  between, up to `GUARD_TRIES`; their streak and play day follow; this
+  device's copy of their profile moves too; one kid's writes in turn). What
+  can't be written is owed on this device (`hazel-owed-xp-<kid>`), paid with
+  the next XP given them here or when they next load here (`takeOwedXp` in
+  `profileStore.loadProfile`). The screens say it (`kidXpWords`: "Saving…",
+  "Saved to Mia's game.", "⭐ Mia reached level 4!", "It'll be added the next
+  time Mia plays on this device."; `xpStartsLine` for a world not open yet).
+  Question levels and the Library never move for Player 2, and a duel moves
+  no levels for either. The question plumbing takes a kid:
   `useBattleQuestions(…, { seat })`, `quickQuestions({ kid })`,
   `moreQuestions(…, kid)`, `takeCarried(…, kid)` (the look-ahead cache key
   and carried questions are per kid), and `markSeen(id, kid)` keeps what's
@@ -398,7 +415,10 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   wins!" or "It's a tie!" (focused, confetti), "5 to 2. Great try, <name>!",
   both scores, "What <name> missed (n)" folded per player, a fun fact,
   🔁 Rematch (same players and topic, fresh questions), "New players or
-  topic", "Back to the Training Grounds". Music: the Training Grounds'.
+  topic", "Back to the Training Grounds"; and, under the scores, the XP each
+  earned (`duelXp`, paid once as the duel ends — `payDuel`; a duel is a day
+  played for the kid playing even with none), the footnotes `DUEL_XP_NOTE`.
+  Music: the Training Grounds'.
   **👥 Co-op battles (#178, `lib/coop.ts`, `features/world/CoopPanel.tsx`):**
   📜 Menu → "👥 Play together": "Two players" (off) opens the same
   `PlayerTwoPicker`, "👥 Play together!" (`aria-disabled` until Player 2 is
@@ -430,11 +450,16 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   either fizzles it, the charge safe, and nobody is asked after a miss. The
   enemy's blows are blocked in turn (`defenderFor`: the kid playing first),
   each with the blocker's own question and countdown (`defendTimeMs` of
-  their age). A chip above each question says whose it is ("🐼 Ada's
+  their age); plain blows and power moves are counted apart (`blows`), so a
+  boss's power moves come at both players too (the owner's call, #179). A chip above each question says whose it is ("🐼 Ada's
   question" sky / "🦊 Mia's question" amber, smaller on a short screen);
   the battle's top bar shows "👥 🐼 Ada + 🦊 Mia". `recordAnswer(…, who)`:
   every answer fills the team's ◆ and streak (and Keen Eye); only the kid
-  playing's move their answers, battle ramp, speed trigger, Library and XP;
+  playing's move their answers, battle ramp, speed trigger, Library and their
+  XP; Player 2's right bank answers are counted for their own
+  (`twoBankRight`): as the fight ends `payPartner` gives a sibling those at
+  their rate plus, won, the win's XP as the kid playing gets it — under the
+  team line, `BattleResult`'s `partner` says what and where (a guest: nothing);
   no ✍️ scribe burst on Player 2's; `defendTimedOut(…, who)` likewise.
   Player 2's questions are marked seen by them (`QuestionCard`'s `seenBy`).
   The result adds a team line (`BattleResult`'s `team`: "🤝 🐼 Ada 3 right ·
@@ -1628,6 +1653,9 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Two players, the owner's calls: a sibling's PIN, a sibling's XP, boss power moves for both (#179)
+The owner answered #177 / #178's open questions: a sibling must type their PIN, earns XP, and faces the bosses too. **PIN:** tapping a family kid in `PlayerTwoPicker` (🆚 Quiz Duel and 📜 → 👥 Play together) shows their `PinPad` ("Hi, Mia! Type your PIN.", focused; the database's tries and locks, `KID_UNLOCK_HELP`); the topics and "👥 Play together!" wait meanwhile (`onAsking`); "← That's not me" goes back, and a right PIN answering after it picks nobody; a kid already picked this session, or with no PIN yet, isn't asked. **XP:** each family player earns XP for their right bank answers at their own rate, once their world is open (#122) — in a duel both players (`duelXp`, paid once as it ends, `payDuel`; a guard against a double tap on the last Next), in a co-op battle Player 2's answers plus, won, the win's XP (`twoBankRight`, `payPartner`). A sibling's goes straight to their row (new `lib/kidXp.ts`: `giveKidXp` reads, then updates only over the XP it read — another device writing in between means read again; their streak and play day follow; this device's copy moves too; what can't be written is owed on this device and paid when they next load here, `takeOwedXp` in `profileStore.loadProfile`). `readKidPlay` replaces `readKidLevels` (levels, power-ups and the save's `worldUnlocked`), and seats carry `xpPerRight` / `worldOpen`. The duel results list each player's XP ("Saving…" → "Saved to Mia's game." / "⭐ Mia reached level 4!" / "It'll be added the next time Mia plays on this device.", or "XP starts for Mia once Mia opens the world."); the battle result adds Player 2's under the team line (`BattleResult`'s `partner`); the footnotes say family players earn XP and guests play for fun (`DUEL_XP_NOTE`, `COOP_XP_NOTE`). Question levels and the Library still never move for Player 2. **Bosses:** plain blows and power moves are counted apart for who blocks (`blows`), so a boss's power moves come at both players. The database side needs nothing new: every column written is a kid-play column (`profiles_kid_play_columns()`), so no 👪 window. Tests: `kidXp.test` (new: the write, the level roll-over, the old curve, a write in between, owed and carried, two at once, the device's copy), `profileStore.unread.test` (+3: owed XP on load, read / failed / no row), `QuizDuel.test` (+8: the PIN step — wrong, right, not me, a late answer, no PIN, not asked twice — and the XP: both players, saving → level up, kept for later, worlds closed, a guest), `CoopPanel.test` (the PIN in the menu), `BattleArena.coop.test` (+3: Mia's XP won and lost, a closed world, a guest; the boss's power moves), `playerTwo.test` (`readKidPlay`, `seatXpPerRight`), `playerTwoStore.test`. 2,425 green; lint, `tsc -b`, `build:web` clean.
 
 ### 2026-10-22 — 👥 Co-op battles: Player 2 plays the companion (#178)
 The second half of the two-player ask (#177). 📜 Menu → 👥 Play together picks Player 2 (the duel's picker: a sibling or a guest) and turns co-op on for the session. In battle, after the kid playing's command, Player 2 takes the companion's turn — its strike or a Pair Attack, each on a question at Player 2's own level, asked for as them — or, while Ember is still an egg, a 📣 cheer (+1 ◆ when right). A Pair Attack takes both: Player 2's super-hard answer, then the kid playing's; a miss from either fizzles it, the charge safe. The players block the enemy's blows in turn, each with their own question and countdown. A chip says whose question it is; the top bar says who's playing; the result adds each player's right answers. Only the kid playing's answers move their level, speed trigger, Library and XP; nothing of Player 2's is saved. New: `lib/coop.ts` (`defenderFor`, `partnerLevel`, `CHEER_CHARGE`), `features/world/CoopPanel.tsx` (in `MenuOverlay`), `PartnerMenu` (sharing `CompanionMoves` with `CompanionMenu`), `CommandMenu`'s `mover`, `BattleResult`'s `team`, `QuestionCard`'s `seenBy`, `useBattleQuestions`' `off`, `playerTwoStore.coop` / `setCoop`, `playerTwoLook`. `BattleArena`: `endHeroTurn` / `afterPartner` in place of the hero moves' `enemyTurn`, `who` on question turns, Player 2's two pools. Tests: `BattleArena.coop.test` (alone nothing changes and Player 2's pools are off; Player 2's pools asked as them at their level, a guest's at the fight's level + pace; the round order with the chip, the greyed companion and alternating blocks; only Ada's answers count — XP exactly the win's, Library, no level move — and the team line; a Pair Attack both right fires, Player 2's miss fizzles with no second question; the egg's cheer), `CoopPanel.test`, `coop.test`, `playerTwoStore` (co-op only with Player 2; cleared with the game), `playerTwo` (`playerTwoLook`), `QuestionCard` (`seenBy`). Rendered on the real app with Supabase stubbed at 375×667, 320×568 (touch) and 1024×768: the menu panel off / picked / on, then the Ringkeeper — Ada's moves, Mia's turn and questions (asked as kid-2 at her level 7, super-hard at 10), a Pair Attack Mia then Ada, blocks in turn; A review pass (no high findings) led to two fixes: Player 2's seat is locked for the fight (a pick or a late level read mid-fight re-keyed their pools and flashed the intro back), and Player 2 never draws a question the hero's pool holds (`partnerPick`) — a guest at the kid's own level, or offline starters, gave both the same questions on one screen. At 320 the chip pushed the last answer 5 px under the fold, so it is smaller on short screens, and the co-op Pair Attack lines are short enough for one line ("⚔️ Twin Strike — Mia first!", "⚔️ Now finish Twin Strike!"); every answer then fits 320×568 (the 🪶 Hint Feather button is under the fold there, as in a fight alone).

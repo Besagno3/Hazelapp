@@ -5,13 +5,16 @@ import { sendFlow } from '../../machines/gameFlow';
 import { useFamilyStore } from '../../store/familyStore';
 import { useProfileStore } from '../../store/profileStore';
 import { usePlayerTwoStore } from '../../store/playerTwoStore';
+import { useSaveStore } from '../../store/saveStore';
 import { ALL_TOPIC_INFO, topicInfo } from '../../content/topics';
 import { playerAge } from '../../lib/age';
 import { markSeen } from '../../lib/seen';
 import { pickFact } from '../../lib/funFacts';
 import { cn } from '../../lib/utils';
 import { kidName, playerOneSeat, playerTwoSeat, type Seat } from '../../lib/playerTwo';
-import { duelScores, duelWinner, otherSeat, DUEL_QUESTIONS_EACH, DUEL_TURNS, type BySeat, type SeatIndex } from '../../lib/duel';
+import { duelScores, duelWinner, duelXp, otherSeat, DUEL_QUESTIONS_EACH, DUEL_TURNS, type BySeat, type SeatIndex } from '../../lib/duel';
+import { giveKidXp, kidXpWords, xpStartsLine, type KidXpResult } from '../../lib/kidXp';
+import { useSettled } from '../../hooks/useSettled';
 import { useCalmWait, FIRST_WAIT_DELAY_MS, LONG_WAIT_MS, WAIT_DELAY_MS, WAIT_MIN_MS } from '../quiz/useCalmWait';
 import { SWITCH_ARM_MS, SWITCH_CONFIRM_GAP_MS } from '../auth/SwitchPlayerButton';
 import { useDuelRound } from './useDuelRound';
@@ -27,10 +30,30 @@ interface DuelResult {
   picks: BySeat<number[]>;
 }
 
+/** What a finished duel paid: each player's XP, and how Player 2's went to their profile (a sibling who earned some). */
+interface DuelPay {
+  xp: BySeat<number>;
+  sibling: Promise<KidXpResult> | null;
+}
+
 type Stage =
   | { step: 'setup' }
   | { step: 'play'; topic: Topic; seats: BySeat<Seat>; game: number }
-  | { step: 'results'; topic: Topic; seats: BySeat<Seat>; result: DuelResult };
+  | { step: 'results'; topic: Topic; seats: BySeat<Seat>; result: DuelResult; pay: DuelPay };
+
+/**
+ * Pays a finished duel's XP: the kid playing's through their profile (any XP
+ * is a day played — and so is a duel that paid none), a sibling's straight to
+ * theirs (`lib/kidXp.ts`). Once per duel, as it ends.
+ */
+function payDuel(seats: BySeat<Seat>, result: DuelResult): DuelPay {
+  const xp = duelXp([seats[0].xpPerRight, seats[1].xpPerRight], result.asked, result.answers);
+  const profile = useProfileStore.getState();
+  if (xp[0] > 0) void profile.addXp(xp[0]);
+  else void profile.recordActivity();
+  const sibling = seats[1].kid && xp[1] > 0 ? giveKidXp(seats[1].kid, xp[1]) : null;
+  return { xp, sibling };
+}
 
 /** Each player's colours: the kid playing sky, Player 2 amber — and always their name and emoji beside, never the colour alone. */
 const SEAT_LOOK: BySeat<{ chip: string; on: string; text: string; button: string; pick: string }> = [
@@ -67,12 +90,13 @@ export default function QuizDuel() {
   const activeKidId = useFamilyStore((s) => s.activeKidId);
   const profile = useProfileStore((s) => s.profile);
   const playerTwo = usePlayerTwoStore((s) => s.playerTwo);
+  const worldOpen = useSaveStore((s) => s.save?.worldUnlocked === true);
   const oneKid = kids.find((k) => k.id === activeKidId);
   const oneName = kidName(oneKid, 'Player 1');
 
   function start(topic: Topic) {
     if (!playerTwo) return;
-    const one = playerOneSeat(oneKid, profile, playerAge(profile), topic);
+    const one = playerOneSeat(oneKid, profile, playerAge(profile), topic, worldOpen);
     setStage({ step: 'play', topic, seats: [one, playerTwoSeat(playerTwo, one, topic)], game: Date.now() });
   }
 
@@ -82,7 +106,7 @@ export default function QuizDuel() {
         key={stage.game}
         topic={stage.topic}
         seats={stage.seats}
-        onDone={(result) => setStage({ step: 'results', topic: stage.topic, seats: stage.seats, result })}
+        onDone={(result) => setStage({ step: 'results', topic: stage.topic, seats: stage.seats, result, pay: payDuel(stage.seats, result) })}
         onEnd={() => setStage({ step: 'setup' })}
       />
     );
@@ -93,6 +117,7 @@ export default function QuizDuel() {
         topic={stage.topic}
         seats={stage.seats}
         result={stage.result}
+        pay={stage.pay}
         onRematch={() => setStage({ step: 'play', topic: stage.topic, seats: stage.seats, game: Date.now() })}
         onChange={() => setStage({ step: 'setup' })}
       />
@@ -105,6 +130,8 @@ export default function QuizDuel() {
 function DuelSetup({ playerOne, onStart }: { playerOne: string; onStart: (topic: Topic) => void }) {
   const playerTwo = usePlayerTwoStore((s) => s.playerTwo);
   const loading = usePlayerTwoStore((s) => s.loading);
+  // A sibling typing their PIN: the topics wait until they're in.
+  const [asking, setAsking] = useState(false);
   return (
     <div className={PAGE}>
       <ScreenTopBar />
@@ -117,9 +144,9 @@ function DuelSetup({ playerOne, onStart }: { playerOne: string; onStart: (topic:
         </p>
         <div className={CARD}>
           <h2 className="text-lg font-bold text-gray-800 mb-3">Who's playing with {playerOne}?</h2>
-          <PlayerTwoPicker playerOne={playerOne} />
+          <PlayerTwoPicker playerOne={playerOne} onAsking={setAsking} />
 
-          {playerTwo && (
+          {playerTwo && !asking && (
             <section aria-labelledby="duel-topic" className="mt-6">
               <h2 id="duel-topic" className="text-lg font-bold text-gray-800 mb-3">
                 Pick a topic
@@ -151,7 +178,7 @@ function DuelSetup({ playerOne, onStart }: { playerOne: string; onStart: (topic:
             </section>
           )}
 
-          <p className="mt-5 text-xs text-gray-500 text-center">Duels are just for fun: XP and question levels stay as they are.</p>
+          <p className="mt-5 text-xs text-gray-500 text-center">{DUEL_XP_NOTE}</p>
         </div>
         <button
           onClick={() => sendFlow({ type: 'EXIT_DUEL' })}
@@ -251,6 +278,8 @@ function DuelPlay({
         ? `${player.name}'s turn! Question ${number + 1} of ${DUEL_QUESTIONS_EACH}.`
         : '';
 
+  const finished = useRef(false);
+
   function handleAnswer(idx: number) {
     if (selected !== null || !q) return;
     setSelected(idx);
@@ -261,6 +290,9 @@ function DuelPlay({
 
   function goNext() {
     if (isLast) {
+      // Once: the duel's end pays its XP.
+      if (finished.current) return;
+      finished.current = true;
       onDone({ asked, answers, picks });
       return;
     }
@@ -440,17 +472,46 @@ function EndDuelButton({ onEnd }: { onEnd: () => void }) {
   );
 }
 
-/** Who won, both scores, what each missed, and the way on. */
+/** Who earns what in a duel, said on the setup and results screens. */
+export const DUEL_XP_NOTE = 'Family players earn XP for right answers. Question levels stay as they are, and guests play just for fun.';
+
+/** One player's XP line on the results: what they earned, and where Player 2's went. */
+function XpLine({ seat, s, xp, sibling }: { seat: Seat; s: SeatIndex; xp: number; sibling: Promise<KidXpResult> | null }) {
+  const saved = useSettled(sibling);
+  if (xp > 0) {
+    return (
+      <li className={cn('font-semibold', SEAT_LOOK[s].text)}>
+        <span aria-hidden="true">{seat.icon} </span>
+        {seat.name}: +{xp} XP
+        {sibling && <span className="block text-xs font-normal text-gray-600">{kidXpWords(seat.name, saved)}</span>}
+      </li>
+    );
+  }
+  // A family kid whose world isn't open yet: XP starts there (#122).
+  if (!seat.worldOpen && (s === 0 || seat.kid)) {
+    return (
+      <li className="text-gray-600">
+        <span aria-hidden="true">{seat.icon} </span>
+        {xpStartsLine(seat.name)}
+      </li>
+    );
+  }
+  return null;
+}
+
+/** Who won, both scores, the XP each earned, what each missed, and the way on. */
 function DuelResults({
   topic,
   seats,
   result,
+  pay,
   onRematch,
   onChange,
 }: {
   topic: Topic;
   seats: BySeat<Seat>;
   result: DuelResult;
+  pay: DuelPay;
   onRematch: () => void;
   onChange: () => void;
 }) {
@@ -486,6 +547,12 @@ function DuelResults({
           </div>
 
           <Scoreboard seats={seats} scores={scores} active={null} />
+
+          <ul aria-label="XP earned" aria-live="polite" className="mb-4 space-y-1 text-sm empty:hidden">
+            {([0, 1] as const).map((s) => (
+              <XpLine key={s} seat={seats[s]} s={s} xp={pay.xp[s]} sibling={s === 1 ? pay.sibling : null} />
+            ))}
+          </ul>
 
           {([0, 1] as const).map((s) => {
             const missed = result.asked[s]
@@ -536,7 +603,7 @@ function DuelResults({
               Back to the Training Grounds
             </button>
           </div>
-          <p className="mt-3 text-xs text-gray-500 text-center">Just for fun: XP and question levels stay as they are.</p>
+          <p className="mt-3 text-xs text-gray-500 text-center">{DUEL_XP_NOTE}</p>
         </motion.div>
       </div>
     </div>

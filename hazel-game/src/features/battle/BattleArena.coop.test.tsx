@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
 import type { BattleEnemy, Kid, Profile, Question, QuestionSeat } from '../../types';
+import type { PlayerTwo } from '../../lib/playerTwo';
 
 /** A question whose right answer is `right` (first) and wrong ones follow it. */
 const question = (id: string, text: string, right: string, wrong: string[]): Question => ({
@@ -44,6 +45,9 @@ vi.mock('../../lib/questions', async (orig) => ({
 const { markSeen } = vi.hoisted(() => ({ markSeen: vi.fn() }));
 vi.mock('../../lib/seen', () => ({ markSeen }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
+// A sister's XP, to her own game (stood in for: `lib/kidXp` has its own tests).
+const { giveKidXp } = vi.hoisted(() => ({ giveKidXp: vi.fn() }));
+vi.mock('../../lib/kidXp', async (orig) => ({ ...(await orig<typeof import('../../lib/kidXp')>()), giveKidXp }));
 vi.mock('../../machines/gameFlow', () => ({ sendFlow: vi.fn() }));
 
 const { default: BattleArena } = await import('./BattleArena');
@@ -65,9 +69,19 @@ const enemy = {
 const kid = (id: string, name: string, icon: string, birthYear: number): Kid => ({ id, name, icon, hasPin: true, birthYear, birthMonth: 1 });
 const addXp = vi.fn();
 const setSkillLevel = vi.fn();
-const MIA_KID = { kind: 'kid' as const, id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: { math: 5 } };
+const MIA_KID = {
+  kind: 'kid' as const,
+  id: 'kid-2',
+  name: 'Mia',
+  icon: 'fox',
+  birthYear: 2014,
+  birthMonth: 1,
+  skillLevels: { math: 5 },
+  powerUps: {},
+  worldOpen: true,
+};
 
-function start({ hatched = true, coop = true, hp = 500, charge = 0 } = {}) {
+function start({ hatched = true, coop = true, hp = 500, charge = 0, boss = false, heroHp = 100, two = MIA_KID as PlayerTwo } = {}) {
   const save = defaultSave();
   useSaveStore.setState({
     userId: null,
@@ -76,9 +90,9 @@ function start({ hatched = true, coop = true, hp = 500, charge = 0 } = {}) {
     remoteError: null,
   });
   useFamilyStore.setState({ kids: [kid('kid-1', 'Ada', 'panda', 2019), kid('kid-2', 'Mia', 'fox', 2014)], activeKidId: 'kid-1' });
-  usePlayerTwoStore.setState({ playerTwo: MIA_KID, coop, loading: false });
+  usePlayerTwoStore.setState({ playerTwo: two, coop, loading: false });
   useBattleStore.getState().reset();
-  useBattleStore.getState().start({ ...enemy, maxHp: hp }, 100, 100);
+  useBattleStore.getState().start({ ...enemy, maxHp: hp, isBoss: boss }, heroHp, 100);
   if (charge) useBattleStore.getState().applyCombat({ ...combatState(), charge });
   render(<BattleArena />);
 }
@@ -107,6 +121,8 @@ beforeEach(() => {
   markSeen.mockClear();
   addXp.mockClear();
   setSkillLevel.mockClear();
+  giveKidXp.mockReset();
+  giveKidXp.mockResolvedValue({ saved: true, level: 2, leveledUp: false });
   useProfileStore.setState({
     profile: { id: 'kid-1', birthYear: 2019, birthMonth: 1, skillLevels: { math: 3 }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null } as Profile,
     addXp,
@@ -209,7 +225,29 @@ describe('👥 co-op battles (#178)', () => {
     expect(screen.getByText("Ada's move!")).toBeInTheDocument();
   });
 
-  it("only Ada's answers count for her: XP, level and Library — the result shows both players", () => {
+  it("a boss's power moves come at both players: plain blows and power moves are blocked in turn apart (the owner's call)", () => {
+    // A boss's rhythm: attack, attack, charge, POWER, attack, charge, POWER… — on one count every power move was Ada's.
+    start({ boss: true, hp: 100000 });
+    const blocks: string[] = [];
+    for (let step = 0; step < 80 && blocks.filter((b) => b.startsWith('power')).length < 2; step++) {
+      // Ada's commands (headed "💢 Guard to block it!" while a power move is coming).
+      if (screen.queryByText('Guard')) {
+        fireEvent.click(screen.getByText('Guard'));
+      } else if (screen.queryByTestId('partner-menu')) {
+        fireEvent.click(within(screen.getByTestId('partner-menu')).getAllByRole('button')[0]);
+      } else if (screen.queryByTestId('coop-asker')) {
+        const mia = asker()!.includes('Mia');
+        const blow = screen.queryByText(/answer to soften it/) ? 'power' : screen.queryByText(/answer to block/) ? 'attack' : null;
+        if (blow) blocks.push(`${blow}:${mia ? 'Mia' : 'Ada'}`);
+        answer(mia ? '60' : '4');
+      } else {
+        fireEvent.click(screen.getByText(/tap to continue/));
+      }
+    }
+    expect(blocks).toEqual(['attack:Ada', 'attack:Mia', 'power:Ada', 'attack:Ada', 'power:Mia']);
+  });
+
+  it("only Ada's answers count for her: XP, level and Library — the result shows both players", async () => {
     // Ada guards (a miss), Mia's strike wins (a 1-HP critter).
     start({ hp: 1 });
     fireEvent.click(screen.getByText('Guard'));
@@ -227,6 +265,43 @@ describe('👥 co-op battles (#178)', () => {
     expect(useSaveStore.getState().save!.library.map((e) => e.question.id)).toEqual(['ada-1']);
     // The battle ramp never lowers a level, and Ada got none right: hers stays.
     expect(setSkillLevel).not.toHaveBeenCalled();
+    // Mia's right answer is XP in her own game, and the win's too, as Ada gets it.
+    const winXp = defeatXp(npcDefeatXp(enemy.level), enemy.tier);
+    expect(giveKidXp).toHaveBeenCalledTimes(1);
+    expect(giveKidXp).toHaveBeenCalledWith('kid-2', 10 + winXp);
+    expect(screen.getByTestId('partner-xp')).toHaveTextContent(`🦊 Mia: ⭐ +${10 + winXp} XP.`);
+    expect(await screen.findByText("Saved to Mia's game.")).toBeInTheDocument();
+  });
+
+  it('lost, Mia keeps her right answers’ XP (no win XP)', () => {
+    // Ada misses, Mia's strike lands, then the enemy's blow — Ada's to block — knocks the 1-HP hero out.
+    start({ heroHp: 1 });
+    fireEvent.click(screen.getByText('Attack'));
+    answer('5');
+    readOnTo(/Mia's turn/);
+    fireEvent.click(within(screen.getByTestId('partner-menu')).getAllByRole('button')[0]);
+    answer('60');
+    readOnTo(/answer to block/);
+    answer('5');
+    readOnTo('Whew — that was close!');
+    expect(giveKidXp).toHaveBeenCalledWith('kid-2', 10);
+  });
+
+  it("a sister whose world isn't open yet earns none — it says XP starts there; a guest earns none and nothing's said", () => {
+    start({ hp: 1, two: { ...MIA_KID, worldOpen: false } });
+    fireEvent.click(screen.getByText('Attack'));
+    answer('4');
+    readOnTo('Victory!');
+    expect(screen.getByTestId('partner-xp')).toHaveTextContent('XP starts for Mia once Mia opens the world.');
+    expect(giveKidXp).not.toHaveBeenCalled();
+    cleanup();
+
+    start({ hp: 1, two: { kind: 'guest', name: 'Dad', pace: 'same' } });
+    fireEvent.click(screen.getByText('Attack'));
+    answer('4');
+    readOnTo('Victory!');
+    expect(screen.queryByTestId('partner-xp')).toBeNull();
+    expect(giveKidXp).not.toHaveBeenCalled();
   });
 
   it('a Pair Attack takes both: Mia first, then Ada — both right, it fires', () => {

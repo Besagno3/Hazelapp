@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { readKidLevels, type GuestPace, type PlayerTwo } from '../lib/playerTwo';
+import { readKidPlay, type GuestPace, type PlayerTwo } from '../lib/playerTwo';
 import type { Kid } from '../types';
 
 /**
@@ -12,9 +12,9 @@ import type { Kid } from '../types';
 interface PlayerTwoStore {
   playerTwo: PlayerTwo | null;
   coop: boolean;
-  /** A kid's levels are being read (the kid is picked already). */
+  /** A kid's levels (and power-ups, and whether their world is open) are being read — the kid is picked already. */
   loading: boolean;
-  /** A family kid as Player 2; their levels are read in the background. */
+  /** A family kid as Player 2 (their PIN typed already); what they play with is read in the background. */
   chooseKid: (kid: Kid) => Promise<void>;
   chooseGuest: (name: string, pace: GuestPace) => void;
   /** Co-op battles on or off (on only once Player 2 is picked). */
@@ -22,7 +22,7 @@ interface PlayerTwoStore {
   clear: () => void;
 }
 
-/** Bumped on every choice: levels that come back after another pick are dropped. */
+/** Bumped on every choice: a read that comes back after another pick is dropped. */
 let pickGen = 0;
 
 export const usePlayerTwoStore = create<PlayerTwoStore>((set, get) => ({
@@ -40,10 +40,10 @@ export const usePlayerTwoStore = create<PlayerTwoStore>((set, get) => ({
       birthYear: kid.birthYear,
       birthMonth: kid.birthMonth,
     };
-    set({ playerTwo: { ...base, skillLevels: {} }, loading: true });
-    const skillLevels = await readKidLevels(kid.id);
+    set({ playerTwo: { ...base, skillLevels: {}, powerUps: {}, worldOpen: false }, loading: true });
+    const play = await readKidPlay(kid.id);
     if (gen !== pickGen) return;
-    set({ playerTwo: { ...base, skillLevels }, loading: false });
+    set({ playerTwo: { ...base, ...play }, loading: false });
   },
 
   chooseGuest: (name, pace) => {

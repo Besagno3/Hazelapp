@@ -217,3 +217,30 @@ describe("a profile that wasn't read writes nothing derived from it (#29 review 
     expect(writes).toEqual([]);
   });
 });
+
+describe('XP earned as Player 2 on this device, owed until the kid loads here (lib/kidXp)', () => {
+  it('the row read: the owed XP joins it, is written up, and is owed no more', async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push({ data: ROW, error: null });
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    expect(useProfileStore.getState().profile).toMatchObject({ xp: 5040, level: 12, levelXp: 80 });
+    expect(updates().at(-1)).toMatchObject({ xp: 5040, level: 12, level_xp: 80 });
+    expect(localStorage.getItem('hazel-owed-xp-kid-1')).toBeNull();
+  });
+
+  it("the read failed: it's held like any XP until the row is read", async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    expect(useProfileStore.getState().unread).toMatchObject({ xp: 40 });
+    expect(updates()).toEqual([]);
+    expect(localStorage.getItem('hazel-owed-xp-kid-1')).toBeNull();
+  });
+
+  it('no row yet: the new row starts with it', async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push({ data: null, error: null });
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    expect(writes.find((w) => w.kind === 'upsert')?.row).toMatchObject({ xp: 40 });
+  });
+});

@@ -16,7 +16,11 @@ import type { SeatIndex } from './duel';
 /** ◆ a right cheer adds — Player 2's move while the companion can't fight (Ember still an egg). */
 export const CHEER_CHARGE = 1;
 
-/** Who blocks the enemy's `n`th blow of the fight (from 0): the kid playing first, then Player 2, in turn. */
+/**
+ * Who blocks the enemy's `n`th blow of a kind (from 0): the kid playing first,
+ * then Player 2, in turn. Plain blows and power moves are counted apart, so a
+ * boss's power moves come at both players.
+ */
 export function defenderFor(n: number): SeatIndex {
   return (n % 2) as SeatIndex;
 }

@@ -6,6 +6,7 @@ import { mergeProfiles, readLocalProfile, writeLocalProfile } from '../lib/profi
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
 import { flushPlayDays, notePlayDay } from '../lib/playDays';
+import { takeOwedXp } from '../lib/kidXp';
 import { ageToStartLevel, playerAge } from '../lib/age';
 import { withTopicStart } from '../lib/save';
 import { useSaveStore } from './saveStore';
@@ -180,13 +181,16 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const local = readLocalProfile(userId);
     const { data, error } = await readRow(userId);
     if (gen !== readGen) return; // another kid was picked (or the game put away) meanwhile
+    // XP they earned as Player 2 on this device that couldn't be saved then (`lib/kidXp.ts`).
+    const owed = takeOwedXp(userId);
 
     if (data) {
       // Reconcile the remote row with any local progress, keeping the higher of
       // each — this protects a player whose remote writes are silently failing
       // (e.g. an RLS policy not applied on the live DB) from being reset to
       // Level 1 by a remote row stuck at 0.
-      const merged = mergeProfiles(fromRow(data as ProfileRow), local);
+      let merged = mergeProfiles(fromRow(data as ProfileRow), local);
+      if (owed > 0) merged = withXp(merged, owed);
       set({ profile: merged, loading: false, remoteError: null, unread: null });
       // Days played while offline (or before migration 0025) go up now (#29),
       // even after a failed send this session (unless 0025 isn't there).
@@ -199,6 +203,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // Also push when the row has no saved level yet (migration 0012 not run
       // when it was last written) or the local cache's level is ahead.
       if (
+        owed > 0 ||
         (local && merged.xp > remote.xp) ||
         remote.level == null ||
         mergedLevel.level !== remoteLevel.level ||
@@ -223,12 +228,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // made-up default never becomes this device's copy.
       const profile = local ?? defaultProfile(userId, birth);
       set({ profile, loading: false, remoteError: errorMessage(error), unread: { base: local, xp: 0, triedAt: Date.now() } });
+      if (owed > 0) void get().addXp(owed); // held until the row is read, like any XP
       return;
     }
 
     // Genuinely no row. Seed from local progress if we have any, and create it
     // with DO-NOTHING-on-conflict so a racing/existing row is never clobbered.
-    const seed = local ?? defaultProfile(userId, birth);
+    const seed = owed > 0 ? withXp(local ?? defaultProfile(userId, birth), owed) : (local ?? defaultProfile(userId, birth));
     set({ profile: seed, loading: false, remoteError: null, unread: null });
     writeLocalProfile(seed);
     void supabase

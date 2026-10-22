@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react';
 import type { Kid } from '../../types';
 
 // The question service, stood in for at the wire: each request gets five
@@ -16,9 +16,12 @@ const questionsFor = (b: Body) =>
   });
 
 // Player 2's levels (read only), and what's marked seen for whom.
-const { readKidLevels, markSeen, sendFlow } = vi.hoisted(() => ({ readKidLevels: vi.fn(), markSeen: vi.fn(), sendFlow: vi.fn() }));
-vi.mock('../../lib/playerTwo', async (orig) => ({ ...(await orig<typeof import('../../lib/playerTwo')>()), readKidLevels }));
+const { readKidPlay, markSeen, sendFlow } = vi.hoisted(() => ({ readKidPlay: vi.fn(), markSeen: vi.fn(), sendFlow: vi.fn() }));
+vi.mock('../../lib/playerTwo', async (orig) => ({ ...(await orig<typeof import('../../lib/playerTwo')>()), readKidPlay }));
 vi.mock('../../lib/seen', () => ({ markSeen }));
+// A sister's XP, to her own game (stood in for: `lib/kidXp` has its own tests).
+const { giveKidXp } = vi.hoisted(() => ({ giveKidXp: vi.fn() }));
+vi.mock('../../lib/kidXp', async (orig) => ({ ...(await orig<typeof import('../../lib/kidXp')>()), giveKidXp }));
 vi.mock('canvas-confetti', () => ({ default: () => {} }));
 vi.mock('../../machines/gameFlow', async (orig) => ({ ...(await orig<typeof import('../../machines/gameFlow')>()), sendFlow }));
 // Answers never need shuffling here: the right one stays first.
@@ -33,10 +36,17 @@ const { useProfileStore } = await import('../../store/profileStore');
 const { usePlayerTwoStore } = await import('../../store/playerTwoStore');
 const { clearCarried } = await import('../../lib/questions');
 const { SWITCH_CONFIRM_GAP_MS } = await import('../auth/SwitchPlayerButton');
+const { forgetAllLocks } = await import('../../lib/pinLock');
+const { useSaveStore } = await import('../../store/saveStore');
+const { defaultSave } = await import('../../lib/save');
 
 const kid = (id: string, name: string, icon: string, birthYear: number): Kid => ({ id, name, icon, hasPin: true, birthYear, birthMonth: 1 });
+// Mia's PIN is 4821 (the database's verdict, stood in for).
+const checkKidPin = vi.fn(async (_id: string, pin: string) => ({ ok: pin === '4821', triesLeft: 4, waitSeconds: 0, limited: true }));
+const pinLocks = vi.fn(async () => null);
 const addXp = vi.fn();
 const setSkillLevel = vi.fn();
+const recordActivity = vi.fn();
 /** The bodies the question service was asked with. */
 const asked = () => invoke.mock.calls.map((c) => c[1].body as Body);
 
@@ -44,27 +54,53 @@ beforeEach(() => {
   shown = '';
   invoke.mockReset();
   invoke.mockImplementation(async (_name: string, { body }: { body: Body }) => ({ data: { questions: questionsFor(body) }, error: null }));
-  readKidLevels.mockReset();
-  readKidLevels.mockResolvedValue({ math: 5 });
+  readKidPlay.mockReset();
+  readKidPlay.mockResolvedValue({ skillLevels: { math: 5 }, powerUps: {}, worldOpen: true });
   markSeen.mockClear();
   sendFlow.mockClear();
   addXp.mockClear();
   setSkillLevel.mockClear();
+  recordActivity.mockClear();
+  giveKidXp.mockReset();
+  giveKidXp.mockResolvedValue({ saved: true, level: 4, leveledUp: false });
+  // Ada's world is open: she earns XP (#122).
+  useSaveStore.setState({ save: { ...defaultSave(), worldUnlocked: true } });
   clearCarried();
   usePlayerTwoStore.getState().clear();
   // Ada (7, math level 3) is playing; Mia (12) is her sister.
-  useFamilyStore.setState({ userId: 'parent-1', kids: [kid('kid-1', 'Ada', 'panda', 2019), kid('kid-2', 'Mia', 'fox', 2014)], activeKidId: 'kid-1' });
+  checkKidPin.mockClear();
+  forgetAllLocks();
+  useFamilyStore.setState({
+    userId: 'parent-1',
+    kids: [kid('kid-1', 'Ada', 'panda', 2019), kid('kid-2', 'Mia', 'fox', 2014)],
+    activeKidId: 'kid-1',
+    checkKidPin,
+    pinLocks,
+  });
   useProfileStore.setState({
     profile: { id: 'kid-1', birthYear: 2019, birthMonth: 1, skillLevels: { math: 3 }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
     addXp,
     setSkillLevel,
+    recordActivity,
   });
 });
+
+/** Types a PIN on the pad. */
+async function typePin(pin: string) {
+  for (const d of pin) await act(async () => fireEvent.click(screen.getByRole('button', { name: d })));
+}
+
+/** Taps Mia's tile and types her PIN. */
+async function pickMia() {
+  fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+  await typePin('4821');
+  await waitFor(() => expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ kind: 'kid', id: 'kid-2' }));
+}
 
 /** Picks Mia as Player 2 and Math. */
 async function startWithMia() {
   render(<QuizDuel />);
-  fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+  await pickMia();
   await waitFor(() => expect(usePlayerTwoStore.getState().loading).toBe(false));
   fireEvent.click(screen.getByRole('button', { name: /Math/ }));
 }
@@ -95,12 +131,61 @@ describe('🆚 Quiz Duel — picking Player 2 (#177)', () => {
     expect(screen.queryByRole('button', { name: /Ada/ })).toBeNull();
     expect(screen.getByRole('button', { name: /A friend or grown-up/ })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Pick a topic' })).toBeNull();
-    expect(screen.getByText('Duels are just for fun: XP and question levels stay as they are.')).toBeInTheDocument();
+    expect(screen.getByText('Family players earn XP for right answers. Question levels stay as they are, and guests play just for fun.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    await pickMia();
     expect(screen.getByRole('button', { name: /Mia/ })).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByRole('heading', { name: 'Pick a topic' })).toBeInTheDocument();
-    expect(readKidLevels).toHaveBeenCalledWith('kid-2');
+    expect(readKidPlay).toHaveBeenCalledWith('kid-2');
+  });
+
+  it("a sister types her own PIN first: the pad asks her by name, the topics wait, a wrong PIN picks nobody", async () => {
+    usePlayerTwoStore.getState().chooseGuest('Dad', 'same');
+    render(<QuizDuel />);
+    expect(screen.getByRole('heading', { name: 'Pick a topic' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    const pad = screen.getByTestId('player-two-pin');
+    expect(pad).toHaveTextContent("Hi, Mia! Type your PIN.");
+    expect(screen.getByText(/Hi, Mia!/)).toHaveFocus();
+    // The guest is still picked, but the topics wait until Mia is in.
+    expect(screen.queryByRole('heading', { name: 'Pick a topic' })).toBeNull();
+    await typePin('1111');
+    expect(checkKidPin).toHaveBeenLastCalledWith('kid-2', '1111');
+    expect(await screen.findByText(/Not quite — try again!/)).toBeInTheDocument();
+    expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ kind: 'guest', name: 'Dad' });
+    expect(readKidPlay).not.toHaveBeenCalled();
+    await typePin('4821');
+    await waitFor(() => expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ kind: 'kid', id: 'kid-2' }));
+    expect(screen.queryByTestId('player-two-pin')).toBeNull();
+    expect(await screen.findByRole('heading', { name: 'Pick a topic' })).toBeInTheDocument();
+  });
+
+  it('"That\'s not me" goes back to the tiles with nobody new picked', async () => {
+    render(<QuizDuel />);
+    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    fireEvent.click(screen.getByRole('button', { name: "← That's not me" }));
+    expect(screen.queryByTestId('player-two-pin')).toBeNull();
+    expect(screen.getByRole('button', { name: /Mia/ })).toHaveAttribute('aria-pressed', 'false');
+    expect(usePlayerTwoStore.getState().playerTwo).toBeNull();
+  });
+
+  it('a check that answers after "That\'s not me" picks nobody', async () => {
+    let answer!: (v: { ok: boolean; triesLeft: number; waitSeconds: number; limited: boolean }) => void;
+    checkKidPin.mockImplementationOnce(() => new Promise((r) => (answer = r)));
+    render(<QuizDuel />);
+    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    await typePin('4821');
+    fireEvent.click(screen.getByRole('button', { name: "← That's not me" }));
+    await act(async () => answer({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true }));
+    expect(usePlayerTwoStore.getState().playerTwo).toBeNull();
+  });
+
+  it('a kid with no PIN yet is picked straight away', async () => {
+    useFamilyStore.setState({ kids: [kid('kid-1', 'Ada', 'panda', 2019), { ...kid('kid-2', 'Mia', 'fox', 2014), hasPin: false }] });
+    render(<QuizDuel />);
+    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    expect(screen.queryByTestId('player-two-pin')).toBeNull();
+    expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ kind: 'kid', id: 'kid-2' });
   });
 
   it("a guest gets a name box and how tricky — against the kid playing's level", () => {
@@ -118,14 +203,14 @@ describe('🆚 Quiz Duel — picking Player 2 (#177)', () => {
 
   it("the topics wait while a kid's levels are read", async () => {
     let answer!: (levels: object) => void;
-    readKidLevels.mockReturnValue(new Promise((r) => (answer = r)));
+    readKidPlay.mockReturnValue(new Promise((r) => (answer = r)));
     render(<QuizDuel />);
-    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    await pickMia();
     const math = screen.getByRole('button', { name: /Math/ });
     expect(math).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(math);
     expect(screen.queryByRole('heading', { name: /turn/ })).toBeNull();
-    answer({ math: 5 });
+    answer({ skillLevels: { math: 5 }, powerUps: {}, worldOpen: true });
     await waitFor(() => expect(math).toHaveAttribute('aria-disabled', 'false'));
   });
 
@@ -210,13 +295,16 @@ describe('🆚 Quiz Duel — playing (#177)', () => {
     await new Promise((r) => setTimeout(r, SWITCH_CONFIRM_GAP_MS + 20));
     fireEvent.click(again);
     expect(screen.getByRole('heading', { name: "Who's playing with Ada?" })).toBeInTheDocument();
-    // Player 2 is remembered for the next duel.
+    // Player 2 is remembered for the next duel, and isn't asked for her PIN again.
     expect(screen.getByRole('button', { name: /Mia/ })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /Mia/ }));
+    expect(screen.queryByTestId('player-two-pin')).toBeNull();
+    expect(checkKidPin).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('🆚 Quiz Duel — the results (#177)', () => {
-  it('the most right answers wins: the winner, both scores, what each missed — and no XP or levels', async () => {
+  it('the most right answers wins: the winner, both scores, the XP earned, what each missed — and no levels move', async () => {
     await startWithMia();
     for (let t = 0; t < 10; t++) await play(t % 2 === 0);
     const title = await screen.findByRole('heading', { name: 'Ada wins!' });
@@ -226,8 +314,62 @@ describe('🆚 Quiz Duel — the results (#177)', () => {
     expect(within(screen.getByTestId('duel-score-1')).getByText('0 right')).toBeInTheDocument();
     expect(screen.getByText('What Mia missed (5)')).toBeInTheDocument();
     expect(screen.queryByText(/What Ada missed/)).toBeNull();
-    expect(addXp).not.toHaveBeenCalled();
+    // Ada: 5 right bank answers × 10 XP. Mia earned none, so nothing is written to her game.
+    expect(addXp).toHaveBeenCalledTimes(1);
+    expect(addXp).toHaveBeenCalledWith(50);
+    expect(within(screen.getByRole('list', { name: 'XP earned' })).getByText(/Ada: \+50 XP/)).toBeInTheDocument();
+    expect(giveKidXp).not.toHaveBeenCalled();
     expect(setSkillLevel).not.toHaveBeenCalled();
+  });
+
+  it("a sister's right answers are XP in her own game — saving, then saved (a new level said)", async () => {
+    let saved!: (r: { saved: true; level: number; leveledUp: boolean }) => void;
+    giveKidXp.mockReturnValue(new Promise((r) => (saved = r)));
+    await startWithMia();
+    for (let t = 0; t < 10; t++) await play(t % 2 === 1);
+    expect(await screen.findByRole('heading', { name: 'Mia wins!' })).toBeInTheDocument();
+    expect(giveKidXp).toHaveBeenCalledTimes(1);
+    expect(giveKidXp).toHaveBeenCalledWith('kid-2', 50);
+    const xp = screen.getByRole('list', { name: 'XP earned' });
+    expect(within(xp).getByText(/Mia: \+50 XP/)).toBeInTheDocument();
+    expect(within(xp).getByText('Saving…')).toBeInTheDocument();
+    // Ada earned none, but a duel is a day played.
+    expect(addXp).not.toHaveBeenCalled();
+    expect(recordActivity).toHaveBeenCalledTimes(1);
+    await act(async () => saved({ saved: true, level: 4, leveledUp: true }));
+    expect(within(xp).getByText('⭐ Mia reached level 4!')).toBeInTheDocument();
+  });
+
+  it("XP that can't be saved now is kept for next time, and said so", async () => {
+    giveKidXp.mockResolvedValue({ saved: false });
+    await startWithMia();
+    for (let t = 0; t < 10; t++) await play(true);
+    expect(await screen.findByText("It'll be added the next time Mia plays on this device.")).toBeInTheDocument();
+  });
+
+  it("before a kid's world opens, XP starts there — said instead of a number (#122)", async () => {
+    useSaveStore.setState({ save: { ...defaultSave(), worldUnlocked: false } });
+    readKidPlay.mockResolvedValue({ skillLevels: { math: 5 }, powerUps: {}, worldOpen: false });
+    await startWithMia();
+    for (let t = 0; t < 10; t++) await play(true);
+    expect(await screen.findByRole('heading', { name: "It's a tie!" })).toBeInTheDocument();
+    expect(screen.getByText('XP starts for Ada once Ada opens the world.')).toBeInTheDocument();
+    expect(screen.getByText('XP starts for Mia once Mia opens the world.')).toBeInTheDocument();
+    expect(addXp).not.toHaveBeenCalled();
+    expect(giveKidXp).not.toHaveBeenCalled();
+  });
+
+  it('a guest earns nothing, and nothing is said for them', async () => {
+    render(<QuizDuel />);
+    fireEvent.click(screen.getByRole('button', { name: /A friend or grown-up/ }));
+    // Harder: their own batch, two levels up (at Ada's level they'd share her five).
+    fireEvent.click(screen.getByRole('button', { name: /Harder/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Math/ }));
+    for (let t = 0; t < 10; t++) await play(true);
+    expect(await screen.findByRole('heading', { name: "It's a tie!" })).toBeInTheDocument();
+    expect(addXp).toHaveBeenCalledWith(50);
+    expect(giveKidXp).not.toHaveBeenCalled();
+    expect(within(screen.getByRole('list', { name: 'XP earned' })).queryByText(/Guest/)).toBeNull();
   });
 
   it('the same score is a tie; Rematch plays again from 0', async () => {

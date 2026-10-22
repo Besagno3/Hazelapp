@@ -85,6 +85,7 @@ import { useProfileStore } from '../../store/profileStore';
 import { useFamilyStore } from '../../store/familyStore';
 import { usePlayerTwoStore } from '../../store/playerTwoStore';
 import { playerOneSeat, playerTwoSeat } from '../../lib/playerTwo';
+import { giveKidXp } from '../../lib/kidXp';
 import { CHEER_CHARGE, defenderFor, partnerLevel, partnerPick } from '../../lib/coop';
 import type { SeatIndex } from '../../lib/duel';
 import { sendFlow } from '../../machines/gameFlow';
@@ -97,7 +98,7 @@ import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
 import { CommandMenu, CompanionMenu, ItemMenu, PartnerMenu, SpellMenu, SwapMenu } from './BattleMenus';
-import { BattleResult } from './BattleResult';
+import { BattleResult, type PartnerPay } from './BattleResult';
 import { DefendTimer } from './DefendTimer';
 import { TypeBurst } from './TypeBurst';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
@@ -137,8 +138,18 @@ type Turn =
   | { kind: 'race'; word: string }
   /** A boss winding up its power move, and a line of the song that breaks it (#165 item 6). */
   | { kind: 'song'; line: string; move: string }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
-  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
+  | {
+      kind: 'victory';
+      xp: number;
+      coins: number;
+      lucky: boolean;
+      firstWin: boolean;
+      drop: ConsumableId | null;
+      badge: string | null;
+      bonus: TypingBonus | null;
+      partner: PartnerPay | null;
+    }
+  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null; partner: PartnerPay | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
 
@@ -353,8 +364,14 @@ export default function BattleArena() {
   const twoSpellIdxRef = useRef(0);
   /** Each player's right answers, for the result's team line (co-op, #178). */
   const [teamRight, setTeamRight] = useState<[number, number]>([0, 0]);
-  /** The enemy's blows so far: whose turn it is to block (co-op). */
-  const blows = useRef(0);
+  /** Player 2's right answers on bank questions — their XP (a starter pays none, #153). */
+  const twoBankRight = useRef(0);
+  /**
+   * The enemy's blows so far, plain and power apart: whose turn it is to block
+   * (co-op). Counted apart, so a boss's power moves come at both players
+   * (the owner's call) — on one count its rhythm sent every one to the hero's.
+   */
+  const blows = useRef({ attack: 0, power: 0 });
   /** A Time Ripple froze the enemy: in co-op its lost turn comes after Player 2's move. */
   const skipEnemy = useRef(false);
   const [answers, setAnswers] = useState<boolean[]>([]);
@@ -588,12 +605,14 @@ export default function BattleArena() {
   /**
    * An answer is in. `who` 1 is Player 2's (#178): it fills the team's charge
    * and streak like any, but only the kid playing's answers move their level,
-   * the speed trigger, the Library and XP.
+   * the speed trigger, the Library and their XP — Player 2's right answers on
+   * bank questions are counted for their own (`twoBankRight`, `payPartner`).
    */
   function recordAnswer(correct: boolean, q: Question, picked: number, who: SeatIndex = 0) {
     const mine = who === 0;
     if (correct && coop) setTeamRight((t) => (mine ? [t[0] + 1, t[1]] : [t[0], t[1] + 1]));
     const starter = isStarterId(q.id);
+    if (!mine && correct && !starter) twoBankRight.current += 1;
     if (mine) {
       setAnswers((a) => [...a, correct]);
       answerCount.current += 1;
@@ -1053,8 +1072,10 @@ export default function BattleArena() {
       say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
     }
-    // In co-op the players block in turn, each with their own question (#178).
-    const who = coop ? defenderFor(blows.current++) : 0;
+    // In co-op the players block in turn, each with their own question (#178) —
+    // plain blows in turn, and a boss's power moves in turn too.
+    const kind = charging ? 'power' : 'attack';
+    const who = coop ? defenderFor(blows.current[kind]++) : 0;
     ask({ kind: 'enemy-question', question: who === 1 ? nextTwoQuestion() : nextQuestion(), who });
   }
 
@@ -1234,13 +1255,33 @@ export default function BattleArena() {
     return xp;
   }
 
+  /**
+   * Player 2's XP as the fight ends (co-op, #178): their right answers at their
+   * own XP a right answer and — won — the win's XP too, as the kid playing gets
+   * it. A sibling's goes to their own game (`giveKidXp`); a guest earns none.
+   */
+  function payPartner(winXp: number): PartnerPay | null {
+    if (!two) return null;
+    const xp = two.xpPerRight > 0 ? twoBankRight.current * two.xpPerRight + winXp : 0;
+    return {
+      name: two.name,
+      icon: two.icon,
+      xp,
+      family: two.kid !== null,
+      worldOpen: two.worldOpen,
+      saving: two.kid && xp > 0 ? giveKidXp(two.kid, xp) : null,
+    };
+  }
+
   function victory() {
     burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
     // Far regions pay more XP for the win (#75 item 12); the answers' XP is the same everywhere.
-    const xp = settleCommon() + defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    const winXp = defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    const xp = settleCommon() + winXp;
     void addXp(xp);
+    const partner = payPartner(winXp);
     markDefeated(enemy!.instanceId);
     // Read from the store, not this render: victory() runs from a message
     // callback created before a finishing move's heal (Wisp) was committed.
@@ -1280,7 +1321,7 @@ export default function BattleArena() {
     fx.clearBanners();
     // The bonus scroll (#165 item 3): one win in three, with a keyboard, a name to type for a little extra.
     const bonus = keyboard ? rollTypingBonus(avatar!.name, enemy!.name) : null;
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus });
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus, partner });
   }
 
   /** The bonus scroll's name typed (#165 item 3): pay it. `TypingBonus` asks once. */
@@ -1295,6 +1336,7 @@ export default function BattleArena() {
   function defeat() {
     const xp = settleCommon();
     void addXp(xp);
+    const partner = payPartner(0);
     // Remember the loss: after a couple, this enemy eases off (mercy).
     recordLoss(lossKey(enemy!));
     // No game over (#37): wake up safe and fully healed — at the last inn
@@ -1321,7 +1363,7 @@ export default function BattleArena() {
     useBattleStore.getState().setEscortAt(null);
     fightOver.current = true;
     fx.clearBanners();
-    setTurn({ kind: 'defeat', xp, boatLine, shelter });
+    setTurn({ kind: 'defeat', xp, boatLine, shelter, partner });
   }
 
   function leave(result: 'win' | 'lose') {
@@ -1780,6 +1822,7 @@ export default function BattleArena() {
                   ]
                 : null
             }
+            partner={turn.partner}
             onClaimBonus={claimBonus}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
