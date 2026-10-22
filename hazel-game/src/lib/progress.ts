@@ -3,7 +3,8 @@ import { errorMessage } from './errors';
 import { normalizeSave } from './save';
 import { levelState, xpProgress } from './level';
 import { isoOffset } from './streak';
-import { ageToStartLevel, clampLevel } from './age';
+import { ageToStartLevel, clampLevel, MAX_PLAYER_AGE, MAX_SKILL_LEVEL, MIN_SKILL_LEVEL, MIN_START_AGE } from './age';
+import { MAX_ANSWERS, MAX_MINUTES, MAX_XP } from './playDays';
 import { ROUNDS_TO_UNLOCK } from './utils';
 import { nextObjective } from './wayfinding';
 import { LEAF_MILESTONES, leavesFlag } from './leaves';
@@ -37,11 +38,13 @@ export const HISTORY_COLUMNS = 'profile_id, day, xp, minutes, topics, noted_play
 /**
  * A day's play as the page reads it (#169, #172, #173): the record, and
  * whether the database says it was noted with its play (`noted_play`, #181 —
- * set by `note_play_history` whenever it writes the day, zeros included;
- * never by an older app's `note_play_days`).
+ * true once `note_play_history` got the day with `noted: true`, zeros
+ * included; false for a day an older app noted alone, or one an older build
+ * played too — its XP there never noted, whatever this device added (#181
+ * review); absent when the row doesn't say).
  */
 export interface HistoryDay extends PlayDayRecord {
-  notedPlay?: true;
+  notedPlay?: boolean;
 }
 
 /** A kid's progress numbers from their `profiles` row. */
@@ -104,14 +107,14 @@ function skillLevelsFrom(raw: unknown): KidStats['skillLevels'] {
   return out as KidStats['skillLevels'];
 }
 
-/** `skill_starts` as the database keeps it (#174): known topics only, each a whole level 1–10 and a whole age 3–18. */
+/** `skill_starts` as the database keeps it (#174): known topics only, each a whole level 1–10 and a whole age 3–18 (the limits 0026 keeps a start to, #182). */
 function skillStartsFrom(raw: unknown): Partial<Record<Topic, TopicStart>> {
   if (!isObject(raw)) return {};
   const out: Partial<Record<Topic, TopicStart>> = {};
   for (const [topic, v] of Object.entries(raw)) {
     if (!TOPIC_IDS.includes(topic) || !isObject(v)) continue;
-    const level = whole(v.level, 1, 10);
-    const age = whole(v.age, 3, 18);
+    const level = whole(v.level, MIN_SKILL_LEVEL, MAX_SKILL_LEVEL);
+    const age = whole(v.age, MIN_START_AGE, MAX_PLAYER_AGE);
     if (level !== null && age !== null) out[topic as Topic] = { level, age };
   }
   return out;
@@ -134,8 +137,11 @@ export function statsFromRow(r: ProgressRow): KidStats {
  * a real day; XP 0–100,000 and minutes 0–1,440 (else 0 — never more than was
  * noted); per known topic a whole `a` asked 0–10,000 and `r` right 0–`a`
  * (else the topic is left out) and `l`, the level at the day's end, 1–10
- * (else dropped); `notedPlay` only when `noted_play` is `true` (#181).
- * Unknown keys are left out.
+ * (else dropped); `notedPlay` when `noted_play` is a boolean (#181).
+ * Unknown keys are left out. The limits are `lib/playDays`' (`MAX_XP`,
+ * `MAX_MINUTES`, `MAX_ANSWERS`) and the levels', which
+ * `playDays.limits.test` holds to 0026's (#182): a limit raised there is
+ * read here too, never a day over the old one read as 0.
  */
 export function playDayFromRow(row: unknown): HistoryDay | null {
   if (!isObject(row) || typeof row.day !== 'string' || !ISO_DAY.test(row.day)) return null;
@@ -143,15 +149,15 @@ export function playDayFromRow(row: unknown): HistoryDay | null {
   if (isObject(row.topics)) {
     for (const [topic, v] of Object.entries(row.topics)) {
       if (!TOPIC_IDS.includes(topic) || !isObject(v)) continue;
-      const a = whole(v.a, 0, 10_000);
+      const a = whole(v.a, 0, MAX_ANSWERS);
       const r = a === null ? null : whole(v.r, 0, a);
       if (a === null || r === null) continue;
-      const l = whole(v.l, 1, 10);
+      const l = whole(v.l, MIN_SKILL_LEVEL, MAX_SKILL_LEVEL);
       topics[topic] = l === null ? { a, r } : { a, r, l };
     }
   }
-  const day: HistoryDay = { day: row.day, xp: whole(row.xp, 0, 100_000) ?? 0, minutes: whole(row.minutes, 0, 1440) ?? 0, topics };
-  if (row.noted_play === true) day.notedPlay = true;
+  const day: HistoryDay = { day: row.day, xp: whole(row.xp, 0, MAX_XP) ?? 0, minutes: whole(row.minutes, 0, MAX_MINUTES) ?? 0, topics };
+  if (typeof row.noted_play === 'boolean') day.notedPlay = row.noted_play;
   return day;
 }
 
@@ -410,14 +416,16 @@ export interface DayHistory {
 }
 
 /**
- * A day noted with its play (migration 0026): the database says so
- * (`notedPlay`, #181) — then 0 XP, 0 minutes and no answers is a real day
- * of nothing much (a 30-second typing lesson), "0 XP" — or, read without
- * that, any XP, minute or answer at all. A day with neither was noted by an
- * older app (or before 0026: the column defaults) — that it was played is
- * known, how much isn't: "XP not recorded", never a 0.
+ * A day noted with its play (migration 0026), as the database says
+ * (`notedPlay`, #181): then 0 XP, 0 minutes and no answers is a real day of
+ * nothing much (a 30-second typing lesson), "0 XP". A day it says wasn't —
+ * noted by an older app (or before 0026: the column defaults), or played by
+ * an older build too, whose XP was never noted (#181 review) — is played,
+ * how much isn't known: "XP not recorded", never a 0 or a part said as the
+ * whole, whatever this device added to it. Only a row that doesn't say
+ * reads any XP, minute or answer as noted.
  */
-const playNoted = (d: HistoryDay) => d.notedPlay === true || d.xp > 0 || d.minutes > 0 || Object.keys(d.topics).length > 0;
+const playNoted = (d: HistoryDay) => d.notedPlay ?? (d.xp > 0 || d.minutes > 0 || Object.keys(d.topics).length > 0);
 
 /** What says where the kid's calendar is: the days noted, and the profile's last day played. */
 export interface KidDays {

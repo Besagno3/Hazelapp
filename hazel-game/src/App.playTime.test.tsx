@@ -97,7 +97,7 @@ describe('App notes the minutes a kid really plays, and sends their day when the
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
     await vi.waitFor(() =>
-      expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ day: todayIso(), xp: 0, minutes: 1, topics: {} }] }),
+      expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ day: todayIso(), xp: 0, minutes: 1, topics: {}, noted: true }] }),
     );
   });
 });

@@ -379,10 +379,20 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   },
 
   updateKid: async (id, input) => {
+    // The birth date goes only where the form changed it (#183 review): a
+    // device whose kid list is older than another device's correction would
+    // otherwise put the old birth date back — and the topic starts' ages with it.
+    const had = get().kids.find((k) => k.id === id);
+    const { birth_year, birth_month, ...rest } = toRow(input);
+    const fields = {
+      ...rest,
+      ...(had?.birthYear === birth_year ? {} : { birth_year }),
+      ...(had?.birthMonth === birth_month ? {} : { birth_month }),
+    };
     await asGrownUp(async () => {
       const { error } = await supabase
         .from('profiles')
-        .update({ ...toRow(input), updated_at: new Date().toISOString() })
+        .update({ ...fields, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw asError(error);
     });

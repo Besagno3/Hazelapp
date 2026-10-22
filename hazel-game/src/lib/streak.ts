@@ -11,6 +11,11 @@ export function todayIso(now: Date = new Date()): string {
   return `${y}-${m}-${d}`;
 }
 
+/** A real calendar day written `YYYY-MM-DD` (not "2026-02-30", not another format). */
+export function isRealDay(v: unknown): v is string {
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && isoOffset(v, 0) === v;
+}
+
 /** Shifts an ISO date by `days` (negative = earlier), returning a new ISO string. */
 export function isoOffset(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);

@@ -8,6 +8,8 @@ type Answer = { data: unknown; error: unknown };
 const reads = vi.hoisted(() => [] as (Answer | Promise<Answer>)[]);
 const writes = vi.hoisted(() => [] as { kind: 'update' | 'upsert'; row: Record<string, unknown> }[]);
 const ABORTED = vi.hoisted(() => ({ data: null, error: { message: 'AbortError: signal is aborted without reason', code: '' } }));
+// `ignoreAbort`: the read waits on something the abort never reaches (supabase-js's session / token refresh, #184 review).
+const stub = vi.hoisted(() => ({ ignoreAbort: false }));
 vi.mock('../lib/supabase', () => {
   const from = () => {
     let answer: Answer | Promise<Answer> = { data: null, error: null };
@@ -16,7 +18,7 @@ vi.mock('../lib/supabase', () => {
     chain.select = () => chain;
     chain.eq = () => chain;
     chain.abortSignal = (signal: AbortSignal) => {
-      calledOff = new Promise((r) => signal.addEventListener('abort', () => r(ABORTED)));
+      if (!stub.ignoreAbort) calledOff = new Promise((r) => signal.addEventListener('abort', () => r(ABORTED)));
       return chain;
     };
     chain.maybeSingle = () => {
@@ -37,7 +39,7 @@ vi.mock('../lib/supabase', () => {
   return { supabase: { rpc: vi.fn(async () => ({ data: 1, error: null })), from } };
 });
 
-const { useProfileStore, READ_TIMEOUT_MS, RETRY_READ_MS, RETRY_READ_MAX_MS } = await import('./profileStore');
+const { useProfileStore, READ_TIMEOUT_MS, READ_TIMEOUT_MAX_MS, RETRY_READ_MS, RETRY_READ_MAX_MS } = await import('./profileStore');
 const { useSaveStore } = await import('./saveStore');
 const { defaultSave } = await import('../lib/save');
 const { todayIso, isoOffset } = await import('../lib/streak');
@@ -86,6 +88,7 @@ beforeEach(() => {
   localStorage.clear();
   reads.length = 0;
   writes.length = 0;
+  stub.ignoreAbort = false;
   vi.useFakeTimers({ toFake: ['Date'] });
   useProfileStore.getState().clearProfile();
   useSaveStore.setState({ userId: 'kid-1', save: { ...defaultSave(), revision: 10 }, status: 'ready' });
@@ -141,7 +144,7 @@ describe("a profile that wasn't read writes nothing derived from it (#29 review 
     expect(useProfileStore.getState().remoteError).toBeNull();
     // Read now: a topic new to the row notes its start, and writes go through.
     await useProfileStore.getState().setSkillLevel('history', 6);
-    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10 } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10, on: TODAY } });
     expect(updates().at(-1)).toMatchObject({ skill_levels: { math: 7, science: 6, history: 6 } });
   });
 
@@ -383,10 +386,10 @@ describe('a row that wasn\'t read is asked for again, and the levels played mean
     const p = useProfileStore.getState().profile!;
     expect(p.skillLevels).toEqual({ math: 8, science: 6, history: 6 });
     // History's made-up start was its real start; Math's (years ago) isn't noted.
-    expect(p.skillStarts).toEqual({ history: { level: 5, age: 10 } });
-    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10 } });
+    expect(p.skillStarts).toEqual({ history: { level: 5, age: 10, on: TODAY } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10, on: TODAY } });
     await vi.waitFor(() => expect(updates()).toHaveLength(1));
-    expect(updates()[0]).toMatchObject({ skill_levels: { math: 8, science: 6, history: 6 }, skill_starts: { history: { level: 5, age: 10 } } });
+    expect(updates()[0]).toMatchObject({ skill_levels: { math: 8, science: 6, history: 6 }, skill_starts: { history: { level: 5, age: 10, on: TODAY } } });
   });
 
   it("today's XP and answers are noted while unread; the level only once the row is read (#169, #173)", async () => {
@@ -411,7 +414,7 @@ describe('a read that never answers is called off (#184)', () => {
   const timers = () => vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
   const hang = () => new Promise<Answer>(() => {}); // a captive portal, a half-open connection: no answer, ever
 
-  it('a retry that hangs ends after 10 s as a failed read, and the next one runs on its back-off', async () => {
+  it('a retry that hangs ends as a failed read, and the next one runs on its back-off', async () => {
     timers();
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     reads.push(FAILED);
@@ -420,7 +423,8 @@ describe('a read that never answers is called off (#184)', () => {
     await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
     expect(reads).toEqual([]); // asked — and no answer comes
     reads.push({ data: ROW, error: null });
-    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS - 1);
+    // The load's read failed, so this one gets twice the first read's time (#184 review).
+    await vi.advanceTimersByTimeAsync(2 * READ_TIMEOUT_MS - 1);
     expect(useProfileStore.getState().remoteError).toBe('Failed to fetch'); // still out
     await vi.advanceTimersByTimeAsync(1);
     // Called off: a failed read like any other — still unread, nothing written.
@@ -447,6 +451,61 @@ describe('a read that never answers is called off (#184)', () => {
     reads.push({ data: ROW, error: null });
     await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
     expect(useProfileStore.getState().unread).toBeNull();
+  });
+
+  it('the whole read is timed, not only its fetch: one stuck where the abort never reaches (a token refresh) still ends as a failed read (#184 review)', async () => {
+    timers();
+    stub.ignoreAbort = true;
+    localStorage.setItem(profileKey('kid-1'), JSON.stringify(cached()));
+    reads.push(hang());
+    const loading = useProfileStore.getState().loadProfile('kid-1', birth);
+    await vi.advanceTimersByTimeAsync(READ_TIMEOUT_MS - 1);
+    expect(useProfileStore.getState().loading).toBe(true); // still out
+    await vi.advanceTimersByTimeAsync(1);
+    await loading;
+    expect(useProfileStore.getState()).toMatchObject({ loading: false, profile: { xp: 5000 }, unread: { xp: 0 } });
+    expect(useProfileStore.getState().remoteError).toMatch(/^AbortError: no answer in 10 s/);
+    expect(writes).toEqual([]);
+    // …and it holds no retry up: the next read goes on its back-off and is taken up.
+    reads.push({ data: ROW, error: null });
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    expect(useProfileStore.getState().unread).toBeNull();
+  });
+
+  it('each read that fails gives the next twice as long — 10 s, 20 s, then 30 s at most — so a slow connection gets its row; a read starts again at 10 s (#184 review)', async () => {
+    timers();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const slow = (ms: number) => new Promise<Answer>((r) => setTimeout(() => r({ data: ROW, error: null }), ms));
+    const endsAt = async (ms: number) => {
+      await vi.advanceTimersByTimeAsync(ms - 1);
+      const before = useProfileStore.getState().remoteError;
+      await vi.advanceTimersByTimeAsync(1);
+      return [before, useProfileStore.getState().remoteError];
+    };
+    expect([READ_TIMEOUT_MS, READ_TIMEOUT_MAX_MS]).toEqual([10_000, 30_000]);
+    localStorage.setItem(profileKey('kid-1'), JSON.stringify(cached()));
+    reads.push(hang());
+    const loading = useProfileStore.getState().loadProfile('kid-1', birth);
+    expect((await endsAt(10_000))[1]).toMatch(/no answer in 10 s/);
+    await loading;
+    // The first retry (15 s on): 20 s.
+    reads.push(hang());
+    await vi.advanceTimersByTimeAsync(RETRY_READ_MS);
+    expect(await endsAt(20_000)).toEqual([expect.stringMatching(/in 10 s/), expect.stringMatching(/no answer in 20 s/)]);
+    // The next (30 s on): 30 s, and no more after that.
+    reads.push(hang());
+    await vi.advanceTimersByTimeAsync(2 * RETRY_READ_MS);
+    expect((await endsAt(30_000))[1]).toMatch(/no answer in 30 s/);
+    reads.push(slow(29_000)); // a slow link that does answer
+    await vi.advanceTimersByTimeAsync(4 * RETRY_READ_MS);
+    await vi.advanceTimersByTimeAsync(29_000);
+    await vi.waitFor(() => expect(useProfileStore.getState().unread).toBeNull());
+    expect(useProfileStore.getState().profile).toMatchObject({ xp: 5000, skillLevels: { math: 7, science: 6 } });
+    // Read: the next load's read gets 10 s again.
+    reads.push(hang());
+    const again = useProfileStore.getState().loadProfile('kid-1', birth);
+    expect((await endsAt(10_000))[1]).toMatch(/no answer in 10 s/);
+    await again;
   });
 
   it('a read that answers in time leaves no timer behind', async () => {
@@ -520,13 +579,45 @@ describe('levels played unread survive a reload on a device with its own copy (#
     await useProfileStore.getState().loadProfile('kid-1', birth);
     await useProfileStore.getState().setSkillLevel('history', 6); // from 5, the start for 10
     await useProfileStore.getState().setSkillLevel('words', 4); // from 5: down 1
-    expect(readUnreadSteps('kid-1')).toEqual({ steps: { history: 1, words: -1 }, starts: { history: { level: 5, age: 10 }, words: { level: 5, age: 10 } } });
+    expect(readUnreadSteps('kid-1')).toEqual({ steps: { history: 1, words: -1 }, starts: { history: { level: 5, age: 10, on: TODAY }, words: { level: 5, age: 10, on: TODAY } } });
     await reload({ data: { ...ROW, skill_levels: { math: 7, science: 6, words: 3 } }, error: null });
     const p = useProfileStore.getState().profile!;
     // History: the row has none — the level played to, and its start noted. Words: the row's 3, down 1.
     expect(p.skillLevels).toEqual({ math: 7, science: 6, history: 6, words: 2 });
-    expect(p.skillStarts).toEqual({ history: { level: 5, age: 10 } });
-    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10 } });
+    expect(p.skillStarts).toEqual({ history: { level: 5, age: 10, on: TODAY } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ history: { level: 5, age: 10, on: TODAY } });
+  });
+
+  it("XP earned unread survives a reload, though another device moved the row's XP meanwhile (#180 review, also noted)", async () => {
+    localStorage.setItem(profileKey('kid-1'), JSON.stringify(cached()));
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await useProfileStore.getState().addXp(30); // the copy: 5030
+    expect(readUnreadSteps('kid-1')).toMatchObject({ xp: 30, from: { xp: 5000, level: 12, levelXp: 40 } });
+    await reload(FAILED); // a reload whose read fails again carries it on
+    expect(useProfileStore.getState().unread).toMatchObject({ xp: 30, base: { xp: 5000 } });
+    await reload({ data: { ...ROW, xp: 5100, level_xp: 140 }, error: null }); // the tablet earned 100 meanwhile
+    expect(useProfileStore.getState().profile).toMatchObject({ xp: 5130, level: 12, levelXp: 170 });
+    await vi.waitFor(() => expect(updates()).toHaveLength(1));
+    expect(updates()[0]).toMatchObject({ xp: 5130, level: 12, level_xp: 170 });
+    expect(readUnreadSteps('kid-1')).toBeNull();
+  });
+
+  it("a step that can't be kept beside the copy (storage full) still goes on from this tab once the row is read (#180 review)", async () => {
+    localStorage.setItem(profileKey('kid-1'), JSON.stringify(cached()));
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    const full = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('QuotaExceededError');
+    });
+    await useProfileStore.getState().setSkillLevel('math', 6); // down 1, kept only in memory
+    full.mockRestore();
+    expect(readUnreadSteps('kid-1')).toBeNull();
+    expect(useProfileStore.getState().unread).toMatchObject({ steps: { math: -1 }, unstored: true });
+    later();
+    reads.push({ data: ROW, error: null });
+    await useProfileStore.getState().retryRead();
+    expect(useProfileStore.getState().profile?.skillLevels).toEqual({ math: 6, science: 6 });
   });
 
   it('nothing is kept without a copy of its own (a made-up start), nor once the row is read', async () => {

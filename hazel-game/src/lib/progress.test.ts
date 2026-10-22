@@ -116,8 +116,8 @@ describe('reading a family (#29)', () => {
     expect(got.k1.playDays).toEqual(['2026-10-20', '2026-10-18']);
     expect(got.k1.history?.map((d) => d.day)).toEqual(['2026-10-01', '2026-10-18', '2026-10-20']);
     expect(got.k1.history?.at(-1)).toEqual({ day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } }, notedPlay: true });
-    // A day noted without its play (an older app's note): no `notedPlay` (#181).
-    expect(got.k1.history?.[1]).toEqual({ day: '2026-10-18', xp: 0, minutes: 0, topics: {} });
+    // A day noted without its play (an older app's note): `notedPlay` false (#181).
+    expect(got.k1.history?.[1]).toEqual({ day: '2026-10-18', xp: 0, minutes: 0, topics: {}, notedPlay: false });
     expect(got.k1.countedSince).toBe('2026-09-30');
     // Not a date: no "counted from".
     expect(got.k2).toEqual({ stats: expect.objectContaining({ xp: 0 }), save: null, playDays: [], history: [], countedSince: null });
@@ -290,10 +290,11 @@ describe('reading a family (#29)', () => {
     for (const row of [null, { day: 'today' }, { day: 20261020 }, { xp: 4 }]) expect(playDayFromRow(row)).toBeNull();
   });
 
-  it('a day noted with its play says so only when the database says `true` (#181)', () => {
+  it('a day says whether it was noted with its play only as the database says it — `true` or `false` (#181)', () => {
     const row = { day: '2026-10-20', xp: 0, minutes: 0, topics: {} };
     expect(playDayFromRow({ ...row, noted_play: true })).toEqual({ ...row, notedPlay: true });
-    for (const noted of [false, 'true', 1, null, undefined]) expect(playDayFromRow({ ...row, noted_play: noted })).toEqual(row);
+    expect(playDayFromRow({ ...row, noted_play: false })).toEqual({ ...row, notedPlay: false });
+    for (const noted of ['true', 1, null, undefined]) expect(playDayFromRow({ ...row, noted_play: noted })).toEqual(row);
   });
 
   it('a topic starts where the profile says first, then where the save noted it (#174)', () => {
@@ -460,6 +461,16 @@ describe('each day\'s play: XP, minutes, counted from (#169, #170, #172)', () =>
     // The same day without the database's word for it: played, XP not recorded.
     const unsure = recentDays(TODAY, [], '2026-10-20', 1, { history: [rec('2026-10-16', 50, 10), rec('2026-10-18', 30, 5), rec('2026-10-20', 0, 0)] });
     expect(xpWeeks(unsure).at(-1)).toMatchObject({ xp: 80, partial: true, amount: 'At least 80 XP', note: 'XP not recorded on 1 day played' });
+  });
+
+  it("a day the database says wasn't noted with its play reads \"XP not recorded\", whatever this device sent for it — an older build played it too (#181 review)", () => {
+    const partial = { ...rec('2026-10-20', 20, 3), notedPlay: false };
+    const days = recentDays(TODAY, [], '2026-10-20', 1, { history: [rec('2026-10-16', 50, 10), partial] });
+    expect(days.find((d) => d.iso === '2026-10-20')).toMatchObject({ played: true, xp: null, minutes: null });
+    expect(xpWeeks(days).at(-1)).toMatchObject({ xp: 50, partial: true, amount: 'At least 50 XP', note: 'XP not recorded on 1 day played' });
+    // A row that doesn't say: its XP is read as noted, as before.
+    const unsaid = recentDays(TODAY, [], '2026-10-20', 1, { history: [rec('2026-10-16', 50, 10), rec('2026-10-20', 20, 3)] });
+    expect(xpWeeks(unsaid).at(-1)).toMatchObject({ xp: 70, partial: false });
   });
 
   it("a day ahead (the kid's device a time zone ahead): the last 7 days are the kid's 7, ending on it — never 8 of theirs (review round 2)", () => {

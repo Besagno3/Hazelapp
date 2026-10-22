@@ -338,10 +338,14 @@ export interface SaveData {
 /**
  * A topic's real start (#29 review round 2): the level the game first set it
  * from — `ageToStartLevel` of the kid's age then — and that age.
+ * `on`: the day it was noted (`YYYY-MM-DD`, the device's calendar; #183) —
+ * the database works the age out from it and the kid's birth date, so a
+ * corrected birth date corrects it exactly. Absent on starts noted before.
  */
 export interface TopicStart {
   level: number;
   age: number;
+  on?: string;
 }
 
 /** A boat's mooring (#75 item 14): a sea cell on a map, in tiles. */

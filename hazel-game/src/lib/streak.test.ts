@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { isoOffset, nextStreak, provesPlayed, todayIso } from './streak';
+import { isRealDay, isoOffset, nextStreak, provesPlayed, todayIso } from './streak';
+
+describe('isRealDay (#183)', () => {
+  it('a real calendar day written YYYY-MM-DD, and nothing else', () => {
+    for (const ok of ['2026-10-22', '2024-02-29', '2020-01-01']) expect(isRealDay(ok), ok).toBe(true);
+    for (const bad of ['2026-02-30', '2025-02-29', '2026-13-01', '2026-00-10', '2026-10-22T00:00:00Z', '2026-1-5', 20261022, null, undefined, {}]) {
+      expect(isRealDay(bad), String(bad)).toBe(false);
+    }
+  });
+});
 
 describe('todayIso', () => {
   it('formats a date as YYYY-MM-DD in local time', () => {

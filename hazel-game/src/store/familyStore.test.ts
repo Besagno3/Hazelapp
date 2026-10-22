@@ -273,6 +273,31 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids[0]).toMatchObject({ name: 'Ada B', hasPin: true });
   });
 
+  it("updateKid sends the birth date only where the form changed it — a kid list older than another device's correction never puts it back (#183 review)", async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2016, birthMonth: 9 }] });
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    db.chains.length = 0;
+    const updates = () =>
+      db.chains.filter((c) => c.table === 'profiles').flatMap((c) => c.ops.filter(([m]) => m === 'update').map(([, args]) => args[0] as Record<string, unknown>));
+    // A nickname: the birth date isn't sent (another device may have corrected it since this list was read).
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2016, birthMonth: 9 });
+    expect(updates()[0]).toMatchObject({ display_name: 'Sammy', icon: 'fox' });
+    expect(updates()[0]).not.toHaveProperty('birth_year');
+    expect(updates()[0]).not.toHaveProperty('birth_month');
+    // The month changed: the month alone goes.
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2016, birthMonth: 3 });
+    expect(updates()[1]).toMatchObject({ birth_month: 3 });
+    expect(updates()[1]).not.toHaveProperty('birth_year');
+    expect(useFamilyStore.getState().kids[0]).toMatchObject({ birthYear: 2016, birthMonth: 3 });
+    // The year changed: the year alone.
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2015, birthMonth: 3 });
+    expect(updates()[2]).toMatchObject({ birth_year: 2015 });
+    expect(updates()[2]).not.toHaveProperty('birth_month');
+    // A kid this list doesn't have (it can't know what changed): all of it.
+    await useFamilyStore.getState().updateKid('kid-new', { name: 'Ada', icon: 'bee', birthYear: 2017, birthMonth: 5 });
+    expect(updates()[3]).toMatchObject({ birth_year: 2017, birth_month: 5 });
+  });
+
   it('PINs are checked by the database\'s count (#124c): a kid\'s, and the grown-up\'s (which can also be set)', async () => {
     db.rpc.mockResolvedValueOnce({ data: { ok: true, tries_left: 5, wait_seconds: 0 }, error: null } as never);
     expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toEqual({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true });
@@ -483,12 +508,12 @@ describe('useFamilyStore', () => {
     localStorage.setItem(playDaysKey('kid-sam'), kept(40));
     db.rpc.mockClear();
     await useFamilyStore.getState().switchPlayer();
-    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-sam', p_days: [{ day: today, xp: 40, minutes: 3, topics: {} }] }));
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-sam', p_days: [{ day: today, xp: 40, minutes: 3, topics: {}, noted: true }] }));
     // 👪 Grown-ups opened from "Who's playing?": every kid's waiting play goes (Kit's here); nothing waiting, no call.
     localStorage.setItem(playDaysKey('kid-kit'), kept(15));
     db.rpc.mockClear();
     useFamilyStore.getState().setGrownUpsOpen(true);
-    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-kit', p_days: [{ day: today, xp: 15, minutes: 3, topics: {} }] }));
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-kit', p_days: [{ day: today, xp: 15, minutes: 3, topics: {}, noted: true }] }));
     expect(db.rpc.mock.calls.filter(([fn]) => fn === 'note_play_history')).toHaveLength(1);
     useFamilyStore.getState().setGrownUpsOpen(false);
   });

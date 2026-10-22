@@ -36,7 +36,8 @@ beforeEach(() => {
   rpc.mockResolvedValue({ data: 1, error: null });
 });
 
-const day = (over: Record<string, unknown> = {}) => ({ day: todayIso(), xp: 0, minutes: 0, topics: {}, ...over });
+/** A day as it's sent to note_play_history: all of its play noted on this device (#181). */
+const day = (over: Record<string, unknown> = {}) => ({ day: todayIso(), xp: 0, minutes: 0, topics: {}, noted: true, ...over });
 
 describe('a new day played is noted for 📈 Progress (#29)', () => {
   it('the first round of a day notes it', async () => {
@@ -59,7 +60,7 @@ describe('a new day played is noted for 📈 Progress (#29)', () => {
     await useProfileStore.getState().recordActivity();
     await new Promise((r) => setTimeout(r, 0));
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(playDayRecords('kid-1')).toEqual([day({ xp: 40 })]);
+    expect(playDayRecords('kid-1')).toEqual([{ day: todayIso(), xp: 40, minutes: 0, topics: {} }]);
     expect(useProfileStore.getState().profile?.currentStreak).toBe(3);
   });
 

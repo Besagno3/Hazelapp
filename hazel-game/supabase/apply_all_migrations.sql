@@ -3475,7 +3475,9 @@ on conflict (version) do nothing;
 --                 (`l`) (#173, "7 of 10 right", "up 1 since last week");
 --   * `noted_play` — the day was noted with its play (#181), so a day
 --                 really played for 0 XP, under a minute and no bank answer
---                 reads "0 XP", not "not recorded".
+--                 reads "0 XP", not "not recorded". Only a day sent with
+--                 `noted: true` sets it — the app leaves that off a day an
+--                 older app played too (its XP is lost), and nothing unsets it.
 -- No times of day, no questions, no answers' text.
 --
 -- Who may do what (as 0025, with the new columns):
@@ -3506,15 +3508,20 @@ on conflict (version) do nothing;
 -- kept now. Readable by the family; written only by the note functions.
 --
 -- Where each topic really started (#174): `profiles.skill_starts`, topic id
--- → {"level": 1–10, "age": 3–18}, noted by the app the first time the
--- topic's level is saved (it lived only in the save's `topicStarts`, which
--- a losing copy of the save could drop). The kid's play: written with their
--- other play columns, no 👪 window. A trigger keeps the FIRST start for a
--- topic (a later write never moves it or removes it) and drops junk. The
--- one change it makes itself (#183): when a grown-up corrects the kid's
--- birth date (a grown-up's column, so the 👪 gate has allowed it), each
--- start's age moves by the change in the kid's age today; its level stays —
--- the level they really started at is still true. Levels aren't reset: the
+-- → {"level": 1–10, "age": 3–18, "on": "YYYY-MM-DD"}, noted by the app the
+-- first time the topic's level is saved (it lived only in the save's
+-- `topicStarts`, which a losing copy of the save could drop). The kid's
+-- play: written with their other play columns, no 👪 window. A trigger
+-- keeps the FIRST start for a topic (a later write never moves it or
+-- removes it) and drops junk. Its age is the kid's (#183): a start that
+-- says the day it was noted (`on`) takes the age the kid was that day by
+-- the row's birth date — when it arrives, and again when a grown-up
+-- corrects the birth date (a grown-up's column, so the 👪 gate has allowed
+-- it), so it's exact whenever it reaches the row. A start without `on` (an
+-- app or a save from before it) keeps the age it was sent with, and a
+-- correction moves it by the change in the kid's age today — exact for the
+-- year, maybe a year off for a month. Its level stays either way — the
+-- level they really started at is still true. Levels aren't reset: the
 -- family's devices keep cached copies that merge levels by the higher and
 -- starts by union, so a reset on the server would be undone by the next
 -- device that loads.
@@ -3527,7 +3534,7 @@ on conflict (version) do nothing;
 -- 1) The day's play, on 0025's rows. A row noted by note_play_days (or
 --    before this) has zeros, no topics, and `noted_play` false: that it was
 --    played is known, its play isn't. note_play_history sets `noted_play`
---    whenever it writes the day (#181); note_play_days never does.
+--    for a day sent with `noted: true` (#181); note_play_days never does.
 alter table public.play_days
   add column if not exists xp integer not null default 0
     constraint play_days_xp_range check (xp between 0 and 100000);
@@ -3723,14 +3730,18 @@ revoke execute on function public.note_play_days(uuid, date[]) from public, anon
 grant execute on function public.note_play_days(uuid, date[]) to authenticated;
 
 -- 6) Note a kid's play, a day at a time (their device's own calendar days):
---    `p_days` is a JSON array of {day: "YYYY-MM-DD", xp, minutes, topics}
---    (the app's PlayDayRecord). Returns how many days were inside the window
---    (noted now or already there); a day outside it, or an element that isn't
+--    `p_days` is a JSON array of {day: "YYYY-MM-DD", xp, minutes, topics,
+--    noted} (the app's PlayDayRecord, and `noted` below). Returns how many
+--    days were inside the window (noted now or already there); a day outside
+--    it, or an element that isn't
 --    an object with such a day, is skipped — never an error, so a device's
 --    old backlog clears itself. A value out of range is clamped, a field
 --    that isn't a number counts as 0 (it can't lower a day), and the topics
---    are cleaned (play_topics_clean). Every day it writes is `noted_play`
---    (#181): its play was noted, zeros included.
+--    are cleaned (play_topics_clean). A day sent with `"noted": true` (JSON
+--    true, nothing else) is `noted_play` from then on (#181): all its play
+--    was noted, zeros included. Without it the flag stays as it was — the
+--    app sends a day an older app also played (its XP never noted) that way,
+--    so it still reads "XP not recorded" — and nothing ever unsets it.
 --    Refusals: 42501 "not signed in" / "not your player"; 22023 "too many
 --    days" (over 31) / "days must be an array".
 create or replace function public.note_play_history(p_kid uuid, p_days jsonb)
@@ -3783,13 +3794,13 @@ begin
       case when jsonb_typeof(v_el -> 'minutes') = 'number'
            then least(greatest(trunc((v_el ->> 'minutes')::numeric), 0), 1440)::integer else 0 end,
       public.play_topics_clean(v_el -> 'topics'),
-      true
+      coalesce(v_el -> 'noted' = 'true'::jsonb, false)
     )
     on conflict (profile_id, day) do update
       set xp         = greatest(p.xp, excluded.xp),
           minutes    = greatest(p.minutes, excluded.minutes),
           topics     = public.play_topics_merge(p.topics, excluded.topics),
-          noted_play = true;
+          noted_play = p.noted_play or excluded.noted_play;
 
     v_noted := v_noted || v_day;
   end loop;
@@ -3837,20 +3848,47 @@ as $$
                      - case when extract(month from p_on)::integer < p_birth_month then 1 else 0 end);
 $$;
 
+-- The day a topic start was noted (#183), from its `on`: a real
+-- `YYYY-MM-DD` day from 2020 to a day after `p_today` (a device's calendar
+-- can run ahead of the server's); anything else is null. No cast that can
+-- fail: the day is built from its parts and must read back the same.
+-- Callable by anyone (plain arithmetic): the trigger below runs as the caller.
+create or replace function public.topic_start_day(p_day text, p_today date)
+returns date
+language sql
+immutable
+set search_path = ''
+as $$
+  select v.d
+    from (select case when p_day ~ '^20\d\d-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$'
+                      then make_date(substr(p_day, 1, 4)::integer, substr(p_day, 6, 2)::integer, 1)
+                           + (substr(p_day, 9, 2)::integer - 1) end as d) v
+   where to_char(v.d, 'YYYY-MM-DD') = p_day
+     and v.d between date '2020-01-01' and p_today + 1;
+$$;
+
 -- Keep the first start and drop junk, on every write (whoever writes): an
 -- entry that isn't {level: whole 1–10, age: whole 3–18} under a topic id
 -- (1–24 lowercase letters) is dropped, and on an update the starts already
 -- there win — a write never moves a start, and one that leaves a topic out
--- never removes it. At most 16 topics (those already there first).
--- A birth date corrected (#183) — an update that changes `birth_year` or
--- `birth_month`, which only a grown-up with 👪 open may make (0024's gate
--- runs first) — moves the age of every start already there by the change
+-- never removes it. At most 16 topics (those already there first). An `on`
+-- that isn't a day topic_start_day takes is dropped alone; nothing else
+-- but `level`, `age` and `on` is kept.
+-- The age (#183): a start with `on` takes the kid's age that day by the
+-- row's birth date (kid_age_on, within 3–18) — every start with one, on
+-- every write, so one sent with a stale age (a device holding the old birth
+-- date, a save's copy, a start played while the row was unread) lands
+-- right, and a corrected birth date moves it exactly. A start without `on`
+-- keeps its age, except that a birth date corrected — an update that
+-- changes `birth_year` or `birth_month`, which only a grown-up with 👪 open
+-- may make (0024's gate runs first) — moves one already there by the change
 -- in the kid's age today (the server's date, UTC): the old birth date's age
--- less the new one's, each start's age kept within 3–18, its level kept.
--- Nothing else moves an age. Runs as the caller, so it calls nothing an API
--- role can't (only kid_age_on, callable by anyone).
+-- less the new one's, within 3–18. A level never moves. Runs as the
+-- caller, so it calls nothing an API role can't (kid_age_on and
+-- topic_start_day, callable by anyone).
 -- To correct a start by hand (the SQL editor, as the owner): disable this
--- trigger for that one update.
+-- trigger for that one update — a start with `on` takes its age from the
+-- birth date again on the next write, so correct the birth date instead.
 create or replace function public.profiles_keep_skill_starts()
 returns trigger
 language plpgsql
@@ -3871,11 +3909,10 @@ begin
       from (values (true, v_old), (false, new.skill_starts)) as src (had, starts)
      cross join lateral jsonb_each(
        case when jsonb_typeof(src.starts) = 'object' then src.starts else '{}'::jsonb end) as e
-  ), clean as (
-    select had, key,
-           jsonb_build_object('level', (value ->> 'level')::integer,
-                              'age', case when had then least(18, greatest(3, (value ->> 'age')::integer - v_shift))
-                                          else (value ->> 'age')::integer end) as start
+  ), valid as (
+    select had, key, (value ->> 'level')::integer as level, (value ->> 'age')::integer as age,
+           case when jsonb_typeof(value -> 'on') = 'string'
+                then public.topic_start_day(value ->> 'on', v_today) end as on_day
       from entries
      where key ~ '^[a-z]{1,24}$'
        and case when jsonb_typeof(value) = 'object'
@@ -3884,6 +3921,16 @@ begin
                 then (value ->> 'level')::integer between 1 and 10
                  and (value ->> 'age')::integer between 3 and 18
                 else false end
+  ), clean as (
+    select had, key,
+           jsonb_strip_nulls(jsonb_build_object(
+             'level', level,
+             'age', case when on_day is not null
+                         then least(18, greatest(3, public.kid_age_on(new.birth_year, new.birth_month, on_day)))
+                         when had then least(18, greatest(3, age - v_shift))
+                         else age end,
+             'on', to_char(on_day, 'YYYY-MM-DD'))) as start
+      from valid
   ), firsts as (
     select distinct on (key) had, key, start from clean order by key, had desc
   )

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { todayIso } from '../lib/streak';
 
 // The kid's row, at the wire: each read answers with the next queued result
 // (and records the columns it asked for); each write is kept, and answers
@@ -36,6 +37,8 @@ vi.mock('../lib/supabase', () => {
 });
 
 // Whether the database has `skill_starts` is remembered for a while (module state): a fresh module each test.
+/** A start noted today (#183: with the day it was noted). */
+const today = (level: number, age: number) => ({ level, age, on: todayIso() });
 let store: typeof import('./profileStore');
 let saves: typeof import('./saveStore');
 let defaultSave: typeof import('../lib/save').defaultSave;
@@ -91,13 +94,13 @@ describe("each topic's start on the profile, profiles.skill_starts (#174)", () =
     reads.push({ data: { ...ROW, skill_starts: {} }, error: null });
     await store.useProfileStore.getState().loadProfile('kid-1', birth);
     await store.useProfileStore.getState().setSkillLevel('science', 5);
-    expect(profile().skillStarts).toEqual({ science: { level: 4, age: 9 } });
-    expect(save().topicStarts).toEqual({ science: { level: 4, age: 9 } });
-    expect(updates().at(-1)).toMatchObject({ skill_levels: { math: 6, science: 5 }, skill_starts: { science: { level: 4, age: 9 } } });
+    expect(profile().skillStarts).toEqual({ science: today(4, 9) });
+    expect(save().topicStarts).toEqual({ science: today(4, 9) });
+    expect(updates().at(-1)).toMatchObject({ skill_levels: { math: 6, science: 5 }, skill_starts: { science: today(4, 9) } });
     // Later saves of it write the level alone; the start never moves.
     await store.useProfileStore.getState().setSkillLevel('science', 6);
     expect(updates().at(-1)).not.toHaveProperty('skill_starts');
-    expect(profile().skillStarts).toEqual({ science: { level: 4, age: 9 } });
+    expect(profile().skillStarts).toEqual({ science: today(4, 9) });
   });
 
   it('a start the save already holds (another device, an older app) is the one noted on the profile', async () => {
@@ -124,12 +127,12 @@ describe("each topic's start on the profile, profiles.skill_starts (#174)", () =
     expect(store.useProfileStore.getState().remoteError).toBeNull();
     // Starts still go into the save; no write names the column.
     await store.useProfileStore.getState().setSkillLevel('science', 5);
-    expect(save().topicStarts).toEqual({ science: { level: 4, age: 9 } });
+    expect(save().topicStarts).toEqual({ science: today(4, 9) });
     expect(updates().every((row) => !('skill_starts' in row))).toBe(true);
     // After a while (the migration applied while the tab stayed open), a write names it again.
     vi.setSystemTime(Date.now() + store.STARTS_RECHECK_MS + 1);
     await store.useProfileStore.getState().setSkillLevel('history', 5);
-    expect(updates().at(-1)).toMatchObject({ skill_starts: { history: { level: 4, age: 9 } } });
+    expect(updates().at(-1)).toMatchObject({ skill_starts: { history: today(4, 9) } });
     // A profile load asks for it again at once, whenever the last miss was (review round 2: it was never asked again in that tab).
     reads.push(NO_COLUMN_READ, { data: ROW, error: null });
     await store.useProfileStore.getState().loadProfile('kid-1', birth);
@@ -154,7 +157,7 @@ describe("each topic's start on the profile, profiles.skill_starts (#174)", () =
     await store.useProfileStore.getState().setSkillLevel('history', 5);
     expect(updates()).toHaveLength(3);
     expect(updates()[2]).not.toHaveProperty('skill_starts');
-    expect(save().topicStarts).toEqual({ science: { level: 4, age: 9 }, history: { level: 4, age: 9 } });
+    expect(save().topicStarts).toEqual({ science: today(4, 9), history: today(4, 9) });
   });
 
   it("on load, starts in the save the profile lacks are carried onto it — one write", async () => {

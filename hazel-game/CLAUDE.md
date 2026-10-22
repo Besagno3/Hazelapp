@@ -48,8 +48,9 @@ measured ~106 KB gzipped for one bar chart.
   topics start higher each birthday; where each topic really started is
   noted the first time its level is saved — on the profile
   (`profiles.skill_starts`, migration 0026, #174; the database keeps the
-  first, and a grown-up's corrected birth date moves its age, never its
-  level — #183) and in the save (`topicStarts`, #29 review round 2), for a
+  first, and works its age out from the day it was noted and the kid's
+  birth date, so a grown-up's corrected birth date corrects the age, never
+  the level — #183) and in the save (`topicStarts`, #29 review round 2), for a
   database or app without the column) and then moves with **performance**
   (quiz ramp, battle ramp, and the battle **speed trigger**: 5 quick correct
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
@@ -79,7 +80,7 @@ measured ~106 KB gzipped for one bar chart.
   kid's first day ever noted (`play_history_since`), so a gap before it reads
   "not recorded"; a day noted without its play (an older app) says so, never
   0 XP, and a day noted with its play and none says "0 XP" (`noted_play`,
-  #181). A day's play goes up only once the day counts as played (XP, a
+  #181 — never a day an older app played too, whose XP it never noted). A day's play goes up only once the day counts as played (XP, a
   round, a battle, a battle fled after answering… — `recordActivity`), or
   the profile already counts it (its last day played, or a day its live
   streak proves — another device played it; then play noted for it goes up
@@ -301,9 +302,10 @@ measured ~106 KB gzipped for one bar chart.
   else under the XP chart, #170 / #89 review rounds 1–2), and its `xp` /
   `minutes` only from a day whose play was recorded (#169, #172) — the
   database's `noted_play` says so (#181: a 30-second day is "0 XP", "under
-  a minute" and no answers, recorded, and every total counts it whole), or,
-  read without it, any XP, minute or answer at all; a day with neither is
-  "XP not recorded"; the days
+  a minute" and no answers, recorded, and every total counts it whole); a
+  day it says wasn't — an older app's, or one an older build played too,
+  whatever this device added to it (#181 review) — is "XP not recorded";
+  only a row that doesn't say reads any XP, minute or answer as noted; the days
   end on the kid's today, `windowEnd` — the day after this device's when
   anything was noted on it (their device a time zone ahead), so "the last
   7 days" are the kid's 7, never their today and tomorrow added into one,
@@ -411,7 +413,10 @@ measured ~106 KB gzipped for one bar chart.
   when storage can't be written — its own key since #89 review round 1, so a
   tab on an older build, which reads and writes `hazel-play-days-<kid>` as a
   list of days, can't write over the records; the days it leaves there are
-  folded in as days played and that key cleared, #178): the XP earned
+  folded in as days played and that key cleared, #178 — and marked `bare`:
+  that build's XP for the day was never noted, so the day goes without
+  `noted` and keeps "played, XP not recorded", even once this device plays
+  it too, #181 review): the XP earned
   (#169, `addXp` → `addDayXp`, even while the row is unread), active minutes
   (#172, `lib/activeMinutes.ts`, wired in `App`: every 60 s a minute counts
   with the game on screen, the tab in view and a key, pointer or touch in
@@ -445,12 +450,14 @@ measured ~106 KB gzipped for one bar chart.
   Played days
   are sent to `note_play_history(kid, days)` (migration 0026) — security
   definer, run in UTC whatever time zone a request asks for, the family's
-  own kid only (42501 "not your player"), each `{day, xp, minutes, topics}`,
-  days outside 7 back to 1 ahead of the server's date skipped, at most 31 a
-  call, values clamped (the limits `lib/playDays` keeps a record to —
-  `playDays.limits.test` reads 0026 and holds the two together, #182), the
-  larger total kept per day and per topic the tally with more answers (a tie
-  takes the new one), the day marked `noted_play` (#181 — never by
+  own kid only (42501 "not your player"), each `{day, xp, minutes, topics,
+  noted}`, days outside 7 back to 1 ahead of the server's date skipped, at
+  most 31 a call, values clamped (the limits `lib/playDays` keeps a record
+  to, and 📈's reader reads one with — `playDays.limits.test` reads 0026,
+  `progress.ts` and `profile.ts` and holds them together, #182), the larger
+  total kept per day and per topic the tally with more answers (a tie takes
+  the new one), a day sent with `noted: true` marked `noted_play` (#181 —
+  every day the app sends but a `bare` one; never unset, never by
   `note_play_days`), and deleting **every**
   kid's days older than 35 (was 14 before 0026; any family's note — at
   most 1,000 of the oldest a call, by the index on `day`, so no note risks
@@ -616,18 +623,36 @@ measured ~106 KB gzipped for one bar chart.
   profile lacks are carried onto it (one write, once the save is loaded;
   `mergeProfiles` keeps the union, the server's on a clash); `noteAnswer`
   counts a bank question's final pick for today (#173). The database keeps
-  each topic's first start (`profiles_keep_skill_starts`, 0026); the one
-  change it makes itself is a grown-up's corrected birth date (#183, the
-  lead's call): each start's age moves by the change in the kid's age today
-  (0026's `kid_age_on`, worked out as `calcAge` does — `age.test` checks
-  `calcAge` against the table the SQL test checks `kid_age_on` with), within
-  3–18, its level kept — the level they really started at stays true.
-  Levels are never reset: the family's devices keep cached copies that merge
-  levels by the higher and starts by union, so a reset on the server would be
-  undone by the next device that loads. The save's `topicStarts` copy isn't
-  moved (📈 reads the profile's first). Each read of the row is called off
-  after `READ_TIMEOUT_MS` (10 s, #184: a captive portal or a half-open
-  connection held a kid's retries for minutes) and counts as a failed read.
+  each topic's first start (`profiles_keep_skill_starts`, 0026) and its age
+  is the kid's (#183, the lead's calls): a start carries the day it was
+  noted (`TopicStart.on`, the device's `YYYY-MM-DD`, set by `setSkillLevel`
+  and kept by `normalizeSave`, `skillStartsFrom` and `mergeProfiles`), and
+  the trigger works its age out from that day and the row's birth date
+  (0026's `kid_age_on`, as `calcAge` does — `age.test` checks `calcAge`
+  against the table the SQL test checks `kid_age_on` with; within 3–18) —
+  as it arrives, from whichever device or save or unread take-up, whatever
+  age it was sent with, and again on a grown-up's birth-date correction. So
+  **exact:** every start this app notes, year or month corrected, however
+  late it reaches the row. **Approximate:** a start without `on` (only from
+  a save written by an app from before it): kept as sent, and a correction
+  moves it by the change in the kid's age today — exact for the year (unless
+  capped at 3 or 18), maybe a year off for a month; and the save's own
+  `topicStarts` copy is never moved (📈 reads the profile's first). An `on`
+  that isn't a real day from 2020 to a day after the server's is dropped
+  alone (`topic_start_day`). A level never moves — the level they really
+  started at stays true. Levels are never reset: the family's devices keep
+  cached copies that merge levels by the higher and starts by union, so a
+  reset on the server would be undone by the next device that loads. A
+  grown-up's Save in 👪 sends the birth date only where the form changed it
+  (`familyStore.updateKid`, #183 review), so a device with an older kid list
+  never puts back another device's correction. Each read of the row is
+  timed whole — the fetch and the session supabase-js waits for first (a
+  token refresh after the tab slept), a race, not only the fetch's abort
+  signal — and one still out after `READ_TIMEOUT_MS` (10 s) ends as a failed
+  read; each failure gives the next read twice as long, up to
+  `READ_TIMEOUT_MAX_MS` (30 s), back to 10 s on a read, a load or a clear
+  (#184 and its review: a captive portal or a half-open connection held a
+  kid's retries for minutes; a slow link that does answer gets its row).
   **A row that couldn't be read is never written over (#29 review round 3,
   #61's class):** after a failed read the profile is this device's copy, or
   a made-up start (level 1, no topics), and `unread` is set: play goes on in
@@ -643,12 +668,22 @@ measured ~106 KB gzipped for one bar chart.
   topic's level moved since goes on as a step from the real level (1–10), a
   topic the row has no level for keeps the level played to and gets the
   start it was played from; power-ups count only from a real copy — then
-  the result is written (`takeUp`). The steps are kept beside the copy
-  (`hazel-profile-steps-<kid>`, `lib/profile`'s `UnreadSteps`, #180), so a
-  reload — or Switch player — before the row is read keeps a step down too
-  (the copy alone, merged by the higher, lost it): the copy's levels are
-  taken back to where they stood (`withoutSteps`) and the steps go on from
-  the row's once it's read; cleared then, and with the copy
+  the result is written (`takeUp`). The steps — and the XP earned meanwhile
+  (#180 review) — are kept beside the copy (`hazel-profile-steps-<kid>`,
+  `lib/profile`'s `UnreadSteps`, #180), so a reload — or Switch player —
+  before the row is read keeps a step down and the XP too (the copy alone,
+  merged by the higher, lost them): the copy is taken back to where it stood
+  (`withoutSteps`) and they go on from the row's once it's read. Every tab
+  of the kid on the device adds to what's kept (`addUnreadStep`,
+  `addUnreadXp`), and the first to read the row takes it all
+  (`takeUnreadSteps`, inside `withStepsLock`: the Web Locks API's lock per
+  kid where the browser has it, else read-and-remove in one synchronous
+  step — best effort), so a step goes on once: a tab that finds its steps
+  taken takes each topic it stepped from the copy that tab left (its own
+  read may predate that write). A tab without a copy (a made-up start), or
+  whose storage can't be written (`unread.unstored`), puts on its own.
+  Another tab's step on a topic this tab never stepped meets "the higher
+  wins", as another device's does. Cleared once taken, and with the copy
   (`forgetLocalProfile`: removing the kid, closing the account — a plain
   sign-out keeps both). No level is noted for today while unread. A read that answers after the kid
   changed (or the game was put away) is dropped (`readGen`). Removing the
@@ -1186,8 +1221,9 @@ measured ~106 KB gzipped for one bar chart.
   by the database, #167 — and fails when a `profiles` column is on neither
   side of the gate — and `grown_ups_password.test.sql` the password wait;
   `play_days.test.sql` the days-played rules, #29; `progress_history.test.sql`
-  a day's play and `noted_play`, the first day noted, topic starts and a
-  corrected birth date's ages (0026, #169–#174, #181, #183 — it
+  a day's play and `noted_play` (`noted: true`), the first day noted, topic
+  starts, their days (`on`) and a corrected birth date's ages (0026,
+  #169–#174, #181, #183 — it
   re-applies 0026 inside its own transaction with psql's `\ir`, to test the
   backfill and the bundle's replay over live data);
   the other tests that act as a grown-up open it first, on the stub's
@@ -1555,9 +1591,10 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   privacy notice says a day's note is kept five weeks, then the family can't see it and it's deleted as
 #   the game tidies up (inside the note functions — no scheduled job); CONSENT_VERSION waits for the
 #   lawyer (#124). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
-#   Also in 0026 (#181, #183): play_days.noted_play (set by note_play_history; a day noted without it
-#   reads as before), and a grown-up's birth-date correction moves each topic start's age (trigger
-#   profiles_keep_skill_starts, kid_age_on); a start's level is never changed.
+#   Also in 0026 (#181, #183): play_days.noted_play (set by note_play_history for a day sent with
+#   "noted": true; a day noted without it reads as before), and each topic start's age worked out from
+#   the day it was noted ("on", topic_start_day) and the kid's birth date — again on a grown-up's
+#   correction (trigger profiles_keep_skill_starts, kid_age_on); a start's level is never changed.
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
@@ -1732,6 +1769,48 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Progress history follow-ups review: an old build's day keeps "XP not recorded", each step put on once across tabs, a read timed whole and given longer, a start's age from its own day, the limits from one place (#180, #181, #182, #183, #184)
+`/saas-code-review` of the follow-ups commit (1 medium, 6 low, an open
+question and an also-noted), with the lead's calls, all fixed. **An old
+build's day (#181, medium):** a day `main`'s build left unsent was folded
+in and sent to `note_play_history`, which marked it `noted_play` — 📈 read
+"0 XP" for a day the kid earned XP on. Now a day is marked only when sent
+with `noted: true` (0026: `noted_play = noted_play or noted`); the app
+leaves it off a folded day (`bare`, kept on the device), and keeps it off
+once this device adds play to that day — the old build's XP is still
+missing; 📈 reads `noted_play` false as "XP not recorded" even when the day
+has XP (it read any XP as noted). **Two tabs (#180):** one up-step kept beside the copy was put on
+by both tabs of a kid (math 7 → 9). Every tab now adds its steps to what's
+kept, and the first to read the row takes them all under the kid's Web
+Locks lock (or, without the API, read-and-remove in one synchronous step);
+a tab that finds its steps taken takes each topic it stepped from the copy
+that tab left, so a stale read never undoes a step down. The also-noted:
+XP earned unread is kept the same way, so a reload no longer loses it to
+"the higher wins" when another device moved the row's XP. **The read
+(#184):** the whole read races a timer — supabase-js's session wait
+included, which the fetch's abort never reached — and each failed read
+gives the next twice as long (10 s, 20 s, then 30 s), so a slow link that
+does answer gets its row. **A start's age (#183):** starts carry the day
+they were noted (`on`, set by `setSkillLevel`, kept by `normalizeSave`,
+the profile readers and the merge); 0026's trigger works the age out from
+it and the row's birth date as each start arrives and on a correction, so
+a month corrected is exact and a start reaching the row late (the save's
+copy, another device, played unread, a device with a stale birth date)
+lands right; `topic_start_day` takes only a real day from 2020 to a day
+ahead. Starts without `on` keep today's rule (Architecture says what's
+exact and what's approximate). A grown-up's Save sends the birth date only
+where the form changed it (`updateKid`, the open question). **Limits
+(#182):** 📈's reader takes `MAX_XP` / `MAX_MINUTES` / `MAX_ANSWERS` and the
+level constants; the start readers `MIN_START_AGE` / `MAX_PLAYER_AGE`
+(new `MIN_START_AGE`); `playDays.limits.test` pins both readers (`?raw`, no
+bare numbers) and the trigger's limits. 0026 changed in place (not yet
+applied anywhere), still re-runnable; bundle rebuilt. Tests 2470 → 2494, the
+full suite green; lint, `tsc -b`, `build:web` with the
+placeholders (`ProgressPage` 39.76 KB, 13.06 KB gz); CI's migrations job
+locally (26 migrations, the bundle twice, 20 SQL tests); 20 of 20 SQL and
+41 of 41 client mutations caught. No screen changed. Deploy: as the PR
+(re-run `apply_all_migrations.sql`).
 
 ### 2026-10-22 — Progress history: a down-step that survives a reload, a real 0 XP day, limits pinned to 0026, a corrected birth date's starts, a read that times out (#180, #181, #182, #183, #184)
 Five follow-ups on PR #89, from the issues its review rounds logged.

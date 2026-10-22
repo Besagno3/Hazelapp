@@ -41,6 +41,12 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * as a list of bare days, and would have written over the records. Days such
  * a tab leaves there are folded in here (as days played, nothing else
  * known) and the old key is cleared, so neither build writes over the other.
+ * Such a day is `bare` (#181): that build earned XP on it that was never
+ * noted, so it goes without `noted` — `note_play_history` then leaves
+ * `noted_play` as it was and 📈 keeps "played, XP not recorded" for it,
+ * never a "0 XP" it didn't earn. It stays bare once this device adds play
+ * of its own to that day: the old build's XP for it is still missing, so
+ * the day is still partial.
  *
  * When a send fails it backs off rather than trying after every round
  * (#29 review round 1): no `note_play_history` (0026 not applied) → the days
@@ -104,12 +110,25 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * A day as this device keeps it: the record, whether the day counts as
- * played (only then is it sent), and what the database has of it — nothing,
- * the day alone (`note_play_days`, before 0026), or all of it as it stands.
+ * played (only then is it sent), what the database has of it — nothing,
+ * the day alone (`note_play_days`, before 0026), or all of it as it stands —
+ * and whether an older build played it too (`bare`, #181: its play there
+ * was never noted, so this record isn't all of the day's).
  */
 interface Kept extends PlayDayRecord {
   played?: true;
   sent?: 'day' | 'all';
+  bare?: true;
+}
+
+/**
+ * A day as it's sent to `note_play_history` (0026): the record, and
+ * `noted: true` when it's all of the day's play this device knows of — the
+ * database then marks the day `noted_play` (#181). A `bare` day goes
+ * without it, so the flag stays as it was.
+ */
+interface SentDay extends PlayDayRecord {
+  noted?: true;
 }
 
 /** A kid's kept days when this device can't write them to storage (private mode, quota): kept for this session. */
@@ -128,9 +147,13 @@ function tallyFrom(v: unknown): TopicTally | null {
   return tally;
 }
 
-/** One stored day: a bare day (the format before 0026 — a day played, nothing sent) or a record; anything else is null. */
+/**
+ * One stored day: a bare day (the format before 0026 — a day an older build
+ * played, nothing sent, its play unknown: `bare`) or a record; anything
+ * else is null.
+ */
 function keptFrom(v: unknown): Kept | null {
-  if (typeof v === 'string') return ISO_DAY.test(v) ? { day: v, xp: 0, minutes: 0, topics: {}, played: true } : null;
+  if (typeof v === 'string') return ISO_DAY.test(v) ? { day: v, xp: 0, minutes: 0, topics: {}, played: true, bare: true } : null;
   if (!isRecord(v) || typeof v.day !== 'string' || !ISO_DAY.test(v.day)) return null;
   const topics: Record<string, TopicTally> = {};
   if (isRecord(v.topics)) {
@@ -142,6 +165,7 @@ function keptFrom(v: unknown): Kept | null {
   const kept: Kept = { day: v.day, xp: count(v.xp, MAX_XP), minutes: count(v.minutes, MAX_MINUTES), topics };
   if (v.played === true) kept.played = true;
   if (v.sent === 'day' || v.sent === 'all') kept.sent = v.sent;
+  if (v.bare === true) kept.bare = true;
   return kept;
 }
 
@@ -158,8 +182,9 @@ function storedList(key: string): unknown[] {
 
 /**
  * A kid's kept days, oldest first — with the days an older build's tab left
- * under the old key folded in: each a day played (the rest of a record kept
- * here stays as it is).
+ * under the old key folded in: each a day played, and `bare` (#181) — the
+ * rest of a record kept here for it stays as it is, but it isn't the whole
+ * day's play any more (that build's XP for it was never noted).
  */
 function readKept(kidId: string): Kept[] {
   const held = unstored.get(kidId);
@@ -174,7 +199,10 @@ function readKept(kidId: string): Kept[] {
     if (!kept) continue;
     const had = byDay.get(kept.day);
     if (!had) byDay.set(kept.day, kept);
-    else if (kept.played) had.played = true;
+    else if (kept.played) {
+      had.played = true;
+      had.bare = true;
+    }
   }
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
@@ -211,6 +239,8 @@ function writeKept(kidId: string, list: Kept[]): void {
 /** The part of a record the database keeps. */
 const contents = (r: PlayDayRecord): string => JSON.stringify([r.xp, r.minutes, r.topics]);
 const recordOf = ({ day, xp, minutes, topics }: Kept): PlayDayRecord => ({ day, xp, minutes, topics });
+/** What goes to `note_play_history` for a kept day: `noted` unless an older build played it too (#181). */
+const sentOf = (r: Kept): SentDay => (r.bare ? recordOf(r) : { ...recordOf(r), noted: true });
 
 /**
  * How play is noted. `played`: the profile already counts the day as played
@@ -442,7 +472,7 @@ async function sendPending(kidId: string): Promise<void> {
   const records = toSend(kidId);
   try {
     if (!historyMissing()) {
-      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: records.map(recordOf) });
+      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: records.map(sentOf) });
       if (!error) return settle(kidId, records, 'all');
       if (notYours(error)) return forgetPlayDays(kidId);
       if (!noFunction(error)) return backOff(kidId, error);

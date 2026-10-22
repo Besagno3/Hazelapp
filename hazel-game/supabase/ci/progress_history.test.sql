@@ -2,13 +2,16 @@
 -- each day a kid played keeps what was played on it — XP, active minutes,
 -- answers per topic — noted only through note_play_history (the family's own
 -- sign-in, its own kid, the last week), the larger total kept for a day,
--- values clamped and junk dropped, and the day marked as noted with its play
--- (`noted_play`, never by note_play_days); five weeks kept and readable (an
+-- values clamped and junk dropped, and a day sent with `noted: true` marked as
+-- noted with its play (`noted_play` — never unmarked, never by
+-- note_play_days); five weeks kept and readable (an
 -- old tab's note_play_days included); the first day noted kept per kid
 -- (play_history_since) for as long as the kid exists; and
 -- `profiles.skill_starts`, the kid's play, keeps the first start for a topic
--- and drops junk, its ages moved only by a grown-up's corrected birth date
--- (kid_age_on, the app's calcAge). 0025's own rules:
+-- and drops junk, a start's age the kid's on the day it was noted (`on`, by
+-- the row's birth date, corrected with it) — or, without `on`, as sent and
+-- moved only by a grown-up's corrected birth date (kid_age_on, the app's
+-- calcAge). 0025's own rules:
 -- play_days.test.sql. Any failed assertion raises and exits non-zero under
 -- `psql -v ON_ERROR_STOP=1`.
 --
@@ -274,32 +277,56 @@ begin
   end loop;
 end $$;
 
--- 4b) A day noted with its play says so (#181): note_play_history marks
---     every day it writes, zeros and all, and note_play_days never does — so
---     a day really played for 0 XP, under a minute and no bank answer can be
---     told from a day noted without its play.
+-- 4b) A day noted with its play says so (#181): note_play_history marks a
+--     day sent with `"noted": true` (JSON true, nothing else), zeros and
+--     all; a day sent without it — the app's for a day an older app also
+--     played, whose XP was never noted — leaves the flag as it was; nothing
+--     unmarks a day, and note_play_days never marks one. So a day really
+--     played for 0 XP, under a minute and no bank answer can be told from a
+--     day noted without its play.
 do $$
 declare
   sam constant uuid := '00000000-0000-0000-0000-000000005a1a';
   kit constant uuid := '00000000-0000-0000-0000-000000005a1b';
 begin
-  assert (select bool_and(noted_play) from public.play_days where profile_id = kit), 'every day Kit''s play was noted with';
+  assert not (select bool_or(noted_play) from public.play_days where profile_id = kit),
+    'Kit''s days were sent without "noted": their play is kept, the flag isn''t set';
   -- A 30-second typing day: nothing to count but the day.
-  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-2), 'xp', 0, 'minutes', 0)));
+  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-2), 'xp', 0, 'minutes', 0, 'noted', true)));
   assert (select noted_play and xp = 0 and minutes = 0 and topics = '{}'::jsonb
             from public.play_days where profile_id = sam and day = current_date - 2), 'a real 0 XP day is noted with its play';
   -- An old tab's day alone, then this app's note of the same day, then the old tab's again.
   perform public.note_play_days(sam, array[current_date - 1]);
   assert not (select noted_play from public.play_days where profile_id = sam and day = current_date - 1),
     'note_play_days notes the day without its play';
-  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-1))));
+  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-1), 'noted', true)));
   assert (select noted_play from public.play_days where profile_id = sam and day = current_date - 1),
     'note_play_history on a day noted alone marks it (an update)';
   perform public.note_play_days(sam, array[current_date - 1, current_date - 2]);
   assert (select bool_and(noted_play) from public.play_days where profile_id = sam and day in (current_date - 1, current_date - 2)),
     'note_play_days never unmarks a day';
+  -- A day an older app played too (its XP lost): sent without "noted", on a
+  -- day noted alone and on a new day — its play kept, the flag left unset.
+  perform public.note_play_history(sam, jsonb_build_array(
+    jsonb_build_object('day', pg_temp.d(-3), 'xp', 15, 'minutes', 4),
+    jsonb_build_object('day', pg_temp.d(-4), 'xp', 0)));
+  assert (select not noted_play and xp = 15 and minutes = 4 from public.play_days where profile_id = sam and day = current_date - 3),
+    'a day from before 0026 sent without "noted": its play kept, still not noted';
+  assert not (select noted_play from public.play_days where profile_id = sam and day = current_date - 4),
+    'a new day sent without "noted" isn''t noted';
+  -- Only JSON true marks a day.
+  perform public.note_play_history(sam, jsonb_build_array(
+    jsonb_build_object('day', pg_temp.d(-3), 'noted', 'true'),
+    jsonb_build_object('day', pg_temp.d(-4), 'noted', 1),
+    jsonb_build_object('day', pg_temp.d(-5), 'noted', false)));
+  assert not (select bool_or(noted_play) from public.play_days where profile_id = sam and day between current_date - 5 and current_date - 3),
+    '"true", 1 and false don''t mark a day';
+  -- A day noted before, sent again without "noted": it stays noted, the larger play kept.
+  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-2), 'xp', 30)));
+  assert (select noted_play and xp = 30 from public.play_days where profile_id = sam and day = current_date - 2),
+    'a day sent without "noted" never unmarks one';
   -- A day from before 0026, noted again with its play.
-  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-3), 'minutes', 4)));
+  perform public.note_play_history(sam, jsonb_build_array(jsonb_build_object('day', pg_temp.d(-3), 'minutes', 4, 'noted', true)));
   assert (select noted_play and minutes = 4 from public.play_days where profile_id = sam and day = current_date - 3),
     'a day from before 0026 is marked once its play is noted';
 end $$;
@@ -629,6 +656,127 @@ end $$;
 reset role;
 delete from public.grown_up_unlocks;
 
+-- 9c) A start's day (#183): a start noted with `on` takes the kid's age that
+--     day by the row's birth date — as it arrives, from whoever sends it
+--     and whatever age it carries, and again on a correction, so a month
+--     corrected moves each start by its own day's difference (here 1 for a
+--     June start, 0 for an October one), not today's. A start without
+--     `on` keeps the old rule. An `on` that isn't a real day from 2020 to a
+--     day ahead is dropped alone. Zed was typed in as born September 2016;
+--     he's really March 2016's.
+insert into public.profiles (id, parent_id, display_name, icon, birth_year, birth_month, skill_starts) values
+  ('00000000-0000-0000-0000-000000005a1e', '00000000-0000-0000-0000-0000000000aa', 'Zed', 'fox', 2016, 9,
+   '{"maps": {"level": 2, "age": 12, "on": "2025-06-15"}}');
+do $$
+begin
+  assert (select skill_starts from public.profiles where id = '00000000-0000-0000-0000-000000005a1e')
+           = '{"maps": {"level": 2, "age": 8, "on": "2025-06-15"}}'::jsonb,
+    'a new kid''s start with a day takes the age that day (8 on 15 June 2025 for September 2016), not the 12 sent';
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub": "00000000-0000-0000-0000-0000000000aa", "session_id": "00000000-0000-0000-0000-000000000d1a"}', true);
+do $$
+declare
+  zed constant uuid := '00000000-0000-0000-0000-000000005a1e';
+  tomorrow constant text := to_char((now() at time zone 'UTC')::date + 1, 'YYYY-MM-DD');
+  later constant text := to_char((now() at time zone 'UTC')::date + 2, 'YYYY-MM-DD');
+  s jsonb;
+begin
+  assert not public.grown_ups_unlocked(), 'no 👪 window: the kid''s play';
+  update public.profiles
+     set skill_starts = jsonb_build_object(
+           'math',  '{"level": 3, "age": 15, "on": "2025-06-15"}'::jsonb,
+           'words', '{"level": 4, "age": 9, "on": "2025-10-15"}'::jsonb,
+           'space', '{"level": 3, "age": 8}'::jsonb,
+           'early', '{"level": 1, "age": 5, "on": "2020-01-01"}'::jsonb,
+           'soon',  jsonb_build_object('level', 5, 'age', 9, 'on', tomorrow),
+           'febxx', '{"level": 2, "age": 7, "on": "2025-02-30"}'::jsonb,
+           'olden', '{"level": 2, "age": 7, "on": "2019-12-31"}'::jsonb,
+           'ahead', jsonb_build_object('level', 2, 'age', 7, 'on', later),
+           'numbr', '{"level": 2, "age": 7, "on": 20250615}'::jsonb,
+           'short', '{"level": 2, "age": 7, "on": "2025-6-15"}'::jsonb,
+           'zeros', '{"level": 2, "age": 7, "on": "0000-01-01"}'::jsonb,
+           'stamp', '{"level": 2, "age": 7, "on": "2025-06-15T00:00:00Z"}'::jsonb)
+   where id = zed;
+  s := (select skill_starts from public.profiles where id = zed);
+  assert s -> 'math' = '{"level": 3, "age": 8, "on": "2025-06-15"}'::jsonb, format('June 2025: 8, the sent 15 ignored (%s)', s -> 'math');
+  assert s -> 'words' = '{"level": 4, "age": 9, "on": "2025-10-15"}'::jsonb, format('October 2025: 9 (%s)', s -> 'words');
+  assert s -> 'space' = '{"level": 3, "age": 8}'::jsonb, 'no day: the age as sent';
+  assert s -> 'early' = '{"level": 1, "age": 3, "on": "2020-01-01"}'::jsonb, format('the first day taken, 2020 (%s)', s -> 'early');
+  assert s -> 'soon' ->> 'on' = tomorrow, 'a day ahead is taken (a device''s calendar runs ahead)';
+  assert (select bool_and(s -> k = '{"level": 2, "age": 7}'::jsonb)
+            from unnest(array['febxx', 'olden', 'ahead', 'numbr', 'short', 'zeros', 'stamp']) k),
+    format('a day that isn''t one is dropped alone, the age as sent (%s)', s);
+  -- Sent again with another age (another device, a stale copy): the first stays.
+  update public.profiles set skill_starts = '{"math": {"level": 6, "age": 11, "on": "2025-07-01"}}' where id = zed;
+  assert (select skill_starts -> 'math' from public.profiles where id = zed) = s -> 'math', 'keep-first, day and all';
+end $$;
+reset role;
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until) values
+  ('00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-000000000d1a', now() + interval '15 minutes');
+set local role authenticated;
+do $$
+declare
+  zed constant uuid := '00000000-0000-0000-0000-000000005a1e';
+  today constant date := (now() at time zone 'UTC')::date;
+  shift integer;
+  s jsonb;
+begin
+  assert public.grown_ups_unlocked(), '👪 open';
+  -- The month corrected: each start with a day moves by its own day's
+  -- difference; the one without by today's.
+  shift := public.kid_age_on(2016, 9, today) - public.kid_age_on(2016, 3, today);
+  update public.profiles set birth_month = 3 where id = zed;
+  s := (select skill_starts from public.profiles where id = zed);
+  assert s -> 'math' = '{"level": 3, "age": 9, "on": "2025-06-15"}'::jsonb, format('June 2025, born March: 9 (%s)', s -> 'math');
+  assert s -> 'words' = '{"level": 4, "age": 9, "on": "2025-10-15"}'::jsonb, format('October 2025: still 9 (%s)', s -> 'words');
+  assert s -> 'early' = '{"level": 1, "age": 3, "on": "2020-01-01"}'::jsonb, format('January 2020, born March 2016: 3 (%s)', s -> 'early');
+  assert (s -> 'space' ->> 'age')::integer = least(18, greatest(3, 8 - shift)) and (s -> 'space' ->> 'level')::integer = 3,
+    format('no day: moved by today''s difference, %s (%s)', shift, s -> 'space');
+  assert s -> 'febxx' = jsonb_build_object('level', 2, 'age', least(18, greatest(3, 7 - shift))),
+    format('a dropped day stays dropped: the start moves as one without a day (%s)', s -> 'febxx');
+end $$;
+reset role;
+delete from public.grown_up_unlocks;
+set local role authenticated;
+do $$
+declare
+  zed constant uuid := '00000000-0000-0000-0000-000000005a1e';
+begin
+  -- After the correction, a start noted on a device that still had the old
+  -- birth date (or carried from a save, or played while the row was unread)
+  -- arrives with the old age: it lands with the right one.
+  update public.profiles set skill_starts = '{"late": {"level": 5, "age": 8, "on": "2025-06-15"}}' where id = zed;
+  assert (select skill_starts -> 'late' from public.profiles where id = zed) = '{"level": 5, "age": 9, "on": "2025-06-15"}'::jsonb,
+    'a start reaching the row after the correction gets the corrected age';
+end $$;
+reset role;
+insert into public.grown_up_unlocks (user_id, session_id, unlocked_until) values
+  ('00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-000000000d1a', now() + interval '15 minutes');
+set local role authenticated;
+do $$
+declare
+  zed constant uuid := '00000000-0000-0000-0000-000000005a1e';
+  s jsonb;
+begin
+  -- The year corrected, and the clamps: born 2019, January 2020 is 0 → 3;
+  -- born 2000, June 2025 is 25 → 18. Levels never move.
+  update public.profiles set birth_year = 2019 where id = zed;
+  s := (select skill_starts from public.profiles where id = zed);
+  assert s -> 'math' = '{"level": 3, "age": 6, "on": "2025-06-15"}'::jsonb and s -> 'early' = '{"level": 1, "age": 3, "on": "2020-01-01"}'::jsonb,
+    format('born March 2019: June 2025 is 6, January 2020 kept at 3 (%s)', s);
+  update public.profiles set birth_year = 2000 where id = zed;
+  s := (select skill_starts from public.profiles where id = zed);
+  assert s -> 'math' = '{"level": 3, "age": 18, "on": "2025-06-15"}'::jsonb and s -> 'early' = '{"level": 1, "age": 18, "on": "2020-01-01"}'::jsonb,
+    format('born March 2000: kept at 18 (%s)', s);
+  update public.profiles set birth_year = 2016 where id = zed;
+  assert (select skill_starts -> 'math' from public.profiles where id = zed) = '{"level": 3, "age": 9, "on": "2025-06-15"}'::jsonb,
+    'and back: the day keeps it exact (no shift lost to a clamp)';
+end $$;
+reset role;
+delete from public.grown_up_unlocks;
+
 -- 10) Re-applying 0026 (the bundle replays every migration) changes no data.
 create temp table before_rerun as
   select (select jsonb_agg(to_jsonb(d) order by profile_id, day) from public.play_days d) as days,
@@ -657,8 +805,9 @@ begin
     'it writes as the table''s owner';
   assert (select proconfig from pg_proc where oid = 'public.note_play_history(uuid, jsonb)'::regprocedure)
            = array['search_path=""', 'TimeZone=UTC'], 'with an empty search path, in UTC';
-  assert has_function_privilege('authenticated', 'public.kid_age_on(integer, integer, date)', 'execute'),
-    'the starts trigger runs as the caller: kid_age_on is anyone''s';
+  assert has_function_privilege('authenticated', 'public.kid_age_on(integer, integer, date)', 'execute')
+     and has_function_privilege('authenticated', 'public.topic_start_day(text, date)', 'execute'),
+    'the starts trigger runs as the caller: kid_age_on and topic_start_day are anyone''s';
   foreach f in array array['public.play_days_tidy()', 'public.play_history_note_since(uuid, date)',
                            'public.play_topics_clean(jsonb)', 'public.play_topics_merge(jsonb, jsonb)'] loop
     assert not has_function_privilege('authenticated', f, 'execute') and not has_function_privilege('anon', f, 'execute'),
