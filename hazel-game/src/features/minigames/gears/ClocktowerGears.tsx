@@ -2,9 +2,11 @@ import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type
 import { useReducedMotion } from 'framer-motion';
 import {
   CRANK_TEETH,
+  HANDLE,
   JOBS_PER_ROUND,
   MACHINES,
   MACHINE_BY_ID,
+  boardBox,
   check,
   ends,
   jobFor,
@@ -49,8 +51,9 @@ const HEADS: Record<Verdict, string> = {
   'not-joined': 'Not joined yet',
   jammed: 'Jammed!',
   'wrong-way': 'The wrong way round',
-  'too-fast': 'A bit too fast',
-  'too-slow': 'A bit too slow',
+  // Not "a bit": it may be three times too fast (review round 2).
+  'too-fast': 'Too fast',
+  'too-slow': 'Too slow',
 };
 
 /** The crank's gear sizes, by name (not "Medium": that's a band, review round 1). */
@@ -104,16 +107,27 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     entry.current?.focus({ preventScroll: first.current });
     first.current = false;
   }, [done, again]);
-  useEffect(() => {
-    if (result) resultHead.current?.focus();
-  }, [result]);
+  // On a phone the board stays at the top of the page: the page keeps that much room at its top when it scrolls
+  // something into view, so nothing lands under the board (review round 2: what happened, and why, did).
+  const [boardEl, boardH] = useHeight();
 
-  // The step's gold button comes into view once it can be pressed (the board stays put: it's at the top of a phone,
-  // beside the steps on a wider screen).
+  // What happened, in sight below the board.
+  useEffect(() => {
+    if (!result) return;
+    resultHead.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    resultHead.current?.focus({ preventScroll: true });
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The step's gold button comes into view as a step starts — never on a peg tap, which slid the board under the
+  // kid's finger on a phone (review round 2, as the bakery's) — with Tricky's crank gears just above it. Not where
+  // the board scrolls with the page (a phone on its side under 640 px): it'd go before the kid had seen it.
   const goRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if (ready || result) goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
-  }, [ready, !!result, still]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (result) return;
+    const b = boardEl.current;
+    if (b && window.matchMedia?.('(max-width: 639px)').matches && getComputedStyle(b).position !== 'sticky') return;
+    goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  }, [done, again, !!result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function peg(i: number) {
     if (right) return;
@@ -132,6 +146,8 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     if (right) return;
     setResult(null);
     setPlaced(new Set());
+    // Its button goes with the gears: focus back to the crank's peg (review round 2: it fell to the page).
+    setAgain((n) => n + 1);
   }
 
   function pickCrank(t: Teeth) {
@@ -189,25 +205,28 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     line = `${cap(machine.name)} must turn ${turnWords(job.turn)}, ${speedWords(job.speed)} — its gear has ${job.teeth} teeth. Pick the crank’s gear: only it and the machine’s gear change the speed.`;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
-      {/* The Clocktower's room above the board (a strip on a phone), and the board alone on a short screen. */}
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden" style={boardH ? { scrollPaddingTop: boardH } : undefined}>
+      {/* The Clocktower's room above the board from `sm` up; a phone and a short screen keep just the board (review
+          round 2: on a phone a strip of it scrolled away at the first step, and slid the board under a tap). */}
       <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,40fr)_minmax(0,60fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)]">
-        <section aria-label="Tock’s clocktower" className="relative h-[96px] overflow-hidden sm:col-start-1 sm:row-start-1 sm:h-auto [@media(max-height:500px)]:hidden">
+        <section aria-label="Tock’s clocktower" className="relative hidden overflow-hidden sm:col-start-1 sm:row-start-1 sm:block [@media(max-height:500px)]:hidden">
           <ClockScene machine={job.machine} running={right} />
         </section>
 
         {/* The board: on a phone it stays at the top while the steps scroll under it, so a gear placed is always in sight. */}
+        {/* Not on a phone on its side under 640 px, where it'd be taller than the room under the header (review round 2). */}
         <section
+          ref={boardEl}
           aria-labelledby="cg-board"
-          className="sticky top-0 z-10 flex flex-col gap-1 border-y-4 border-[#1b0f22] bg-[#3b2a4a] px-2 pb-1.5 pt-1 sm:static sm:col-start-1 sm:row-start-2 sm:min-h-0 sm:justify-center sm:border-b-0 sm:p-4 [@media(max-height:500px)]:row-start-1 [@media(max-height:500px)]:border-t-0 [@media(max-height:500px)]:p-2"
+          className="sticky top-0 z-10 flex flex-col gap-1 border-b-4 border-[#1b0f22] bg-[#3b2a4a] px-2 pb-1.5 pt-1 sm:static sm:col-start-1 sm:row-start-2 sm:min-h-0 sm:justify-center sm:border-b-0 sm:border-t-4 sm:p-4 [@media(max-height:500px)]:static [@media(max-height:500px)]:row-start-1 [@media(max-height:500px)]:border-t-0 [@media(max-height:500px)]:p-2"
         >
-          <h2 id="cg-board" className={cn(pixelHeadClass, 'text-lg text-[#fde68a] sm:text-2xl [@media(max-width:639px)]:sr-only')}>
-            The gear board
-          </h2>
-          {/* The board as big as its space allows, its labels right under its ends (review round 1: a board fitted to
-              the height left them far apart). */}
+          {/* The board as big as its space allows, its heading on it and its labels right under its ends (review
+              rounds 1 and 2). */}
           <div ref={area} className="flex w-full justify-center sm:min-h-0 sm:flex-1 sm:items-center">
             <div className="w-full max-w-[860px]" style={fit ? { width: fit } : undefined}>
+              <h2 id="cg-board" className={cn(pixelHeadClass, 'mb-1 text-lg text-[#fde68a] sm:text-2xl [@media(max-width:639px)]:sr-only')}>
+                The gear board
+              </h2>
               <GearBoard ref={entry} job={job} band={band} placed={placed} crank={result?.crank ?? crank} ran={result?.run ?? null} still={still} locked={right} onPeg={peg} />
               {/* What the ends are, and on Medium and Tricky which way the machine must turn — then which way it did. */}
               <p aria-hidden="true" className="grid w-full grid-cols-2 gap-2 px-1 pt-1 text-[13px] font-bold leading-tight text-[#fde68a] sm:text-[15px]">
@@ -217,14 +236,16 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
                 </span>
                 <span className="text-right">
                   {machine.emoji} {machine.short}
-                  {job.turn && (
-                    <span className="font-semibold text-[#e4e1ff]">
-                      {' '}
-                      · {result?.run.kind === 'turns' ? `turned ${ARROW[result.run.turn]}` : `must turn ${ARROW[job.turn]}`}
-                    </span>
-                  )}
                   {tricky && <span className="font-semibold text-[#e4e1ff]"> · {job.teeth} teeth</span>}
                 </span>
+                {/* Which way it must turn, then which way it did, on a line of its own so an arrow never wraps away
+                    (review round 2); turned the wrong way, what it must do stays in sight. */}
+                {job.turn && (
+                  <span className="col-span-2 whitespace-nowrap text-right font-semibold text-[#e4e1ff]">
+                    {result?.run.kind === 'turns' ? `turned ${ARROW[result.run.turn]}` : `must turn ${ARROW[job.turn]}`}
+                    {verdict === 'wrong-way' && ` · must turn ${ARROW[job.turn]}`}
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -323,7 +344,25 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
 }
 
 /** Room under the board for its labels, in px (two lines on a narrow screen). */
-const LABELS_PX = 44;
+const LABELS_PX = 76;
+
+/**
+ * The board's height while it sticks to the top of the page (a phone held
+ * upright), kept up to date; null when it doesn't stick, and where it can't
+ * be measured, as in tests.
+ */
+function useHeight() {
+  const ref = useRef<HTMLElement>(null);
+  const [h, setH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => setH(getComputedStyle(el).position === 'sticky' ? Math.round(el.getBoundingClientRect().height) : null));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, h] as const;
+}
 
 /**
  * The width that fits the board in its space from `sm` up: as wide as the
@@ -387,8 +426,9 @@ const ROW_NAME = ['Top row', 'Middle row', 'Bottom row'];
 const CRANK_TURN_S = 3;
 const CRANK_TURNS = 3;
 
-/** How far the crank's handle reaches past its gear (its arm, and the knob's radius). */
-const HANDLE = 26 + 13;
+/** The crank's knob: how far out from its gear, and its size (its reach is `HANDLE`, in pegs). */
+const KNOB_AT = 26;
+const KNOB_R = 13;
 
 /**
  * The board: the crank on the left, the machine on the right, the pegs
@@ -416,8 +456,18 @@ const GearBoard = forwardRef<
   const b = job.board;
   const m = MACHINE_BY_ID[job.machine];
   const biggest = biggestFor(band);
-  const box = useMemo(() => viewBoxFor(b, biggest), [b, biggest]);
-  const [bx, by, bw, bh] = box.split(' ').map(Number);
+  const frame = useMemo(() => boardBox(b, biggest), [b, biggest]);
+  const [bx, by, bw, bh] = [frame.x * S, frame.y * S, frame.w * S, frame.h * S];
+  const box = `${bx} ${by} ${bw} ${bh}`;
+  // Left to right, then top to bottom: Tab follows the train from the crank to the machine (review round 2: the
+  // top row came first, before the crank's peg focus starts on).
+  const order = useMemo(
+    () =>
+      b.pegs
+        .map((_, i) => i)
+        .sort((i, k) => pegAt(b.pegs[i]).x - pegAt(b.pegs[k]).x || b.pegs[i].r - b.pegs[k].r),
+    [b],
+  );
   // Before Tricky's crank gear is picked, a middle one stands in, faded.
   const shown: Teeth = crank ?? 16;
   const at = ends(b, shown, job.teeth);
@@ -444,10 +494,10 @@ const GearBoard = forwardRef<
       <rect x={bx + 4} y={by + 4} width={bw - 8} height={bh - 8} rx="22" fill="#5b3a26" stroke="#1b0f22" strokeWidth="8" />
       {/* The crank: its gear and its handle. */}
       <g transform={`translate(${at.crank.x * S} ${at.crank.y * S})`} opacity={crank === null ? 0.45 : 1}>
-        <Spinning period={period(shown)} turn={crankTurns ? 'cw' : null} still={still} reach={radius(shown) * S + HANDLE}>
+        <Spinning period={period(shown)} turn={crankTurns ? 'cw' : null} still={still} reach={(radius(shown) + HANDLE) * S}>
           <GearShape teeth={shown} r={radius(shown) * S} />
-          <path d={`M0 0 L0 ${-radius(shown) * S - 26}`} stroke="#1b0f22" strokeWidth="14" strokeLinecap="round" />
-          <circle cy={-radius(shown) * S - 26} r="13" fill="#e8483f" stroke="#1b0f22" strokeWidth="5" />
+          <path d={`M0 0 L0 ${-radius(shown) * S - KNOB_AT}`} stroke="#1b0f22" strokeWidth="14" strokeLinecap="round" />
+          <circle cy={-radius(shown) * S - KNOB_AT} r={KNOB_R} fill="#e8483f" stroke="#1b0f22" strokeWidth="5" />
         </Spinning>
         {crankTurns && <HubArrow r={radius(shown) * S} turn="cw" />}
       </g>
@@ -469,7 +519,8 @@ const GearBoard = forwardRef<
           </>
         )}
       </g>
-      {b.pegs.map((p, i) => {
+      {order.map((i) => {
+        const p = b.pegs[i];
         const { x, y } = pegAt(p);
         const on = placed.has(i);
         const turn = turning?.get(i) ?? null;
@@ -481,7 +532,7 @@ const GearBoard = forwardRef<
           ...(i === b.exit ? [m.name] : []),
         ];
         // What its gear did, after a run (review round 1: only drawn).
-        const did = !on || !ran ? '' : isStuck ? ', stuck!' : turn ? `, turning ${turnWords(turn)}` : ', not turning';
+        const did = !on || !ran ? '.' : isStuck ? ', stuck!' : turn ? `, turning ${turnWords(turn)}.` : ', not turning.';
         return (
           <g
             key={i}
@@ -490,7 +541,7 @@ const GearBoard = forwardRef<
             role="button"
             tabIndex={locked ? -1 : 0}
             aria-disabled={locked || undefined}
-            aria-label={`${cap(name.replace(' peg', ', peg'))}: ${on ? `a gear${did}. Take it off.` : 'empty. Put a gear on.'} Touches ${listWords(touches)}.`}
+            aria-label={`${cap(name.replace(' peg', ', peg'))}: ${on ? `a gear${did} Take it off.` : 'empty. Put a gear on.'} Touches ${listWords(touches)}.`}
             onClick={() => onPeg(i)}
             onKeyDown={(e: KeyboardEvent<SVGGElement>) => {
               if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -503,7 +554,7 @@ const GearBoard = forwardRef<
             <circle r={S * 0.47} fill={on ? 'transparent' : '#4a2e1e'} stroke="#2a1a12" strokeWidth="3" />
             {on ? (
               // The shake on its own group: an SVG's translate is in its transform attribute, which a CSS transform replaces.
-              <g className={isStuck && !still ? 'hq-shake' : undefined} style={isStuck ? { animationIterationCount: 3 } : undefined}>
+              <g className={isStuck && !still ? 'cg-shake' : undefined}>
                 <Spinning period={period(16)} turn={turn} still={still}>
                   <GearShape teeth={16} r={S / 2} />
                 </Spinning>
@@ -512,8 +563,9 @@ const GearBoard = forwardRef<
               <circle r="11" fill="#cbd5e1" stroke="#1b0f22" strokeWidth="4" />
             )}
             {on && turn && <HubArrow r={S / 2} turn={turn} />}
+            {/* Marks and rings are pictures only: a tap goes to the peg under them (review round 2). */}
             {isStuck && (
-              <g>
+              <g pointerEvents="none">
                 <circle r={S * 0.56} fill="none" stroke="#e8483f" strokeWidth="7" strokeDasharray="12 8" />
                 <circle cx={S * 0.36} cy={-S * 0.36} r="17" fill="#e8483f" stroke="#1b0f22" strokeWidth="4" />
                 <text x={S * 0.36} y={-S * 0.36} textAnchor="middle" dominantBaseline="central" fontSize="24" fontWeight="bold" fill="#fff">
@@ -522,7 +574,7 @@ const GearBoard = forwardRef<
               </g>
             )}
             {/* The focus ring, drawn (an SVG has no outline everywhere). */}
-            <circle r={S * 0.53} fill="none" stroke="#22d3ee" strokeWidth="7" className="opacity-0 group-focus-visible:opacity-100" />
+            <circle r={S * 0.53} fill="none" stroke="#22d3ee" strokeWidth="7" pointerEvents="none" className="opacity-0 group-focus-visible:opacity-100" />
           </g>
         );
       })}
@@ -535,23 +587,8 @@ const biggestFor = (band: Band): Teeth => (band === 'tricky' ? 24 : 16);
 
 /** The board's width over its height. */
 function boardRatio(b: Board, band: Band): number {
-  const [, , w, h] = viewBoxFor(b, biggestFor(band)).split(' ').map(Number);
+  const { w, h } = boardBox(b, biggestFor(band));
   return w / h;
-}
-
-/**
- * The board's viewBox: all three rows and room for the band's biggest crank
- * and machine gears, the crank's handle too (review round 1: its knob was cut
- * off on boards with no top row), so it doesn't move between jobs.
- */
-function viewBoxFor(b: Board, biggest: Teeth): string {
-  const at = ends(b, biggest, biggest);
-  const xs = b.pegs.map((p) => pegAt(p).x);
-  const x0 = Math.min(...xs, at.crank.x - radius(biggest)) - 0.2;
-  const x1 = Math.max(...xs, at.machine.x + radius(biggest)) + 0.2;
-  const y0 = Math.min(-0.62, at.crank.y - radius(biggest) - HANDLE / S - 0.08);
-  const y1 = pegAt({ c: 0, r: 2 }).y + 0.62;
-  return `${x0 * S} ${y0 * S} ${(x1 - x0) * S} ${(y1 - y0) * S}`;
 }
 
 /**
@@ -599,7 +636,7 @@ function HubArrow({ r, turn, target = false }: { r: number; turn: Turn; target?:
   const start = { x: 0, y: -a };
   const end = { x: -a, y: 0 };
   return (
-    <g transform={turn === 'ccw' ? 'scale(-1 1)' : undefined} aria-hidden="true" data-arrow={target ? `must-${turn}` : turn}>
+    <g transform={turn === 'ccw' ? 'scale(-1 1)' : undefined} aria-hidden="true" pointerEvents="none" data-arrow={target ? `must-${turn}` : turn}>
       <circle r={chip} fill="#ffffff" stroke="#1b0f22" strokeWidth="4" strokeDasharray={target ? '7 5' : undefined} />
       <path d={`M ${start.x} ${start.y} A ${a} ${a} 0 1 1 ${end.x} ${end.y}`} fill="none" stroke={ink} strokeWidth={chip * 0.22} strokeLinecap="round" />
       <path

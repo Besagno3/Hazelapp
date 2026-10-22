@@ -294,13 +294,14 @@ function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; 
         <span aria-hidden="true">🗺️ Map</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
-        {/* A long name wraps, smaller on a phone, rather than run under 🗺️ Map and the stars (PR 3 review round 1). */}
+        {/* A long name wraps, smaller on a phone, rather than run under 🗺️ Map and the stars (PR 3 review round 1); each size
+            names its own range, so the smallest isn't overridden by the next (round 2). */}
         <h1
           ref={title}
           tabIndex={-1}
           className={cn(
             pixelTitleClass,
-            'max-w-full text-center text-[30px] leading-none [text-wrap:balance] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px] [@media(max-width:419px)]:text-[24px] [@media(max-width:359px)]:text-[22px]',
+            'max-w-full text-center text-[30px] leading-none [text-wrap:balance] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px] [@media(min-width:360px)_and_(max-width:419px)]:text-[24px] [@media(max-width:359px)]:text-[22px]',
           )}
         >
           {def.name}

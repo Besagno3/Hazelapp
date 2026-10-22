@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   CRANK_TEETH,
+  HANDLE,
   JOBS_PER_ROUND,
   MACHINES,
   MACHINE_IDS,
   board,
+  boardBox,
   roundQueue,
   check,
   ends,
@@ -78,15 +80,56 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
     for (const i of r.stuck) for (const k of r.stuck) if (i !== k) expect(touching(b.pegs[i], b.pegs[k])).toBe(true);
   });
 
-  it('on every board, every jam has three stuck gears that all touch — so the words are true', () => {
+  it('on every board, every jam marks exactly one ring of three gears that all touch, whatever the tap order (review round 2)', () => {
     for (const band of BANDS) {
       for (const job of jobs(band)) {
-        for (const p of fillings(job.board)) {
-          const r = run(job.board, p, 16, 16);
+        const b = job.board;
+        for (const p of fillings(b)) {
+          const r = run(b, p, 16, 16);
           if (r.kind !== 'jammed') continue;
-          expect(r.stuck.length, `${band}`).toBeGreaterThanOrEqual(3);
-          expect(new Set(r.stuck).size).toBe(r.stuck.length);
-          for (const i of r.stuck) expect(p.has(i)).toBe(true);
+          expect(r.stuck, `${band}`).toHaveLength(3);
+          expect(new Set(r.stuck).size).toBe(3);
+          for (const i of r.stuck) {
+            expect(p.has(i)).toBe(true);
+            for (const k of r.stuck) if (i !== k) expect(touching(b.pegs[i], b.pegs[k])).toBe(true);
+          }
+          // The same pegs tapped the other way round mark the same ring.
+          const back = run(b, new Set([...p].reverse()), 16, 16);
+          expect(back).toEqual(r);
+        }
+      }
+    }
+  });
+
+  it('a ring of four marks three, not the crank’s own peg when there’s a choice', () => {
+    const b = board(['.ooo', 'EooX', '....']); // 0–2 top, 3 entry, 4–5 middle, 6 exit
+    const r = run(b, set(0, 1, 3, 4), 16, 16);
+    expect(r.kind).toBe('jammed');
+    if (r.kind === 'jammed') expect(r.stuck).toHaveLength(3);
+  });
+
+  it('the frame holds the crank’s knob all the way round, at every crank size (review rounds 1 and 2)', () => {
+    for (const band of BANDS) {
+      for (const job of jobs(band)) {
+        const biggest = band === 'tricky' ? 24 : 16;
+        const f = boardBox(job.board, biggest);
+        for (const t of CRANK_TEETH[band]) {
+          const at = ends(job.board, t, job.teeth).crank;
+          const reach = radius(t) + HANDLE;
+          for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+            const x = at.x + dx * reach;
+            const y = at.y + dy * reach;
+            expect(x, `${band} ${t}`).toBeGreaterThanOrEqual(f.x);
+            expect(y, `${band} ${t}`).toBeGreaterThanOrEqual(f.y);
+            expect(x).toBeLessThanOrEqual(f.x + f.w);
+            expect(y).toBeLessThanOrEqual(f.y + f.h);
+          }
+        }
+        // And every peg's gear.
+        for (const p of job.board.pegs) {
+          const { x, y } = pegAt(p);
+          expect(x - 0.5).toBeGreaterThanOrEqual(f.x);
+          expect(y + 0.5).toBeLessThanOrEqual(f.y + f.h);
         }
       }
     }
@@ -161,10 +204,11 @@ describe('the jobs', () => {
     expect([...cranks].sort((a, b) => a - b)).toEqual([8, 16, 24]);
   });
 
-  it('Medium asks for both ways; Tricky for faster and slower', () => {
+  it('Medium and Tricky ask for both ways; Tricky for faster and slower', () => {
     const medium = jobs('medium');
     expect(new Set(medium.map((j) => j.turn))).toEqual(new Set(['cw', 'ccw']));
     const tricky = jobs('tricky');
+    expect(new Set(tricky.map((j) => j.turn))).toEqual(new Set(['cw', 'ccw']));
     expect(tricky.some((j) => j.speed! > 1)).toBe(true);
     expect(tricky.some((j) => j.speed! < 1)).toBe(true);
     // Each speed is made by exactly one crank gear.
@@ -208,6 +252,8 @@ describe('the words', () => {
     expect(speedWords(1 / 2)).toBe('half as fast as the crank');
     // "turned at the same speed", never "turned the same speed" (review round 1).
     expect(speedWords(1)).toBe('at the same speed as the crank');
+    expect(speedWords(2 / 3)).toBe('two thirds as fast as the crank');
+    expect(speedWords(1.5)).toBe('one and a half times as fast as the crank');
   });
 
   it('a run that isn’t right says what happened, kindly', () => {
@@ -219,17 +265,26 @@ describe('the words', () => {
     const fast = run(tricky.board, solve(tricky)!.placed, 24, tricky.teeth);
     expect(check(tricky, fast)).toBe('too-fast');
     expect(verdictWords(tricky, fast, 'too-fast')).toContain('A smaller gear on the crank turns it slower.');
+    // No gear by the crank: it turned on its own.
+    const alone = run(gentle.board, set(), 16, 16);
+    expect(verdictWords(gentle, alone, check(gentle, alone))).toBe('Only the crank turned — no gear touches it yet. Put a gear on the peg next to the crank.');
   });
 
   it('what a right run teaches', () => {
     const g = solve(gentle)!;
-    expect(learnedLine(gentle, run(gentle.board, g.placed, 16, 16), 16)).toBe('Each gear turns the other way from the gear it touches.');
+    // Gentle: what the chain did (review round 2: the same line for every machine).
+    expect(learnedLine(gentle, run(gentle.board, g.placed, 16, 16), 16)).toBe('Four gears, each turning the other way from the one before — so the Great Hands turned anticlockwise ↺.');
     const m = solve(medium)!;
     expect(learnedLine(medium, run(medium.board, m.placed, 16, 16), 16)).toBe('Five gears between the crank and the Great Hands: an odd number, so it turns the same way as the crank.');
     const t = solve(tricky)!;
     expect(learnedLine(tricky, run(tricky.board, t.placed, t.crank, tricky.teeth), t.crank)).toBe(
       'A big gear turning a small one makes it go faster: 16 teeth turning 8 made the Great Hands turn twice as fast as the crank. The gears between change only the way.',
     );
+    // Two gears the same size: the same speed.
+    const same = jobFor('tricky', 1, 1);
+    expect(same.speed).toBe(1);
+    const s1 = solve(same)!;
+    expect(learnedLine(same, run(same.board, s1.placed, s1.crank, same.teeth), s1.crank)).toMatch(/^Two gears the same size turn at the same speed: 24 teeth turning 24 made .* turn at the same speed as the crank\./);
   });
 });
 

@@ -82,6 +82,26 @@ export function ends(b: Board, crank: number, machine: number): { crank: { x: nu
   };
 }
 
+/** How far the crank's handle reaches past its gear, in pegs: its arm and its knob. */
+export const HANDLE = 0.39;
+
+/**
+ * The frame a board is drawn in, in pegs: all three rows, the band's biggest
+ * crank and machine gears, and the crank's handle all the way round as it
+ * turns (review rounds 1 and 2: its knob went out of the frame at the top,
+ * then at the left), so it doesn't move between jobs.
+ */
+export function boardBox(b: Board, biggest: Teeth): { x: number; y: number; w: number; h: number } {
+  const at = ends(b, biggest, biggest);
+  const xs = b.pegs.map((p) => pegAt(p).x);
+  const reach = radius(biggest) + HANDLE + 0.04;
+  const x0 = Math.min(...xs, at.crank.x - reach) - 0.06;
+  const x1 = Math.max(...xs, at.machine.x + radius(biggest)) + 0.2;
+  const y0 = Math.min(-0.62, at.crank.y - reach - 0.04);
+  const y1 = Math.max(pegAt({ c: 0, r: 2 }).y + 0.62, at.crank.y + reach + 0.04);
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+}
+
 /** What happens when the crank is turned. */
 export type Run =
   /** The machine turns: which way, how many gears between, and how fast against the crank. */
@@ -90,7 +110,8 @@ export type Run =
   | { kind: 'not-joined'; turning: ReadonlyMap<number, Turn> }
   /**
    * Two touching gears are pushed the same way: nothing can turn. `stuck` is
-   * them and any gear touching both — the three that all touch (review round 1).
+   * one ring of three gears that all touch: those two and a third touching
+   * both (review rounds 1 and 2: never more, whatever order the pegs were tapped).
    */
   | { kind: 'jammed'; stuck: readonly number[] }
   /** No gear touches the crank: it turns on its own. */
@@ -109,10 +130,12 @@ export function run(b: Board, placed: ReadonlySet<number>, crank: number, machin
   const turning = new Map<number, Turn>([[b.entry, 'ccw']]);
   const depth = new Map<number, number>([[b.entry, 1]]);
   const queue = [b.entry];
+  // In peg order, so what's marked doesn't hang on the order the pegs were tapped.
+  const pegs = [...placed].sort((x, y) => x - y);
   while (queue.length) {
     const at = queue.shift()!;
     const way = turning.get(at)!;
-    for (const next of placed) {
+    for (const next of pegs) {
       if (next === at || !touching(b.pegs[at], b.pegs[next])) continue;
       const seen = turning.get(next);
       if (seen === undefined) {
@@ -120,8 +143,10 @@ export function run(b: Board, placed: ReadonlySet<number>, crank: number, machin
         depth.set(next, depth.get(at)! + 1);
         queue.push(next);
       } else if (seen === way) {
-        const third = [...placed].filter((k) => k !== at && k !== next && touching(b.pegs[k], b.pegs[at]) && touching(b.pegs[k], b.pegs[next]));
-        return { kind: 'jammed', stuck: [at, next, ...third] };
+        // A third touching both, not the crank's own peg if there's a choice (taking that one out stops everything).
+        const thirds = pegs.filter((k) => k !== at && k !== next && touching(b.pegs[k], b.pegs[at]) && touching(b.pegs[k], b.pegs[next]));
+        const third = thirds.find((k) => k !== b.entry) ?? thirds[0];
+        return { kind: 'jammed', stuck: third === undefined ? [at, next] : [at, next, third] };
       }
     }
   }
@@ -296,7 +321,7 @@ export function verdictWords(job: Job, r: Run, v: Verdict): string {
     case 'not-joined':
       return `The gears turned, but they don’t reach ${m.name} yet. Gears only turn each other when they touch.`;
     case 'jammed':
-      return 'Clunk — jammed! Three gears that all touch push each other both ways at once. Take out one of the gears marked !';
+      return 'Clunk — jammed! Three gears that all touch push each other both ways at once. Take out one of the gears marked ! — and watch for other rings of three.';
     case 'wrong-way':
       return r.kind === 'turns'
         ? `${cap(m.name)} turned ${turnWords(r.turn)} — ${gears(r.between)} between. Try one gear more, or one fewer, on the way.`
@@ -326,7 +351,8 @@ export function learnedLine(job: Job, r: Run, crank: number): string {
     const odd = r.between % 2 === 1;
     return `${cap(gears(r.between))} between the crank and ${m.name}: ${odd ? 'an odd number, so it turns the same way as the crank' : 'an even number, so it turns the other way'}.`;
   }
-  return 'Each gear turns the other way from the gear it touches.';
+  // Gentle: what the chain did, so each machine's lesson is its own (review round 2: the same line every time).
+  return `${cap(gears(r.between))}, each turning the other way from the one before — so ${m.name} turned ${turnWords(r.turn)}.`;
 }
 
 /** How each peg should be filled to do the job (the smallest such set), or null: for tests and hints. */

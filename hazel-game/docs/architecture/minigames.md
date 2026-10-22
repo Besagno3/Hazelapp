@@ -104,9 +104,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktowe
   their own peg's gear at any size (`ends`, `radius`: teeth ÷ 32 pegs).
   `run` turns the crank clockwise: every gear it reaches turns the other way
   from the one turning it (a breadth-first walk), a gear pushed both ways is
-  `jammed` (the two pushed the same way and any gear touching both — on
-  these boards always three that all touch — marked and shaken), a train
-  that stops short is
+  `jammed` (one ring of three gears that all touch — the two pushed the
+  same way and a third touching both, never the crank's own peg if there's a
+  choice — marked and shaken, the same whatever order the pegs were
+  tapped), a train that stops short is
   `not-joined`, and the machine's speed is crank teeth ÷ machine teeth;
   `check` against the job (Gentle: just turn; Medium: `turn`; Tricky: `turn`
   and `speed`, the crank's gear picked from `CRANK_TEETH`), said back by
@@ -124,9 +125,16 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktowe
   turns of the crank (`animate-spin`, each gear's period from its teeth;
   reduced motion: still) with a bold arrow on each hub; before a run a dashed
   arrow on the machine shows which way it must turn.
-  On a phone the board stays at the top while the steps scroll; from `sm` up
-  the Clocktower's room (the great clock, today's machine on its plate,
-  stopped or running) is above it, and a short screen keeps just the board.
+  The frame (`boardBox`) holds all three rows and the crank's handle all
+  the way round (`HANDLE`); from `sm` up the board is sized to its space
+  (`useFitWidth`, a ResizeObserver) with its heading on it and its labels
+  under its ends; Tab goes left to right from the crank's peg. On a phone
+  the board sticks to the top while the steps scroll, and the page keeps its
+  height as scroll padding so a result never lands under it; the gold button
+  scrolls into view as a step starts, never on a peg tap. From `sm` up the
+  Clocktower's room (the great clock, today's machine on its plate, stopped
+  or running) is above the board; a phone and a short screen keep just the
+  board (not sticky on a phone on its side under 640 px).
   The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

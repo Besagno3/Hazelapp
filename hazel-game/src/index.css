@@ -50,3 +50,26 @@ input::-ms-reveal {
     animation: none;
   }
 }
+
+/* A jam in Clocktower Gears (#186): the stuck gears shake three times. In
+   SVG user units — a board is ~700 of them across a phone, so 4px was ~2px. */
+@keyframes cg-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-12px);
+  }
+  75% {
+    transform: translateX(12px);
+  }
+}
+.cg-shake {
+  animation: cg-shake 0.3s 3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cg-shake {
+    animation: none;
+  }
+}

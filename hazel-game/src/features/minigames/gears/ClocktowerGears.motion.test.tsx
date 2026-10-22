@@ -49,6 +49,16 @@ describe('⚙️ the gears spin (motion on)', () => {
     expect(board().querySelectorAll('[data-arrow="cw"], [data-arrow="ccw"]')).toHaveLength(6);
   });
 
+  it('each gear turns as fast as its teeth say, for three turns of the crank (Tricky, a small crank)', () => {
+    render(<ClocktowerGears def={MINIGAMES['clocktower-gears']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
+    place(/^Middle row, peg 1:/, /^Top row, peg 1:/, /^Top row, peg 2:/, /^Top row, peg 3:/, /^Middle row, peg 4:/);
+    fireEvent.click(screen.getByRole('button', { name: /^Small/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Turn the crank ↻' }));
+    const timing = Array.from(board().querySelectorAll<SVGGElement>('g.animate-spin')).map((g) => `${g.style.animationDuration} ×${g.style.animationIterationCount}`);
+    // The 8-tooth crank: 3 s a turn, 3 turns; the 8-tooth machine the same; each 16-tooth gear half as fast, 1.5 turns.
+    expect(timing).toEqual(['3s ×3', '3s ×3', '6s ×1.5', '6s ×1.5', '6s ×1.5', '6s ×1.5', '6s ×1.5']);
+  });
+
   it('a gap: what the crank reaches turns, the rest and the machine stay still', () => {
     play('gentle');
     place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 4:/);
@@ -63,6 +73,6 @@ describe('⚙️ the gears spin (motion on)', () => {
     place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Top row, peg 1:/);
     fireEvent.click(screen.getByRole('button', { name: 'Turn the crank ↻' }));
     expect(spins()).toEqual([]);
-    expect(board().querySelectorAll('.hq-shake')).toHaveLength(3);
+    expect(board().querySelectorAll('.cg-shake')).toHaveLength(3);
   });
 });
