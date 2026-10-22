@@ -30,7 +30,9 @@ import '../src/index.css';
 
 const q = new URLSearchParams(location.search);
 const game = (MINIGAME_IDS as readonly string[]).includes(q.get('game') ?? '') ? (q.get('game') as MiniGameId) : MINIGAME_IDS[0];
-const level = Number(q.get('level') ?? 4);
+// A level that isn't 1–10 reads as 4 (a Medium kid).
+const asked = Math.round(Number(q.get('level') ?? 4));
+const level = asked >= 1 && asked <= 10 ? asked : 4;
 const age = Number(q.get('age') ?? 9);
 const ember = q.get('ember') ?? 'hatchling';
 

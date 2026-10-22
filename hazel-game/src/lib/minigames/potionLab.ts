@@ -22,6 +22,8 @@ export type Look = 'liquid' | 'powder' | 'bubbles' | 'crystals' | 'pulp';
 export interface Jar {
   id: JarId;
   name: string;
+  /** One word, under its Brew Book page. */
+  short: string;
   kind: Kind;
   /** About how acidic it is, to the nearest whole number (0–14; 7 is neutral) — what Tricky says. */
   ph: number;
@@ -35,18 +37,18 @@ export interface Jar {
 }
 
 export const JARS: readonly Jar[] = [
-  { id: 'lemon', name: 'Lemon juice', kind: 'acid', ph: 2, fill: '#ffd84a', look: 'liquid', from: 'gentle', fact: 'Lemons are full of citric acid. That’s what makes them taste sour.' },
-  { id: 'vinegar', name: 'Vinegar', kind: 'acid', ph: 3, fill: '#f2e3b8', look: 'liquid', from: 'gentle', fact: 'Vinegar is mostly water with a little acetic acid in it.' },
-  { id: 'soda', name: 'Baking soda', kind: 'base', ph: 8, fill: '#fbfbf7', look: 'powder', from: 'gentle', fact: 'Baking soda is a base. Bakers use it to help cakes rise.' },
-  { id: 'soap', name: 'Soapy water', kind: 'base', ph: 10, fill: '#a8dcff', look: 'bubbles', from: 'gentle', fact: 'Soap is a base. That’s part of why it feels slippery.' },
-  { id: 'water', name: 'Plain water', kind: 'neutral', ph: 7, fill: '#cdeeff', look: 'liquid', from: 'gentle', fact: 'Pure water is neutral: not an acid and not a base.' },
-  { id: 'sugar', name: 'Sugar water', kind: 'neutral', ph: 7, fill: '#ffffff', look: 'crystals', from: 'gentle', fact: 'Sugar melts into water, but it doesn’t make it an acid or a base.' },
-  { id: 'orange', name: 'Orange juice', kind: 'acid', ph: 4, fill: '#ffa53a', look: 'pulp', from: 'medium', fact: 'Oranges have citric acid too, a little less than lemons.' },
-  { id: 'milk', name: 'Milk', kind: 'neutral', ph: 7, fill: '#fffaf0', look: 'liquid', from: 'medium', fact: 'Milk is very nearly neutral: just a tiny bit on the acid side.' },
-  { id: 'egg', name: 'Egg white', kind: 'base', ph: 9, fill: '#eef2d8', look: 'liquid', from: 'medium', fact: 'Egg white is a base, and it gets more basic as an egg gets older.' },
-  { id: 'tomato', name: 'Tomato juice', kind: 'acid', ph: 4, fill: '#e8483f', look: 'pulp', from: 'tricky', fact: 'Tomatoes are a little acidic, about pH 4. That’s part of their tang.' },
-  { id: 'salt', name: 'Salt water', kind: 'neutral', ph: 7, fill: '#e6f5ff', look: 'crystals', from: 'tricky', fact: 'Salt water tastes strong, but it’s neutral.' },
-  { id: 'sea', name: 'Sea water', kind: 'base', ph: 8, fill: '#7fc4e8', look: 'liquid', from: 'tricky', fact: 'The sea is a little bit basic, about pH 8.' },
+  { id: 'lemon', name: 'Lemon juice', short: 'Lemon', kind: 'acid', ph: 2, fill: '#ffd84a', look: 'liquid', from: 'gentle', fact: 'Lemons are full of citric acid. That’s what makes them taste sour.' },
+  { id: 'vinegar', name: 'Vinegar', short: 'Vinegar', kind: 'acid', ph: 3, fill: '#f2e3b8', look: 'liquid', from: 'gentle', fact: 'Vinegar is mostly water with a little acetic acid in it.' },
+  { id: 'soda', name: 'Baking soda', short: 'Soda', kind: 'base', ph: 8, fill: '#fbfbf7', look: 'powder', from: 'gentle', fact: 'Baking soda is a base. Bakers use it to help cakes rise.' },
+  { id: 'soap', name: 'Soapy water', short: 'Soap', kind: 'base', ph: 10, fill: '#a8dcff', look: 'bubbles', from: 'gentle', fact: 'Soap is a base. That’s part of why it feels slippery.' },
+  { id: 'water', name: 'Plain water', short: 'Water', kind: 'neutral', ph: 7, fill: '#cdeeff', look: 'liquid', from: 'gentle', fact: 'Pure water is neutral: not an acid and not a base.' },
+  { id: 'sugar', name: 'Sugar water', short: 'Sugar', kind: 'neutral', ph: 7, fill: '#ffffff', look: 'crystals', from: 'gentle', fact: 'Sugar melts into water, but it doesn’t make it an acid or a base.' },
+  { id: 'orange', name: 'Orange juice', short: 'Orange', kind: 'acid', ph: 4, fill: '#ffa53a', look: 'pulp', from: 'medium', fact: 'Oranges have citric acid too, a little less than lemons.' },
+  { id: 'milk', name: 'Milk', short: 'Milk', kind: 'neutral', ph: 7, fill: '#fffaf0', look: 'liquid', from: 'medium', fact: 'Milk is very nearly neutral: just a tiny bit on the acid side.' },
+  { id: 'egg', name: 'Egg white', short: 'Egg', kind: 'base', ph: 9, fill: '#eef2d8', look: 'liquid', from: 'medium', fact: 'Egg white is a base, and it gets more basic as an egg gets older.' },
+  { id: 'tomato', name: 'Tomato juice', short: 'Tomato', kind: 'acid', ph: 4, fill: '#e8483f', look: 'pulp', from: 'tricky', fact: 'Tomatoes are a little acidic, about pH 4. That’s part of their tang.' },
+  { id: 'salt', name: 'Salt water', short: 'Salt', kind: 'neutral', ph: 7, fill: '#e6f5ff', look: 'crystals', from: 'tricky', fact: 'Salt water tastes strong, but it’s neutral.' },
+  { id: 'sea', name: 'Sea water', short: 'Sea', kind: 'base', ph: 8, fill: '#7fc4e8', look: 'liquid', from: 'tricky', fact: 'The sea is a little bit basic, about pH 8.' },
 ];
 
 export const JAR_BY_ID = Object.fromEntries(JARS.map((j) => [j.id, j])) as Record<JarId, Jar>;
@@ -152,7 +154,20 @@ export function guessPrompt(band: Band): string {
  * a kind, so this says which colour each kind makes (review round 1).
  */
 export function guessKey(band: Band): string | null {
-  return band === 'medium' ? 'Acids → pink · Neutral → purple · Bases → blue-green' : null;
+  return band === 'medium' ? 'Acids turn it pink, neutral things leave it purple, bases turn it blue-green.' : null;
+}
+
+/** What the kid guessed, in words: "pink", "an acid", "blue". */
+export function guessWords(guess: string, band: Band): string {
+  if (band === 'medium') return KIND_A[guess as Kind] ?? guess;
+  return guess === 'purple' ? 'it stays purple' : (SHADES[guess as Shade]?.label.toLowerCase() ?? guess);
+}
+
+/** A Brew Book page read out: what the jar does, then its fact. */
+export function pageLine(jar: Jar, band: Band): string {
+  const shade = shadeOf(jar, band);
+  const does = shade === CABBAGE ? 'leaves it purple' : `turns it ${SHADES[shade].label.toLowerCase()}`;
+  return `${jar.name} ${does} — it’s ${KIND_A[jar.kind]}. ${jar.fact}`;
 }
 
 /** Was the guess right? Medium guesses the kind; the others the colour. */
@@ -189,7 +204,7 @@ export const POTION_NAME: Record<Shade, string> = {
   green: 'Leaf Elixir',
 };
 
-/** Who orders, in turn. Fern always orders first (the first Berry Potion is hers). */
+/** Who orders, in turn. Fern always orders first. */
 export const CUSTOMERS = ['Fern', 'Beekeeper Hilda', 'Professor Petal', 'Sunny', 'Innkeeper Willow', 'Sprout'] as const;
 
 /** The colours ordered, in turn, at each band — every one of them brewable from that band's jars. */
@@ -199,10 +214,10 @@ const ORDER_SHADES: Record<Band, readonly Shade[]> = {
   tricky: ['red', 'blue', 'green', 'pink', 'purple'],
 };
 
-/** The order for the kid's `round`th round at a band (0 = the first). */
+/** The order for the kid's `round`th round at a band (0 = the first: pink, or red on Tricky). */
 export function orderFor(band: Band, round: number): Order {
   const shades = ORDER_SHADES[band];
-  const shade = round === 0 ? (band === 'tricky' ? 'red' : 'pink') : shades[round % shades.length];
+  const shade = shades[round % shades.length];
   return { shade, potion: POTION_NAME[shade], customer: CUSTOMERS[round % CUSTOMERS.length] };
 }
 

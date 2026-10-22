@@ -4,17 +4,18 @@ import {
   CABBAGE,
   JARS,
   JAR_BY_ID,
-  KIND_LABEL,
   SHADES,
   aPotion,
   fillsOrder,
   guessOptions,
   guessKey,
   guessPrompt,
+  guessWords,
   guessedRight,
   jarsFor,
   orderFor,
   orderWords,
+  pageLine,
   shadeOf,
   whyLine,
   type Jar,
@@ -36,6 +37,8 @@ type Step = 'pick' | 'guess' | 'stirring' | 'brewed';
 
 interface Brewed {
   jar: Jar;
+  /** What the kid guessed (an option's id). */
+  guess: string;
   shade: Shade;
   right: boolean;
   fills: boolean;
@@ -62,27 +65,29 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   const [jarId, setJarId] = useState<JarId | null>(null);
   const [guess, setGuess] = useState<string | null>(null);
   const [brewed, setBrewed] = useState<Brewed | null>(null);
-  const [bookLine, setBookLine] = useState<string | null>(null);
+  // A Brew Book page being read (Tadpole says it, and it shows under the book) — until the next brew or jar.
+  const [read, setRead] = useState<JarId | null>(null);
+  // Wrong guesses this round, so Tadpole doesn't say the same thing every time.
+  const [misses, setMisses] = useState(0);
   const jar = jarId ? JAR_BY_ID[jarId] : null;
   const known = (id: JarId) => !!flags[pageFlag(def.id, id)];
 
-  // Focus follows the round: the guess, then what happened, then back to the
-  // jars — the counter's heading where the counter shows, else the step card's
-  // (on a phone or a short screen the counter is hidden: review round 1).
+  // Focus follows the round, from the start: the jars (the counter's label
+  // where the counter shows, else the step card's heading, each described by
+  // the order — a reader hears the goal before the jars, review round 2), the
+  // guess, then what happened, then back to the jars.
   const guessHead = useRef<HTMLHeadingElement>(null);
   const resultHead = useRef<HTMLHeadingElement>(null);
   const counterHead = useRef<HTMLHeadingElement>(null);
   const pickHead = useRef<HTMLHeadingElement>(null);
-  const moved = useRef(false);
+  const first = useRef(true);
   useEffect(() => {
-    if (!moved.current) {
-      moved.current = true;
-      return; // the stage's title has it as the game opens
-    }
     const counter = counterHead.current;
     const to =
       step === 'guess' ? guessHead.current : step === 'brewed' ? resultHead.current : step === 'pick' ? (counter && counter.getClientRects().length > 0 ? counter : pickHead.current) : null;
-    to?.focus({ preventScroll: false });
+    // Opening, the scene stays in view; after that, where focus goes comes into view.
+    to?.focus({ preventScroll: first.current });
+    first.current = false;
   }, [step]);
 
   // The step's gold button comes into view once it can be pressed — Stir after
@@ -102,22 +107,22 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   useEffect(() => stopStir, []);
 
   function pick(id: JarId) {
-    stopStir();
     sfx('select');
     setJarId(id);
     setGuess(null);
     setBrewed(null);
-    setBookLine(null);
+    setRead(null);
     setStep('guess');
   }
 
   function brew() {
     if (!jar || !guess || step !== 'guess') return;
     sfx('spell');
-    setBookLine(null);
+    setRead(null);
     const shade = shadeOf(jar, band);
     const result: Brewed = {
       jar,
+      guess,
       shade,
       right: guessedRight(guess, jar, band),
       fills: fillsOrder(jar, band, order),
@@ -126,6 +131,9 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
     const show = () => {
       timer.current = null;
       result.newPage = onPage(jar.id, jar.name);
+      // A page read during the stir gives way to what happened (review round 2).
+      setRead(null);
+      if (!result.right) setMisses((n) => n + 1);
       setBrewed(result);
       setStep('brewed');
       if (result.fills) sfx('chest');
@@ -141,7 +149,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   function another() {
     if (step === 'stirring') return; // the stir finishes first
     stopStir();
-    setBookLine(null);
+    setRead(null);
     setJarId(null);
     setGuess(null);
     setBrewed(null);
@@ -150,7 +158,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
 
   function deliver() {
     if (!brewed?.fills) return;
-    setBookLine(null);
+    setRead(null);
     onFinish({
       title: `${order.potion} brewed!`,
       learned: whyLine(brewed.jar, band),
@@ -163,30 +171,34 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   const key = guessKey(band);
   const stepIndex = step === 'pick' ? 0 : step === 'guess' ? 1 : step === 'stirring' ? 2 : 3;
 
+  const readJar = read ? JAR_BY_ID[read] : null;
   let line: string;
-  if (bookLine) line = bookLine;
+  if (readJar) line = pageLine(readJar, band);
   else if (step === 'pick') line = `${order.customer} wants ${aPotion(order)} that ${orderWords(order)}. Pour in ONE jar — which one will do it?`;
   else if (step === 'guess' && jar) line = guessLine(jar, band);
   else if (step === 'stirring') line = 'Stir, stir, stir…';
   else if (brewed) {
-    line = brewed.right
-      ? 'Ribbit-tastic! You guessed it before you saw it. That’s real science!'
-      : 'Ha! That surprised me too, the first time. A wrong guess is how scientists learn.';
+    line = brewed.right ? 'Ribbit-tastic! You guessed it before you saw it. That’s real science!' : WRONG_LINES[(misses - 1 + WRONG_LINES.length) % WRONG_LINES.length];
     line += brewed.fills ? ` And that’s just what ${order.customer} ordered!` : ` Not ${order.customer}’s ${order.potion} yet — try another jar!`;
   } else line = '';
 
+  // A jar already in the Brew Book says so — not its kind, which is Medium's
+  // very question (review round 2); the book has the rest.
   const jarButtons = (compact: boolean) =>
     counter.map((j) => (
       <JarButton
         key={j.id}
         jar={j}
         compact={compact}
+        artSize={compact ? 38 : counter.length >= 9 ? 44 : 52}
         on={jarId === j.id && step !== 'pick'}
-        tag={known(j.id) ? KIND_LABEL[j.kind] : null}
+        inBook={known(j.id)}
         onPick={() => pick(j.id)}
         disabled={step === 'stirring'}
       />
     ));
+  // The counter in one row where it fits, else two even ones (review round 2: a lone twelfth jar squeezed the scene).
+  const counterCols = counter.length >= 12 ? 'grid-cols-6 xl:grid-cols-12' : counter.length >= 9 ? 'grid-cols-5 [@media(min-width:924px)]:grid-cols-9' : 'grid-cols-3 [@media(min-width:780px)]:grid-cols-6';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
@@ -196,20 +208,19 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
         </section>
 
         {/* The counter's jars (from `sm` up, if the screen's tall enough; else they're in the step card). */}
-        <div role="group" aria-labelledby="pl-counter" className="hidden border-t-4 border-[#1b0f22] bg-[#6f4127] p-2.5 sm:col-start-1 sm:row-start-2 sm:[@media(min-height:501px)]:block">
-          <h2 id="pl-counter" ref={counterHead} tabIndex={-1} className="sr-only">
+        <div role="group" aria-labelledby="pl-counter" aria-describedby="pl-order" className="hidden border-t-4 border-[#1b0f22] bg-[#6f4127] px-2.5 pb-2.5 pt-1.5 sm:col-start-1 sm:row-start-2 sm:[@media(min-height:501px)]:block">
+          <h2 id="pl-counter" ref={counterHead} tabIndex={-1} aria-describedby="pl-order" className={cn(pixelHeadClass, 'mb-1.5 inline-block rounded text-lg text-[#fde68a]', focusRing)}>
             Jars on the counter
           </h2>
-          {/* One row when there's room; two when there are more jars than fit. */}
-          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(72px,1fr))]">{jarButtons(false)}</div>
+          <div className={cn('grid gap-2', counterCols)}>{jarButtons(false)}</div>
         </div>
 
         <aside className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
           <HostBubble npcId={def.host} line={line} phoneStrip />
           {/* On a phone the ticket follows the step card (Tadpole's line says the order too), so the jars come up sooner. */}
           <div className="order-1 sm:order-none">
-            <Ticket heading={`ORDER FOR ${order.customer.toUpperCase()}`} ready={!!brewed?.fills} icon={<Bottle hex={SHADES[order.shade].hex} />}>
-              One {order.potion} that <b>{orderWords(order)}</b>.
+            <Ticket heading={`ORDER FOR ${order.customer.toUpperCase()}`} ready={!!brewed?.fills} icon={<Bottle hex={SHADES[order.shade].hex} />} id="pl-order">
+              One {order.potion} that <b>{orderWords(order)}</b>.{key && <span className="mt-1 block text-[14px] text-[#5b3a1a]">{key}</span>}
             </Ticket>
           </div>
 
@@ -217,12 +228,22 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
           <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first')}>
             {step === 'pick' && (
               <>
-                <h2 ref={pickHead} tabIndex={-1} className={cn(pixelHeadClass, 'text-[26px] focus:outline-none')}>
+                <h2 ref={pickHead} tabIndex={-1} aria-describedby="pl-order" className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
                   Step 1 · Pick a jar
                 </h2>
+                {/* The goal, where the kid is looking on a phone or a short screen (the ticket is further down there: review round 2). */}
+                <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:501px)]:hidden">
+                  <span className="flex-none [&>svg]:h-8 [&>svg]:w-6">
+                    <Bottle hex={SHADES[order.shade].hex} />
+                  </span>
+                  <span>
+                    For {order.customer}: {aPotion(order)} that <b>{orderWords(order)}</b>
+                  </span>
+                </p>
                 <p className="text-[15px] leading-snug text-[#e4e1ff]">
                   <span className="sm:[@media(min-height:501px)]:hidden">Tap a jar below.</span>
-                  <span className="hidden sm:[@media(min-height:501px)]:inline">Tap a jar on the counter.</span> It pours straight into fresh purple cabbage juice.
+                  {/* The rest where there's room: on a phone the order above says what matters. */}
+                  <span className="hidden sm:[@media(min-height:501px)]:inline">Tap a jar on the counter. It pours straight into fresh purple cabbage juice.</span>
                 </p>
                 {/* A phone's jars (or a short screen's): here, where the kid is looking. */}
                 <div role="group" aria-label="Jars" className="grid grid-cols-3 gap-2 sm:[@media(min-height:501px)]:hidden">
@@ -233,7 +254,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
 
             {(step === 'guess' || step === 'stirring') && jar && (
               <>
-                <h2 ref={guessHead} tabIndex={-1} className={cn(pixelHeadClass, 'text-[26px] focus:outline-none')}>
+                <h2 ref={guessHead} tabIndex={-1} className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
                   Step 2 · Make a guess
                 </h2>
                 <p className="text-[15px] leading-snug text-[#e4e1ff]">
@@ -267,11 +288,11 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
                         </span>
                       )}
                       {o.label}
-                      {o.sub && <span className="whitespace-nowrap text-[12px] font-semibold text-[#d8d5f5]">{o.sub}</span>}
+                      {o.sub && <span className="whitespace-nowrap text-[13px] font-semibold text-[#d8d5f5]">{o.sub}</span>}
                     </button>
                   ))}
                 </div>
-                {key && <p className="text-[13px] font-semibold text-[#d8d5f5]">{key}</p>}
+                {key && <p className="text-[14px] font-semibold text-[#d8d5f5]">{key}</p>}
                 <button
                   ref={goRef}
                   type="button"
@@ -297,14 +318,15 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
                 <div className="flex items-center gap-3">
                   <span aria-hidden="true" className="h-14 w-14 flex-none rounded-full border-4 border-[#1b0f22] shadow-[inset_-7px_-7px_0_rgba(0,0,0,0.2)]" style={{ background: SHADES[brewed.shade].hex }} />
                   <div className="min-w-0">
-                    <h2 ref={resultHead} tabIndex={-1} className={cn(pixelHeadClass, 'text-[28px] text-white focus:outline-none')}>
+                    <h2 ref={resultHead} tabIndex={-1} className={cn(pixelHeadClass, 'rounded text-[28px] text-white', focusRing)}>
                       {brewed.shade === CABBAGE ? 'It stayed purple!' : `It turned ${SHADES[brewed.shade].label.toLowerCase()}!`}
                     </h2>
                     <p className="mt-1 text-[15px] leading-snug text-[#e4e1ff]">{whyLine(brewed.jar, band)}</p>
                   </div>
                 </div>
                 <p className={cn('rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22]', brewed.right ? 'bg-amber-300' : 'bg-[#d4d0f5]')}>
-                  {brewed.right ? 'You guessed right!' : 'Not what you guessed — now you know!'}
+                  {/* The guess named beside what happened, so the two can be compared (review round 2). */}
+                  {brewed.right ? `You guessed ${guessWords(brewed.guess, band)} — right!` : `You guessed ${guessWords(brewed.guess, band)}. Now you know!`}
                   {brewed.newPage && ' New Brew Book page!'}
                 </p>
                 {/* Stacked in a narrow column; side by side where there's room. */}
@@ -322,7 +344,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
             )}
           </div>
 
-          <BrewBook band={band} known={known} onRead={(j) => setBookLine(`${j.name}: ${j.fact}`)} />
+          <BrewBook band={band} known={known} read={read} onRead={(j) => setRead(j.id)} />
         </aside>
       </div>
 
@@ -336,6 +358,13 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   );
 }
 
+/** Tadpole after a wrong guess, in turn. */
+const WRONG_LINES = [
+  'Ha! That surprised me too, the first time. A wrong guess is how scientists learn.',
+  'Ooh, not what you thought! Now you know something new about that jar.',
+  'Ribbit — a surprise! Scientists love those. Every one teaches you something.',
+];
+
 function guessLine(jar: Jar, band: Band): string {
   const name = jar.name.toLowerCase();
   if (band === 'medium') return `Ooh, ${name}! Is it an acid, a base, or neutral? Guess first, then stir.`;
@@ -347,17 +376,19 @@ function guessLine(jar: Jar, band: Band): string {
 function JarButton({
   jar,
   on,
-  tag,
+  inBook,
   onPick,
   disabled,
   compact,
+  artSize,
 }: {
   jar: Jar;
   on: boolean;
-  tag: string | null;
+  inBook: boolean;
   onPick: () => void;
   disabled: boolean;
   compact: boolean;
+  artSize: number;
 }) {
   return (
     <button
@@ -372,15 +403,23 @@ function JarButton({
         focusRing,
       )}
     >
-      <JarArt jar={jar} size={compact ? 38 : 52} />
+      <JarArt jar={jar} size={artSize} />
       <span className={cn('text-center font-bold leading-tight', compact ? 'text-[13px]' : 'text-sm')}>{jar.name}</span>
-      {/* Once brewed, what kind it is — on the counter kept the same height before, so the row doesn't jump. */}
-      {(tag || !compact) && (
+      {/* In the Brew Book already — on the counter kept the same height before, so the row doesn't jump. */}
+      {(inBook || !compact) && (
         <span
-          aria-hidden={tag ? undefined : true}
-          className={cn('flex h-5 items-center rounded-full px-2 text-[12px] font-bold', tag ? 'bg-[#f4e9ff] text-[#1b0f22]' : 'invisible')}
+          aria-hidden={inBook ? undefined : true}
+          className={cn('flex h-5 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[13px] font-bold', inBook ? 'bg-[#f4e9ff] text-[#1b0f22]' : 'invisible')}
         >
-          {tag ?? '·'}
+          {inBook ? (
+            <>
+              <span aria-hidden="true">📖</span>
+              <span className="sr-only">in your Brew Book</span>
+              <span aria-hidden="true">In book</span>
+            </>
+          ) : (
+            '·'
+          )}
         </span>
       )}
     </button>
@@ -444,17 +483,24 @@ function Bottle({ hex }: { hex: string }) {
 }
 
 /**
- * The Brew Book: a page per jar. A found page shows the jar and, along its foot,
- * the colour it turns the juice at this band; tapped, Tadpole reads it out. A
- * page not found yet is a "?"; one whose jar is only on a harder band is locked,
- * and a line under the book says where those are (review round 1: plain colour
- * squares, and "M" / "T", told a kid nothing).
+ * The Brew Book: a page per jar. A found page shows the jar and its name, over
+ * the colour it turns the juice at this band; tapped, it's read out — by
+ * Tadpole, and under the book, where a phone can see it (review round 2: his
+ * bubble had scrolled away). A page not found yet is a "?"; one whose jar is
+ * only on a harder band is locked, and a line under the book says where those are.
  */
-function BrewBook({ band, known, onRead }: { band: Band; known: (id: JarId) => boolean; onRead: (j: Jar) => void }) {
+function BrewBook({ band, known, read, onRead }: { band: Band; known: (id: JarId) => boolean; read: JarId | null; onRead: (j: Jar) => void }) {
   const onCounter = new Set(jarsFor(band).map((j) => j.id));
   const count = JARS.filter((j) => known(j.id)).length;
   const elsewhere = JARS.filter((j) => !onCounter.has(j.id) && !known(j.id));
   const bands = BANDS.filter((b) => elsewhere.some((j) => j.from === b)).map((b) => BAND_LABEL[b]);
+  const reading = read ? JAR_BY_ID[read] : null;
+  // The page read comes into view under the book (on a phone the page tapped is near the foot of the screen).
+  const panel = useRef<HTMLParagraphElement>(null);
+  const still = useReducedMotion() ?? false;
+  useEffect(() => {
+    if (read) panel.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  }, [read, still]);
   return (
     <section aria-labelledby="pl-book" className="order-2 mt-auto flex flex-col gap-2 sm:order-none">
       <div className="flex items-baseline justify-between">
@@ -465,7 +511,7 @@ function BrewBook({ band, known, onRead }: { band: Band; known: (id: JarId) => b
           {count} of {JARS.length} pages
         </span>
       </div>
-      <ul className="grid grid-cols-6 gap-1.5 sm:grid-cols-4 lg:grid-cols-6">
+      <ul className="grid grid-cols-4 gap-1.5 lg:grid-cols-6">
         {JARS.map((j) => {
           const found = known(j.id);
           const shade = SHADES[shadeOf(j, band)];
@@ -475,18 +521,25 @@ function BrewBook({ band, known, onRead }: { band: Band; known: (id: JarId) => b
                 <button
                   type="button"
                   onClick={() => onRead(j)}
+                  aria-pressed={read === j.id}
                   aria-label={`${j.name}: turns it ${shade.label.toLowerCase()}. Read the page`}
-                  title={j.name}
-                  className={cn('flex h-[52px] w-full flex-col items-center justify-end overflow-hidden rounded border-[3px] border-[#1b0f22] bg-[#fff6dc] hover:bg-white', focusRing)}
+                  className={cn(
+                    'flex h-[64px] w-full flex-col items-center justify-end overflow-hidden rounded border-[3px] bg-[#fff6dc] hover:bg-white',
+                    read === j.id ? 'border-amber-400' : 'border-[#1b0f22]',
+                    focusRing,
+                  )}
                 >
                   <JarArt jar={j} size={20} />
+                  <span aria-hidden="true" className="w-full truncate px-0.5 text-center text-[11px] font-bold leading-tight text-[#1b0f22] lg:text-[10px]">
+                    {j.short}
+                  </span>
                   <span aria-hidden="true" className="mt-0.5 h-2 w-full flex-none border-t-2 border-[#1b0f22]" style={{ background: shade.hex }} />
                 </button>
               ) : (
                 <span
                   role="img"
                   aria-label={onCounter.has(j.id) ? 'A page not found yet' : `A page for ${BAND_LABEL[j.from]}`}
-                  className="flex h-[52px] items-center justify-center rounded border-[3px] border-dashed border-[#6c67b8] text-base font-bold text-[#8f8ad0]"
+                  className="flex h-[64px] items-center justify-center rounded border-[3px] border-dashed border-[#6c67b8] text-base font-bold text-[#8f8ad0]"
                 >
                   {onCounter.has(j.id) ? '?' : '🔒'}
                 </span>
@@ -495,8 +548,15 @@ function BrewBook({ band, known, onRead }: { band: Band; known: (id: JarId) => b
           );
         })}
       </ul>
+      {/* The page read (Tadpole's bubble says it too, and is the live region — this one isn't, so it's heard once). */}
+      {reading && (
+        <p ref={panel} className="flex items-start gap-2 rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-2.5 py-2 text-[15px] leading-snug text-[#1b0f22]">
+          <span aria-hidden="true" className="h-4 w-4 flex-none translate-y-0.5 rounded-full border-2 border-[#1b0f22]" style={{ background: SHADES[shadeOf(reading, band)].hex }} />
+          <span>{pageLine(reading, band)}</span>
+        </p>
+      )}
       {elsewhere.length > 0 && (
-        <p className="text-[13px] text-[#c9c5f2]">
+        <p className="text-[14px] text-[#c9c5f2]">
           <span aria-hidden="true">🔒 </span>
           {elsewhere.length} more page{elsewhere.length > 1 ? 's' : ''} on {bands.join(' and ')}.
         </p>
@@ -664,8 +724,8 @@ function LabScene({
       {/* What colour it turned, over the pot. */}
       {brewed && (
         <g>
-          <rect x="350" y="136" width="200" height="56" rx="28" fill={shade.hex} stroke="#1b0f22" strokeWidth="4" />
-          <text x="450" y="176" textAnchor="middle" fontFamily="'Jersey 15', 'Arial Narrow', sans-serif" fontSize="38" fill={shade.ink}>
+          <rect x="350" y="198" width="200" height="56" rx="28" fill={shade.hex} stroke="#1b0f22" strokeWidth="4" />
+          <text x="450" y="238" textAnchor="middle" fontFamily="'Jersey 15', 'Arial Narrow', sans-serif" fontSize="38" fill={shade.ink}>
             {shade.label.toUpperCase()}!
           </text>
         </g>

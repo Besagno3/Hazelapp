@@ -2,8 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import { create } from 'zustand';
 
-// The canvas is KaPlay — stand in a div.
-vi.mock('./WorldCanvas', () => ({ default: () => <div data-testid="canvas" /> }));
+// The canvas is KaPlay — stand in a div, keeping its callbacks so a test can find a secret.
+const canvas = vi.hoisted(() => ({ callbacks: null as null | { onSecret: (id: string) => void } }));
+vi.mock('./WorldCanvas', () => ({
+  default: (props: { callbacks: { onSecret: (id: string) => void } }) => {
+    canvas.callbacks = props.callbacks;
+    return <div data-testid="canvas" />;
+  },
+}));
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../lib/audio', async (orig) => ({
   ...(await orig<typeof import('../../lib/audio')>()),
@@ -67,5 +73,15 @@ describe('a mini-game opened from its host, in the world (docs/DESIGN-MINIGAMES.
     expect(screen.getByTestId('world-toast-row')).toHaveClass('hidden');
     act(() => flow.setState({ overlay: null }));
     expect(screen.getByTestId('world-toast-row')).not.toHaveClass('hidden');
+  });
+
+  it('…and so does a “Secret found” card', () => {
+    render(<WorldScreen />);
+    act(() => canvas.callbacks!.onSecret('verdara-queen-bee'));
+    expect(screen.getByText('✨ Secret found! ✨')).toBeInTheDocument();
+    act(() => flow.setState({ overlay: 'minigame', game: 'potion-lab' }));
+    expect(screen.queryByText('✨ Secret found! ✨')).toBeNull();
+    act(() => flow.setState({ overlay: null }));
+    expect(screen.getByText('✨ Secret found! ✨')).toBeInTheDocument();
   });
 });

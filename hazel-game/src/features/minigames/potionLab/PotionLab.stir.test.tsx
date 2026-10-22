@@ -24,6 +24,10 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { pageFlag } = await import('../../../content/minigames');
 
+function setFlags(flags: Record<string, boolean>) {
+  useSaveStore.setState({ save: { ...useSaveStore.getState().save!, flags } });
+}
+
 beforeEach(() => {
   localStorage.clear();
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags: {} }, status: 'ready', remoteError: null });
@@ -102,5 +106,42 @@ describe('🧪 the stir, with motion (review round 1)', () => {
       vi.advanceTimersByTime(STIR_MS * 2);
     });
     expect(flags()[pageFlag('potion-lab', 'lemon')]).toBeUndefined();
+  });
+
+  it('a press on the waiting “Stirring…” starts nothing: leaving mid-stir still pays nothing (review round 2)', async () => {
+    const { unmount } = await open();
+    stir(/Lemon juice/, 'Pink');
+    fireEvent.click(screen.getByRole('button', { name: 'Stirring…' }));
+    act(() => {
+      vi.advanceTimersByTime(STIR_MS / 2);
+    });
+    unmount();
+    act(() => {
+      vi.advanceTimersByTime(STIR_MS * 3);
+    });
+    expect(flags()[pageFlag('potion-lab', 'lemon')]).toBeUndefined();
+  });
+
+  it('the guesses wait during the stir', async () => {
+    await open();
+    stir(/Lemon juice/, 'Pink');
+    const guesses = within(screen.getByRole('group', { name: 'Your guess' }));
+    expect(guesses.getByRole('button', { name: 'Blue-green' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(guesses.getByRole('button', { name: 'Blue-green' }));
+    expect(guesses.getByRole('button', { name: 'Pink' })).toHaveAttribute('aria-pressed', 'true');
+    expect(guesses.getByRole('button', { name: 'Blue-green' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('a Brew Book page read during the stir gives way to Tadpole’s verdict (review round 2)', async () => {
+    setFlags({ [pageFlag('potion-lab', 'soap')]: true });
+    await open();
+    stir(/Lemon juice/, 'Pink');
+    fireEvent.click(screen.getByRole('button', { name: /Soapy water: turns it blue-green. Read the page/ }));
+    expect(screen.getAllByText(/That’s part of why it feels slippery/).length).toBeGreaterThan(0);
+    act(() => {
+      vi.advanceTimersByTime(STIR_MS);
+    });
+    expect(screen.queryAllByText(/That’s part of why it feels slippery/)).toHaveLength(0);
+    expect(screen.getByText(/You guessed it before you saw it.*just what Fern ordered/)).toBeInTheDocument();
   });
 });

@@ -115,4 +115,13 @@ export function rememberBand(kidId: string | null, id: MiniGameId, band: Band): 
   }
 }
 
+/** Back to the band the kid's level suggests: picking the suggested band forgets any other (review round 2: it pinned it for good). */
+export function forgetBand(kidId: string | null, id: MiniGameId): void {
+  try {
+    localStorage.removeItem(bandKey(kidId, id));
+  } catch {
+    // Nothing stored that can be read either.
+  }
+}
+
 const bandKey = (kidId: string | null, id: MiniGameId) => `hazel-mg-band-${kidId ?? 'anon'}-${id}`;

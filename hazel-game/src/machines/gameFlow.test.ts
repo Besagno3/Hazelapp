@@ -141,6 +141,7 @@ describe('gameFlowMachine', () => {
     expect(overlayOwnsMusic(actor.getSnapshot())).toBe(true);
     actor.send({ type: 'CLOSE' });
     expect(actor.getSnapshot().matches({ world: 'exploring' })).toBe(true);
+    expect(actor.getSnapshot().context.game).toBeNull();
     expect(overlayOwnsMusic(actor.getSnapshot())).toBe(false);
     actor.send({ type: 'OPEN_GAME', game: 'potion-lab' });
     expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);

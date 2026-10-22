@@ -79,22 +79,42 @@ describe('the stage (docs/DESIGN-MINIGAMES.md §2)', () => {
     expect(screen.getByText(/Picked from your Science level \(2\)/)).toBeInTheDocument();
     expect(screen.getByText('Brew Book: 0 of 12')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Let’s brew!' })).toHaveFocus();
+    // The dialog is described by the hello and how to play, so a reader hears them as focus lands on Play.
+    expect(screen.getByRole('dialog', { name: 'Potion Lab' })).toHaveAccessibleDescription(/Orders are piling up.*1 · Pour in one jar/);
+    expect(screen.getByText(/Stars: your first round · half the Brew Book · the whole Brew Book/)).toBeInTheDocument();
     // Its music, and found for the menu.
     expect(playMusic).toHaveBeenCalledWith('shrine');
     expect(save().flags[openedFlag('potion-lab')]).toBe(true);
   });
 
   it('a band picked is remembered for this kid, and says what the level suggests', () => {
-    render(<MiniGameStage game="potion-lab" />);
+    const { unmount } = render(<MiniGameStage game="potion-lab" />);
     fireEvent.click(screen.getByRole('button', { name: 'Tricky' }));
     expect(screen.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/Your Science level \(2\) suggests Gentle/)).toBeInTheDocument();
     expect(rememberedBand('kid-1', 'potion-lab')).toBe('tricky');
+    // …and the stage opens on it next time.
+    unmount();
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('picking the suggested band again forgets the choice, so the band grows with the level (review round 2)', () => {
+    const first = render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Medium' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Gentle' }));
+    expect(rememberedBand('kid-1', 'potion-lab')).toBeNull();
+    first.unmount();
+    setUp(8);
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('Back, and Escape, leave for the map', () => {
     render(<MiniGameStage game="potion-lab" />);
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    const back = screen.getByRole('button', { name: 'Back to the map' });
+    expect(back).toHaveTextContent('🗺️ Map');
+    fireEvent.click(back);
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
     sendFlow.mockClear();
     fireEvent.keyDown(document.body, { key: 'Escape' });
@@ -106,7 +126,7 @@ describe('the stage (docs/DESIGN-MINIGAMES.md §2)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
     await screen.findByRole('group', { name: 'Jars on the counter' });
     const map = screen.getByRole('button', { name: 'Back to the map' });
-    expect(map).toHaveTextContent('🗺️Map');
+    expect(map).toHaveTextContent('🗺️ Map');
     fireEvent.click(map);
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
@@ -126,13 +146,17 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
     await screen.findByRole('group', { name: 'Jars on the counter' });
     expect(screen.getByText(/Fern wants a Berry Potion that glows pink/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Potion Lab' })).toHaveFocus();
+    // Focus starts at the jars, described by the order (jsdom lays nothing out: the step card's heading, as on a phone).
+    const start = screen.getByRole('heading', { name: 'Step 1 · Pick a jar' });
+    expect(start).toHaveFocus();
+    expect(start).toHaveAccessibleDescription('One Berry Potion that glows pink.');
+    expect(screen.getByRole('group', { name: 'Jars on the counter' })).toHaveAccessibleDescription('One Berry Potion that glows pink.')
 
     // Soapy water, guessed pink: it turns blue-green — explained, no order filled.
     await brew(/Soapy water/, 'Pink');
     expect(screen.getByRole('heading', { name: 'It turned blue-green!' })).toHaveFocus();
     expect(screen.getByText('Soapy water is a base. Bases turn cabbage juice blue-green.')).toBeInTheDocument();
-    expect(screen.getByText(/Not what you guessed — now you know! New Brew Book page!/)).toBeInTheDocument();
+    expect(screen.getByText(/You guessed pink\. Now you know! New Brew Book page!/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Give it to Fern/ })).toBeNull();
     expect(save().flags[pageFlag('potion-lab', 'soap')]).toBe(true);
     expect(addXp).toHaveBeenLastCalledWith(MINIGAME_PAGE_XP);
@@ -140,7 +164,7 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     // Lemon, guessed pink: right, and it fills the order.
     fireEvent.click(screen.getByRole('button', { name: 'Try another jar' }));
     await brew(/Lemon juice/, 'Pink');
-    expect(screen.getByText(/You guessed right! New Brew Book page!/)).toBeInTheDocument();
+    expect(screen.getByText(/You guessed pink — right! New Brew Book page!/)).toBeInTheDocument();
     const coins = save().coins;
     const potions = save().items.potion;
     fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
@@ -148,9 +172,13 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     // The reward: star 1, the Berry Potion, the coins and XP — and the page found this round.
     expect(screen.getByRole('heading', { level: 1, name: 'Berry Potion brewed!' })).toHaveFocus();
     expect(screen.getByText('Lemon juice is an acid. Acids turn cabbage juice pink.')).toBeInTheDocument();
-    expect(screen.getByText('Added: Soapy water, Lemon juice.')).toBeInTheDocument();
-    expect(screen.getByText(/A Berry Potion, in your bag/)).toBeInTheDocument();
-    expect(screen.getByText(`⭐ ${2 * MINIGAME_PAGE_XP + MINIGAME_STAR_XP} XP`)).toBeInTheDocument();
+    // Always "What you found out"; new pages on their own line, since one may not be the jar delivered (review round 2).
+    expect(screen.getByRole('heading', { name: 'What you found out' })).toBeInTheDocument();
+    expect(screen.getByText('New Brew Book pages: Soapy water, Lemon juice.')).toBeInTheDocument();
+    const got = within(screen.getByRole('region', { name: 'You got' }));
+    expect(got.getByText(/A Berry Potion from Trader Tadpole, in your bag/)).toBeInTheDocument();
+    expect(got.getByText(`${2 * MINIGAME_PAGE_XP + MINIGAME_STAR_XP} XP`)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back to the map' })).toHaveTextContent('🗺️ Map');
     expect(save().flags[starFlag('potion-lab', 1)]).toBe(true);
     expect(save().items.potion).toBe(potions + 1);
     expect(save().coins).toBe(coins + MINIGAME_STAR_COINS);
@@ -168,7 +196,7 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     addXp.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Give it to Beekeeper Hilda' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Moss Tonic brewed!' })).toBeInTheDocument();
-    expect(screen.getByText('Added: Baking soda.')).toBeInTheDocument();
+    expect(screen.getByText('New Brew Book page: Baking soda.')).toBeInTheDocument();
     expect(addXp).not.toHaveBeenCalledWith(MINIGAME_STAR_XP);
   });
 
@@ -190,7 +218,7 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     await screen.findByRole('group', { name: 'Jars on the counter' });
     expect(within(screen.getByRole('group', { name: 'Jars on the counter' })).getAllByRole('button')).toHaveLength(9);
     await brew(/Orange juice/, 'Acid');
-    expect(screen.getByText(/You guessed right!/)).toBeInTheDocument();
+    expect(screen.getByText(/You guessed an acid — right!/)).toBeInTheDocument();
     unmount();
 
     setUp(9);
@@ -209,7 +237,8 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
     await screen.findByRole('group', { name: 'Jars on the counter' });
     fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Lemon juice/ }));
-    expect(screen.getByText('Acids → pink · Neutral → purple · Bases → blue-green')).toBeInTheDocument();
+    // On the ticket from the start, and under the guesses.
+    expect(screen.getAllByText('Acids turn it pink, neutral things leave it purple, bases turn it blue-green.')).toHaveLength(2);
   });
 
   it('the Brew Book says where the pages not on this counter are', async () => {
@@ -239,10 +268,10 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     await screen.findByRole('group', { name: 'Jars on the counter' });
     fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Baking soda/ }));
     fireEvent.click(screen.getByRole('button', { name: /Lemon juice: turns it pink. Read the page/ }));
-    expect(screen.getByText(/Lemons are full of citric acid/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Lemons are full of citric acid/).length).toBeGreaterThan(0);
     fireEvent.click(within(screen.getByRole('group', { name: 'Your guess' })).getByRole('button', { name: 'Blue-green' }));
     fireEvent.click(screen.getByRole('button', { name: 'Stir and brew!' }));
-    expect(screen.queryByText(/Lemons are full of citric acid/)).toBeNull();
+    expect(screen.queryAllByText(/Lemons are full of citric acid/)).toHaveLength(0);
     expect(screen.getByText(/You guessed it before you saw it/)).toBeInTheDocument();
   });
 
@@ -256,5 +285,37 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
     expect(screen.getByRole('heading', { name: 'Just for fun' })).toBeInTheDocument();
     expect(screen.getByText(/You’ve found every page! Now it’s just for fun/)).toBeInTheDocument();
+    // Nothing paid, but the day counts (§3.4).
+    expect(addXp).not.toHaveBeenCalled();
+    expect(recordActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Brew Book page read shows under the book, with what the jar does in words (review round 2)', async () => {
+    setUp(2, { [pageFlag('potion-lab', 'lemon')]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    const page = screen.getByRole('button', { name: /Lemon juice: turns it pink. Read the page/ });
+    expect(page).toHaveTextContent('Lemon');
+    fireEvent.click(page);
+    expect(page).toHaveAttribute('aria-pressed', 'true');
+    const book = within(screen.getByRole('region', { name: 'Brew Book' }));
+    expect(book.getByText(/^Lemon juice turns it pink — it’s an acid\. Lemons are full of citric acid/)).toBeInTheDocument();
+  });
+
+  it('a jar in the Brew Book says so on the counter — never its kind, Medium’s very question (review round 2)', async () => {
+    setUp(5, { [pageFlag('potion-lab', 'soap')]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    const counter = within(await screen.findByRole('group', { name: 'Jars on the counter' }));
+    expect(counter.getByRole('button', { name: /^Soapy water\s*in your Brew Book$/ })).toBeInTheDocument();
+    expect(counter.queryByText(/^(Acid|Base|Neutral)$/)).toBeNull();
+  });
+
+  it('on a phone or a short screen the order is in the step card too', async () => {
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'For Fern: a Berry Potion that glows pink')).toBeInTheDocument();
   });
 });

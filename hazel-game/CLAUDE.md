@@ -928,11 +928,16 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   ★ all of it) and the game's `firstItem` once — replays pay nothing but
   still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
   Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
-  kid and game on this device (`rememberBand`); a mini-game **never moves the
-  question level**. No timers, no AI: each game's rules are pure in
+  kid and game on this device (`rememberBand`; picking the suggested band
+  again forgets it, `forgetBand`, so it grows with the level); a mini-game
+  **never moves the question level**. No timers, no AI: each game's rules are pure in
   `lib/minigames/<game>.ts`. Each game's play screen loads on first play
   (`GAME_SCREENS[id].Play`, `retryableLazy` in a `LazyBoundary`, "The … didn't
-  open. Try again."); its title-card art loads with the stage. Shared look:
+  open. Try again."; a bug in it stays on the stage too, `PlayCrashed`, with
+  the details for grown-ups and 🗺️ Map); its title-card art loads with the
+  stage. A game focuses where it starts as it mounts (the Potion Lab: the
+  jars, described by the order's ticket); the way out is "🗺️ Map" on the
+  title card, the header and the reward. Shared look:
   `features/minigames/styles.ts` (the navy window, gold buttons, pixel titles
   in Jersey 15 — `public/fonts`, Tailwind `font-pixel`, a cyan `focusRing` on
   every button) and `parts.tsx`
@@ -945,8 +950,11 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   pH sits on `TRICKY_STRIP`, whose ranges are also the guesses' labels,
   `stripLabel`), guesses by band (`guessOptions`: the colour; acid / neutral /
   base, with `guessKey` from kind to colour; the five-colour strip),
-  orders (`orderFor`, every one brewable at its band), the Brew Book (a page
-  per jar, read back by Tadpole), `STIR_MS` before the colour shows. The
+  orders (`orderFor`, every one brewable at its band; on a phone or a short
+  screen the order is in the step card too), the Brew Book (a page per jar
+  with its name, read back by Tadpole and under the book, `pageLine`; a jar
+  in it says "📖 In book" on the counter, never its kind), `STIR_MS` before
+  the colour shows. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
@@ -1579,6 +1587,48 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Mini-games I review round 2: the order in view, a Brew Book you can read, a crash that stays on the stage (#177)
+A fresh `/saas-code-review` (4 low, nits, test gaps: 10 of 14 guards
+survived a mutation) and `/saas-ux-review` (2 high, 5 medium, 1 low + also
+noted) of PR #95, all fixed. **Code:** a page read during the stir hid
+Tadpole's verdict (cleared as the colour shows); a bug in a game's screen
+took the world to the crash screen — it stays on the stage
+(`LazyBoundary` `crashed` → `PlayCrashed`); the counter's "Acid / Base"
+tag on a jar already found was Medium's very answer — it says "📖 In book"
+now; tapping the suggested band pinned it — that forgets the choice
+(`forgetBand`). Nits: the reward's item says who gave it ("A Berry Potion
+from Trader Tadpole") — Tricky's first order is an Ember Tonic;
+`orderFor`'s round-0 case went; `CLOSE` forgets the game; a dead
+`stopStir`; the bench's `level=` clamped; 🧪 steps down beside a pen-pal
+offer; the design doc's header and Gentle's colours. **UX:** on a phone a
+Brew Book page tapped showed nothing (Tadpole's bubble had scrolled away)
+— the page reads back under the book too, comes into view, says what the
+jar does in words (`pageLine`), and each page has its name; on a phone held
+sideways the order was never on screen — it's in the step card on phones
+and short screens; a lone twelfth jar on its own row squeezed the scene
+and cut off the colour sign — the counter is one row where it fits, else
+two even ones (12: 6 + 6, 9: 5 + 4), and the sign sits lower over the pot;
+a reader now hears the order with the jars (the step's heading and the
+counter are described by the ticket, focused as the game starts) and the
+title card's hello and steps with Play (the dialog's description); on a
+phone or short screen what's new is one line by the reward's buttons; the
+reward's card is always "What you found out", new pages on their own line
+(one may not be the jar delivered); focus after another jar lands on a
+visible "Jars on the counter" label. **Also noted:** the round window grows
+over the map (the stage's dark is on the window, not the layer); Medium's
+key on the ticket from the start, in words a reader says; the result names
+the guess ("You guessed pink — right!"); three wrong-guess lines in turn;
+one name for the way out ("🗺️ Map"); a stars key on the title card; 13–14 px
+small text; the title card fits 1280×800 and 1024×768 above its sticky foot;
+emoji hidden from readers in the reward list and step chips; the reward's
+size follows a phone turning (`useMedia`). **Tests:** the stir with a page
+read, a press on "Stirring…", guesses during the stir; a successful retry
+and a game's bug (`MiniGameStage.load.test`); the band remembered on
+opening and forgotten; a replay counting the day; the "Secret found" card
+under the stage; the order's description; the reward's lines. Nine guards
+reverted one at a time, each caught. Logged in #177: the Ember sprite in
+the scene's SVG `foreignObject` is untested on Safari.
 
 ### 2026-10-22 — Mini-games I review round 1: the quest button, the stir, Play in view, one pH strip (#177)
 A fresh `/saas-code-review` (2 medium, 5 low, nits, test gaps) and

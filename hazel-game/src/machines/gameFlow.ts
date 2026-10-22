@@ -83,6 +83,7 @@ export const gameFlowMachine = setup({
     assignGame: assign({
       game: ({ event }) => (event.type === 'OPEN_GAME' ? event.game : null),
     }),
+    forgetGame: assign({ game: null }),
   },
 }).createMachine({
   id: 'game',
@@ -154,7 +155,7 @@ export const gameFlowMachine = setup({
         // The endgame Spire climb (#55) — a self-contained overlay.
         spire: { on: { CLOSE: 'exploring' } },
         // A mini-game's full-screen stage (docs/DESIGN-MINIGAMES.md) — the map waits underneath.
-        minigame: { on: { CLOSE: 'exploring' } },
+        minigame: { on: { CLOSE: { target: 'exploring', actions: 'forgetGame' } } },
       },
     },
     battle: {

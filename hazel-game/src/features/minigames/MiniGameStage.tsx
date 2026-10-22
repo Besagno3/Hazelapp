@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import ModalLayer from '../../components/ModalLayer';
 import LazyBoundary from '../../components/LazyBoundary';
+import ErrorDetails from '../../components/ErrorDetails';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { BANDS, BAND_LABEL, MINIGAMES, openedFlag, type Band, type MiniGameDef, type MiniGameId } from '../../content/minigames';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
@@ -11,7 +12,7 @@ import { topicInfo } from '../../content/topics';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { playMusic, sfx } from '../../lib/audio';
 import { useLazyRetry } from '../../lib/lazyRetry';
-import { bandFor, claimPage, claimRound, pagesFound, rememberBand, rememberedBand, starsEarned, type Claim } from '../../lib/minigames';
+import { bandFor, claimPage, claimRound, forgetBand, pagesFound, rememberBand, rememberedBand, starsEarned, type Claim } from '../../lib/minigames';
 import { cn } from '../../lib/utils';
 import { sendFlow } from '../../machines/gameFlow';
 import { useProfileStore } from '../../store/profileStore';
@@ -91,7 +92,9 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
 
   function pickBand(b: Band) {
     setBand(b);
-    rememberBand(kidId, game, b);
+    // The suggested band isn't a choice to keep: it follows the kid's level as that grows.
+    if (b === suggested) forgetBand(kidId, game);
+    else rememberBand(kidId, game, b);
   }
 
   const onPage = useCallback(
@@ -141,10 +144,18 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
   const found = pagesFound(flags, game).length;
 
   return (
-    <ModalLayer label={def.name} onEscape={leave} focusKey={`${phase}:${round}`} className="fixed inset-0 z-40 bg-[#120f2e] text-white">
+    // The title card is described by the host's hello and how to play, read as focus lands on Play (review round 2).
+    // The layer itself is clear: the round window grows over the map (§2.1), not over a dark screen.
+    <ModalLayer
+      label={def.name}
+      onEscape={leave}
+      focusKey={`${phase}:${round}`}
+      describedBy={phase === 'title' ? 'mg-hello mg-how' : undefined}
+      className="fixed inset-0 z-40 text-white"
+    >
       <motion.div
         data-testid="minigame-stage"
-        className="absolute inset-0 flex flex-col overflow-hidden"
+        className="absolute inset-0 flex flex-col overflow-hidden bg-[#120f2e]"
         initial={still ? { opacity: 0 } : { clipPath: 'circle(0% at 50% 58%)' }}
         animate={still ? { opacity: 1 } : { clipPath: 'circle(150% at 50% 58%)' }}
         transition={{ duration: (still ? 200 : ZOOM_MS) / 1000, ease: 'easeOut' }}
@@ -165,7 +176,7 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
         {phase === 'play' && (
           <div className="flex min-h-0 flex-1 flex-col">
             <StageHeader def={def} stars={stars} onBack={leave} />
-            <PlayArea def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} />
+            <PlayArea def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} onBack={leave} />
           </div>
         )}
         {phase === 'reward' && reward && (
@@ -176,25 +187,33 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
   );
 }
 
-/** The game's own file, loaded the first time it's played; a load that fails says so here, with Try again and Back. */
+/**
+ * The game's own file, loaded the first time it's played; a load that fails
+ * says so here, with Try again and 🗺️ Map (once Try again brings it, the game
+ * takes the focus where it starts, as on any first load). A bug in the game
+ * stays on the stage too (review round 2: it took the whole world to the crash
+ * screen).
+ */
 function PlayArea({
   def,
   band,
   round,
   onPage,
   onFinish,
+  onBack,
 }: {
   def: MiniGameDef;
   band: Band;
   round: number;
   onPage: (page: string, label: string) => boolean;
   onFinish: (o: RoundOutcome) => void;
+  onBack: () => void;
 }) {
   const screens = GAME_SCREENS[def.id];
   const [attempt, setAttempt] = useState(0);
   const loaded = useCallback(() => setAttempt((n) => n + 1), []);
   return (
-    <LazyBoundary key={attempt} failed={<PlayDidNotLoad def={def} onLoaded={loaded} />}>
+    <LazyBoundary key={attempt} failed={<PlayDidNotLoad def={def} onLoaded={loaded} />} crashed={(error) => <PlayCrashed def={def} error={error} onBack={onBack} />}>
       <Suspense
         fallback={
           <p role="status" className="m-auto text-lg text-[#c9c5f2]">
@@ -205,6 +224,23 @@ function PlayArea({
         <screens.Play.Component key={round} def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} />
       </Suspense>
     </LazyBoundary>
+  );
+}
+
+/** A bug in the game's own screen: said here, with the way back to the map; the error folded for grown-ups. */
+function PlayCrashed({ def, error, onBack }: { def: MiniGameDef; error: Error; onBack: () => void }) {
+  return (
+    <div className="m-auto flex max-w-md flex-col items-center gap-4 p-6 text-center">
+      <p role="status" className="text-lg">
+        Something went wrong in the {def.name}. Everything you found is saved.
+      </p>
+      <div className="w-full rounded-lg bg-white px-3 py-1">
+        <ErrorDetails error={error} />
+      </div>
+      <button type="button" onClick={onBack} aria-label="Back to the map" className={goldClass}>
+        <span aria-hidden="true">🗺️ Map</span>
+      </button>
+    </div>
   );
 }
 
@@ -235,15 +271,15 @@ function PlayDidNotLoad({ def, onLoaded }: { def: MiniGameDef; onLoaded: () => v
 function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; onBack: () => void }) {
   const topic = topicInfo(def.topic);
   const title = useRef<HTMLHeadingElement>(null);
-  // Focus starts at the top of the game, so a reader hears its name and Tab goes on into it.
+  // Focus starts at the top of the game while its file loads; the game then
+  // moves it to where it starts (Potion Lab: the jars, with the order).
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
   }, []);
   return (
     <header className="flex min-h-14 flex-none items-center gap-3 border-b-4 border-[#1b0f22] bg-[#1e1b4b] px-3 py-1.5 sm:px-5 [@media(max-height:500px)]:min-h-0 [@media(max-height:500px)]:py-1">
       <button type="button" onClick={onBack} aria-label="Back to the map" className={cn(outlineClass, 'min-w-11 gap-1.5 bg-[#2a2766] px-3 shadow-[0_0_0_3px_#1b0f22]')}>
-        <span aria-hidden="true">🗺️</span>
-        <span aria-hidden="true">Map</span>
+        <span aria-hidden="true">🗺️ Map</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
         <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px]')}>
@@ -295,8 +331,8 @@ function TitleCard({
     <div className="relative flex min-h-0 flex-1 overflow-y-auto">
       <img src={def.backdrop} alt="" aria-hidden="true" className="pointer-events-none fixed inset-0 h-full w-full object-cover [image-rendering:pixelated]" />
       <div aria-hidden="true" className="pointer-events-none fixed inset-0 bg-[#120f2e]/60" />
-      <div className="relative m-auto w-full max-w-4xl p-3 sm:p-6">
-        <div className={cn(windowClass, 'flex flex-col gap-5 bg-[#1e1b4b] p-4 sm:p-7')}>
+      <div className="relative m-auto w-full max-w-4xl p-3 sm:p-6 sm:[@media(max-height:900px)]:py-3">
+        <div className={cn(windowClass, 'flex flex-col gap-5 bg-[#1e1b4b] p-4 sm:p-7 sm:[@media(max-height:900px)]:gap-4 sm:[@media(max-height:900px)]:pt-5')}>
           <div className="flex items-center gap-4">
             <span className="hidden flex-none sm:block [@media(max-height:500px)]:hidden">
               <Logo size={104} />
@@ -305,18 +341,18 @@ function TitleCard({
               <span className="self-start rounded-full border-2 border-[#1b0f22] bg-emerald-800 px-3 py-0.5 text-sm font-bold">
                 <span aria-hidden="true">{topic.emoji} </span>A mini-game · {topic.label}
               </span>
-              <h1 className={cn(pixelTitleClass, 'text-6xl sm:text-[84px] [@media(max-height:500px)]:text-6xl')}>{def.name}</h1>
+              <h1 className={cn(pixelTitleClass, 'text-6xl sm:text-[84px] sm:[@media(min-height:501px)_and_(max-height:900px)]:text-[72px] [@media(max-height:500px)]:text-6xl')}>{def.name}</h1>
               <span className="text-sm text-[#c9c5f2]">{def.place}</span>
             </div>
           </div>
 
           <div className="flex flex-col gap-5 sm:flex-row sm:gap-7">
             <div className="sm:w-[300px] sm:flex-none">
-              <HostBubble npcId={def.host} line={def.hello} />
+              <HostBubble npcId={def.host} line={def.hello} id="mg-hello" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-2.5">
               <h2 className={cn(pixelHeadClass, 'text-[28px]')}>How to play</h2>
-              <ol className="flex flex-col gap-2.5">
+              <ol id="mg-how" className="flex flex-col gap-2.5">
                 {def.steps.map((step, i) => {
                   const Art = steps[i];
                   return (
@@ -371,11 +407,16 @@ function TitleCard({
             <span className="flex h-10 items-center gap-2 rounded-full border-2 border-[#4b4799] bg-[#2a2766] px-3 text-[15px]">
               <Stars count={stars} size={20} />
             </span>
+            {/* What a star is for (review round 2: star 2 came with no word of why). */}
+            <p className="text-sm text-[#c9c5f2]">
+              <span aria-hidden="true">🌟 </span>Stars: your first round · half the {def.collection} · the whole {def.collection}.
+            </p>
           </div>
           {/* Back / Play stay in view at the card's foot while a phone scrolls it. */}
           <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap justify-end gap-3 rounded-b-xl border-t-2 border-[#4b4799] bg-[#1e1b4b] px-4 py-3 sm:-mx-7 sm:-mb-7 sm:px-7 sm:pb-6">
-            <button type="button" onClick={onBack} className={outlineClass}>
-              Back
+            {/* One name for the way out, everywhere on the stage (review round 2). */}
+            <button type="button" onClick={onBack} aria-label="Back to the map" className={outlineClass}>
+              <span aria-hidden="true">🗺️ Map</span>
             </button>
             <button
               ref={play}
@@ -399,6 +440,19 @@ function TitleCard({
   );
 }
 
+/** Whether a media query matches, kept up to date as the screen turns or resizes. */
+function useMedia(query: string): boolean {
+  const [on, setOn] = useState(() => window.matchMedia?.(query).matches ?? false);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return;
+    const change = () => setOn(m.matches);
+    m.addEventListener?.('change', change);
+    return () => m.removeEventListener?.('change', change);
+  }, [query]);
+  return on;
+}
+
 /** The reward (§2.3): what was made, the stars, what was learned, only what's new — then Play again or Back. */
 function RewardScreen({
   def,
@@ -418,20 +472,28 @@ function RewardScreen({
   const host = NPC_DEFS[def.host];
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const allFound = pagesFound(flags, def.id).length >= def.pages;
-  // A phone's cheer is a size smaller (or a short screen's), so Ember and the host stay on the screen.
-  const [scale] = useState(() => (window.matchMedia?.('(max-width: 639px), (max-height: 500px)').matches ? 3 : 4));
+  // A phone's cheer is a size smaller (or a short screen's), so Ember and the host stay on the screen — turning the phone follows.
+  const small = useMedia('(max-width: 639px), (max-height: 500px)');
+  const scale = small ? 3 : 4;
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
   }, []);
-  const got: string[] = [];
+  // What's new, each with its emoji (hidden from a reader) and a short form for the line by the buttons.
+  const got: { emoji: string; text: string; short: string }[] = [];
+  const from = host ? npcName(host, flags) : null;
   if (reward.item) {
     const { emoji, name } = CONSUMABLES[reward.item];
-    got.push(`${emoji} ${/^[AEIOU]/i.test(name) ? 'An' : 'A'} ${name}, in your bag`);
+    got.push({ emoji, text: `${/^[AEIOU]/i.test(name) ? 'An' : 'A'} ${name}${from ? ` from ${from}` : ''}, in your bag`, short: name });
   }
-  if (reward.coins > 0) got.push(`🪙 ${reward.coins} coins`);
-  if (reward.xp > 0) got.push(`⭐ ${reward.xp} XP`);
-  for (const n of reward.stars) got.push(n === 1 ? '🌟 A star for your first round' : n === 2 ? '🌟 A star for half the ' + def.collection : '🌟 A star for the whole ' + def.collection);
+  if (reward.coins > 0) got.push({ emoji: '🪙', text: `${reward.coins} coins`, short: String(reward.coins) });
+  if (reward.xp > 0) got.push({ emoji: '⭐', text: `${reward.xp} XP`, short: `${reward.xp} XP` });
+  for (const n of reward.stars)
+    got.push({
+      emoji: '🌟',
+      text: n === 1 ? 'A star for your first round' : n === 2 ? `A star for half the ${def.collection}` : `A star for the whole ${def.collection}`,
+      short: 'A star',
+    });
   return (
     <div className="relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto bg-[#1e1b4b] px-3 pb-6 pt-6 sm:pt-8">
       <svg aria-hidden="true" viewBox="-100 -100 200 200" className={cn('pointer-events-none fixed left-1/2 top-[38%] h-[160vmax] w-[160vmax] -translate-x-1/2 -translate-y-1/2', !still && 'motion-safe:animate-[spin_60s_linear_infinite]')}>
@@ -459,15 +521,31 @@ function RewardScreen({
             </span>
           )}
         </div>
-        <Stars count={stars} size={52} />
+        <Stars count={stars} size={52} className="[@media(max-height:500px)]:[&>svg]:h-10 [@media(max-height:500px)]:[&>svg]:w-10" />
+        {/* On a phone or a short screen the cards are below the fold: what's new, in one line by the buttons (review round 2). */}
+        {got.length > 0 && (
+          <p aria-hidden="true" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[17px] font-bold text-amber-200 sm:[@media(min-height:501px)]:hidden">
+            {got.map((g) => (
+              <span key={g.text}>
+                {g.emoji} {g.short}
+              </span>
+            ))}
+          </p>
+        )}
         {/* On a phone or a short screen the cards come after the buttons, so Play again is in view. */}
         <div className="order-last grid w-full gap-4 sm:order-none md:grid-cols-[1.35fr_1fr] [@media(max-height:500px)]:order-last">
           <section aria-labelledby="mg-learned" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
             <h2 id="mg-learned" className={cn(pixelHeadClass, 'text-[28px]')}>
-              {reward.pages.length > 0 ? `New ${def.collection} page${reward.pages.length > 1 ? 's' : ''}!` : 'What you found out'}
+              What you found out
             </h2>
             <p className="text-lg leading-snug">{reward.learned}</p>
-            {reward.pages.length > 0 && <p className="text-[15px] text-[#d8d5f5]">Added: {reward.pages.join(', ')}.</p>}
+            {/* New pages on their own line: one may not be the jar that filled the order (review round 2). */}
+            {reward.pages.length > 0 && (
+              <p className="text-[15px] font-semibold text-amber-200">
+                <span aria-hidden="true">📖 </span>
+                New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(', ')}.
+              </p>
+            )}
           </section>
           <section aria-labelledby="mg-got" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
             <h2 id="mg-got" className={cn(pixelHeadClass, 'text-[28px]')}>
@@ -476,7 +554,10 @@ function RewardScreen({
             {got.length > 0 ? (
               <ul className="flex flex-col gap-1.5 text-[17px]">
                 {got.map((g) => (
-                  <li key={g}>{g}</li>
+                  <li key={g.text}>
+                    <span aria-hidden="true">{g.emoji} </span>
+                    {g.text}
+                  </li>
                 ))}
               </ul>
             ) : (
@@ -489,8 +570,8 @@ function RewardScreen({
           </section>
         </div>
         <div className="flex flex-wrap justify-center gap-3">
-          <button type="button" onClick={onBack} className={outlineClass}>
-            Back to the map
+          <button type="button" onClick={onBack} aria-label="Back to the map" className={outlineClass}>
+            <span aria-hidden="true">🗺️ Map</span>
           </button>
           <button type="button" onClick={onAgain} className={cn(goldClass, 'text-xl')}>
             {def.againLabel}

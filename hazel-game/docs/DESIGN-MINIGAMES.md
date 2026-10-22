@@ -44,7 +44,7 @@ the map. Nothing is lost: what's been found is saved as it's found.
 
 One frame for every game (the canvas's "Same stage, every game" board):
 
-- **Header:** ← Back · the title plate (the game's name, its place under it) ·
+- **Header:** 🗺️ Map (the way out, named the same on the title card and the reward) · the title plate (the game's name, its place under it) ·
   the topic chip · three stars.
 - **The scene** (left, or the top on a phone): a close-up drawn in more detail
   than the map, the kid's world characters in it. Ember is in every scene
@@ -175,7 +175,7 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Loop:** an order ("Fern needs a Berry Potion that glows pink") → pour one
   jar into the purple cabbage juice → guess what happens → stir and see → the
   host explains. The order is done when the potion is the colour asked for.
-- **Gentle:** six jars; guess the colour: pink, stays purple, or green.
+- **Gentle:** six jars; guess the colour: pink, stays purple, or blue-green.
 - **Medium:** nine jars (adds orange juice, milk, egg white); guess the kind
   first — acid, base or neutral — and the colour follows.
 - **Tricky:** twelve jars and a five-colour strip (red, pink, purple, blue,

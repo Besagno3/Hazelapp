@@ -40,7 +40,7 @@ export function Stars({ count, size = 30, className }: { count: number; size?: n
  * smaller portrait and no name, so the game comes up sooner (one bubble —
  * never two live regions).
  */
-export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string; line: ReactNode; phoneStrip?: boolean }) {
+export function HostBubble({ npcId, line, phoneStrip = false, id }: { npcId: string; line: ReactNode; phoneStrip?: boolean; id?: string }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const npc = NPC_DEFS[npcId];
   if (!npc) return null;
@@ -56,6 +56,7 @@ export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string;
         <CharacterPortrait spriteId={npcSpriteId(npc, flags)} emoji={npcEmoji(npc, flags)} scale={2.5} className="text-4xl" />
       </div>
       <div
+        id={id}
         aria-live="polite"
         className={cn(
           'min-w-0 flex-1 rounded-xl border-[3px] border-[#1b0f22] bg-white px-3 text-[#1b0f22]',
@@ -76,14 +77,16 @@ export function EmberSprite({ anim, scale = 4 }: { anim?: string; scale?: number
   return <CharacterPortrait spriteId={EMBER_SPRITE_IDS[stage]} emoji={EMBER_SPRITES[stage]} scale={scale} anim={anim} className="text-5xl" />;
 }
 
-/** The round's goal, on a paper ticket. `ready` turns its chip green. */
-export function Ticket({ heading, children, ready, icon }: { heading: string; children: ReactNode; ready: boolean; icon?: ReactNode }) {
+/** The round's goal, on a paper ticket. `ready` turns its chip green; `id` names its words, for what's described by them. */
+export function Ticket({ heading, children, ready, icon, id }: { heading: string; children: ReactNode; ready: boolean; icon?: ReactNode; id?: string }) {
   return (
     <div className="flex items-center gap-3 rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-3 py-2 text-[#1b0f22] shadow-[0_4px_0_#1b0f22]">
       {icon && <span className="flex-none">{icon}</span>}
       <div className="min-w-0 flex-1">
         <div className="font-pixel text-xl leading-none tracking-wide text-[#a3195b]">{heading}</div>
-        <div className="text-[15px] leading-snug">{children}</div>
+        <div id={id} className="text-[15px] leading-snug">
+          {children}
+        </div>
       </div>
       <span
         className={cn(
@@ -114,6 +117,7 @@ export function StepChips({ steps, current }: { steps: readonly string[]; curren
             )}
           >
             <span
+              aria-hidden="true"
               className={cn(
                 'flex h-6 w-6 items-center justify-center rounded-full text-[13px]',
                 now ? 'bg-[#1b0f22] text-amber-300' : done ? 'bg-white text-emerald-800' : 'bg-[#3d3a8a] text-white',

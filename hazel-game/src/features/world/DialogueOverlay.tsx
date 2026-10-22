@@ -332,7 +332,12 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {offerGame && game && (
             <button
               onClick={openGame}
-              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+              // Beside the pen-pal offer the pen is the gold action, as for a service (round 6).
+              className={
+                offering
+                  ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'
+                  : 'bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11'
+              }
             >
               {MINIGAMES[game].emoji} {MINIGAMES[game].name}
             </button>
