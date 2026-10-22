@@ -77,18 +77,27 @@ export type Mode = 'ear' | 'staff' | 'wrong';
 /** Where a tune ends against where it starts. */
 export type Shape = 'higher' | 'lower' | 'same';
 
-export interface Echo {
+interface EchoBase {
   tune: TuneId;
-  mode: Mode;
   /** The notes to play back. */
   notes: readonly Note[];
   /** What Lyra plays: the notes — on `wrong`, with one changed. */
   played: readonly Note[];
-  /** On `wrong`: which note she changed (0-based); else null. */
-  wrongAt: number | null;
   /** The band's chimes. */
   chimes: readonly Note[];
 }
+
+/** An echo; on `wrong`, which note Lyra changed (0-based). */
+export type Echo = (EchoBase & { mode: 'ear' | 'staff'; wrongAt: null }) | (EchoBase & { mode: 'wrong'; wrongAt: number });
+
+/** Where a note sits on the (treble) staff, said — its place, not its name: reading it is Tricky's job. */
+export const PLACE: Record<Note, string> = {
+  C: 'on a little line below the staff',
+  D: 'just under the staff',
+  E: 'on the bottom line',
+  F: 'in the bottom space',
+  G: 'on the second line',
+};
 
 export const ECHOES_PER_ROUND = 3;
 
@@ -126,7 +135,7 @@ export function echoFor(band: Band, round: number, i: number, queue?: readonly T
   const was = height(notes[at]);
   const now = was === NOTES.length - 1 ? was - 1 : was + 1;
   const played = notes.map((n, k) => (k === at ? NOTES[now] : n));
-  return { tune: t.id, mode, notes, played, wrongAt: at, chimes: CHIMES[band] };
+  return { tune: t.id, mode: 'wrong', notes, played, wrongAt: at, chimes: CHIMES[band] };
 }
 
 /** Where a run of notes ends against where it starts. */
@@ -157,33 +166,34 @@ export function echoWords(echo: Echo): string {
   return `Listen to Lyra’s ${n} notes, then play them back on the chimes.`;
 }
 
-/** The question about the tune's shape. */
+/** The question about the tune's shape (it may be watched, not heard: the sound's off by default). */
 export function shapeQuestion(echo: Echo): string {
-  return echo.mode === 'staff' ? 'Read the staff: does the last note sit higher, lower or the same as the first?' : 'Did the last note sound higher, lower or the same as the first?';
+  return echo.mode === 'staff' ? 'Read the staff: does the last note sit higher, lower or the same as the first?' : 'Did the tune end higher, lower or the same as it started?';
 }
 
-/** After the shape's answered. Never scolded. */
+/** After the shape's answered. Never scolded. On the staff, the notes are said by their place: reading them is the job. */
 export function shapeWords(echo: Echo, said: Shape): string {
   const is = shape(echo.notes);
   const first = echo.notes[0];
   const last = echo.notes[echo.notes.length - 1];
-  const how = is === 'same' ? `it starts and ends on ${first}` : `it starts on ${first} and ends on ${last}, ${is === 'higher' ? 'higher up' : 'lower down'}`;
+  const say = (n: Note) => (echo.mode === 'staff' ? PLACE[n] : `on ${n}`);
+  const how = is === 'same' ? `it starts and ends ${say(first)}` : `it starts ${say(first)} and ends ${say(last)}, ${is === 'higher' ? 'higher up' : 'lower down'}`;
   if (said === is) return `Yes — ${is === 'same' ? 'the same' : is}: ${how}.`;
   return `Not quite: ${how}. ${is === 'same' ? 'The same note' : cap(is)}!`;
 }
 
-/** After a note on the staff is picked as the wrong one. */
-export function spotWords(echo: Echo, at: number): string {
-  const w = echo.wrongAt ?? -1;
+/** After a note on the staff is picked as the wrong one (a wrong-note echo). */
+export function spotWords(echo: Echo & { mode: 'wrong' }, at: number): string {
+  const w = echo.wrongAt;
   if (at === w) return `Yes — the ${ORDINAL[w]} note! Lyra played ${echo.played[w]}, but the staff says ${echo.notes[w]}.`;
   return `The ${ORDINAL[at]} note was right: the staff says ${echo.notes[at]}, and Lyra played ${echo.played[at]}. Watch the chimes again!`;
 }
 
-/** After a chime tapped as the `i`th note. */
+/** After a chime tapped as the `i`th note: right, or where the right one is — a shorter chime to the right, or a longer one to the left. */
 export function tapWords(echo: Echo, i: number, n: Note): string {
   const j = judge(echo, i, n);
   if (j === 'right') return i + 1 === echo.notes.length ? 'That’s the whole tune!' : `${n} — yes!`;
-  return `That was ${n}. The ${ORDINAL[i]} note is ${j} — try another chime.`;
+  return `That was ${n}. The ${ORDINAL[i]} note is ${j} — ${j === 'higher' ? 'a shorter chime, further right' : 'a longer chime, further left'}.`;
 }
 
 /** What an echo teaches, for the reward. */
@@ -191,10 +201,10 @@ export function learnedLine(echo: Echo): string {
   const t = TUNE_BY_ID[echo.tune];
   const s = shape(echo.notes);
   const notes = echo.notes.join(' ');
-  if (echo.mode === 'staff') return `${t.name} starts ${notes}. On the staff, E sits on the bottom line, F in the space above, G on the next line.`;
+  if (echo.mode === 'staff') return `${t.name} starts ${notes}. On the treble staff, E sits on the bottom line, F in the space above, G on the next line.`;
   if (echo.mode === 'wrong') {
-    const w = echo.wrongAt!;
-    return `${t.name} starts ${notes}: Lyra's ${ORDINAL[w]} note was ${echo.played[w]}, a step ${height(echo.played[w]) > height(echo.notes[w]) ? 'too high' : 'too low'}.`;
+    const w = echo.wrongAt;
+    return `${t.name} starts ${notes}: Lyra’s ${ORDINAL[w]} note was ${echo.played[w]}, a step ${height(echo.played[w]) > height(echo.notes[w]) ? 'too high' : 'too low'}.`;
   }
   const end = s === 'same' ? 'ends on the note it started on' : `ends ${s} than it starts`;
   return `${t.name} starts ${notes}: it ${end}. A higher note is a shorter chime.`;

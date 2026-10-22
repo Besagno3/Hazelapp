@@ -14,6 +14,7 @@ import {
   playable,
   roundQueue,
   shape,
+  shapeQuestion,
   shapeWords,
   spotWords,
   tapWords,
@@ -40,8 +41,17 @@ describe('the songbook', () => {
       expect(t.opening, t.id).toHaveLength(7);
       expect(t.note.length).toBeGreaterThan(20);
     }
-    expect(TUNES.find((t) => t.id === 'hot-cross-buns')!.opening.join(' ')).toBe('E D C E D C C');
-    expect(TUNES.find((t) => t.id === 'ode-to-joy')!.opening.join(' ')).toBe('E E F G G F E');
+    // Every opening pinned: a note out is a wrong tune taught.
+    expect(Object.fromEntries(TUNES.map((t) => [t.id, t.opening.join(' ')]))).toEqual({
+      'hot-cross-buns': 'E D C E D C C',
+      mary: 'E D C D E E E',
+      'frere-jacques': 'C D E C C D E',
+      'au-clair': 'C C C D E D C',
+      'aunt-rhody': 'E E D C C D D',
+      'ode-to-joy': 'E E F G G F E',
+      'old-macdonald': 'G G G D E E D',
+      'lightly-row': 'G E E F D D C',
+    });
   });
 
   it('Gentle plays the five that fit on C, D and E; the others all eight', () => {
@@ -77,7 +87,8 @@ describe('the echoes', () => {
 
   it('a wrong note: one in the middle, a step off; the rest as written', () => {
     for (const e of echoes('tricky').filter((x) => x.mode === 'wrong')) {
-      const w = e.wrongAt!;
+      if (e.mode !== 'wrong') continue;
+      const w = e.wrongAt;
       expect(w).toBeGreaterThan(0);
       expect(w).toBeLessThan(e.notes.length - 1);
       expect(Math.abs(height(e.played[w]) - height(e.notes[w]))).toBe(1);
@@ -101,7 +112,8 @@ describe('the checks and the words', () => {
     expect(judge(hcb, 0, 'E')).toBe('right');
     expect(judge(hcb, 1, 'E')).toBe('lower');
     expect(judge(hcb, 1, 'C')).toBe('higher');
-    expect(tapWords(hcb, 1, 'E')).toBe('That was E. The second note is lower — try another chime.');
+    expect(tapWords(hcb, 1, 'E')).toBe('That was E. The second note is lower — a longer chime, further left.');
+    expect(tapWords(hcb, 1, 'C')).toBe('That was C. The second note is higher — a shorter chime, further right.');
     expect(tapWords(hcb, 1, 'D')).toBe('D — yes!');
     expect(tapWords(hcb, 3, 'E')).toBe('That’s the whole tune!');
   });
@@ -116,16 +128,28 @@ describe('the checks and the words', () => {
     const g = echoFor('gentle', 0, 1); // Mary, three notes: E D C
     expect(g.notes.join(' ')).toBe('E D C');
     expect(shapeWords(g, 'lower')).toBe('Yes — lower: it starts on E and ends on C, lower down.');
+    // Read from the staff, the notes are said by their place: reading them is the job.
+    const read = echoFor('tricky', 0, 0); // Hot Cross Buns, five: E D C E D
+    expect(shapeQuestion(read)).toBe('Read the staff: does the last note sit higher, lower or the same as the first?');
+    expect(shapeQuestion(g)).toBe('Did the tune end higher, lower or the same as it started?');
+    expect(shapeWords(read, 'lower')).toBe('Yes — lower: it starts on the bottom line and ends just under the staff, lower down.');
+    expect(shapeWords(read, 'same')).toBe('Not quite: it starts on the bottom line and ends just under the staff, lower down. Lower!');
   });
 
   it('the ticket, the wrong note and the lessons', () => {
     expect(echoWords(echoFor('gentle', 0, 0))).toBe('Listen to Lyra’s two notes, then play them back on the chimes.');
     expect(echoWords(echoFor('tricky', 0, 0))).toBe('Read the five notes on the staff, then play them on the chimes.');
-    const w = echoFor('tricky', 0, 1);
-    const at = w.wrongAt!;
-    expect(spotWords(w, at)).toMatch(/^Yes — the \w+ note! Lyra played [A-G], but the staff says [A-G]\.$/);
-    expect(spotWords(w, 0)).toMatch(/^The first note was right/);
-    expect(learnedLine(w)).toMatch(/a step too (high|low)\.$/);
+    const w = echoFor('tricky', 0, 1); // Mary, six: E D C D E E — Lyra plays the C a step up
+    if (w.mode !== 'wrong') throw new Error('a wrong-note echo');
+    expect(w.played.join(' ')).toBe('E D D D E E');
+    expect(spotWords(w, 2)).toBe('Yes — the third note! Lyra played D, but the staff says C.');
+    expect(spotWords(w, 0)).toBe('The first note was right: the staff says E, and Lyra played E. Watch the chimes again!');
+    expect(learnedLine(w)).toBe('Mary Had a Little Lamb starts E D C D E E: Lyra’s third note was D, a step too high.');
+    // At the top (G), she plays it a step down.
+    const low = echoFor('tricky', 7, 1); // Old MacDonald, six: G G G D E E
+    if (low.mode !== 'wrong') throw new Error('a wrong-note echo');
+    expect(low.played.join(' ')).toBe('G F G D E E');
+    expect(learnedLine(low)).toBe('Old MacDonald starts G G G D E E: Lyra’s second note was F, a step too low.');
     expect(learnedLine(echoFor('tricky', 0, 0))).toMatch(/E sits on the bottom line/);
     expect(learnedLine(echoFor('gentle', 0, 1))).toBe('Mary Had a Little Lamb starts E D C: it ends lower than it starts. A higher note is a shorter chime.');
   });

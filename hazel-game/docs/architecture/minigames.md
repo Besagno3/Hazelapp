@@ -200,13 +200,22 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   way), then the kid plays it back: a wrong chime says where the right one
   is (`judge`, `tapWords`) and nothing's lost; the last note pays the page.
   The staff's notes are said by their place, not their name (reading is the
-  job). The chimes ring through `lib/tones.ts` (`playTone`: a Web Audio bell
-  at any pitch, following the sound-effects setting — off by default — so
-  the game works silent, and has a "Chime sounds" switch for that setting);
-  the stage plays no music for it (`music: null`). Two columns only on the
-  `split` screen (`tailwind.config.js`: 768 px wide, or a phone on its side
-  from 640) — narrower tall windows stack like a phone, the step card under
-  the chimes so it growing never moves one. A step's buttons wait as it
-  starts (`useSettled`); a held Enter rings a chime once. The
+  job; `PLACE`), even in the shape answer; the staff's lines are drawn once
+  behind its note columns, with a treble clef. Once the wrong note's found
+  she plays the tune as written. The chimes ring through `lib/tones.ts`
+  (`playTone`: a Web Audio bell at any pitch, following the sound-effects
+  setting — off by default — so the game works silent, and has a "Sounds"
+  switch for that setting; `wakeTones` wakes the audio in the Listen tap, as
+  iOS needs); the stage plays no music for it (`music: null`). Her verdicts
+  are in the step's card too (`Said`, not live — her bubble is), as on a
+  phone the bubble's below the fold; Listen is one button ("Listen again"
+  after), Next under it in a place kept from the start. Two columns only on
+  the `split` screen (`tailwind.config.js`: 768 px wide, or a phone on its
+  side from 640) — narrower tall windows stack like a phone, the step card
+  under the chimes so it growing never moves one (and each step scrolls back
+  to the board's top). The board itself puts the step beside the chimes on
+  any screen on its side from 560 px, under them on one held upright. A
+  step's buttons wait as it starts and as Next first appears (`useSettled`,
+  keyed on `heard` too); a held Enter rings a chime once. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

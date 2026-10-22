@@ -11,7 +11,7 @@ vi.mock('../../../lib/audio', async (orig) => ({
   ...(await orig<typeof import('../../../lib/audio')>()),
   sfx: () => {},
 }));
-vi.mock('../../../lib/tones', () => ({ playTone: () => {} }));
+vi.mock('../../../lib/tones', () => ({ playTone: () => {}, wakeTones: () => {} }));
 
 const { default: EchosCall } = await import('./EchosCall');
 const { SETTLE_MS } = await import('../useSettled');
@@ -41,6 +41,7 @@ describe('🎵 a double tap', () => {
     act(() => {
       vi.advanceTimersByTime(10_000);
     });
+    wait();
     fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
     expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Higher' }));
@@ -48,5 +49,21 @@ describe('🎵 a double tap', () => {
     wait();
     fireEvent.click(screen.getByRole('button', { name: 'Higher' }));
     expect(screen.getByRole('heading', { name: 'Step 3 · Play it back' })).toBeInTheDocument();
+  });
+
+  it('Next, the moment Lyra first finishes (a kid tapping Listen again and again), does nothing; a moment later it goes on', () => {
+    render(<EchosCall def={MINIGAMES['echos-call']} band="gentle" round={0} onPage={() => true} onFinish={() => {}} />);
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    expect(screen.getByRole('heading', { name: 'Step 1 · Listen' })).toBeInTheDocument();
+    // Listen again, in the place it was tapped, plays her again: no moment's wait for that.
+    expect(screen.getByRole('button', { name: '↻ Listen again' })).toBeInTheDocument();
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toBeInTheDocument();
   });
 });
