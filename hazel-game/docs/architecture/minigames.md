@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts and 🌳 Ringwood's Rings.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings and 📜 Index's Timeline.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -287,6 +287,20 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   rings said under them for a reader, live (`rr-under`). What Ringwood said
   is in the step's card by the wood, and till he's said something, what he
   asked — a tip; a step's start adds the next ask to what he says. The shared
-  `Ticket` puts its chip by its heading, and `HostBubble` wraps a long word. The
+  `Ticket` puts its chip by its heading, and `HostBubble` wraps a long word.
+  **📜 Index's Timeline** (`archive-index`,
+  Index, the Sunken Archive — she gives a quest too; `lib/minigames/
+  timeline.ts`, `features/minigames/timeline/`): putting things in the
+  order they happened. Eight sets of seven (`SETS`: inventions, discoveries
+  and buildings — no wars, disasters or religion — each event a year,
+  "about" where it's rough, and a clue why it comes after the one before);
+  a band picks 3–4, five or 6–7 of a set (`PICKS`), dealt out of order
+  (`deal`), Tricky with years (`yearWords`: BCE counting down). Each card
+  tapped goes in the next empty place, oldest first, and one on the line
+  tapped comes back — every tap in the tray, so a phone needn't scroll to
+  and fro (held upright under 560 px wide, the tray and the timeline side
+  by side, the step a bar kept under them); the tray keeps each card's spot,
+  so it never reflows under a finger. "Check the order" (`check`, `checkWords`, `hintFor`) keeps the
+  right ones and floats the rest back with a clue. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

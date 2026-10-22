@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -214,6 +214,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'spireThicket',
     backdrop: '/backgrounds/eldergrove.png',
     firstItem: 'clover',
+  },
+  'index-timeline': {
+    id: 'index-timeline',
+    name: 'Index’s Timeline',
+    emoji: '📜',
+    topic: 'history',
+    host: 'archive-index',
+    place: 'The Card Catalog · Sunken Archive',
+    where: 'Index, the Sunken Archive',
+    playLabel: 'Let’s file!',
+    againLabel: 'More drawers',
+    hello: 'Ah… Bh… CHOO! Oh no — my cards washed out of their drawers. Help me put them back in the order things happened?',
+    steps: [
+      { title: 'Tap the oldest', text: 'Soggy cards wash in, each something people made or found. Which came first?' },
+      { title: 'Then the next', text: 'Tap them in the order they happened — each goes in the next place on the timeline.' },
+      { title: 'Check the order', text: 'Wrong ones float back with a clue. Every drawer goes in the timeline book!' },
+    ],
+    collection: 'Timeline book',
+    pages: 8,
+    bandNote: 'Medium: five cards across the centuries. Tricky: six or seven, with their years — BCE and CE.',
+    music: 'spireArchive',
+    backdrop: '/backgrounds/sunken-archive.png',
+    firstItem: 'knot',
   },
 };
 

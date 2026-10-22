@@ -338,6 +338,13 @@ Old Ringwood is the tree who loses count of his rings.
 - **Tricky:** 6–7 cards with years, BCE and CE, and what caused what.
 - **Collection:** eight timeline sets (light, travel, writing, flight, food,
   music, buildings, medicine).
+- **Built (PR 8):** each card tapped goes in the next empty place, oldest
+  first (one on the line tapped comes back) — tapping a card then a gap made
+  a phone scroll between the tray and the line for every card. The sets'
+  events are inventions, discoveries and buildings, no wars, disasters or
+  religion. Tricky's years are on its cards; Gentle's and Medium's come out
+  when the drawer's filed. Index gives a quest too, so 📜 shows quietly over
+  its offer; the first round gives a Forget-Me-Knot.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 

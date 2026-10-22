@@ -607,6 +607,16 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'ringwoods-rings' });
   });
 
+  it('Index offers 📜 Index’s Timeline, quietly, over her own quest’s offer (PR 8)', () => {
+    render(<DialogueOverlay npcId="archive-index" />);
+    expect(screen.getAllByText(/Long Overdue/).length).toBeGreaterThan(0); // her quest's offer
+    const game = screen.getByText('📜 Index’s Timeline');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'index-timeline' });
+    expect(useSaveStore.getState().save!.flags['quest:archive-letter:offered']).toBeUndefined();
+  });
+
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
     const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
     quests.override = (id) =>
