@@ -99,6 +99,12 @@ export const PLACE: Record<Note, string> = {
   G: 'on the second line',
 };
 
+/** The (treble) staff's five lines, top to bottom, as a staff column draws them (C's ledger line under them at 80). */
+export const STAFF_LINES = [20, 32, 44, 56, 68] as const;
+
+/** Where a note's head sits on the staff: C on a ledger line under it, each note a half-step (a line to a space) higher. */
+export const staffY = (n: Note) => 80 - height(n) * 6;
+
 export const ECHOES_PER_ROUND = 3;
 
 /** Each echo of a round a note longer. */
@@ -168,16 +174,23 @@ export function echoWords(echo: Echo): string {
 
 /** The question about the tune's shape (it may be watched, not heard: the sound's off by default). */
 export function shapeQuestion(echo: Echo): string {
-  return echo.mode === 'staff' ? 'Read the staff: does the last note sit higher, lower or the same as the first?' : 'Did the tune end higher, lower or the same as it started?';
+  return echo.mode === 'staff'
+    ? 'Read the staff: does the last note sit higher, lower or the same as the first?'
+    : 'Did the tune end higher, lower or the same as it started? Higher notes are shorter chimes, further right.';
 }
 
-/** After the shape's answered. Never scolded. On the staff, the notes are said by their place: reading them is the job. */
+/**
+ * After the shape's answered. Never scolded. On the staff, the notes are said by their place: reading them is the job.
+ * By ear, which way the chimes went (a higher note's a shorter chime, further right — it can look "lower").
+ */
 export function shapeWords(echo: Echo, said: Shape): string {
   const is = shape(echo.notes);
   const first = echo.notes[0];
   const last = echo.notes[echo.notes.length - 1];
-  const say = (n: Note) => (echo.mode === 'staff' ? PLACE[n] : `on ${n}`);
-  const how = is === 'same' ? `it starts and ends ${say(first)}` : `it starts ${say(first)} and ends ${say(last)}, ${is === 'higher' ? 'higher up' : 'lower down'}`;
+  const staff = echo.mode === 'staff';
+  const say = (n: Note) => (staff ? PLACE[n] : `on ${n}`);
+  const way = staff ? (is === 'higher' ? ', higher up' : ', lower down') : is === 'higher' ? ' — a shorter chime, further right' : ' — a longer chime, further left';
+  const how = is === 'same' ? `it starts and ends ${say(first)}` : `it starts ${say(first)} and ends ${say(last)}${way}`;
   if (said === is) return `Yes — ${is === 'same' ? 'the same' : is}: ${how}.`;
   return `Not quite: ${how}. ${is === 'same' ? 'The same note' : cap(is)}!`;
 }
@@ -192,7 +205,8 @@ export function spotWords(echo: Echo & { mode: 'wrong' }, at: number): string {
 /** After a chime tapped as the `i`th note: right, or where the right one is — a shorter chime to the right, or a longer one to the left. */
 export function tapWords(echo: Echo, i: number, n: Note): string {
   const j = judge(echo, i, n);
-  if (j === 'right') return i + 1 === echo.notes.length ? 'That’s the whole tune!' : `${n} — yes!`;
+  // Counted, so two of the same note in a row are each said (a reader hears a line only when it changes).
+  if (j === 'right') return i + 1 === echo.notes.length ? 'That’s the whole tune!' : `${n} — yes! ${i + 1} of ${echo.notes.length}.`;
   return `That was ${n}. The ${ORDINAL[i]} note is ${j} — ${j === 'higher' ? 'a shorter chime, further right' : 'a longer chime, further left'}.`;
 }
 

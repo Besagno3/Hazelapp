@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 // Reduced motion: no zoom, so a round plays straight through.
 vi.mock('framer-motion', async (orig) => ({
@@ -30,7 +30,7 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { useSettingsStore } = await import('../../../store/settingsStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { CHIME, TUNE_BY_ID, echoFor, learnedLine, roundQueue, shape } = await import('../../../lib/minigames/echo');
+const { CHIME, STAFF_LINES, TUNE_BY_ID, echoFor, learnedLine, roundQueue, shape, staffY } = await import('../../../lib/minigames/echo');
 type Echo = import('../../../lib/minigames/echo').Echo;
 type Band = import('../../../content/minigames').Band;
 
@@ -142,7 +142,7 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toHaveFocus();
     fireEvent.click(screen.getByRole('button', { name: 'Higher' }));
     // Said by Lyra, and in the step's card by the chimes (her bubble's below the fold on a phone).
-    expect(screen.getAllByText('Not quite: it starts on E and ends on D, lower down. Lower!')).toHaveLength(2);
+    expect(screen.getAllByText('Not quite: it starts on E and ends on D — a longer chime, further left. Lower!')).toHaveLength(2);
 
     // Playing it back: focus on the first chime, which the step describes; a wrong one says where the right one is.
     expect(chime('C')).toHaveFocus();
@@ -151,6 +151,11 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(screen.getAllByText('That was C. The first note is higher — a shorter chime, further right.')).toHaveLength(2);
     expect(screen.getByRole('list', { name: '0 of 2 notes played' })).toBeInTheDocument();
     fireEvent.click(chime('E'));
+    expect(screen.getByRole('list', { name: '1 of 2 notes played' })).toBeInTheDocument();
+    expect(lyra()).toContain('E — yes! 1 of 2.');
+    // Too high a chime is a miss too: where the right one is, and nothing more played.
+    fireEvent.click(chime('E'));
+    expect(screen.getAllByText('That was E. The second note is lower — a longer chime, further left.')).toHaveLength(2);
     expect(screen.getByRole('list', { name: '1 of 2 notes played' })).toBeInTheDocument();
     // One note short isn't the tune.
     expect(screen.getByRole('heading', { name: 'Step 3 · Play it back' })).toBeInTheDocument();
@@ -162,8 +167,9 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(screen.getByRole('heading', { name: `${name}!` })).toHaveAccessibleDescription(`${learnedLine(e)} ${name} is in the Songbook!`);
     expect(onPage).toHaveBeenCalledTimes(1);
     expect(onPage).toHaveBeenCalledWith(e.tune, name);
-    // Lyra cheers (not "That's the whole tune!" again).
+    // Lyra cheers (not "That's the whole tune!" again) — in the card too; the chimes light up low to high, then rest.
     expect(lyra()).toContain('Bravo! That’s just how it goes. Ready for the next one?');
+    expect(screen.getAllByText('Bravo! That’s just how it goes. Ready for the next one?')).toHaveLength(2);
 
     // Two more, each a note longer, then the round.
     fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
@@ -184,6 +190,8 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     vi.useFakeTimers();
     play('gentle');
     const button = screen.getByRole('button', { name: '▶ Listen' });
+    expect(button).toHaveClass('bg-amber-300');
+    expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('Listen');
     button.focus();
     fireEvent.click(button);
     act(() => {
@@ -191,6 +199,8 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     });
     expect(button).toHaveAccessibleName('↻ Listen again');
     expect(button).toHaveFocus();
+    // Gold till heard, then quiet: Next is the gold one now.
+    expect(button).not.toHaveClass('bg-amber-300');
     // Next comes after it.
     const next = screen.getByRole('button', { name: 'Next — up or down?' });
     expect(button.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -225,6 +235,8 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(lyra()).toContain('Here’s the start of a tune: 3 notes.');
     listen();
     fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    // Her question, not the last tune's words.
+    expect(lyra()).toContain('Did the tune end higher, lower or the same as it started?');
     fireEvent.click(screen.getByRole('button', { name: 'Lower' }));
     expect(screen.getByRole('list', { name: '0 of 3 notes played' })).toBeInTheDocument();
     expect(shaking()).toEqual([]);
@@ -277,6 +289,8 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(chime('E')).toHaveFocus();
     fireEvent.keyDown(chime('E'), { key: 'ArrowLeft' });
     expect(chime('D')).toHaveFocus();
+    fireEvent.keyDown(chime('D'), { key: 'ArrowDown' });
+    expect(chime('C')).toHaveFocus();
   });
 
   it('answering while she plays stops her: the chimes are ready at once', () => {
@@ -332,11 +346,29 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(lyra()).toContain('Here’s the start of a tune: 2 notes. Press Listen!');
   });
 
+  it('Gentle, every tune its chimes play already in the Songbook: Lyra says there are more on Medium', () => {
+    const all = Object.fromEntries(roundQueue('gentle', () => false, 0).map((id) => [pageFlag('echos-call', id), true]));
+    setUp(2, all);
+    play('gentle');
+    expect(lyra()).toContain('You know every tune my three chimes can play — try Medium for three more!');
+    // Not when there's a page still to find.
+    cleanup();
+    setUp(2, { [pageFlag('echos-call', 'mary')]: true });
+    play('gentle');
+    expect(lyra()).not.toContain('You know every tune');
+  });
+
   it('Medium: all five chimes and four to six notes', () => {
     vi.useFakeTimers();
     setUp(5);
     play('medium');
     expect(within(chimes()).getAllByRole('button')).toHaveLength(5);
+    // Long to short, low to high.
+    const tall = within(chimes())
+      .getAllByRole('button')
+      .map((b) => parseFloat(b.style.height));
+    expect(tall).toEqual([...tall].sort((a, b) => b - a));
+    expect(new Set(tall).size).toBe(5);
     expect(screen.getByRole('heading', { name: 'Step 1 · Listen' })).toHaveAccessibleDescription('Listen to Lyra’s four notes, then play them back on the chimes.');
   });
 
@@ -357,8 +389,18 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
       'Note 4: on the bottom line',
       'Note 5: just under the staff',
     ]);
+    // Drawn where they're said: each head on its line or space, the ledger line under C alone.
+    const heads = staff.getAllByRole('img').map((c) => Number(c.querySelector('ellipse')!.getAttribute('cy')));
+    expect(heads).toEqual(read.notes.map(staffY));
+    expect(heads[0]).toBe(STAFF_LINES[4]); // E: the bottom line
+    expect(staff.getAllByRole('img').map((c) => !!c.querySelector('[data-ledger]'))).toEqual(read.notes.map((n) => n === 'C'));
     fireEvent.click(screen.getByRole('button', { name: SHAPE_LABEL[shape(read.notes)] }));
     expect(screen.getAllByText('Yes — lower: it starts on the bottom line and ends just under the staff, lower down.')).toHaveLength(2);
+    // The note to play next is outlined; a miss rings it red.
+    const col = (k: number) => staff.getAllByRole('img')[k];
+    expect(col(0)).toHaveClass('outline-dashed');
+    fireEvent.click(chime('C'));
+    expect(col(0)).toHaveClass('cg-shake');
     expect(lyra()).not.toMatch(/\bon [A-G]\b/);
     for (const n of read.notes) fireEvent.click(chime(n));
     expect(staff.getAllByRole('img')[0]).toHaveAccessibleName('Note 1: on the bottom line, played: E');
@@ -368,9 +410,26 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     // Mary, six: E D C D E E — Lyra plays the C as a D.
     const spot = echoFor('tricky', 0, 1, queue);
     expect(spot.mode).toBe('wrong');
-    listen();
+    // As she plays, the note she's on is marked (an ink ring and a ▼).
+    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(staff.getAllByRole('img')[0].querySelector('[data-marker]')).not.toBeNull();
+    expect(staff.getAllByRole('img')[1].querySelector('[data-marker]')).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(10_000);
+    });
+    expect(lyra()).toContain('Again, or on to the wrong note?');
+    // Nothing left lit once she's done.
+    expect(within(chimes()).getAllByRole('button').some((b) => b.textContent?.includes('♪'))).toBe(false);
     expect(heard()).toBe('Lyra played 6 notes: E (yellow), D (orange), D (orange), D (orange), E (yellow), E (yellow).');
     fireEvent.click(screen.getByRole('button', { name: 'Next — which was wrong?' }));
+    // A chime tapped here just rings, and says where to look.
+    fireEvent.click(chime('D'));
+    expect(screen.getAllByText('That chime just rings — tap the note on the staff that didn’t match it.')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: /^Note 1:/ })).toHaveClass('border-dashed');
+    screen.getByRole('button', { name: /^Note 1:/ }).focus();
     // Focus on the staff's first note, its group described by what to do.
     expect(screen.getByRole('button', { name: /^Note 1:/ })).toHaveFocus();
     expect(screen.getByRole('group', { name: 'The staff' })).toHaveAccessibleDescription('Tap the note on the staff that Lyra played wrong.');
@@ -396,6 +455,56 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
       vi.advanceTimersByTime(10_000);
     });
     expect(heard()).toBe('Lyra played 6 notes: E (yellow), D (orange), C (red), D (orange), E (yellow), E (yellow).');
+
+    // The third: read from the staff again — no listening, the steps from the start.
+    fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+    expect(screen.getByRole('heading', { name: 'Step 1 · Read the staff' })).toHaveFocus();
+    expect(screen.queryByRole('button', { name: /Listen/ })).toBeNull();
+    expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('Read: up or down?');
+  });
+
+  it('each step on a phone scrolls the page back to the board’s top — as little as shows its gold button; a tune’s result, to its Next', () => {
+    vi.useFakeTimers();
+    const { container } = render(<EchosCall def={MINIGAMES['echos-call']} band="gentle" round={0} onPage={() => true} onFinish={() => {}} />);
+    const page = container.firstElementChild as HTMLElement;
+    const board = document.querySelector('section[aria-labelledby="ec-step"]') as HTMLElement;
+    // A page that scrolls: 500 tall, its board 100 down, every button's bottom at 900.
+    Object.defineProperty(page, 'scrollHeight', { value: 1500 });
+    Object.defineProperty(page, 'clientHeight', { value: 500 });
+    const scrollTo = vi.fn();
+    page.scrollTo = scrollTo as unknown as typeof page.scrollTo;
+    const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON() {} }) as DOMRect;
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this === page) return rect(0, 500);
+      if (this === board) return rect(100, 800);
+      return rect(0, 900);
+    });
+    try {
+      listen();
+      fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+      // The shape step: the board's top (100), not as far as its buttons (900 + 12 − 500 = 412).
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 100, behavior: 'auto' });
+      fireEvent.click(screen.getByRole('button', { name: 'Lower' }));
+      fireEvent.click(chime('E'));
+      fireEvent.click(chime('D'));
+      // The result: on to Next.
+      expect(scrollTo).toHaveBeenLastCalledWith({ top: 412, behavior: 'auto' });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('where the page doesn’t scroll (a split screen), the step’s gold button is brought into view instead', () => {
+    const into = vi.fn();
+    const was = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = into;
+    try {
+      play('gentle');
+      // The listen step's: Next's place, kept under Listen.
+      expect(into.mock.contexts.at(-1)).toHaveTextContent('Next — up or down?');
+    } finally {
+      Element.prototype.scrollIntoView = was;
+    }
   });
 
   it('the sound switch: always “Sounds”, pressed when on; turned on, it rings a chime at once', () => {
