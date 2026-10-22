@@ -8,6 +8,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Hazel Quest is an adventure game for kids aged 6–18 where every attack, spell and shield is powered by answering a question in math, science, engineering and more." />
     <meta name="theme-color" content="#1e1b4b" />
+    <!-- The home-screen app (#5): Add to Home Screen opens the game with no browser bars -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Hazel Quest" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- The splash's colour until the game draws (#5 review): no white flash while its script loads. Only while #root is empty, so no screen's backdrop changes -->
+    <style>html:has(#root:empty) { background-color: #1e1b4b; }</style>
     <title>Hazel Quest</title>
   </head>
   <body>
