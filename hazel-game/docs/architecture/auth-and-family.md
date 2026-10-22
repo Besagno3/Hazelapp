@@ -282,8 +282,8 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   (`aria-hidden` bars; the XP chart says its weeks and best day in words and
   has a table twin), the week is an ordered list read day by day (with each
   day's minutes).
-  **Days played and their play (#29, #169, #172, #173; migrations 0025 +
-  0026, `lib/playDays.ts`):** when a kid plays
+  **Days played and their play (#29, #169, #172, #173, #177, #179;
+  migrations 0025–0027, `lib/playDays.ts`):** when a kid plays
   on a new day — a round, a battle, **any XP earned** (`profileStore.addXp`
   runs `recordActivity`, so typing, the Library, shrines and the Scriptorium
   count, and the streak and "last played" agree with the week), or
@@ -291,15 +291,25 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   replayed; a 🍂 Falling Leaves round with a leaf caught; a Scriptorium page —
   each calls `recordActivity`, review round 2) — that day
   (their device's own `YYYY-MM-DD`) is kept on the device as a record of the
-  day's play (`hazel-play-history-<kid>`, at most 8, a week back, never more
+  day's play (`hazel-play-parts-<kid>`, at most 8, a week back, never more
   than a day ahead — a clock that was set ahead, #89 review round 2; in memory
-  when storage can't be written — its own key since #89 review round 1, so a
-  tab on an older build, which reads and writes `hazel-play-days-<kid>` as a
-  list of days, can't write over the records; the days it leaves there are
-  folded in as days played and that key cleared, #178 — and marked `bare`:
-  that build's XP for the day was never noted, so the day goes without
-  `noted` and keeps "played, XP not recorded", even once this device plays
-  it too, #181 review): the XP earned
+  when storage can't be written). Each build's records have their own key,
+  and a build adds play only under its own (#178, #179 review round 1): the
+  #89 build's, `hazel-play-history-<kid>`, is a legacy-only source — each of
+  its records is sent as it is through `note_play_history` into the day's
+  legacy part, which keeps the larger per day, so this tab and a #89 tab
+  still open sending the same record never add it up; this build never adds
+  play to one (it marks one played or sent, as that build would), and a day
+  there leaves once it's sent and past (today's stays for a #89 tab still
+  writing it) — it shared that key once, and a #89 tab rewrote this build's
+  record and sent it, play and all, to the legacy part: the day counted
+  twice; main's from before the records (#88), `hazel-play-days-<kid>`, a list
+  of days, is folded in as days played and cleared (#178) — and marked
+  `bare`: that build's XP for the day was never noted, so the day goes
+  without `noted` and keeps "played, XP not recorded", even once this device
+  plays it too, #181 review. A day either build's record counts as played is
+  played on this device (both records go), and the minutes of both count
+  towards five (`keptDay`, #177): the XP earned
   (#169, `addXp` → `addDayXp`, even while the row is unread), active minutes
   (#172, `lib/activeMinutes.ts`, wired in `App`: every 60 s a minute counts
   with the game on screen, the tab in view and a key, pointer or touch in
@@ -316,11 +326,17 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   boost's first step (+1) counts, #89 review round 2; no level while the row
   is unread). **Only a played
   day goes up** (`notePlayDay` ← `recordActivity`; a battle fled after
-  answering counts as one, #89 review round 2): minutes or answers on a day
-  nobody has played — a kid who only walks the world before anything else
-  that day — wait on the device unsent and go only if the day is played, so
-  the week, the streak and "last played" agree (the lead, 2026-10-21;
-  #177). A day the profile already counts as played — its last day played,
+  answering counts as one, #89 review round 2), so the week, the streak and
+  "last played" agree — and **five active minutes play a day** (#177, the
+  lead, 2026-10-22: once this device has counted `PLAY_DAY_MINUTES` for the
+  kid on a day nothing has counted yet, the minute watcher's `countDay` →
+  `profileStore.countMinutesPlayed` → `recordActivity`; once a day per kid —
+  the record is marked played, shared by every window, and each window
+  remembers the day it counted; never on 👪, the family screens or the PIN
+  pad, never another kid's minutes). So a kid who only walks the world has
+  the day, its minutes and answers sent; minutes or wrong answers on a day
+  with less than that and nothing else wait on the device unsent and go only
+  if the day is played. A day the profile already counts as played — its last day played,
   or a day its live streak proves (`provesPlayed`, `lib/streak.ts`), so
   another device or browser played it — is this device's to send too: play
   noted for it marks it played as it's noted (`Noting.played`, from
@@ -331,19 +347,44 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   marked only today, and only what was kept as the profile loaded, so
   minutes and wrong answers noted after never went.
   Played days
-  are sent to `note_play_history(kid, days)` (migration 0026) — security
-  definer, run in UTC whatever time zone a request asks for, the family's
-  own kid only (42501 "not your player"), each `{day, xp, minutes, topics,
-  noted}`, days outside 7 back to 1 ahead of the server's date skipped, at
-  most 31 a call, values clamped (the limits `lib/playDays` keeps a record
-  to, and 📈's reader reads one with — `playDays.limits.test` reads 0026,
-  `progress.ts` and `profile.ts` and holds them together, #182), the larger
-  total kept per day and per topic the tally with more answers (a tie takes
-  the new one), a day sent with `noted: true` marked `noted_play` (#181 —
-  every day the app sends but a `bare` one; never unset, never by
-  `note_play_days`), and deleting **every**
-  kid's days older than 35 (was 14 before 0026; any family's note — at
-  most 1,000 of the oldest a call, by the index on `day`, so no note risks
+  are sent to `note_device_play(kid, device, days)` (migration 0027, #179)
+  as this browser's part of the day — `deviceId()`, a random UUID made once
+  per browser and kept under `hazel-device-id` (its tabs share it, as they
+  share the records; in memory for the session when storage can't be
+  written) — security definer, run in UTC whatever time zone a request asks
+  for, the family's own kid only (42501 "not your player"), a device of 1–64
+  letters, digits or dashes and never `legacy` (22023 "bad device"), each
+  `{day, xp, minutes, topics, noted}`, days outside 7 back to 1 ahead of the
+  server's date skipped, at most 31 a call, values clamped (the limits
+  `lib/playDays` keeps a record to, and 📈's reader reads one with —
+  `playDays.limits.test` reads 0026, 0027, `progress.ts` and `profile.ts` and
+  holds them together, #182). Each device's part (`play_day_parts`, readable
+  and writable by no client) keeps the larger total and per topic the tally
+  with more answers (a tie takes the new one) — so a device re-sending its
+  growing day never counts it twice — and the `play_days` row is worked out
+  again from its parts on every note: XP and minutes added (capped at
+  100,000 / 1,440), per topic `a` and `r` added (≤ 10,000) and `l` from the
+  part whose play changed last, `noted_play` if any part was sent with
+  `noted: true` (#181 — every day the app sends but a `bare` one; never
+  unset, never by `note_play_days`), at most 16 topics, those already on the
+  day first; two notes of one day take turns on its row (`for update`); at
+  most **8 devices' parts a kid's day** (#179 review round 1: a 9th new
+  device's day is skipped and counted out of the days noted, never an error,
+  so no family can make a day's sum re-add hundreds of parts under its lock;
+  the legacy part isn't a device's, and a device with a part that day always
+  adds to it). Where a record goes is decided once and stored on it
+  (`part`: this browser's id, or `legacy`) **before** its first send, and
+  every later send of it goes there (#179 review round 1 — a send whose
+  answer was lost, or two tabs sending at once across the 0027 switch, can't
+  put one record in two parts): this browser's part, or the legacy part
+  while `note_device_play` is known to be missing — `note_play_history(kid,
+  days)` (0026; 0027 makes it write the day's `legacy` part — so a tab still
+  on the #89 build adds to the devices' parts); only "no such function" for
+  the send that just chose this browser's part moves the record to the legacy
+  part (stored before that call too). A day noted before it had any part
+  keeps what its row held as that `legacy` part. Every note deletes **every**
+  kid's days and parts older than 35 (was 14 before 0026; any family's note — at
+  most 1,000 of the oldest of each a call, by the index on `day`, so no note risks
   the API's statement timeout, review round 2; rows another note is deleting
   are skipped, `skip locked`). Today's record stays on the device and goes
   again whole once it grows; a past day leaves once sent; a send asked for
@@ -355,9 +396,14 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   can't delete history at two weeks) and the rest waits on the device until
   0026 is found. **The streak (#28) follows the same days:** `recordActivity`
   is the one path, so a day spent only on typing, the Library or a shrine
-  keeps the 🔥 streak going too — intended (the lead, 2026-10-21). A failed send
-  backs off: no `note_play_history` → the days alone to `note_play_days`;
-  neither (0025 not applied) → nothing more; either is asked for again
+  keeps the 🔥 streak going too — intended (the lead, 2026-10-21) — and so
+  does a day spent only walking the world: five active minutes on the device
+  count it (#177, the lead, 2026-10-22). A failed send
+  backs off: no `note_device_play` → `note_play_history` as before for a
+  record whose part that send chose (a record already in a device's part
+  waits for 0027); no `note_play_history` → the
+  days alone to `note_play_days`; none (0025 not applied) → nothing more;
+  each is asked for again
   after `MISSING_RECHECK_MS` (10 min) and on the next profile load
   (`recheckPlayFunctions`; #89 review round 2: remembered for the tab's
   life, a tablet left open across the deploy dropped a week of play);
@@ -365,10 +411,11 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   any other refusal → the next new day or profile load (`flushPlayDays(kid,
   { now })`). `play_days` (profile, day, and since 0026 the day's `xp`,
   `minutes`, `topics` and `noted_play`) is readable by the family for the last five weeks
-  only (RLS) and writable by no client, only by `note_play_history` /
-  `note_play_days`. `play_history_since` (one row per kid: the first day
-  ever noted, set by both, backfilled by 0026, never tidied) is readable by
-  the family too. Removing a kid or closing the account deletes both
+  only (RLS) and writable by no client, only by `note_device_play` /
+  `note_play_history` / `note_play_days`; `play_day_parts` (0027: kid, day,
+  device and that device's numbers) by no client at all. `play_history_since` (one row per kid: the first day
+  ever noted, set by every note, backfilled by 0026, never tidied) is readable by
+  the family too. Removing a kid or closing the account deletes all three
   (cascade). Kids have no login, so "the kid's
   own session" is the family's sign-in playing as them, as with saves.
 

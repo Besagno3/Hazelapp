@@ -69,7 +69,9 @@ measured ~106 KB gzipped for one bar chart.
   stores — no invented history. The days a kid played are stored for it, and
   since migration 0026 what they played on each — the XP earned, active
   minutes, answers asked / right per topic — noted on the device and sent
-  with the day (`play_days`, migrations 0025 + 0026, kept 35 days), with each
+  with the day (`play_days`, migrations 0025 + 0026, kept 35 days; since
+  0027 each device's part of a day is kept and the day is their sum, so a
+  tablet and a laptop on one day add up — #179), with each
   kid's first day ever noted (`play_history_since`), so a gap before it reads
   "not recorded"; a day noted without its play (an older app) says so, never
   0 XP, and a day noted with its play and none says "0 XP" (`noted_play`,
@@ -77,10 +79,11 @@ measured ~106 KB gzipped for one bar chart.
   round, a battle, a battle fled after answering… — `recordActivity`), or
   the profile already counts it (its last day played, or a day its live
   streak proves — another device played it; then play noted for it goes up
-  whenever it's noted, #89 review round 2): a kid who only walks the world
-  on a day nobody has played has those minutes kept on the device unsent,
-  so the week, the streak and "last played" agree (the lead, 2026-10-21;
-  #177). One pair of words on the page and in the notice: days played "are
+  whenever it's noted, #89 review round 2) — and five active minutes on
+  the device count the day as played (`recordActivity`, so walking the
+  world keeps the 🔥 streak too — the lead, 2026-10-22, #177): a day with
+  less and nothing else keeps its minutes on the device unsent, so the
+  week, the streak and "last played" always agree. One pair of words on the page and in the notice: days played "are
   recorded from" the first day noted; a day is "played", has "no play
   recorded", or (before that) is "not recorded"; a day played may have its
   "XP not recorded" — and a total that leaves days out is "At least …"

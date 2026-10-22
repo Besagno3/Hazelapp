@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const addDayMinute = vi.hoisted(() => vi.fn(async () => {}));
-vi.mock('./playDays', () => ({ addDayMinute }));
+// A stand-in for the day records (lib/playDays): each kid's minutes per day,
+// and whether the day counts as played — as addDayMinute keeps them.
+const { addDayMinute, keptDay, kept } = vi.hoisted(() => {
+  const kept = new Map<string, { minutes: number; played: boolean }>();
+  return {
+    kept,
+    addDayMinute: vi.fn(async (kidId: string, day: string, noting?: { played?: boolean }) => {
+      const had = kept.get(`${kidId}|${day}`) ?? { minutes: 0, played: false };
+      kept.set(`${kidId}|${day}`, { minutes: had.minutes + 1, played: had.played || !!noting?.played });
+    }),
+    keptDay: vi.fn((kidId: string, day: string) => kept.get(`${kidId}|${day}`) ?? null),
+  };
+});
+vi.mock('./playDays', () => ({ addDayMinute, keptDay }));
 
-const { claimMinute, minuteCounts, minuteStampKey, watchActiveMinutes, MINUTE_GAP_MS, MINUTE_MS } = await import('./activeMinutes');
+const { claimMinute, minuteCounts, minuteStampKey, watchActiveMinutes, MINUTE_GAP_MS, MINUTE_MS, PLAY_DAY_MINUTES } = await import('./activeMinutes');
 
 const setVisible = (state: 'visible' | 'hidden') => {
   Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
@@ -31,6 +43,7 @@ describe('watchActiveMinutes: a minute a minute while someone plays (#172)', () 
     vi.setSystemTime(new Date('2026-10-21T16:00:00'));
     localStorage.clear();
     addDayMinute.mockClear();
+    kept.clear();
     setVisible('visible');
     kid = 'kid-1';
     inGame = true;
@@ -153,6 +166,90 @@ describe('watchActiveMinutes: a minute a minute while someone plays (#172)', () 
     } finally {
       stopOther();
     }
+  });
+});
+
+describe('five active minutes count the day as played (#177)', () => {
+  let kid: string | null;
+  let inGame: boolean;
+  let stop: () => void;
+  const countDay = vi.fn();
+  /** `n` minutes with a key pressed in each, on a game screen. */
+  const play = (n: number) => {
+    for (let i = 0; i < n; i++) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      vi.advanceTimersByTime(MINUTE_MS);
+    }
+  };
+  const watch = (played?: (kidId: string, day: string) => boolean) =>
+    (stop = watchActiveMinutes({ kid: () => kid, inGame: () => inGame, played, countDay }));
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-21T16:00:00'));
+    localStorage.clear();
+    kept.clear();
+    addDayMinute.mockClear();
+    countDay.mockReset();
+    setVisible('visible');
+    kid = 'kid-1';
+    inGame = true;
+  });
+  afterEach(() => {
+    stop();
+    vi.useRealTimers();
+  });
+
+  it('four minutes count nothing; the fifth counts the day — once, however long the walk goes on', () => {
+    expect(PLAY_DAY_MINUTES).toBe(5);
+    watch();
+    play(PLAY_DAY_MINUTES - 1);
+    expect(countDay).not.toHaveBeenCalled();
+    play(1);
+    expect(countDay).toHaveBeenCalledTimes(1);
+    expect(countDay).toHaveBeenCalledWith('kid-1', '2026-10-21');
+    // Still not marked played here (the stand-in doesn't): this window never asks twice in a day.
+    play(10);
+    expect(countDay).toHaveBeenCalledTimes(1);
+    // The next day's five minutes count that day.
+    vi.setSystemTime(new Date('2026-10-22T09:00:00'));
+    play(PLAY_DAY_MINUTES);
+    expect(countDay).toHaveBeenCalledTimes(2);
+    expect(countDay).toHaveBeenLastCalledWith('kid-1', '2026-10-22');
+  });
+
+  it('a day already played — by the profile, or marked here (another window counted it) — is never counted again', () => {
+    watch((id, day) => id === 'kid-1' && day === '2026-10-21');
+    play(PLAY_DAY_MINUTES + 3);
+    expect(countDay).not.toHaveBeenCalled();
+    stop();
+    kid = 'kid-2';
+    kept.set('kid-2|2026-10-21', { minutes: 7, played: true });
+    watch();
+    play(2);
+    expect(countDay).not.toHaveBeenCalled();
+  });
+
+  it("another kid's minutes don't count: each kid's five are their own", () => {
+    watch();
+    play(PLAY_DAY_MINUTES - 1); // kid 1's four
+    kid = 'kid-2'; // Switch player
+    play(1);
+    expect(countDay).not.toHaveBeenCalled();
+    play(PLAY_DAY_MINUTES - 1);
+    expect(countDay).toHaveBeenCalledTimes(1);
+    expect(countDay).toHaveBeenCalledWith('kid-2', '2026-10-21');
+  });
+
+  it('only minutes on a game screen: a fifth minute with 👪 or "Who\'s playing?" showing counts nothing', () => {
+    watch();
+    play(PLAY_DAY_MINUTES - 1);
+    inGame = false;
+    play(3);
+    expect(countDay).not.toHaveBeenCalled();
+    expect(kept.get('kid-1|2026-10-21')?.minutes).toBe(PLAY_DAY_MINUTES - 1);
+    inGame = true;
+    play(1);
+    expect(countDay).toHaveBeenCalledTimes(1);
   });
 });
 

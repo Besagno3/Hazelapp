@@ -40,8 +40,14 @@ Covers: applying the schema and the migration rules, the CI jobs and SQL tests, 
   a day's play and `noted_play` (`noted: true`), the first day noted, topic
   starts, their days (`on`) and a corrected birth date's ages (0026,
   #169–#174, #181, #183 — it
-  re-applies 0026 inside its own transaction with psql's `\ir`, to test the
-  backfill and the bundle's replay over live data);
+  re-applies 0026, then 0027 as the bundle does, inside its own transaction
+  with psql's `\ir`, to test the backfill and the bundle's replay over live
+  data); `play_day_devices.test.sql` each device's part of a day and their
+  sum, the legacy part (a lost answer's re-send is one record), the caps, 8
+  devices a day, the refusals and the parts' tidy-up (0027,
+  #179) and `play_day_devices_lock.test.sql` two notes of one day taking
+  turns (two dblink sessions, its own committed family, and a test-only
+  trigger that pauses one note between adding up and writing);
   the other tests that act as a grown-up open it first, on the stub's
   `request.jwt.claims` session). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.

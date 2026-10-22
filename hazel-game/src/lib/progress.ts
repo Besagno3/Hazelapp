@@ -38,8 +38,9 @@ export const HISTORY_COLUMNS = 'profile_id, day, xp, minutes, topics, noted_play
 /**
  * A day's play as the page reads it (#169, #172, #173): the record, and
  * whether the database says it was noted with its play (`noted_play`, #181 —
- * true once `note_play_history` got the day with `noted: true`, zeros
- * included; false for a day an older app noted alone, or one an older build
+ * true once a device's part of the day came with `noted: true`, zeros
+ * included (0027 — `note_play_history` before it); false for a day an older
+ * app noted alone, or one an older build
  * played too — its XP there never noted, whatever this device added (#181
  * review); absent when the row doesn't say).
  */

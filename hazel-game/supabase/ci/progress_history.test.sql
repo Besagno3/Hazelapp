@@ -45,7 +45,10 @@ insert into public.profiles (id, parent_id, display_name, icon, birth_year, birt
 -- 1) Applied over days noted before it: those rows read as nothing recorded
 --    (zeros, no topics), and each kid's first day noted is backfilled from
 --    the days kept — a re-run keeps the earlier one. (0026 is re-applied
---    here, in this transaction, as the bundle replays it on every run.)
+--    here, in this transaction, as the bundle replays it on every run — and
+--    0027 after it, as the bundle does, so the note functions below are the
+--    ones a project runs: note_play_history writes a day's 'legacy' part, and
+--    for one writer the day is that part — 0026's rules, #179.)
 insert into public.play_days (profile_id, day) values
   ('00000000-0000-0000-0000-000000005a1a', current_date - 3),
   ('00000000-0000-0000-0000-000000005a1a', current_date - 20),
@@ -55,6 +58,7 @@ insert into public.play_days (profile_id, day) values
 insert into public.play_history_since (profile_id, since) values
   ('00000000-0000-0000-0000-000000005b1a', current_date - 20);
 \ir ../migrations/0026_progress_history.sql
+\ir ../migrations/0027_play_day_devices.sql
 do $$
 begin
   assert (select bool_and(xp = 0 and minutes = 0 and topics = '{}'::jsonb and not noted_play) from public.play_days),
@@ -777,12 +781,15 @@ end $$;
 reset role;
 delete from public.grown_up_unlocks;
 
--- 10) Re-applying 0026 (the bundle replays every migration) changes no data.
+-- 10) Re-applying 0026 and 0027 (the bundle replays every migration)
+--     changes no data.
 create temp table before_rerun as
   select (select jsonb_agg(to_jsonb(d) order by profile_id, day) from public.play_days d) as days,
          (select jsonb_agg(to_jsonb(s) order by profile_id) from public.play_history_since s) as since,
-         (select jsonb_object_agg(id, skill_starts) from public.profiles) as starts;
+         (select jsonb_object_agg(id, skill_starts) from public.profiles) as starts,
+         (select jsonb_agg(to_jsonb(p) order by profile_id, day, device) from public.play_day_parts p) as parts;
 \ir ../migrations/0026_progress_history.sql
+\ir ../migrations/0027_play_day_devices.sql
 do $$
 begin
   assert (select days from before_rerun) = (select jsonb_agg(to_jsonb(d) order by profile_id, day) from public.play_days d),
@@ -791,6 +798,9 @@ begin
     'the first days are as they were';
   assert (select starts from before_rerun) = (select jsonb_object_agg(id, skill_starts) from public.profiles),
     'the starts are as they were';
+  assert (select parts from before_rerun)
+           = (select jsonb_agg(to_jsonb(p) order by profile_id, day, device) from public.play_day_parts p),
+    'the days'' parts are as they were (0027)';
 end $$;
 
 -- 11) Grants and settings.
@@ -827,6 +837,8 @@ begin
     'a removed kid''s first day goes';
   assert not exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a1b'),
     'and their days';
+  assert not exists (select 1 from public.play_day_parts where profile_id = '00000000-0000-0000-0000-000000005a1b'),
+    'and their days'' parts (0027)';
   assert exists (select 1 from public.play_history_since where profile_id = '00000000-0000-0000-0000-000000005a1a'),
     'their brother''s stays';
 end $$;

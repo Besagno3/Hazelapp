@@ -65,7 +65,9 @@ Covers: the xstate game-flow machine, the feature folders, `saveStore` (write-th
 - **`authStore`** holds the Supabase user/session; **`profileStore`** holds the
   `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
   `recordActivity` is the one way a day counts as played (the streak, last
-  played, 📈 Progress's week — #28, #29); `setSkillLevel` notes a topic's
+  played, 📈 Progress's week — #28, #29): a round, a battle, any XP, finished
+  typing — and five active minutes walking the world (`countMinutesPlayed`,
+  called by the minute watcher in `App`, #177); `setSkillLevel` notes a topic's
   real start the first time its level is saved, on the profile
   (`skill_starts`, written with the level; a database without the column —
   PostgREST 42703 / PGRST204 — is read and written without it for

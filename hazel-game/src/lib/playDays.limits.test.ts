@@ -3,16 +3,18 @@ import { describe, it, expect } from 'vitest';
 // ones the database clamps it to can't drift apart (#182) — drifted, the
 // server would skip or clamp a day quietly.
 import migration0026 from '../../supabase/migrations/0026_progress_history.sql?raw';
+// 0027 (#179) takes a day the same way, into a device's part, and adds the parts up to the same limits.
+import migration0027 from '../../supabase/migrations/0027_play_day_devices.sql?raw';
 // …and the readers' text, so they take the same limits rather than repeating them (#182 review).
 import progressSource from './progress.ts?raw';
 import profileSource from './profile.ts?raw';
-import { DAYS_AHEAD, DAYS_BACK, MAX_ANSWERS, MAX_MINUTES, MAX_TOPICS, MAX_XP, PENDING_MAX, TOPIC_KEY } from './playDays';
+import { DAYS_AHEAD, DAYS_BACK, DEVICE_ID, LEGACY_PART, MAX_ANSWERS, MAX_MINUTES, MAX_TOPICS, MAX_XP, PENDING_MAX, TOPIC_KEY } from './playDays';
 import { MAX_PLAYER_AGE, MAX_SKILL_LEVEL, MIN_SKILL_LEVEL, MIN_START_AGE } from './age';
 
-/** A function's body in 0026 (between its `$$`s). */
-function body(name: string): string {
-  const m = migration0026.match(new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$;`));
-  if (!m) throw new Error(`0026 has no function ${name}`);
+/** A function's body in a migration (between its `$$`s) — 0026's unless another is named. */
+function body(name: string, migration = migration0026): string {
+  const m = migration.match(new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$;`));
+  if (!m) throw new Error(`no function ${name}`);
   return m[1];
 }
 
@@ -61,6 +63,38 @@ describe("the app keeps a day to 0026's limits (#182)", () => {
     const reader = appBody(progressSource, 'playDayFromRow');
     for (const name of ['MAX_XP', 'MAX_MINUTES', 'MAX_ANSWERS', 'MIN_SKILL_LEVEL', 'MAX_SKILL_LEVEL']) expect(reader).toContain(name);
     expect(reader).not.toMatch(/\b(100_?000|1_?440|10_?000)\b/);
+  });
+});
+
+describe("…and to 0027's, which takes a day per device the same way (#179)", () => {
+  const note = body('play_days_note', migration0027);
+  const add = body('play_day_add_part', migration0027);
+  const device = body('note_device_play', migration0027);
+
+  it('the window, the days a call, the clamps: as 0026', () => {
+    expect(numbers(note, /generate_series\(-(\d+), (\d+)\)/g)).toEqual([DAYS_BACK, DAYS_AHEAD]);
+    const [most] = numbers(note, /jsonb_array_length\(p_days\) > (\d+)/g);
+    expect(PENDING_MAX).toBeLessThanOrEqual(most);
+    expect(numbers(note, /least\(greatest\(trunc\(\(v_el ->> 'xp'\)::numeric\), (\d+)\), (\d+)\)/g)).toEqual([0, MAX_XP]);
+    expect(numbers(note, /least\(greatest\(trunc\(\(v_el ->> 'minutes'\)::numeric\), (\d+)\), (\d+)\)/g)).toEqual([0, MAX_MINUTES]);
+    expect(note).toContain('public.play_topics_clean(');
+  });
+
+  it("a part's checks, and the day's sum capped at the same limits", () => {
+    expect(numbers(migration0027, /check \(xp between (\d+) and (\d+)\)/g)).toEqual([0, MAX_XP]);
+    expect(numbers(migration0027, /check \(minutes between (\d+) and (\d+)\)/g)).toEqual([0, MAX_MINUTES]);
+    expect(numbers(add, /least\(sum\(q\.xp\), (\d+)\)/g)).toEqual([MAX_XP]);
+    expect(numbers(add, /least\(sum\(q\.minutes\), (\d+)\)/g)).toEqual([MAX_MINUTES]);
+    expect(numbers(add, /least\(sum\(\(e\.value ->> '[ar]'\)::integer\), (\d+)\)/g)).toEqual([MAX_ANSWERS, MAX_ANSWERS]);
+    expect(numbers(add, /limit (\d+)/g)).toEqual([MAX_TOPICS]);
+  });
+
+  it("a device id: the app's rule is the table's and note_device_play's, and the legacy part is reserved", () => {
+    const rules = [...migration0027.matchAll(/device !?~ '([^']+)'/g)].map((m) => m[1]);
+    expect(rules).toHaveLength(2);
+    for (const rule of rules) expect(rule).toBe(DEVICE_ID.source);
+    expect(device).toContain(`lower(p_device) = '${LEGACY_PART}'`);
+    expect(body('note_play_history', migration0027)).toContain(`'${LEGACY_PART}'`);
   });
 });
 

@@ -75,7 +75,9 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
       '(stored scrambled, so no one can read it back) and their game progress (answers, levels, ' +
       'items and saved game). For each day they play, we also keep a note: how long they ' +
       'played, the XP they earned, their right and wrong answers in each topic, and the level ' +
-      "each topic reached. We do not ask for a child's full name, email, photo, voice or location.",
+      'each topic reached. If they play on more than one device, each one\'s share of the day ' +
+      'is kept under a random code the browser makes up (linked to nothing outside the game), ' +
+      "so the totals add up. We do not ask for a child's full name, email, photo, voice or location.",
   },
   {
     heading: 'How we use it',

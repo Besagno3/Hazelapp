@@ -119,6 +119,21 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   the day it was noted ("on", topic_start_day) and the kid's birth date — again on a grown-up's
 #   correction (trigger profiles_keep_skill_starts, kid_age_on); a start's level is never changed.
 
+# Two devices on one day add up (#179) — migration 0027, any time (either order with the app)
+#   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`; 0027 is new). No edge-function
+#   deploy. Before it, the new app finds no note_device_play and sends days with note_play_history as before
+#   (asked again every 10 minutes and on a profile load), so nothing breaks. After it, each device's day is its
+#   own part (play_day_parts, no client access) and play_days holds their sum; an old open tab's
+#   note_play_history writes the day's 'legacy' part, so it adds to the new app's devices instead of replacing
+#   them, and a day noted before 0027 keeps what it holds (as that legacy part) the first time a device writes
+#   to it. An old tab and a new tab in one browser never count a day twice (each build keeps its own records:
+#   the old tab's go to the legacy part, the new tab's to its device's). A day two devices both sent through
+#   note_play_history (an old tab on each, or new tabs before 0027) keeps the larger of the two, as before; days
+#   add up from then on. At most 8 devices' parts a kid's day (a 9th new device's day is skipped). Parts are
+#   tidied at 35 days by the same notes.
+#   The draft privacy notice now says each device's share of a day is kept under a random code the browser
+#   makes up (#124, for the lawyer). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
+
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
 #        insert into public.admins (user_id) select id from auth.users where email = '<your sign-in email>';

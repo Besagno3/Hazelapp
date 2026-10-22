@@ -1,4 +1,4 @@
-import { addDayMinute } from './playDays';
+import { addDayMinute, keptDay } from './playDays';
 import { todayIso } from './streak';
 
 /**
@@ -17,7 +17,16 @@ import { todayIso } from './streak';
  * (review round 2: a minute went to whoever was playing at the tick, so
  * across Switch player the outgoing kid's last part-minute — or the PIN
  * typed on "Who's playing?" — became the incoming kid's minute).
+ *
+ * A few minutes of real play count the day as played (#177, the lead's
+ * call): once this device has counted `PLAY_DAY_MINUTES` for the kid on a
+ * day nothing else has counted yet, the day is played — the streak, "last
+ * played", 📈's week and the minutes agree, and the day goes up like any
+ * other. So a kid who only walks the world keeps their 🔥 streak too.
  */
+
+/** Active minutes on this device that count a day as played (#177). */
+export const PLAY_DAY_MINUTES = 5;
 
 /** How often a minute is judged, and how recent the last key, pointer or touch must be. */
 export const MINUTE_MS = 60_000;
@@ -77,12 +86,17 @@ const INPUT_EVENTS = ['keydown', 'pointerdown', 'touchstart'] as const;
  * going out of view forgets the last input, so coming back needs a new one.
  * `played`: whether the profile already counts that day as played, so the
  * minute goes up like a played day's play (`lib/playDays`, review round 2).
- * Returns the clean-up.
+ * `countDay`: called once the kid's day reaches `PLAY_DAY_MINUTES` here and
+ * isn't played yet (#177 — `App` counts it with `recordActivity`, which
+ * marks the day's record played, so it's called once a day per kid; every
+ * window of the game on this device shares that record). Returns the
+ * clean-up.
  */
 export function watchActiveMinutes({
   kid,
   inGame,
   played,
+  countDay,
   win = window,
 }: {
   /** The kid playing on this page, if any. */
@@ -91,12 +105,16 @@ export function watchActiveMinutes({
   inGame: () => boolean;
   /** Whether the profile already counts `day` as played for the kid (`profileStore.dayPlayed`). */
   played?: (kidId: string, day: string) => boolean;
+  /** Count `day` as played for the kid: five active minutes on it here (#177). */
+  countDay?: (kidId: string, day: string) => void;
   win?: Window;
 }): () => void {
   const doc = win.document;
   let lastInputAt = Number.NEGATIVE_INFINITY;
   /** Whose input `lastInputAt` was. */
   let inputBy: string | null = null;
+  /** The day each kid's minutes last counted as played in this window (#177): never twice. */
+  const counted = new Map<string, string>();
   const onInput = () => {
     if (!inGame()) return; // the PIN pad, "Who's playing?", 👪: not play
     lastInputAt = Date.now();
@@ -116,6 +134,11 @@ export function watchActiveMinutes({
     if (!minuteCounts(check) || !claimMinute(id, check.now)) return;
     const day = todayIso();
     void addDayMinute(id, day, { played: played?.(id, day) ?? false });
+    // The minute is in the day's record now: enough of them count the day.
+    const kept = keptDay(id, day);
+    if (!kept || kept.played || kept.minutes < PLAY_DAY_MINUTES || counted.get(id) === day) return;
+    counted.set(id, day);
+    countDay?.(id, day);
   }, MINUTE_MS);
   return () => {
     win.clearInterval(timer);
