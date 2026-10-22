@@ -904,7 +904,7 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   and typed; kept by its number (`penPalReplyFlag`, never free text) and
   read back by the giver at the end (`penPalReadLine`). `QuestConversation`
   carries its `questId` and `step` for it.
-- **Mini-games (docs/DESIGN-MINIGAMES.md, #177):** learning games on their
+- **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
   line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service; like a
@@ -1588,7 +1588,7 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
-### 2026-10-22 — Mini-games I review round 2: the order in view, a Brew Book you can read, a crash that stays on the stage (#177)
+### 2026-10-22 — Mini-games I review round 2: the order in view, a Brew Book you can read, a crash that stays on the stage (#186)
 A fresh `/saas-code-review` (4 low, nits, test gaps: 10 of 14 guards
 survived a mutation) and `/saas-ux-review` (2 high, 5 medium, 1 low + also
 noted) of PR #95, all fixed. **Code:** a page read during the stir hid
@@ -1627,10 +1627,10 @@ read, a press on "Stirring…", guesses during the stir; a successful retry
 and a game's bug (`MiniGameStage.load.test`); the band remembered on
 opening and forgotten; a replay counting the day; the "Secret found" card
 under the stage; the order's description; the reward's lines. Nine guards
-reverted one at a time, each caught. Logged in #177: the Ember sprite in
+reverted one at a time, each caught. Logged in #186: the Ember sprite in
 the scene's SVG `foreignObject` is untested on Safari.
 
-### 2026-10-22 — Mini-games I review round 1: the quest button, the stir, Play in view, one pH strip (#177)
+### 2026-10-22 — Mini-games I review round 1: the quest button, the stir, Play in view, one pH strip (#186)
 A fresh `/saas-code-review` (2 medium, 5 low, nits, test gaps) and
 `/saas-ux-review` (2 high, 5 medium, 3 low + also noted) of PR #95, all fixed.
 **Code:** the 🧪 button followed a quest conversation's last line, so after a
@@ -1668,12 +1668,12 @@ comment. **Test gaps:** `PotionLab.stir.test` (motion on), the quest button,
 `WorldScreen.minigame.test` (focus from the talk, toasts),
 `MiniGameStage.load.test`, `overlayOwnsMusic` (App's music guard, now in
 `gameFlow.ts`). Each fix's test fails without it (M1, M2, L1 checked by
-putting the old code back). Older and app-wide, logged as #178: toasts over
+putting the old code back). Older and app-wide, logged as #187: toasts over
 the other overlays, sprite frames under reduced motion, Tab out of a layer.
 Rendered on the bench at six sizes, Gentle and Tricky, and the real app at two
-(TC-2134).
+(TC-2364).
 
-### 2026-10-22 — Mini-games I: the stage, and 🧪 Potion Lab (#177)
+### 2026-10-22 — Mini-games I: the stage, and 🧪 Potion Lab (#186)
 The owner liked the visual draft (claude.ai canvas "Hazel Quest Mini-Game
 Screens"): ten learning mini-games, one per topic, each on its own
 full-screen stage — `docs/DESIGN-MINIGAMES.md` (the plan, the rules, the ten
