@@ -131,9 +131,11 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // An innkeeper passes on the news from the road (#75 item 11), but a tired
   // hero shouldn't have to hear it first: Rest is on offer from line one.
   const offerService = !!service && (isLast || service === 'inn');
-  // A mini-game's host offers it from the first line (docs/DESIGN-MINIGAMES.md §2.1) — not
-  // over a quest's own conversation until its last line, which the button finishes as Learn does.
-  const game = gameHostedBy(npcId);
+  // A mini-game's host offers it from the first line (docs/DESIGN-MINIGAMES.md §2.1). Like a
+  // service, never over the host's own quest talk (an offer, a hint, a reward — the button
+  // would take or pay the quest, twice after a pick: review round 1); on a step through
+  // them only on its last line, which the button finishes as ✨ Learn does.
+  const game = quest && quest.finishKind !== 'step' ? null : gameHostedBy(npcId);
   const offerGame = !!game && (!quest || isLast);
   // A shrine keeper's button: the trial, or (once passed) how to cast the spell.
   const taught = fieldSpellTaughtBy(npcId);

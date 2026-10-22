@@ -256,3 +256,9 @@ export const LIBRARY_XP = 15;
 
 /** Cap on the Library queue — oldest misses fall off first. */
 export const LIBRARY_MAX = 20;
+
+/** A mini-game's pay (docs/DESIGN-MINIGAMES.md §3.4), the first time only: XP for a new collection page… */
+export const MINIGAME_PAGE_XP = 5;
+/** …and XP and coins for a new star. */
+export const MINIGAME_STAR_XP = 20;
+export const MINIGAME_STAR_COINS = 10;

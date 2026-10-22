@@ -167,6 +167,15 @@ export const gameFlowMachine = setup({
 
 export type FlowSnapshot = SnapshotFrom<typeof gameFlowMachine>;
 
+/**
+ * Where an overlay plays its own music, so `App`'s screen music steps aside:
+ * the Spire's climb, Umbra's finale (#75 item 16e) and a mini-game's stage
+ * (docs/DESIGN-MINIGAMES.md §2.5).
+ */
+export function overlayOwnsMusic(s: FlowSnapshot): boolean {
+  return s.matches({ world: 'spire' }) || s.matches({ world: 'minigame' }) || (s.matches({ world: 'service' }) && s.context.service === 'name');
+}
+
 /** The app-wide singleton actor. Tests create their own actors instead. */
 export const flowActor = createActor(gameFlowMachine).start();
 

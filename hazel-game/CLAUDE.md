@@ -907,21 +907,24 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #177):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
-  line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service; on a
-  quest's conversation only on its last line) → `OPEN_GAME` → machine substate
+  line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service; like a
+  service never over the host's own quest talk, and on a step through them
+  only on its last line) → `OPEN_GAME` → machine substate
   `world.minigame` (context `game`) → `features/minigames/MiniGameStage`
   (a `ModalLayer`): a round window grows from the middle (`ZOOM_MS`; a fade
   with reduced motion), the title card (logo, the host's hello, three "how to
-  play" steps, the band, the collection and stars, Back / Play), the game,
+  play" steps, the band, the collection and stars, Back / Play — Play focused
+  without scrolling, a held Enter ignored), the game,
   and a reward after each round (`RewardScreen`: what was made, the stars,
   what was learned, only what's new). The stage plays the game's `music`
-  (`App`'s `inSpire` guard covers `world.minigame`), sets `openedFlag` (📜
+  (`overlayOwnsMusic`, `machines/gameFlow.ts`, makes `App` step aside), hides
+  the map's toasts, sets `openedFlag` (📜
   Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
   `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
   when a round is done; `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
   saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
-  `MINIGAME_STAR_COINS` per new star (★ first round, ★ half the collection,
+  `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
   ★ all of it) and the game's `firstItem` once — replays pay nothing but
   still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
   Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
@@ -931,14 +934,17 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   (`GAME_SCREENS[id].Play`, `retryableLazy` in a `LazyBoundary`, "The … didn't
   open. Try again."); its title-card art loads with the stage. Shared look:
   `features/minigames/styles.ts` (the navy window, gold buttons, pixel titles
-  in Jersey 15 — `public/fonts`, Tailwind `font-pixel`) and `parts.tsx`
+  in Jersey 15 — `public/fonts`, Tailwind `font-pixel`, a cyan `focusRing` on
+  every button) and `parts.tsx`
   (`Stars`, `HostBubble` — a live region, `phoneStrip` on phones — `EmberSprite`,
   `Ticket`, `StepChips`). Hosts never wander (`npcWanders`). **🧪 Potion Lab**
   (`verdara-merchant`, Trader Tadpole, `lib/minigames/potionLab.ts`,
   `features/minigames/potionLab/`): red cabbage juice as a pH indicator — 12
   jars (Gentle 6, Medium 9, Tricky 12, `jarsFor`), colours by pH (`shadeOf`:
-  three on Gentle / Medium, five on Tricky), guesses by band (`guessOptions`:
-  the colour; acid / neutral / base; the five-colour strip with pH ranges),
+  three on Gentle / Medium by kind; five on Tricky by where a jar's whole-number
+  pH sits on `TRICKY_STRIP`, whose ranges are also the guesses' labels,
+  `stripLabel`), guesses by band (`guessOptions`: the colour; acid / neutral /
+  base, with `guessKey` from kind to colour; the five-colour strip),
   orders (`orderFor`, every one brewable at its band), the Brew Book (a page
   per jar, read back by Tadpole), `STIR_MS` before the colour shows. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
@@ -1573,6 +1579,49 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Mini-games I review round 1: the quest button, the stir, Play in view, one pH strip (#177)
+A fresh `/saas-code-review` (2 medium, 5 low, nits, test gaps) and
+`/saas-ux-review` (2 high, 5 medium, 3 low + also noted) of PR #95, all fixed.
+**Code:** the 🧪 button followed a quest conversation's last line, so after a
+reward's choice it paid the quest again (and before one finished it with no
+choice) — it now follows the service rule: never over the host's own quest
+talk, on a step only on its last line (M1); "Pick a different jar" left the
+stir running, so the old jar's colour landed on the new one — it waits out the
+stir, and every new jar or leaving stops it (M2); Play is focused in an effect
+after the talk's layer lets go (its `autoFocus` lost the focus, L1); a Brew
+Book page read stayed Tadpole's line for the rest of the round, hiding his
+verdict (L2, UX high); `parts.tsx`'s selectors use a stable `EMPTY_FLAGS`
+(L3); Tricky's strip labels and its colour rule disagreed (vinegar "about pH
+2.5" turned red under "pH 0–2") — the jars' pH are whole numbers and one
+`TRICKY_STRIP` sets both (L4, UX); the map's toasts no longer draw over the
+stage (L5, UX). **UX:** on a phone held sideways every gold button started
+off-screen — the header is one slim row on a short screen, the step card comes
+first, and each step's gold button scrolls into view; the title card opens at
+its top (Play focused without scrolling, Back / Play in a sticky foot); a cyan
+focus ring on every button (`focusRing`); the Brew Book draws each found page's
+jar over its colour, 4 columns in the narrow side column, locks the pages of a
+harder band and says "6 more pages on Medium and Tricky."; Tricky's guesses
+three to a row below `lg`, their pH words never broken; on a phone the order
+ticket follows the step card, the scene is 150 px and the jars come up in the
+first screen; the reward's buttons come before its cards on a phone or a
+short screen, the cheer a size smaller; "Try another jar" focuses a heading
+you can see. **Also noted:** Medium's key ("Acids → pink · Neutral → purple ·
+Bases → blue-green"); "Tap a jar below" where they're below; the reward's
+nothing-new words for a kid ("You've found every page! Now it's just for
+fun…"); the way out says "🗺️ Map"; "How tricky?" (not "Level:", beside "your
+Science level"); purple cabbage on the title card's first step; red and blue
+darker (white on them 5.7:1); "An …" before a vowel. **Nits:** the pay
+constants moved to `content/items.ts`; Tadpole's 🛒 and 🧪 on one line again;
+the design doc's §4 (`MINIGAMES.host`, the bench's `level=`) and the bench's
+comment. **Test gaps:** `PotionLab.stir.test` (motion on), the quest button,
+`WorldScreen.minigame.test` (focus from the talk, toasts),
+`MiniGameStage.load.test`, `overlayOwnsMusic` (App's music guard, now in
+`gameFlow.ts`). Each fix's test fails without it (M1, M2, L1 checked by
+putting the old code back). Older and app-wide, logged as #178: toasts over
+the other overlays, sprite frames under reduced motion, Tab out of a layer.
+Rendered on the bench at six sizes, Gentle and Tricky, and the real app at two
+(TC-2134).
 
 ### 2026-10-22 — Mini-games I: the stage, and 🧪 Potion Lab (#177)
 The owner liked the visual draft (claude.ai canvas "Hazel Quest Mini-Game

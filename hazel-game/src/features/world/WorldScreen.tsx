@@ -940,9 +940,10 @@ export default function WorldScreen() {
           at the very top, over the top bar. */}
       <div
         data-testid="world-toast-row"
+        // Not over a mini-game's stage: a toast from the map waits there (docs/DESIGN-MINIGAMES.md, review round 1).
         className={`fixed inset-x-0 z-50 flex items-center justify-center gap-2 px-4 pointer-events-none ${
           revealing ? 'bottom-8 touch-wide:top-3 touch-wide:bottom-auto' : 'top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto'
-        }`}
+        } ${overlay === 'minigame' ? 'hidden' : ''}`}
       >
       <div role="status" aria-live="polite" data-testid="world-toast" className="flex min-w-0 justify-center">
         {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
@@ -978,7 +979,7 @@ export default function WorldScreen() {
       </div>
 
       {/* Secret found */}
-      {found && (
+      {found && overlay !== 'minigame' && (
         <motion.button
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}

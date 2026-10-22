@@ -120,7 +120,8 @@ questions.
   ★ half the collection, ★ the whole collection.
 - **XP and coins only the first time:** each new collection page pays a little
   XP (`MINIGAME_PAGE_XP`); each star pays more XP and some coins
-  (`MINIGAME_STAR_XP`, `MINIGAME_STAR_COINS`). A game may give one item the
+  (`MINIGAME_STAR_XP`, `MINIGAME_STAR_COINS`, in `content/items.ts` with the
+  rest of the economy). A game may give one item the
   first time (the Potion Lab's Berry Potion). Replaying is free fun and pays
   nothing.
 - XP goes through `addXp`, so a day spent in a mini-game counts for the streak
@@ -144,8 +145,9 @@ stars, and who runs it where ("Trader Tadpole, Verdara"). Hosts stay put
   MiniGameDef>` (id, name, emoji, topic, host NPC, place, music, the three
   how-to-play steps, the button's verb, collection size), and the flags
   (`mgFlag`, `pageFlag`, `starFlag`).
-- **`WorldNpcDef.game`** — the host's game. `DialogueOverlay` offers it from
-  the first line; `npcWanders` keeps a host still.
+- **`MINIGAMES[id].host`** — who runs each game (`gameHostedBy(npcId)` reads
+  it back). `DialogueOverlay` offers the game from the host's first line, as a
+  service, never over the host's own quest talk; `npcWanders` keeps a host still.
 - **The machine** — `OPEN_GAME { game }` from `world.exploring` or
   `world.dialogue` → `world.minigame` (context `game`); `CLOSE` → exploring.
 - **`features/minigames/MiniGameStage.tsx`** — the `ModalLayer`, the zoom,
@@ -157,9 +159,9 @@ stars, and who runs it where ("Trader Tadpole, Verdara"). Hosts stay put
   `lib/minigames/<game>.ts` (its rules and content, pure).
 - **`lib/minigames.ts`** — shared pure rules: band from level, stars from
   flags, what a finished round newly earns.
-- **The bench:** `bench/minigame.html?game=<id>&band=<band>` mounts the stage
-  on its own (stub stores, any screen size), for screenshots and the UX
-  reviews.
+- **The bench:** `bench/minigame.html?game=<id>&level=<1–10>&pages=<n>` mounts
+  the stage on its own (stub stores, any screen size), for screenshots and the
+  UX reviews; the level picks the band, as the kid's topic level does.
 - **Tests:** each game's rules (unit), the stage and each game (component), the
   machine's new state, the dialogue's button.
 

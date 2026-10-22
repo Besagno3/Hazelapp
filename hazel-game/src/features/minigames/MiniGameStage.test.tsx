@@ -23,8 +23,10 @@ const { default: MiniGameStage } = await import('./MiniGameStage');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
-const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP, openedFlag, pageFlag, starFlag } = await import('../../content/minigames');
+const { openedFlag, pageFlag, starFlag } = await import('../../content/minigames');
+const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } = await import('../../content/items');
 const { rememberedBand } = await import('../../lib/minigames');
+const { JAR_IDS } = await import('../../lib/minigames/potionLab');
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
@@ -97,6 +99,24 @@ describe('the stage (docs/DESIGN-MINIGAMES.md §2)', () => {
     sendFlow.mockClear();
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('in the game, the way out says where it goes: 🗺️ Map', async () => {
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    const map = screen.getByRole('button', { name: 'Back to the map' });
+    expect(map).toHaveTextContent('🗺️Map');
+    fireEvent.click(map);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
+  });
+
+  it('a held Enter from the talk doesn’t skip the title card; the band chooser asks “How tricky?”', () => {
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByRole('group', { name: 'How tricky?' })).toBeInTheDocument();
+    const play = screen.getByRole('button', { name: 'Let’s brew!' });
+    expect(fireEvent.keyDown(play, { key: 'Enter', repeat: true })).toBe(false); // its default (the click) is stopped
+    expect(fireEvent.keyDown(play, { key: 'Enter' })).toBe(true);
   });
 });
 
@@ -180,7 +200,24 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     expect(within(screen.getByRole('group', { name: 'Jars on the counter' })).getAllByRole('button')).toHaveLength(12);
     expect(screen.getByText(/Fern wants an Ember Tonic that glows red/)).toBeInTheDocument();
     await brew(/Sea water/, /Blue/);
-    expect(screen.getByText(/Sea water is a base, about pH 8.1/)).toBeInTheDocument();
+    expect(screen.getByText(/Sea water is a base, about pH 8\./)).toBeInTheDocument();
+  });
+
+  it('Medium’s guesses come with a key from kind to colour', async () => {
+    setUp(5);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Lemon juice/ }));
+    expect(screen.getByText('Acids → pink · Neutral → purple · Bases → blue-green')).toBeInTheDocument();
+  });
+
+  it('the Brew Book says where the pages not on this counter are', async () => {
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    expect(screen.getByText('6 more pages on Medium and Tricky.')).toBeInTheDocument();
+    expect(screen.getAllByRole('img', { name: 'A page for Medium' })).toHaveLength(3);
   });
 
   it('a found Brew Book page is read out by Tadpole', async () => {
@@ -193,5 +230,31 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
       fireEvent.click(screen.getByRole('button', { name: /Lemon juice: turns it pink. Read the page/ }));
     });
     expect(screen.getAllByText(/Lemons are full of citric acid/).length).toBeGreaterThan(0);
+  });
+
+  it('a page read is Tadpole’s line only until the next brew — then he says what happened (review round 1)', async () => {
+    setUp(2, { [pageFlag('potion-lab', 'lemon')]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Baking soda/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Lemon juice: turns it pink. Read the page/ }));
+    expect(screen.getByText(/Lemons are full of citric acid/)).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Your guess' })).getByRole('button', { name: 'Blue-green' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stir and brew!' }));
+    expect(screen.queryByText(/Lemons are full of citric acid/)).toBeNull();
+    expect(screen.getByText(/You guessed it before you saw it/)).toBeInTheDocument();
+  });
+
+  it('with every page found, a round that pays nothing says so in a kid’s words', async () => {
+    const all = Object.fromEntries(JAR_IDS.flatMap((j) => [[pageFlag('potion-lab', j), true]]));
+    setUp(2, { ...all, [starFlag('potion-lab', 1)]: true, [starFlag('potion-lab', 2)]: true, [starFlag('potion-lab', 3)]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    await brew(/Lemon juice/, 'Pink');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(screen.getByRole('heading', { name: 'Just for fun' })).toBeInTheDocument();
+    expect(screen.getByText(/You’ve found every page! Now it’s just for fun/)).toBeInTheDocument();
   });
 });

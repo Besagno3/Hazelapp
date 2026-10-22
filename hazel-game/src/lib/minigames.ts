@@ -1,14 +1,5 @@
-import {
-  MINIGAMES,
-  MINIGAME_PAGE_XP,
-  MINIGAME_STAR_COINS,
-  MINIGAME_STAR_XP,
-  pageFlag,
-  starFlag,
-  type Band,
-  type MiniGameId,
-} from '../content/minigames';
-import type { ConsumableId } from '../content/items';
+import { MINIGAMES, pageFlag, starFlag, type Band, type MiniGameId } from '../content/minigames';
+import { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP, type ConsumableId } from '../content/items';
 import type { SaveData } from '../types';
 
 /**

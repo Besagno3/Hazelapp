@@ -12,7 +12,7 @@
  *   level=<1–10>          the kid's question level in the game's topic (picks the band)
  *   age=<years>           the kid's age (default 9)
  *   flags=a,b             save flags already set (e.g. mg:potion-lab:page:lemon)
- *   pages=<n>             that many of the game's pages already found (by its `pageIds`)
+ *   pages=<n>             that many of the game's pages already found (in `PAGE_IDS` order)
  *   ember=egg|hatchling|whelp|dragon   Ember's stage (default hatchling)
  *
  * `window.__mg.save()` returns the save; `__mg.xp()` the profile's XP.

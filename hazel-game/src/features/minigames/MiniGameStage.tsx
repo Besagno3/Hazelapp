@@ -19,7 +19,7 @@ import { useSaveStore } from '../../store/saveStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { GAME_SCREENS } from './games';
 import { EmberSprite, HostBubble, Stars } from './parts';
-import { goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
+import { focusRing, goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
 import type { RoundOutcome } from './types';
 
 /** How long the round window takes to grow from the counter to the whole screen (§2.1). */
@@ -227,7 +227,11 @@ function PlayDidNotLoad({ def, onLoaded }: { def: MiniGameDef; onLoaded: () => v
   );
 }
 
-/** ← Back · the title plate · the topic · the stars (§2.2). */
+/**
+ * 🗺️ Map · the title plate · the topic · the stars (§2.2). The way out says
+ * where it goes (review round 1: a bare ← read as "undo" on a phone); on a
+ * short screen the header is one slim row.
+ */
 function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; onBack: () => void }) {
   const topic = topicInfo(def.topic);
   const title = useRef<HTMLHeadingElement>(null);
@@ -236,22 +240,22 @@ function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; 
     title.current?.focus({ preventScroll: true });
   }, []);
   return (
-    <header className="flex min-h-14 flex-none items-center gap-3 border-b-4 border-[#1b0f22] bg-[#1e1b4b] px-3 py-1.5 sm:px-5">
-      <button type="button" onClick={onBack} aria-label="Back to the map" className={cn(outlineClass, 'min-w-11 bg-[#2a2766] px-3 shadow-[0_0_0_3px_#1b0f22]')}>
-        <span aria-hidden="true">←</span>
-        <span className="hidden sm:inline">Back</span>
+    <header className="flex min-h-14 flex-none items-center gap-3 border-b-4 border-[#1b0f22] bg-[#1e1b4b] px-3 py-1.5 sm:px-5 [@media(max-height:500px)]:min-h-0 [@media(max-height:500px)]:py-1">
+      <button type="button" onClick={onBack} aria-label="Back to the map" className={cn(outlineClass, 'min-w-11 gap-1.5 bg-[#2a2766] px-3 shadow-[0_0_0_3px_#1b0f22]')}>
+        <span aria-hidden="true">🗺️</span>
+        <span aria-hidden="true">Map</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
-        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[32px] focus:outline-none sm:text-[38px]')}>
+        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px]')}>
           {def.name}
         </h1>
-        <span className="mt-1 hidden text-sm leading-none text-[#c9c5f2] sm:block">{def.place}</span>
+        <span className="mt-1 hidden text-sm leading-none text-[#c9c5f2] sm:block [@media(max-height:500px)]:hidden">{def.place}</span>
       </div>
       <span className="hidden h-9 items-center gap-1.5 rounded-full border-[3px] border-[#1b0f22] bg-emerald-800 px-3 text-sm font-bold md:flex">
         <span aria-hidden="true">{topic.emoji}</span>
         {topic.label}
       </span>
-      <Stars count={stars} size={26} className="sm:[&>svg]:h-8 sm:[&>svg]:w-8" />
+      <Stars count={stars} size={22} className="sm:[&>svg]:h-8 sm:[&>svg]:w-8" />
     </header>
   );
 }
@@ -280,6 +284,13 @@ function TitleCard({
 }) {
   const { Logo, steps } = GAME_SCREENS[def.id];
   const topic = topicInfo(def.topic);
+  // Play has focus, so Enter starts the game as the talk's button opened it —
+  // set after the talk's layer has let go, and without scrolling the card down
+  // to it (review round 1: a phone opened on the buttons, the name scrolled away).
+  const play = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    play.current?.focus({ preventScroll: true });
+  }, []);
   return (
     <div className="relative flex min-h-0 flex-1 overflow-y-auto">
       <img src={def.backdrop} alt="" aria-hidden="true" className="pointer-events-none fixed inset-0 h-full w-full object-cover [image-rendering:pixelated]" />
@@ -287,14 +298,14 @@ function TitleCard({
       <div className="relative m-auto w-full max-w-4xl p-3 sm:p-6">
         <div className={cn(windowClass, 'flex flex-col gap-5 bg-[#1e1b4b] p-4 sm:p-7')}>
           <div className="flex items-center gap-4">
-            <span className="hidden flex-none sm:block">
+            <span className="hidden flex-none sm:block [@media(max-height:500px)]:hidden">
               <Logo size={104} />
             </span>
             <div className="flex min-w-0 flex-col gap-1.5">
               <span className="self-start rounded-full border-2 border-[#1b0f22] bg-emerald-800 px-3 py-0.5 text-sm font-bold">
                 <span aria-hidden="true">{topic.emoji} </span>A mini-game · {topic.label}
               </span>
-              <h1 className={cn(pixelTitleClass, 'text-6xl sm:text-[84px]')}>{def.name}</h1>
+              <h1 className={cn(pixelTitleClass, 'text-6xl sm:text-[84px] [@media(max-height:500px)]:text-6xl')}>{def.name}</h1>
               <span className="text-sm text-[#c9c5f2]">{def.place}</span>
             </div>
           </div>
@@ -328,7 +339,7 @@ function TitleCard({
 
           <div role="group" aria-labelledby="mg-band-label" className="flex flex-wrap items-center gap-2">
             <span id="mg-band-label" className="mr-1 font-bold">
-              Level:
+              How tricky?
             </span>
             {BANDS.map((b) => (
               <button
@@ -339,6 +350,7 @@ function TitleCard({
                 className={cn(
                   'min-h-11 rounded-full border-[3px] px-4 font-bold',
                   band === b ? 'border-amber-300 bg-[#3d3a8a] text-white' : 'border-[#5a55a8] bg-[#24215a] text-[#d8d5f5] hover:bg-[#2f2b70]',
+                  focusRing,
                 )}
               >
                 {BAND_LABEL[b]}
@@ -359,15 +371,24 @@ function TitleCard({
             <span className="flex h-10 items-center gap-2 rounded-full border-2 border-[#4b4799] bg-[#2a2766] px-3 text-[15px]">
               <Stars count={stars} size={20} />
             </span>
-            <div className="ml-auto flex flex-wrap gap-3">
-              <button type="button" onClick={onBack} className={outlineClass}>
-                Back
-              </button>
-              {/* Focused: Enter starts the game, as the talk's button opened it. */}
-              <button type="button" autoFocus onClick={onPlay} className={cn(goldClass, 'text-xl')}>
-                {def.playLabel}
-              </button>
-            </div>
+          </div>
+          {/* Back / Play stay in view at the card's foot while a phone scrolls it. */}
+          <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap justify-end gap-3 rounded-b-xl border-t-2 border-[#4b4799] bg-[#1e1b4b] px-4 py-3 sm:-mx-7 sm:-mb-7 sm:px-7 sm:pb-6">
+            <button type="button" onClick={onBack} className={outlineClass}>
+              Back
+            </button>
+            <button
+              ref={play}
+              type="button"
+              onClick={onPlay}
+              // A held Enter from the talk's button doesn't skip the card.
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.repeat) e.preventDefault();
+              }}
+              className={cn(goldClass, 'text-xl')}
+            >
+              {def.playLabel}
+            </button>
           </div>
         </div>
       </div>
@@ -396,12 +417,18 @@ function RewardScreen({
 }) {
   const host = NPC_DEFS[def.host];
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
+  const allFound = pagesFound(flags, def.id).length >= def.pages;
+  // A phone's cheer is a size smaller (or a short screen's), so Ember and the host stay on the screen.
+  const [scale] = useState(() => (window.matchMedia?.('(max-width: 639px), (max-height: 500px)').matches ? 3 : 4));
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
   }, []);
   const got: string[] = [];
-  if (reward.item) got.push(`${CONSUMABLES[reward.item].emoji} A ${CONSUMABLES[reward.item].name}, in your bag`);
+  if (reward.item) {
+    const { emoji, name } = CONSUMABLES[reward.item];
+    got.push(`${emoji} ${/^[AEIOU]/i.test(name) ? 'An' : 'A'} ${name}, in your bag`);
+  }
   if (reward.coins > 0) got.push(`🪙 ${reward.coins} coins`);
   if (reward.xp > 0) got.push(`⭐ ${reward.xp} XP`);
   for (const n of reward.stars) got.push(n === 1 ? '🌟 A star for your first round' : n === 2 ? '🌟 A star for half the ' + def.collection : '🌟 A star for the whole ' + def.collection);
@@ -416,24 +443,25 @@ function RewardScreen({
         })}
       </svg>
       <div className="relative flex w-full max-w-4xl flex-col items-center gap-4">
-        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'text-center text-5xl focus:outline-none sm:text-7xl')}>
+        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'text-center text-5xl focus:outline-none sm:text-7xl [@media(max-height:500px)]:text-5xl')}>
           {reward.title}
         </h1>
         <div className="flex items-end gap-6" aria-hidden="true">
           <span className={cn(!still && 'motion-safe:animate-bounce')}>
-            <EmberSprite anim="cheer" scale={4} />
+            <EmberSprite anim="cheer" scale={scale} />
           </span>
           {reward.swatch && (
             <span className="mb-4 h-20 w-20 rounded-full border-4 border-[#1b0f22] shadow-[inset_-10px_-10px_0_rgba(0,0,0,0.2)]" style={{ background: reward.swatch }} />
           )}
           {host && (
             <span className={cn(!still && 'motion-safe:animate-bounce [animation-delay:150ms]')}>
-              <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={4} className="text-5xl" />
+              <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={scale} className="text-5xl" />
             </span>
           )}
         </div>
         <Stars count={stars} size={52} />
-        <div className="grid w-full gap-4 md:grid-cols-[1.35fr_1fr]">
+        {/* On a phone or a short screen the cards come after the buttons, so Play again is in view. */}
+        <div className="order-last grid w-full gap-4 sm:order-none md:grid-cols-[1.35fr_1fr] [@media(max-height:500px)]:order-last">
           <section aria-labelledby="mg-learned" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
             <h2 id="mg-learned" className={cn(pixelHeadClass, 'text-[28px]')}>
               {reward.pages.length > 0 ? `New ${def.collection} page${reward.pages.length > 1 ? 's' : ''}!` : 'What you found out'}
@@ -453,7 +481,9 @@ function RewardScreen({
               </ul>
             ) : (
               <p className="text-[15px] leading-snug text-[#d8d5f5]">
-                You’ve had everything this round can give. New pages still pay — and {host ? npcName(host, flags) : 'everyone'} is always glad of the help!
+                {allFound
+                  ? `You’ve found every page! Now it’s just for fun — and ${host ? npcName(host, flags) : 'everyone'} is always glad of the help.`
+                  : `No new page this time. Try something you haven’t tried yet — it adds a page to your ${def.collection}!`}
               </p>
             )}
           </section>

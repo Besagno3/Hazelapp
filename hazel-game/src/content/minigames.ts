@@ -66,7 +66,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     againLabel: 'Brew another',
     hello: 'Ribbit! Orders are piling up and I’m all fins today. Will you brew them for me?',
     steps: [
-      { title: 'Pour in one jar', text: 'Lemon, soap, sugar… every jar does something different.' },
+      { title: 'Pour in one jar', text: 'Purple cabbage juice changes colour with what you pour in: lemon, soap, sugar…' },
       { title: 'Guess what happens', text: 'Scientists guess first. A wrong guess is fine!' },
       { title: 'Stir and see!', text: 'Every new jar adds a page to your Brew Book.' },
     ],
@@ -93,8 +93,4 @@ export const pageFlag = (id: MiniGameId, page: string) => mg(id, `page:${page}`)
 /** A star earned: 1 the first round finished, 2 half the collection, 3 all of it. */
 export const starFlag = (id: MiniGameId, n: 1 | 2 | 3) => mg(id, `star:${n}`);
 
-/** XP for a new collection page (once). */
-export const MINIGAME_PAGE_XP = 5;
-/** XP and coins for a new star (once each). */
-export const MINIGAME_STAR_XP = 20;
-export const MINIGAME_STAR_COINS = 10;
+// What a page or a star pays is economy tuning: `MINIGAME_*` in content/items.ts.

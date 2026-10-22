@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   JARS,
   JAR_IDS,
+  TRICKY_STRIP,
   aPotion,
   fillsOrder,
   guessOptions,
@@ -10,6 +11,7 @@ import {
   orderFor,
   orderWords,
   shadeOf,
+  stripLabel,
   whyLine,
   type JarId,
 } from './potionLab';
@@ -60,6 +62,23 @@ describe('the colours red cabbage turns', () => {
     expect(shadeOf(jar('sea'), 'tricky')).toBe('blue');
     expect(shadeOf(jar('egg'), 'tricky')).toBe('green');
     expect(shadeOf(jar('soap'), 'tricky')).toBe('green');
+  });
+
+  it('Tricky: the strip covers pH 0–14 with no gap, and its labels read as whole numbers', () => {
+    expect(TRICKY_STRIP[0].lo).toBe(0);
+    expect(TRICKY_STRIP[TRICKY_STRIP.length - 1].hi).toBe(14);
+    for (let i = 1; i < TRICKY_STRIP.length; i++) expect(TRICKY_STRIP[i].lo).toBe(TRICKY_STRIP[i - 1].hi + 1);
+    expect(TRICKY_STRIP.map(stripLabel)).toEqual(['pH 0–3', 'pH 4–5', 'pH 6–7', 'pH 8', 'pH 9+']);
+  });
+
+  it('Tricky: every jar’s pH, as Tadpole says it, sits inside the strip range of the colour it turns (review round 1)', () => {
+    for (const j of JARS) {
+      expect(Number.isInteger(j.ph), `${j.id} says "about pH ${j.ph}"`).toBe(true);
+      const range = TRICKY_STRIP.find((s) => s.shade === shadeOf(j, 'tricky'))!;
+      expect(j.ph, j.id).toBeGreaterThanOrEqual(range.lo);
+      expect(j.ph, j.id).toBeLessThanOrEqual(range.hi);
+      expect(whyLine(j, 'tricky'), j.id).toContain(`about pH ${j.ph}.`);
+    }
   });
 });
 

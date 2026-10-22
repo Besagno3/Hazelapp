@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { bandFor, claimPage, claimRound, pagesFound, rememberBand, rememberedBand, starsEarned, starsFor } from './minigames';
-import { MINIGAMES, MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP, pageFlag, starFlag } from '../content/minigames';
+import { MINIGAMES, pageFlag, starFlag } from '../content/minigames';
+import { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } from '../content/items';
 import { defaultSave } from './save';
 import type { SaveData } from '../types';
 

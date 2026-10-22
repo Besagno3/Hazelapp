@@ -414,11 +414,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     name: 'Trader Tadpole',
     sprite: '🐸',
     role: 'merchant',
-    lines: [
-      'Fresh from the lab-lily pads: Berry Potions and my famous Honey Elixir!',
-      // His Potion Lab (docs/DESIGN-MINIGAMES.md §5.1): the 🧪 button is on offer from the first line.
-      'Orders are piling up in my Potion Lab. Got a steady hand? Come and brew!',
-    ],
+    // His Potion Lab (docs/DESIGN-MINIGAMES.md §5.1) in the same breath, so 🛒 Shop and 🧪 are both on his one line.
+    lines: ['Fresh from the lab-lily pads: Berry Potions and my famous Honey Elixir! And orders are piling up in my Potion Lab — come and brew!'],
   },
 
   // --- Gearfall (engineering) ---

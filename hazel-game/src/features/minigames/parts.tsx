@@ -6,6 +6,9 @@ import { cn } from '../../lib/utils';
 import { useSaveStore } from '../../store/saveStore';
 import { pixelHeadClass } from './styles';
 
+/** No save yet: one object, so a selector's answer stays the same (zustand re-renders on a new one). */
+const EMPTY_FLAGS: Record<string, boolean> = {};
+
 /**
  * The pieces every mini-game's screen is built from (docs/DESIGN-MINIGAMES.md
  * §2.2): the stars, the host's speech bubble, Ember, the order ticket and the
@@ -33,11 +36,12 @@ export function Stars({ count, size = 30, className }: { count: number; size?: n
 
 /**
  * The host's portrait and speech bubble. A live region: each new tip is read
- * out. `phoneStrip`: on a phone, a smaller portrait and no name, so the game
- * comes up sooner (one bubble — never two live regions).
+ * out. `phoneStrip`: on a phone or a short screen (a phone on its side), a
+ * smaller portrait and no name, so the game comes up sooner (one bubble —
+ * never two live regions).
  */
 export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string; line: ReactNode; phoneStrip?: boolean }) {
-  const flags = useSaveStore((s) => s.save?.flags ?? {});
+  const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const npc = NPC_DEFS[npcId];
   if (!npc) return null;
   const name = npcName(npc, flags);
@@ -46,7 +50,7 @@ export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string;
       <div
         className={cn(
           'flex flex-none items-end justify-center overflow-hidden rounded-lg border-[3px] border-white bg-[#2f6a4c] shadow-[0_0_0_3px_#1b0f22]',
-          phoneStrip ? 'h-14 w-14 sm:h-24 sm:w-24' : 'h-20 w-20 sm:h-24 sm:w-24',
+          phoneStrip ? 'h-14 w-14 sm:[@media(min-height:501px)]:h-24 sm:[@media(min-height:501px)]:w-24' : 'h-20 w-20 sm:h-24 sm:w-24',
         )}
       >
         <CharacterPortrait spriteId={npcSpriteId(npc, flags)} emoji={npcEmoji(npc, flags)} scale={2.5} className="text-4xl" />
@@ -55,10 +59,10 @@ export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string;
         aria-live="polite"
         className={cn(
           'min-w-0 flex-1 rounded-xl border-[3px] border-[#1b0f22] bg-white px-3 text-[#1b0f22]',
-          phoneStrip ? 'py-1.5 text-[15px] leading-snug sm:py-2 sm:text-base' : 'py-2 text-base leading-snug',
+          phoneStrip ? 'py-1.5 text-[15px] leading-snug sm:[@media(min-height:501px)]:py-2 sm:[@media(min-height:501px)]:text-base' : 'py-2 text-base leading-snug',
         )}
       >
-        <div className={cn(pixelHeadClass, 'text-xl text-emerald-800', phoneStrip && 'sr-only sm:not-sr-only')}>{name}</div>
+        <div className={cn(pixelHeadClass, 'text-xl text-emerald-800', phoneStrip && 'sr-only sm:[@media(min-height:501px)]:not-sr-only')}>{name}</div>
         {line}
       </div>
     </div>
@@ -67,7 +71,7 @@ export function HostBubble({ npcId, line, phoneStrip = false }: { npcId: string;
 
 /** Ember, at the stage the story has grown her to. `anim` is a battle clip ("breath", "cheer"). */
 export function EmberSprite({ anim, scale = 4 }: { anim?: string; scale?: number }) {
-  const flags = useSaveStore((s) => s.save?.flags ?? {});
+  const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const { stage } = emberStatus(flags);
   return <CharacterPortrait spriteId={EMBER_SPRITE_IDS[stage]} emoji={EMBER_SPRITES[stage]} scale={scale} anim={anim} className="text-5xl" />;
 }
