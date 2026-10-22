@@ -52,8 +52,8 @@ vi.mock('./supabase', () => {
     },
   };
 });
-const { notePlayDay } = vi.hoisted(() => ({ notePlayDay: vi.fn(async () => {}) }));
-vi.mock('./playDays', () => ({ notePlayDay }));
+const { notePlayDay, addDayXp } = vi.hoisted(() => ({ notePlayDay: vi.fn(async () => {}), addDayXp: vi.fn(async () => {}) }));
+vi.mock('./playDays', () => ({ notePlayDay, addDayXp }));
 
 const { giveKidXp, kidXpWords, owedXp, takeOwedXp, xpStartsLine, GUARD_TRIES } = await import('./kidXp');
 const { profileKey } = await import('./profile');
@@ -77,6 +77,7 @@ beforeEach(() => {
   db.updates = [];
   db.reads = 0;
   notePlayDay.mockClear();
+  addDayXp.mockClear();
   localStorage.clear();
 });
 afterEach(() => vi.useRealTimers());
@@ -94,6 +95,8 @@ describe("giveKidXp — a sibling's XP, to their own game", () => {
       last_played_on: TODAY,
     });
     expect(notePlayDay).toHaveBeenCalledWith('kid-2', TODAY);
+    // Today's XP for their 📈 Progress.
+    expect(addDayXp).toHaveBeenCalledWith('kid-2', TODAY, 30, { played: true });
   });
 
   it('a row with no saved level counts from the old flat curve', async () => {
@@ -118,6 +121,8 @@ describe("giveKidXp — a sibling's XP, to their own game", () => {
     expect(await giveKidXp('kid-2', 20)).toEqual({ saved: false });
     expect(owedXp('kid-2')).toBe(50);
     expect(warn).toHaveBeenCalled();
+    // Not recorded for the day while owed: `addXp` records it when it's paid.
+    expect(addDayXp).not.toHaveBeenCalled();
     db.readError = null;
     db.row = row();
     await giveKidXp('kid-2', 10);

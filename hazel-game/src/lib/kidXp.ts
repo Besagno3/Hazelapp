@@ -3,7 +3,7 @@ import { errorMessage } from './errors';
 import { gainXp, levelState } from './level';
 import { readLocalProfile, writeLocalProfile } from './profile';
 import { nextStreak, todayIso } from './streak';
-import { notePlayDay } from './playDays';
+import { addDayXp, notePlayDay } from './playDays';
 
 /**
  * XP for a family kid who isn't the one playing (the owner's call,
@@ -14,8 +14,9 @@ import { notePlayDay } from './playDays';
  * XP it read, so a write from their own device in between is never written
  * over (read again and try again, `GUARD_TRIES`). One kid's writes go one at a
  * time. The day counts as played for them too (their streak, 📈 Progress's
- * week — `notePlayDay`). This device's copy of their profile moves with the
- * row, so it never looks behind it.
+ * week — `notePlayDay`), and its XP goes into their day's record (`addDayXp`,
+ * once saved — XP owed is recorded when `addXp` pays it). This device's copy
+ * of their profile moves with the row, so it never looks behind it.
  *
  * What can't be written (offline, a read that fails) is owed on this device
  * (`hazel-owed-xp-<kid>`): added to the next XP given them here, or paid when
@@ -122,6 +123,7 @@ async function write(kidId: string, gift: number): Promise<KidXpResult> {
       if (error) throw error;
       if (data && data.length > 0) {
         moveLocalCopy(kidId, amount, today);
+        void addDayXp(kidId, today, amount, { played: true });
         return { saved: true, level: after.level, leveledUp: after.level > before.level };
       }
     }

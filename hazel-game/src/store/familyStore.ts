@@ -18,8 +18,8 @@ import { lockGrownUps, noteDeviceSession, openForFirstRun } from '../lib/grownUp
 import { GrownUpsLockedError } from '../lib/grownUpsGate';
 import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
-import { profileKey } from '../lib/profile';
-import { forgetPlayDays } from '../lib/playDays';
+import { forgetLocalProfile } from '../lib/profile';
+import { flushPlayDays, forgetPlayDays } from '../lib/playDays';
 import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
 import { useProfileStore } from './profileStore';
@@ -164,16 +164,14 @@ function writeActive(userId: string, kidId: string | null): void {
   }
 }
 
-/** This device's copies of the family's games (saves, profiles) and the tab's playing kid go. */
+/** This device's copies of the family's games (saves, profiles and the level steps kept with them) and the tab's playing kid go. */
 function forgetFamilyHere(userId: string | null, kids: Kid[]): void {
   try {
-    for (const k of kids) {
-      localStorage.removeItem(saveKey(k.id));
-      localStorage.removeItem(profileKey(k.id));
-    }
+    for (const k of kids) localStorage.removeItem(saveKey(k.id));
   } catch {
     // Storage unavailable — nothing was kept here.
   }
+  for (const k of kids) forgetLocalProfile(k.id);
   // Their unsent days too, from storage and memory (never throws).
   for (const k of kids) forgetPlayDays(k.id);
   if (userId) writeActive(userId, null);
@@ -383,10 +381,20 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   },
 
   updateKid: async (id, input) => {
+    // The birth date goes only where the form changed it (#183 review): a
+    // device whose kid list is older than another device's correction would
+    // otherwise put the old birth date back — and the topic starts' ages with it.
+    const had = get().kids.find((k) => k.id === id);
+    const { birth_year, birth_month, ...rest } = toRow(input);
+    const fields = {
+      ...rest,
+      ...(had?.birthYear === birth_year ? {} : { birth_year }),
+      ...(had?.birthMonth === birth_month ? {} : { birth_month }),
+    };
     await asGrownUp(async () => {
       const { error } = await supabase
         .from('profiles')
-        .update({ ...toRow(input), updated_at: new Date().toISOString() })
+        .update({ ...fields, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw asError(error);
     });
@@ -440,11 +448,20 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     // …and so do the copies on this device.
     try {
       localStorage.removeItem(saveKey(id));
-      localStorage.removeItem(profileKey(id));
     } catch {
       // Storage unavailable — nothing was kept here.
     }
+    forgetLocalProfile(id);
     forgetPlayDays(id);
+    // The kid this device was playing: their game goes too (#89 review round
+    // 1 — a profile left in the store kept asking for a row that's gone, and
+    // tried to write it), and "Who's playing?" asks again.
+    const { userId, activeKidId } = get();
+    if (activeKidId === id) {
+      set({ activeKidId: null });
+      if (userId) writeActive(userId, null);
+    }
+    if (useProfileStore.getState().profile?.id === id) putAwayGame();
   },
 
   closeAccount: async (password) => {
@@ -485,6 +502,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
   },
 
   switchPlayer: async () => {
+    // The kid's play today goes up now, not in a couple of minutes (#89
+    // review round 1: a grown-up looking at 📈 next missed the end of it).
+    const playing = useProfileStore.getState().profile?.id;
+    if (playing) void flushPlayDays(playing, { now: true });
     // Push any pending save before this kid's game is put away.
     await useSaveStore.getState().flush();
     const { userId } = get();
@@ -495,7 +516,14 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
 
   setGrownUpsOpen: (grownUpsOpen) => {
     set({ grownUpsOpen });
-    if (!grownUpsOpen) get().clearReviewRequest();
+    if (!grownUpsOpen) {
+      get().clearReviewRequest();
+      return;
+    }
+    // What any kid played on this device and is still waiting to go is sent
+    // now, before a grown-up reads 📈 (#89 review round 1). Nothing waiting:
+    // no call.
+    for (const k of get().kids) void flushPlayDays(k.id, { now: true });
   },
 
   clearReviewRequest: () => {

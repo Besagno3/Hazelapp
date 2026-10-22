@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import { markSeen } from '../lib/seen';
+import { useProfileStore } from '../store/profileStore';
 import FlagButton from './FlagButton';
 import type { Question } from '../types';
 
@@ -13,7 +14,10 @@ import type { Question } from '../types';
  * `secondChance` (a Forget-Me-Knot, #75 item 14e): the first wrong pick is
  * crossed out instead of answered, and the player picks again.
  * The parent advances via `onContinue` so reading is never rushed. Once
- * answered, any question can be reported (`FlagButton`, B10).
+ * answered, any question can be reported (`FlagButton`, B10), and the pick
+ * is noted for the kid's day (`profileStore.noteAnswer`, #173) — unless it's
+ * Player 2's question in a co-op battle (`noted` false, #187): theirs isn't
+ * the kid playing's to count.
  */
 export default function QuestionCard({
   question,
@@ -32,6 +36,7 @@ export default function QuestionCard({
   focusContinueKey,
   afterAnswer,
   seenBy,
+  noted = true,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -69,6 +74,8 @@ export default function QuestionCard({
   afterAnswer?: ReactNode;
   /** Whose question it is, when it isn't the kid playing's: a co-op battle's Player 2 (#187) — it's seen by them. */
   seenBy?: string;
+  /** The pick counts in the kid playing's 📈 Progress tally (#173); false for Player 2's question (#187). */
+  noted?: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -121,6 +128,10 @@ export default function QuestionCard({
     }
     setSelected(idx);
     sfx(correct ? 'correct' : 'wrong');
+    // The final pick counts for 📈 Progress's answers per topic (#173) —
+    // every screen that asks through this card: battles, gates, chests,
+    // tale-stones, shrines, the Spire, the Library, Umbra's questions.
+    if (noted) useProfileStore.getState().noteAnswer(question, correct);
     onAnswered(correct, idx);
   }
 

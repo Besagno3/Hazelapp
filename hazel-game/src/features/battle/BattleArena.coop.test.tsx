@@ -68,6 +68,7 @@ const enemy = {
 } as BattleEnemy;
 const kid = (id: string, name: string, icon: string, birthYear: number): Kid => ({ id, name, icon, hasPin: true, birthYear, birthMonth: 1 });
 const addXp = vi.fn();
+const noteAnswer = vi.fn();
 const setSkillLevel = vi.fn();
 const MIA_KID = {
   kind: 'kid' as const,
@@ -120,6 +121,7 @@ beforeEach(() => {
   share.on = false;
   markSeen.mockClear();
   addXp.mockClear();
+  noteAnswer.mockClear();
   setSkillLevel.mockClear();
   giveKidXp.mockReset();
   giveKidXp.mockResolvedValue({ saved: true, level: 2, leveledUp: false });
@@ -128,6 +130,7 @@ beforeEach(() => {
     addXp,
     setSkillLevel,
     recordActivity: vi.fn(),
+    noteAnswer,
   });
 });
 
@@ -265,6 +268,8 @@ describe('👥 co-op battles (#187)', () => {
     expect(useSaveStore.getState().save!.library.map((e) => e.question.id)).toEqual(['ada-1']);
     // The battle ramp never lowers a level, and Ada got none right: hers stays.
     expect(setSkillLevel).not.toHaveBeenCalled();
+    // Only Ada's answer counts in her 📈 Progress tally (#173): Mia's question never does.
+    expect(noteAnswer.mock.calls.map(([q, right]) => [q.id, right])).toEqual([['ada-1', false]]);
     // Mia's right answer is XP in her own game, and the win's too, as Ada gets it.
     const winXp = defeatXp(npcDefeatXp(enemy.level), enemy.tier);
     expect(giveKidXp).toHaveBeenCalledTimes(1);

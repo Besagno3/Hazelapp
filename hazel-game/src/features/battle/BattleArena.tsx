@@ -714,6 +714,9 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
+    // A battle fled after answering is a battle played (#29 progress history review round 2): the day counts,
+    // as a won or lost one's does, so its answers in 📈 Progress go up with it.
+    if (answerCount.current > 0) void recordActivity();
     // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
     if (profile && speedBoost.current > 0) {
       const current = skillLevelFor(profile.skillLevels, topic, age);
@@ -1115,6 +1118,7 @@ export default function BattleArena() {
       setAnswers((a) => [...a, false]);
       answerCount.current += 1;
       if (!isStarterId(q.id)) rampAnswers.current.push(false);
+      useProfileStore.getState().noteAnswer(q, false); // a miss in 📈 Progress's tally too (#173)
       misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
     }
     resolveEnemyQuestion(false, true);
@@ -1712,6 +1716,8 @@ export default function BattleArena() {
               question={turn.question}
               // Player 2's question is seen by them (#187) — a guest's by the kid playing.
               seenBy={turn.who === 1 ? (two?.kid ?? undefined) : undefined}
+              // …and never counts in the kid playing's 📈 Progress tally (#173): it isn't their answer.
+              noted={turn.who !== 1}
               // Fox Sense (Kira): a free hint on top of the feathers, used first.
               // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).
               hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}

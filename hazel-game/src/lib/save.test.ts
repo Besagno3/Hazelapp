@@ -300,6 +300,24 @@ describe("each topic's real start (#29 review round 2)", () => {
     expect(normalizeSave({ ...defaultSave(), topicStarts: [{ level: 1, age: 6 }] }).topicStarts).toEqual({});
   });
 
+  it('keeps the day a start was noted when it is a real one (#183) — a bad one is dropped alone', () => {
+    const raw = {
+      ...defaultSave(),
+      topicStarts: {
+        math: { level: 3, age: 8, on: '2026-10-22' },
+        science: { level: 4, age: 9, on: '2026-02-30' },
+        nature: { level: 2, age: 7, on: 20261022 },
+        music: { level: 1, age: 6, on: '22/10/2026' },
+      },
+    };
+    expect(normalizeSave(JSON.parse(JSON.stringify(raw))).topicStarts).toEqual({
+      math: { level: 3, age: 8, on: '2026-10-22' },
+      science: { level: 4, age: 9 },
+      nature: { level: 2, age: 7 },
+      music: { level: 1, age: 6 },
+    });
+  });
+
   it('survives the trip to the server and back, and which copy wins keeps its starts with it (#151: the whole copy)', () => {
     const save = withTopicStart(defaultSave(), 'math', { level: 4, age: 9 });
     expect(normalizeSave(JSON.parse(JSON.stringify(save))).topicStarts).toEqual({ math: { level: 4, age: 9 } });

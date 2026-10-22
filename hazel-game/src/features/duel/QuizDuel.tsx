@@ -284,6 +284,8 @@ function DuelPlay({
     if (selected !== null || !q) return;
     setSelected(idx);
     const right = idx === q.correctIndex;
+    // The kid playing's answers count in their 📈 Progress tally, as a quiz round's do (#173); Player 2's aren't theirs.
+    if (seat === 0) useProfileStore.getState().noteAnswer(q, right);
     setAnswers((a) => (seat === 0 ? [[...a[0], right], a[1]] : [a[0], [...a[1], right]]));
     setPicks((p) => (seat === 0 ? [[...p[0], idx], p[1]] : [p[0], [...p[1], idx]]));
   }

@@ -51,6 +51,8 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
       - run: npm run lint
+      - name: CLAUDE.md stays under its line budget (warns at 180, fails at 200)
+        run: node ../.claude/hooks/check-claude-md.mjs
       - name: apply_all_migrations.sql matches supabase/migrations
         run: node scripts/build-apply-all.mjs --check
       - run: npm test

@@ -47,6 +47,7 @@ const pinLocks = vi.fn(async () => null);
 const addXp = vi.fn();
 const setSkillLevel = vi.fn();
 const recordActivity = vi.fn();
+const noteAnswer = vi.fn();
 /** The bodies the question service was asked with. */
 const asked = () => invoke.mock.calls.map((c) => c[1].body as Body);
 
@@ -61,6 +62,7 @@ beforeEach(() => {
   addXp.mockClear();
   setSkillLevel.mockClear();
   recordActivity.mockClear();
+  noteAnswer.mockClear();
   giveKidXp.mockReset();
   giveKidXp.mockResolvedValue({ saved: true, level: 4, leveledUp: false });
   // Ada's world is open: she earns XP (#122).
@@ -82,6 +84,7 @@ beforeEach(() => {
     addXp,
     setSkillLevel,
     recordActivity,
+    noteAnswer,
   });
 });
 
@@ -320,6 +323,10 @@ describe('🆚 Quiz Duel — the results (#186)', () => {
     expect(within(screen.getByRole('list', { name: 'XP earned' })).getByText(/Ada: \+50 XP/)).toBeInTheDocument();
     expect(giveKidXp).not.toHaveBeenCalled();
     expect(setSkillLevel).not.toHaveBeenCalled();
+    // Ada's five answers count in her 📈 Progress tally (#173); Mia's never do.
+    expect(noteAnswer.mock.calls.map(([q, right]) => [q.id.split(' ')[0], right])).toEqual([
+      ['kid-1', true], ['kid-1', true], ['kid-1', true], ['kid-1', true], ['kid-1', true],
+    ]);
   });
 
   it("a sister's right answers are XP in her own game — saving, then saved (a new level said)", async () => {
