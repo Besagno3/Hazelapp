@@ -1210,7 +1210,7 @@ const DIGEST_READ_LIMIT = 200;
 
 /**
  * `action: 'digest'` (#147): what's waiting in the review queue, sent to the
- * owner. Called once a day by a scheduled job (see CLAUDE.md, Commands), which
+ * owner. Called once a day by a scheduled job (see docs/OPERATIONS.md), which
  * must send the `x-digest-secret` header matching the ALERT_DIGEST_SECRET
  * secret; nothing waiting sends nothing.
  */

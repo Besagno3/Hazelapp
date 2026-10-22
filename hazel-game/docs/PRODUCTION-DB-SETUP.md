@@ -112,7 +112,7 @@ npx supabase functions deploy generate-questions
 Supabase. Optional secrets: the limits (`QUESTION_RATE_PER_MINUTE`,
 `FRESH_PER_PLAYER_PER_DAY`, `FRESH_PER_FAMILY_PER_DAY`, `FRESH_GLOBAL_PER_DAY`;
 defaults in `QUOTA_DEFAULTS`), `QUESTION_SECOND_CHECK=off`, and the review alerts
-— CLAUDE.md → Commands has those, the daily digest job and how to make yourself
+— `docs/OPERATIONS.md` has those, the daily digest job and how to make yourself
 an admin. The function is one file with its imports pinned to exact versions,
 so a dashboard deploy works too.
 
