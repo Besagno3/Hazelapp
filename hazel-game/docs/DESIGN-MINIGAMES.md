@@ -364,6 +364,14 @@ Old Ringwood is the tree who loses count of his rings.
 - **Tricky:** a simple map of the real world: continents and oceans,
   north/south of the equator; distance by the map's scale.
 - **Collection:** nine stamps, one per kind of delivery.
+- **Built (PR 9):** Gentle flies the bay (four directions, the place a
+  picture); Medium the town (eight directions, squares like C5, a house by
+  its square or a landmark); Tricky a blocky world (12 × 6 squares of 30°,
+  four directions — the map's squares are counted for its scale), its east
+  and west edges joined, then "How far?" at about 3,000 km a square. The
+  stamps are the kinds of post (three a band), each a true thing about maps
+  and the world; each continent and ocean says one more. Pidge has no quest,
+  so 🐉 is her gold offer; the first round gives a Hint Feather.
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 

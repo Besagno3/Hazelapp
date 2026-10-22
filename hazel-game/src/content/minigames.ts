@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline', 'ember-air-mail'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -237,6 +237,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'spireArchive',
     backdrop: '/backgrounds/sunken-archive.png',
     firstItem: 'knot',
+  },
+  'ember-air-mail': {
+    id: 'ember-air-mail',
+    name: 'Ember Air Mail',
+    emoji: '🐉',
+    topic: 'geography',
+    host: 'port-postmaster',
+    place: 'The Post Office · Port Lantern',
+    where: 'Postmaster Pidge, Port Lantern',
+    playLabel: 'Let’s fly!',
+    againLabel: 'More post',
+    hello: 'Coo! Parcels to the rafters, and only one dragon fast enough to fly them. You steer her with the compass — I’ll tell you where each one goes!',
+    steps: [
+      { title: 'Read the parcel', text: 'Each says where it’s going: a picture, a square like C5, or a place in the world.' },
+      { title: 'Steer Ember', text: 'Tap the compass to fly one square at a time. Her route is drawn as she goes.' },
+      { title: 'Deliver it', text: 'There? Deliver! Every kind of post is a stamp in Pidge’s album.' },
+    ],
+    collection: 'Stamp album',
+    pages: 9,
+    bandNote: 'Medium: the town, its squares named like C5, and eight directions. Tricky: the whole world, and how far by the map’s scale.',
+    music: 'sailing',
+    backdrop: '/backgrounds/port-lantern.png',
+    firstItem: 'hint',
   },
 };
 

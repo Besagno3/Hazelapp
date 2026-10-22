@@ -2004,6 +2004,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       "Coo! Postmaster Pidge. I carry letters over hills and over sea. But never over the fog. Until now!",
+      'My sack’s too heavy for one pigeon. Could your dragon fly some post? You steer with my compass — north, east, south, west!',
       { text: "I've years of letters for Lumina Village. Now a dragon's found the way, maybe they'll finally get there!", unlessFlag: crystalFlag('words') },
       { text: 'The fog has thinned — the post boats sail again! Coo! My sack has never been so heavy.', ifFlag: crystalFlag('words') },
       { text: "Shush's letters? Far too precious for my sack — you carry them, dragon-rider!", ifFlag: questOfferedFlag({ id: SHUSH_QUEST }), unlessFlag: questDoneFlag({ id: SHUSH_QUEST }) },

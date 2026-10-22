@@ -617,6 +617,15 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(useSaveStore.getState().save!.flags['quest:archive-letter:offered']).toBeUndefined();
   });
 
+  it('Postmaster Pidge, who gives no quest, offers 🐉 Ember Air Mail as the thing to do, from her first line (PR 9)', () => {
+    render(<DialogueOverlay npcId="port-postmaster" />);
+    expect(screen.getByText('▼ Next')).toBeInTheDocument(); // not her last line
+    const game = screen.getByText('🐉 Ember Air Mail');
+    expect(game.className).toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'ember-air-mail' });
+  });
+
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
     const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
     quests.override = (id) =>
