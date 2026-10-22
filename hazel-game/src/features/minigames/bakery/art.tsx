@@ -22,11 +22,14 @@ function slicePath(cx: number, cy: number, r: number, i: number, n: number): str
 }
 
 /**
- * A pie seen from above, cut into `cut` equal slices (1: not cut yet). Slices
- * in `taken` are lifted out — drawn as a gold outline with a tick where the
- * slice was — and `onSlice`, if given, is called when a slice is tapped. The
- * picture is decorative (`aria-hidden`): every screen also says it in words
- * and has buttons that do the same.
+ * A pie seen from above, cut into `cut` equal slices (1: not cut yet). On the
+ * board, slices in `taken` are lifted out — drawn as a gold outline with a
+ * tick where the slice was — and `onSlice`, if given, is called when a slice
+ * is tapped. As an `amount` (an order's picture), the slices in `taken` are
+ * the ones wanted, drawn full, and the rest faint (review round 1: the lifted
+ * look read as the opposite). The picture is decorative (`aria-hidden`):
+ * every screen also says it in words and has buttons that do the same.
+ * `className` can size it with CSS (`h-auto w-full` fills its box).
  */
 export function PieArt({
   cut,
@@ -34,27 +37,36 @@ export function PieArt({
   filling = '#d8304a',
   size = 160,
   onSlice,
+  amount = false,
+  className,
 }: {
   cut: number;
   taken?: readonly boolean[];
   filling?: string;
   size?: number;
   onSlice?: (i: number) => void;
+  amount?: boolean;
+  className?: string;
 }) {
   const r = 84;
   return (
-    <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true" className="block">
+    <svg width={size} height={size} viewBox="0 0 200 200" aria-hidden="true" className={className ? `block ${className}` : 'block'}>
       <circle cx="100" cy="100" r="96" fill={CRUST_DARK} stroke={INK} strokeWidth="5" />
       <circle cx="100" cy="100" r="88" fill={CRUST} />
       {Array.from({ length: Math.max(1, cut) }, (_, i) => {
-        const out = !!taken[i];
         const d = slicePath(100, 100, r, i, cut);
+        if (amount) {
+          const wanted = !!taken[i];
+          return <path key={i} d={d} fill={wanted ? filling : '#f4e3c3'} stroke={wanted ? INK : '#c9a878'} strokeWidth={wanted ? 4 : 3} />;
+        }
+        const out = !!taken[i];
         return (
           <g key={i} onClick={onSlice ? () => onSlice(i) : undefined} style={onSlice ? { cursor: 'pointer' } : undefined}>
             <path d={d} fill={out ? '#fff6dc' : filling} stroke={out ? '#f59e0b' : INK} strokeWidth={out ? 5 : 3} strokeDasharray={out ? '8 6' : undefined} />
             {!out && cut > 1 && <path d={slicePath(100, 100, r - 18, i, cut)} fill="#ffffff" opacity="0.12" />}
             {out && cut > 1 && (
-              <text {...sliceMid(i, cut)} textAnchor="middle" dominantBaseline="central" fontSize={cut >= 6 ? 20 : 28} fontWeight="bold" fill="#b45309">
+              // A bold tick, ringed in white, so a lifted slice reads on every filling (review round 1).
+              <text {...sliceMid(i, cut)} textAnchor="middle" dominantBaseline="central" fontSize={cut >= 6 ? 26 : 34} fontWeight="900" fill="#92400e" stroke="#ffffff" strokeWidth="4" paintOrder="stroke">
                 ✓
               </text>
             )}

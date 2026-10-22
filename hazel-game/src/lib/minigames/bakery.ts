@@ -6,7 +6,7 @@ import type { Band } from '../../content/minigames';
  * slices, puts slices in the box and closes it. Any cut that makes the amount
  * is right — two quarters is a half. A wrong box is said back, never scolded,
  * and can be fixed. Three orders make a morning (a round); each regular served
- * right the first time is a page of the collection. Pure: the amounts, the
+ * right is a page of the collection. Pure: the amounts, the
  * cuts, the orders, the check and the words.
  */
 
@@ -98,7 +98,7 @@ export function amountWords(a: Amount): string {
 export function numberWords(a: Amount, as: 'percent' | 'decimal'): string {
   const v = a.n / a.d;
   if (as === 'percent') return `${Math.round(v * 100)}% of a pie`;
-  return `${Math.round(v * 1000) / 1000} ${v > 1 ? 'pies' : 'of a pie'}`;
+  return `${Math.round(v * 1000) / 1000} ${v > 1 ? 'pies' : v === 1 ? 'pie' : 'of a pie'}`;
 }
 
 /** The regulars: eight townsfolk of Lumina Village, each with a favourite pie (the collection, §5.2). */
@@ -164,16 +164,29 @@ const ASKS: Record<Band, readonly Ask[]> = {
 export const ORDERS_PER_ROUND = 3;
 
 /**
- * The `i`th order of the kid's `round`th morning at a band. The regulars come
- * in turn, so three mornings meet all eight; a shared order's second customer
- * is someone else in the village.
+ * Who comes in, in a morning: regulars not in the book yet first, so every
+ * morning can fill pages — the stage starts each visit at round 0, and a kid
+ * who plays one morning a visit must still meet all eight (review round 1) —
+ * then the rest, in turn from where the round would have them.
  */
-export function orderFor(band: Band, round: number, i: number): Order {
+export function morningQueue(known: (id: RegularId) => boolean, round: number): RegularId[] {
+  const start = (round * ORDERS_PER_ROUND) % REGULAR_IDS.length;
+  const turn = [...REGULAR_IDS.slice(start), ...REGULAR_IDS.slice(0, start)];
+  return [...turn.filter((id) => !known(id)), ...turn.filter((id) => known(id))];
+}
+
+/**
+ * The `i`th order of the kid's `round`th morning at a band: what's asked goes
+ * by the slot; who asks is the morning's `queue` (`morningQueue`) or, without
+ * one, the regulars in turn (three mornings meet all eight). A shared order's
+ * second customer is someone else in the village.
+ */
+export function orderFor(band: Band, round: number, i: number, queue?: readonly RegularId[]): Order {
   const slot = round * ORDERS_PER_ROUND + i;
-  const regular = REGULAR_IDS[slot % REGULAR_IDS.length];
+  const regular = queue?.[i] ?? REGULAR_IDS[slot % REGULAR_IDS.length];
   const ask = ASKS[band][slot % ASKS[band].length];
   if ('mine' in ask) {
-    const other = REGULAR_IDS[(slot + 3) % REGULAR_IDS.length];
+    const other = REGULAR_IDS[(REGULAR_IDS.indexOf(regular) + 3) % REGULAR_IDS.length];
     return {
       regular,
       amount: add(ask.mine, ask.theirs),
@@ -210,11 +223,22 @@ export function boxWords(count: number, cut: number): string {
   return boxed.d !== cut || count > cut ? `${said} — that’s ${amountWords(boxed)}.` : `${said} of a pie.`;
 }
 
+/**
+ * The order as it was asked — never worked out for the kid: Tricky's numbers
+ * stay numbers ("75% of a pie") and a shared order stays two shares ("half a
+ * pie and a quarter of a pie"), so the conversion and the sum are theirs to
+ * do (review round 1).
+ */
+export function askedWords(order: Order): string {
+  if (order.with) return `${amountWords(order.with.mine)} and ${amountWords(order.with.amount)}`;
+  return order.asNumber ? order.words : amountWords(order.amount);
+}
+
 /** After a box is closed: what happened, in a kid's words. */
 export function verdictWords(count: number, cut: number, order: Order): string {
   const v = check(count, cut, order);
   if (v === 'right') return 'Just right!';
-  return v === 'too-little' ? `A little more — the order is ${amountWords(order.amount)}.` : `A little less — the order is ${amountWords(order.amount)}.`;
+  return v === 'too-little' ? `A little more — the order is ${askedWords(order)}.` : `A little less — the order is ${askedWords(order)}.`;
 }
 
 /**
@@ -227,12 +251,13 @@ export function learnedLine(count: number, cut: number, order: Order): string {
   const boxed = simplify(A(count, cut));
   if (order.with) return `${cap(amountWords(order.with.mine))} and ${amountWords(order.with.amount)} make ${amountWords(order.amount)}.`;
   if (order.asNumber) return `${cap(order.words)} is ${amountWords(order.amount)}.`;
-  if (boxed.d !== cut) return `${cap(slicesWords(count, cut))} is the same as ${amountWords(order.amount)}.`;
+  // More slices than one pie has ("three halves"): a pie can't be cut in two and give three (review round 1).
+  if (boxed.d !== cut || count > cut) return `${cap(slicesWords(count, cut))} is the same as ${amountWords(order.amount)}.`;
   return `${cap(amountWords(order.amount))}: cut a pie into ${num(cut)} equal slices and take ${num(count)}.`;
 }
 
-/** Can this cut make the order? If not, why, for the step card: "Quarters can’t make a third exactly." */
+/** Can this cut make the order? If not, why, for the step card: "Quarters can’t make a third of a pie exactly." */
 export function cutHint(cut: number, order: Order): string | null {
   if (cutMakes(cut, order.amount)) return null;
-  return `${cap(SLICE[cut].many)} can’t make ${amountWords(order.amount)} exactly. Try another cut!`;
+  return `${cap(SLICE[cut].many)} can’t make ${askedWords(order)} exactly. Try another cut!`;
 }

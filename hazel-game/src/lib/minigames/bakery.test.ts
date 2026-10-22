@@ -7,12 +7,14 @@ import {
   SLICE,
   add,
   amountWords,
+  askedWords,
   boxWords,
   check,
   compare,
   cutHint,
   cutMakes,
   learnedLine,
+  morningQueue,
   numberWords,
   orderFor,
   piesFor,
@@ -53,6 +55,7 @@ describe('amounts of pie (docs/DESIGN-MINIGAMES.md §5.2)', () => {
     expect(numberWords(A(3, 4), 'percent')).toBe('75% of a pie');
     expect(numberWords(A(1, 4), 'decimal')).toBe('0.25 of a pie');
     expect(numberWords(A(3, 2), 'decimal')).toBe('1.5 pies');
+    expect(numberWords(A(1, 1), 'decimal')).toBe('1 pie');
   });
 
   it('slices by their cut, never simplified', () => {
@@ -60,6 +63,8 @@ describe('amounts of pie (docs/DESIGN-MINIGAMES.md §5.2)', () => {
     expect(slicesWords(1, 2)).toBe('one half');
     expect(slicesWords(0, 8)).toBe('no slices');
     for (const band of BANDS) for (const cut of CUTS[band]) expect(SLICE[cut], `${cut}`).toBeDefined();
+    // Gentle cuts in halves and quarters only.
+    expect(CUTS.gentle).toEqual([2, 4]);
   });
 
   it('enough pies on the board, at least one', () => {
@@ -114,6 +119,24 @@ describe('orders', () => {
     expect(MINIGAMES['dots-bakery'].pages).toBe(REGULARS.length);
     for (const r of REGULARS) expect(NPC_DEFS[r.npc], r.npc).toBeDefined();
   });
+
+  it('a morning brings regulars not in the book yet first, so one morning a visit still fills it (review round 1)', () => {
+    const none = () => false;
+    expect(morningQueue(none, 0).slice(0, 3)).toEqual(['wick', 'sol', 'marigold']);
+    expect(morningQueue(none, 1).slice(0, 3)).toEqual(['rook', 'nib', 'pip']);
+    const met = new Set<string>(['wick', 'sol', 'marigold']);
+    const q = morningQueue((id) => met.has(id), 0);
+    expect(q.slice(0, 3)).toEqual(['rook', 'nib', 'pip']);
+    expect(new Set(q).size).toBe(REGULAR_IDS.length);
+    // Visit after visit, each first morning fills three more pages until the book is whole.
+    for (let visit = 0; visit < 3; visit++) for (const id of morningQueue((id) => met.has(id), 0).slice(0, 3)) met.add(id);
+    expect(met.size).toBe(REGULAR_IDS.length);
+    // Who asks follows the queue; what's asked still goes by the slot.
+    const o = orderFor('tricky', 0, 1, q);
+    expect(o.regular).toBe('nib');
+    expect(o.amount).toEqual(orderFor('tricky', 0, 1).amount);
+    expect(o.with!.regular).not.toBe('nib');
+  });
 });
 
 describe('the box', () => {
@@ -138,6 +161,17 @@ describe('the box', () => {
     expect(verdictWords(4, 4, order)).toBe('A little less — the order is three quarters of a pie.');
   });
 
+  it('on Tricky, never works the order out for the kid: a number stays a number, a shared order two shares (review round 1)', () => {
+    const percent = orderFor('tricky', 0, 0); // 75% of a pie
+    expect(askedWords(percent)).toBe('75% of a pie');
+    expect(cutHint(2, percent)).toBe('Halves can’t make 75% of a pie exactly. Try another cut!');
+    expect(verdictWords(2, 4, percent)).toBe('A little more — the order is 75% of a pie.');
+    const shared = orderFor('tricky', 0, 1); // half and a quarter
+    expect(askedWords(shared)).toBe('half a pie and a quarter of a pie');
+    expect(verdictWords(4, 4, shared)).toBe('A little less — the order is half a pie and a quarter of a pie.');
+    expect(askedWords(orderFor('gentle', 0, 0))).toBe('half a pie');
+  });
+
   it('a cut that can’t make the order says so', () => {
     const third = orderFor('medium', 1, 2); // one third
     expect(third.amount).toEqual(A(1, 3));
@@ -150,5 +184,11 @@ describe('the box', () => {
     expect(learnedLine(3, 4, order)).toBe('Three quarters of a pie: cut a pie into four equal slices and take three.');
     expect(learnedLine(3, 4, orderFor('tricky', 0, 0))).toBe('75% of a pie is three quarters of a pie.');
     expect(learnedLine(3, 4, orderFor('tricky', 0, 1))).toBe('Half a pie and a quarter of a pie make three quarters of a pie.');
+    // More than a pie: never "cut a pie into two and take three" (review round 1).
+    const oneAndAHalf = orderFor('medium', 1, 0);
+    expect(oneAndAHalf.amount).toEqual(A(3, 2));
+    expect(learnedLine(3, 2, oneAndAHalf)).toBe('Three halves is the same as one and a half pies.');
+    expect(learnedLine(6, 4, oneAndAHalf)).toBe('Six quarters is the same as one and a half pies.');
+    expect(learnedLine(5, 4, orderFor('medium', 2, 0))).toBe('Five quarters is the same as one and a quarter pies.');
   });
 });

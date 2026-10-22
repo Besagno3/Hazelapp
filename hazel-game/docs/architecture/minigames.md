@@ -13,9 +13,10 @@ and each game — so far 🧪 Potion Lab.
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
   line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service — over
-  their quest's offer or a reminder too, which it leaves as they were, never
-  over a reward; on a step through them only on its last line, which it
-  finishes) → `OPEN_GAME` → machine substate
+  their quest's offer too, quiet there beside "I'm on it!", leaving it
+  offered; over a reminder, keeping its own bookkeeping from the last line as
+  ▼ Next would; never over a reward or a riddle; on a step through them only
+  on its last line, which it finishes) → `OPEN_GAME` → machine substate
   `world.minigame` (context `game`) → `features/minigames/MiniGameStage`
   (a `ModalLayer`): a round window grows from the middle (`ZOOM_MS`; a fade
   with reduced motion), the title card (logo, the host's hello, three "how to
@@ -63,18 +64,25 @@ and each game — so far 🧪 Potion Lab.
   the colour shows. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
   Village — she also gives a quest, so the game shows over its offer;
   `lib/minigames/bakery.ts`, `features/minigames/bakery/`): fractions with
-  pie — three orders a morning (`orderFor(band, round, i)`, `ORDERS_PER_ROUND`)
-  from eight regulars of the village (`REGULARS`, each a real NPC with a
-  favourite pie — the Regulars' Book, a page each served right the first
-  time); the kid picks a cut (`CUTS`: halves and quarters on Gentle; thirds,
+  pie — three orders a morning (`orderFor(band, round, i, queue)`,
+  `ORDERS_PER_ROUND`: what's asked by the slot, who asks from `morningQueue`,
+  regulars not in the book first, since the stage starts each visit at round
+  0) from eight regulars of the village (`REGULARS`, each a real NPC with a
+  favourite pie — the Regulars' Book, a page each served right); the kid picks a cut (`CUTS`: halves and quarters on Gentle; thirds,
   sixths and eighths too on Medium and Tricky), taps slices into the box on
   `PieArt` (or − / +) and closes it: `check` against the order, any cut that
   makes it right (`compare`), a box that's off said back (`boxWords`,
-  `verdictWords`) and fixable, a cut that can't make it said so (`cutHint`);
+  `verdictWords`) and fixable, a cut that can't make it said so (`cutHint`,
+  with "Cut it another way" as the gold button) — both naming the order as it
+  was asked (`askedWords`: Tricky's number stays a number, a shared order two
+  shares; the ticket's picture too), so converting and adding are the kid's;
   Medium orders more than a pie; Tricky asks in percentages and decimals
   (`numberWords`, `asNumber`) and boxes two people's orders together
   (`Order.with`); the reward keeps the morning's "is the same as" lesson
-  (`learnedLine`). The scene's customer and Ember stand over the SVG as HTML
-  (no `foreignObject`). The
+  (`learnedLine`; more slices than a pie has are "Three halves is the same as
+  one and a half pies."). The pies are in the step card on a phone (as wide
+  as it, so an eighth can be tapped) and beside the steps from `sm` up,
+  smaller on a short screen so they stay in sight. The scene's customer and
+  Ember stand over the SVG as HTML (no `foreignObject`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

@@ -21,7 +21,8 @@ const { default: MiniGameStage } = await import('../MiniGameStage');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
-const { pageFlag, starFlag } = await import('../../../content/minigames');
+const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
+const { default: DotsBakery } = await import('./DotsBakery');
 const { MINIGAME_PAGE_XP } = await import('../../../content/items');
 
 const addXp = vi.fn(async () => {});
@@ -78,7 +79,9 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
 
     // One quarter is a little short: said back, not scolded, and fixable.
     boxUp('Quarters', 1);
+    // Heard with what's in the box and what it means (review round 1).
     expect(screen.getByRole('heading', { name: 'Not quite enough' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Not quite enough' })).toHaveAccessibleDescription('One quarter of a pie. A little more — the order is half a pie.');
     expect(screen.getByText('A little more — the order is half a pie.')).toBeInTheDocument();
     expect(save().flags[pageFlag('dots-bakery', 'wick')]).toBeUndefined();
     fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
@@ -97,6 +100,8 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     expect(screen.getByText('Order 2 of 3')).toBeInTheDocument();
     fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Halves/ }));
     expect(screen.getAllByText('Halves can’t make a quarter of a pie exactly. Try another cut!').length).toBeGreaterThan(0);
+    // The way on is the one gold button, right under why (review round 1).
+    expect(screen.getAllByRole('button', { name: 'Cut it another way' })).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
     boxUp('Quarters', 1);
     expect(screen.getByRole('heading', { name: 'Just right!' })).toBeInTheDocument();
@@ -116,6 +121,37 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     expect(save().items.snack).toBe(defaultSave().items.snack + 1);
   });
 
+  it('a morning brings regulars not in the book first: a kid who plays one morning a visit still fills it (review round 1)', async () => {
+    setUp(2, { [pageFlag('dots-bakery', 'wick')]: true, [pageFlag('dots-bakery', 'sol')]: true, [pageFlag('dots-bakery', 'marigold')]: true });
+    await open();
+    // Who's new comes in; what's asked is still the morning's first order.
+    expect(screen.getByText(/Guard Rook wants half a pie/)).toBeInTheDocument();
+    boxUp('Halves', 1);
+    expect(screen.getByText(/Guard Rook’s page is in your book!/)).toBeInTheDocument();
+    expect(save().flags[pageFlag('dots-bakery', 'rook')]).toBe(true);
+  });
+
+  it('more than a pie: two pies on the board, a tap on the second fills from it, and it’s said as halves (review round 1)', () => {
+    const onPage = vi.fn(() => true);
+    // The second Medium morning opens on one and a half pies.
+    render(<DotsBakery def={MINIGAMES['dots-bakery']} band="medium" round={1} onPage={onPage} onFinish={() => {}} />);
+    expect(screen.getByText(/Guard Rook wants one and a half pies/)).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Halves/ }));
+    const slices = screen.getByRole('group', { name: 'The pies on the board' }).querySelectorAll('g[style]');
+    expect(slices).toHaveLength(4);
+    fireEvent.click(slices[3]); // the second pie's second half
+    expect(screen.getByText('One half of a pie.')).toBeInTheDocument();
+    const lifted = () => Array.from(screen.getByRole('group', { name: 'The pies on the board' }).querySelectorAll('g[style] > path:first-child')).map((p) => p.getAttribute('fill') === '#fff6dc');
+    expect(lifted()).toEqual([false, false, false, true]);
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    expect(screen.getByText('Three halves — that’s one and a half pies.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
+    expect(screen.getByRole('heading', { name: 'Just right!' })).toBeInTheDocument();
+    expect(screen.getByText(/Three halves is the same as one and a half pies\./)).toBeInTheDocument();
+    expect(onPage).toHaveBeenCalledWith('rook', 'Guard Rook');
+  });
+
   it('a slice tapped on the pie goes in the box, and out again', async () => {
     await open();
     fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Quarters/ }));
@@ -131,6 +167,11 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     expect(shut).toHaveAttribute('aria-disabled', 'true');
     fireEvent.click(shut);
     expect(screen.queryByRole('heading', { name: /Just right|Not quite|too much/ })).toBeNull();
+    // A full box can't take another slice.
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    for (let k = 0; k < 3; k++) fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    expect(screen.getByText('Four quarters — that’s a whole pie.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Put a slice in' })).toHaveAttribute('aria-disabled', 'true');
   });
 
   it('Medium: thirds with sixths — four sixths is two thirds', async () => {
@@ -146,6 +187,10 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     setUp(9);
     await open();
     expect(screen.getByRole('heading', { name: 'Step 1 · Cut the pie' })).toHaveAccessibleDescription('75% of a pie.');
+    // The hint keeps the number: converting it is the kid's (review round 1).
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Halves/ }));
+    expect(screen.getAllByText('Halves can’t make 75% of a pie exactly. Try another cut!').length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
     boxUp('Quarters', 3);
     expect(screen.getByText(/75% of a pie is three quarters of a pie\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hand it to Grandmother Wick' }));
@@ -162,5 +207,12 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     fireEvent.click(screen.getByRole('button', { name: 'Nib: cherry pie. Read the page' }));
     const book = within(screen.getByRole('region', { name: 'Regulars’ Book' }));
     expect(book.getByText(/turns his tongue red/)).toBeInTheDocument();
+    // The next press puts Dot back on the order (review round 1: the page stayed after Fix the box).
+    boxUp('Quarters', 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Nib: cherry pie. Read the page' }));
+    expect(screen.getAllByText(/turns his tongue red/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    expect(screen.queryAllByText(/turns his tongue red/)).toHaveLength(0);
+    expect(screen.getByText(/Now tap slices into the box/)).toBeInTheDocument();
   });
 });

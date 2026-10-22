@@ -95,7 +95,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     ],
     collection: 'Regulars’ Book',
     pages: 8,
-    bandNote: 'Medium cuts thirds, sixths and eighths; Tricky says it in numbers.',
+    bandNote: 'Medium cuts thirds, sixths and eighths; Tricky uses percentages and decimals.',
     music: 'town',
     backdrop: '/backgrounds/lumina-village.png',
     firstItem: 'snack',

@@ -518,18 +518,47 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     const finish = vi.fn((s: object) => ({ ...s, flags: { 'test-offered': true } }));
     quests.override = (id) =>
       id === 'verdara-merchant' ? { lines: ['Will you help me?', 'It’s a big job.'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish } : null;
-    render(<DialogueOverlay npcId="verdara-merchant" />);
+    const { unmount } = render(<DialogueOverlay npcId="verdara-merchant" />);
     fireEvent.click(screen.getByText('🧪 Potion Lab'));
     expect(finish).not.toHaveBeenCalled();
     expect(useSaveStore.getState().save!.flags['test-offered']).toBeUndefined();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    unmount();
+    // Not from the offer's last line either, where ▼ Next would have taken it (review round 1) — and
+    // there "I'm on it!" is the gold button, not the game.
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    const game = screen.getByText('🧪 Potion Lab');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(finish).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.flags['test-offered']).toBeUndefined();
   });
 
-  it('…and over a reminder of a quest under way', () => {
-    quests.override = (id) => (id === 'verdara-merchant' ? { lines: ['Still looking? Try the pond!'], badge: 'A test quest', finishKind: null, finish: null } : null);
-    render(<DialogueOverlay npcId="verdara-merchant" />);
+  it('…and over a reminder of a quest under way, keeping its own bookkeeping from the last line, as ▼ Next would (review round 1)', () => {
+    const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'tries-reset': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['Still looking?', 'Try the pond!'], badge: 'A test quest', finishKind: null, questId: 'test', finish } : null;
+    const { unmount } = render(<DialogueOverlay npcId="verdara-merchant" />);
     fireEvent.click(screen.getByText('🧪 Potion Lab'));
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(finish).not.toHaveBeenCalled();
+    unmount();
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText('🧪 Potion Lab').className).toContain('bg-amber-400');
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(useSaveStore.getState().save!.flags['tries-reset']).toBe(true);
+  });
+
+  it('never over a riddle, which its own question answers (review round 1)', () => {
+    quests.override = (id) =>
+      id === 'verdara-merchant'
+        ? { lines: ['A riddle for you!'], badge: 'A test quest', finishKind: 'riddle', questId: 'test', finish: null, riddle: 'test-riddle' }
+        : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
   });
 
   it('Baker Dot offers 🥧 Dot’s Bakery over her own quest’s offer', () => {

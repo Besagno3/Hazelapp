@@ -187,8 +187,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   function openGame() {
     if (!game) return;
     applyLineFlag();
-    // Only a step through the host is finished on the way to the game; an offer stays an offer.
-    if (gameTalk === 'step' && quest?.finish && isLast && !offering) update(quest.finish);
+    // From the last line it does what ▼ Next would — a step through the host is finished, a reminder's own
+    // bookkeeping kept (review round 1) — except take the quest: an offer stays an offer.
+    if (gameTalk !== 'offer' && quest?.finish && isLast && !offering) update(quest.finish);
     sendFlow({ type: 'OPEN_GAME', game });
   }
 
@@ -335,9 +336,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {offerGame && game && (
             <button
               onClick={openGame}
-              // Beside the pen-pal offer the pen is the gold action, as for a service (round 6).
+              // Beside the pen-pal offer the pen is the gold action, as for a service (round 6); beside a quest's
+              // offer, "I'm on it!" is (review round 1: a kid follows the gold button).
               className={
-                offering
+                offering || gameTalk === 'offer'
                   ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'
                   : 'bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11'
               }
