@@ -8,7 +8,7 @@ import { TypingBonus } from './TypingBonus';
 import { kidXpWords, xpStartsLine, type KidXpResult } from '../../lib/kidXp';
 import { useSettled } from '../../hooks/useSettled';
 
-/** A co-op battle's Player 2 (#178): the XP they earned, and where it went — a sibling's to their own game (`lib/kidXp.ts`). */
+/** A co-op battle's Player 2 (#187): the XP they earned, and where it went — a sibling's to their own game (`lib/kidXp.ts`). */
 export interface PartnerPay {
   name: string;
   icon: string;
@@ -109,7 +109,7 @@ export function BattleResult({
   bonus?: Bonus | null;
   /** The home-row hold, as the player has it set. */
   holdRule?: boolean;
-  /** A co-op battle (#178): each player's right answers, the kid playing first (`correctCount` is theirs alone). */
+  /** A co-op battle (#187): each player's right answers, the kid playing first (`correctCount` is theirs alone). */
   team?: { name: string; icon: string; right: number }[] | null;
   /** A co-op battle's Player 2: the XP they earned (a sibling's, saved to their own game). */
   partner?: PartnerPay | null;

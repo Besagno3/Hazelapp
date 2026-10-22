@@ -22,7 +22,7 @@ describe('TopicSelect', () => {
     }
   });
 
-  it('🆚 Quiz Duel is a button above the topics, before the world opens too (#177)', () => {
+  it('🆚 Quiz Duel is a button above the topics, before the world opens too (#186)', () => {
     sendFlow.mockClear();
     render(<TopicSelect />);
     const duel = screen.getByRole('button', { name: /Quiz Duel/ });

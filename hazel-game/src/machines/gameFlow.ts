@@ -110,7 +110,7 @@ export const gameFlowMachine = setup({
         ],
       },
     },
-    // 🆚 Quiz Duel (#177): two players, one screen — picks its own players and topic.
+    // 🆚 Quiz Duel (#186): two players, one screen — picks its own players and topic.
     duel: {
       on: {
         EXIT_DUEL: 'topicSelect',

@@ -100,7 +100,7 @@ export function CommandMenu({
   onSwap,
   onFlee,
 }: {
-  /** Whose move it is, in a co-op battle (#178): the kid playing, by name. */
+  /** Whose move it is, in a co-op battle (#187): the kid playing, by name. */
   mover?: { name: string; icon: string };
   charge: number;
   spellsLoaded: boolean;
@@ -323,7 +323,7 @@ export function CompanionMenu({ onBack, ...moves }: CompanionMovesProps & { onBa
 }
 
 /**
- * Player 2's turn in a co-op battle (#178): the companion's strike or a Pair
+ * Player 2's turn in a co-op battle (#187): the companion's strike or a Pair
  * Attack, each a question at Player 2's own level (a Pair Attack asks the kid
  * playing one too) — or, while the companion can't fight yet (Ember still an
  * egg), a cheer for the hero: +`cheerCharge` ◆ when right. No ← Back: every
@@ -370,7 +370,7 @@ export function PartnerMenu({
   );
 }
 
-/** A companion's strike and its Pair Attacks — the companion's menu, and Player 2's turn (#178). */
+/** A companion's strike and its Pair Attacks — the companion's menu, and Player 2's turn (#187). */
 function CompanionMoves({
   companion,
   move,

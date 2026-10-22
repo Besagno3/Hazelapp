@@ -3,10 +3,10 @@ import { readKidPlay, type GuestPace, type PlayerTwo } from '../lib/playerTwo';
 import type { Kid } from '../types';
 
 /**
- * Player 2 for this session (#177, `lib/playerTwo.ts`): picked once, kept for
+ * Player 2 for this session (#186, `lib/playerTwo.ts`): picked once, kept for
  * the next 🆚 Quiz Duel, and put away with the game (Switch player, sign-out —
  * `putAwayGame`). Deliberately not persisted: a new session asks again.
- * `coop`: Player 2 fights beside the hero in battles (#178, turned on and off
+ * `coop`: Player 2 fights beside the hero in battles (#187, turned on and off
  * in the world's 📜 Menu) — only ever with a Player 2 picked.
  */
 interface PlayerTwoStore {

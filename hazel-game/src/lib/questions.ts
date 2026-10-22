@@ -42,7 +42,7 @@ async function invokeGenerate(
   cacheOnly = false,
   kid?: string | null,
 ): Promise<Question[]> {
-  // The kid playing (#124) — or the one named, a duel's Player 2 (#177): their
+  // The kid playing (#124) — or the one named, a duel's Player 2 (#186): their
   // seen questions are their own, and the server pitches the questions to
   // their age. This app tells the server what it shows (`markSeen`, #134), so
   // a batch handed over here is only held back, not counted as seen.
@@ -266,7 +266,7 @@ export interface QuickOptions {
    * `start` of them the pool starts at once, the saved ones coming as `late`.
    */
   have?: Question[];
-  /** The kid they're for, when it isn't the kid playing (a duel's Player 2, #177). */
+  /** The kid they're for, when it isn't the kid playing (a duel's Player 2, #186). */
   kid?: string | null;
 }
 
@@ -307,7 +307,7 @@ export async function quickQuestions(
  * only filled in), asked of the server as usual (Claude may write them), none
  * repeating what's there. What the server can't give comes from the starter
  * questions, so the pool still ends up full. Never fails. `kid`: who they're
- * for, when it isn't the kid playing (a duel's Player 2, #177).
+ * for, when it isn't the kid playing (a duel's Player 2, #186).
  */
 export async function moreQuestions(
   topic: Topic,
@@ -454,7 +454,7 @@ function usable(topic: Topic, skillLevel: number, kid: string | null = activeKid
 
 /**
  * Up to `count` of the kid playing's carried questions — or `kid`'s, a duel's
- * Player 2 (#177) — for a round of `topic` at `skillLevel`, oldest first —
+ * Player 2 (#186) — for a round of `topic` at `skillLevel`, oldest first —
  * taken, so no other round gets them.
  */
 export function takeCarried(topic: Topic, skillLevel: number, count: number, kid?: string | null): Question[] {

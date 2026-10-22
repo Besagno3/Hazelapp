@@ -44,9 +44,9 @@ interface Pool {
  * done with for the next round (`carryOver`), and says when its bank covered
  * the round (`covered`), so nothing was written for it — the round's end then
  * asks for the next one's the normal way, ~1 fresh (`warmNextRound`, #30).
- * With `seat` the pool is for someone else (`QuestionSeat`, #177): a duel's
+ * With `seat` the pool is for someone else (`QuestionSeat`, #186): a duel's
  * or a co-op battle's Player 2. `off`: no pool at all, nothing asked for (a
- * battle's Player 2 pools when nobody plays beside the hero, #178).
+ * battle's Player 2 pools when nobody plays beside the hero, #187).
  */
 export function useBattleQuestions(
   topic: Topic,

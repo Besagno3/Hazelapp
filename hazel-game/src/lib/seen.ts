@@ -24,7 +24,7 @@ export const SEEN_BATCH_MAX = 20;
  */
 export const SEEN_RESEND_MS = 30 * 60 * 1000;
 
-/** Ids waiting to be sent, per kid (a duel shows two kids' questions in turn, #177). */
+/** Ids waiting to be sent, per kid (a duel shows two kids' questions in turn, #186). */
 const pending = new Map<string, Set<string>>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 /** When each id was last sent, per kid. */
@@ -32,7 +32,7 @@ const sent = new Map<string, Map<string, number>>();
 
 /**
  * Notes that a question is on screen for the kid playing now — or for `kid`,
- * a duel's or a co-op battle's Player 2 (#177), whose questions are their own.
+ * a duel's or a co-op battle's Player 2 (#186), whose questions are their own.
  */
 export function markSeen(questionId: string, kid: string | null = useFamilyStore.getState().activeKidId): void {
   // Starter questions (B5) and ones that failed to cache ("fresh-…") aren't in the bank.

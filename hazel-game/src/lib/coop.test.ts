@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CHEER_CHARGE, defenderFor, partnerLevel, partnerPick } from './coop';
 
-describe('👥 co-op rules (#178)', () => {
+describe('👥 co-op rules (#187)', () => {
   it('the players block in turn: the kid playing first', () => {
     expect([0, 1, 2, 3, 4].map(defenderFor)).toEqual([0, 1, 0, 1, 0]);
   });

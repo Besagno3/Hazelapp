@@ -26,7 +26,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe('Player 2 (#177)', () => {
+describe('Player 2 (#186)', () => {
   it('the kid playing plays at their own age and level for the topic', () => {
     const one = playerOneSeat({ name: 'Ada', icon: 'panda' }, { birthYear: 2019, birthMonth: 1, skillLevels: { math: 3 } }, 7, 'math');
     expect(one).toEqual({ name: 'Ada', icon: '🐼', kid: null, age: 7, skillLevel: 3, xpPerRight: 0, worldOpen: false });
@@ -80,7 +80,7 @@ describe('Player 2 (#177)', () => {
     expect(kidName({ name: 'Sam' }, 'Player 1')).toBe('Sam');
   });
 
-  it("Player 2's name and emoji for the screen (#178)", () => {
+  it("Player 2's name and emoji for the screen (#187)", () => {
     expect(playerTwoLook({ kind: 'guest', name: '  ', pace: 'same' })).toEqual({ name: 'Guest', icon: '🙂' });
     const mia = { kind: 'kid' as const, id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: {}, powerUps: {}, worldOpen: true };
     expect(playerTwoLook(mia)).toEqual({ name: 'Mia', icon: '🦊' });
@@ -93,7 +93,7 @@ describe('Player 2 (#177)', () => {
   });
 });
 
-describe("readKidPlay — what Player 2 plays with, read only (#177)", () => {
+describe("readKidPlay — what Player 2 plays with, read only (#186)", () => {
   it('reads their levels and power-ups (real numbers only) and whether their world is open', async () => {
     profileRead.mockResolvedValue({
       data: { skill_levels: { math: 6, space: 'x', science: Number.NaN, history: 2 }, power_ups: { scholar: 2, attack: 'lots' } },

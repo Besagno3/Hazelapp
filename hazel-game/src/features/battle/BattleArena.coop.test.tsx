@@ -131,7 +131,7 @@ beforeEach(() => {
   });
 });
 
-describe('👥 co-op battles (#178)', () => {
+describe('👥 co-op battles (#187)', () => {
   it("alone, nothing changes: Player 2's pools are off and the enemy follows the hero", () => {
     start({ coop: false });
     expect(calls.filter((c) => (c[4] as Opts)?.seat === undefined && (c[4] as Opts)?.off).length).toBeGreaterThan(0);

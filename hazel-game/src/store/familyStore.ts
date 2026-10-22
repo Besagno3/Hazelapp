@@ -228,7 +228,7 @@ export async function signInAgain(): Promise<void> {
   await signOutHere('Signing out to sign in again');
 }
 
-/** Put away the game in progress: profile, save, battle, Player 2 (#177), flow. */
+/** Put away the game in progress: profile, save, battle, Player 2 (#186), flow. */
 export function putAwayGame(): void {
   useProfileStore.getState().clearProfile();
   useSaveStore.getState().clear();

@@ -33,7 +33,7 @@ describe('gameFlowMachine', () => {
     expect(actor.getSnapshot().matches('world')).toBe(true);
   });
 
-  it('🆚 Quiz Duel opens from the Training Grounds and goes back there (#177)', () => {
+  it('🆚 Quiz Duel opens from the Training Grounds and goes back there (#186)', () => {
     const actor = startActor();
     actor.send({ type: 'READY' });
     actor.send({ type: 'START_DUEL' });

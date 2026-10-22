@@ -30,7 +30,7 @@ beforeEach(() => {
   usePlayerTwoStore.getState().clear();
 });
 
-describe('📜 Menu → 👥 Play together (#178)', () => {
+describe('📜 Menu → 👥 Play together (#187)', () => {
   it('off, one row says what it is; tapped, it asks who — and turns on once Player 2 is picked', async () => {
     render(<MenuOverlay />);
     const panel = screen.getByTestId('coop-panel');

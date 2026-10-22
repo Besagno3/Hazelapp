@@ -213,7 +213,7 @@ export interface Kid {
 }
 
 /**
- * Who a pool of questions is for, when it isn't the kid playing (#177): a
+ * Who a pool of questions is for, when it isn't the kid playing (#186): a
  * duel's or a co-op battle's Player 2 — a kid of the family (their own id, age
  * and level) or a guest (the kid playing's id and age, at the level the guest
  * chose). See `lib/playerTwo.ts`.

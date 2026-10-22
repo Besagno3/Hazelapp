@@ -88,7 +88,7 @@ describe('markSeen — the app tells the server what was on screen (#134)', () =
     expect(rpcMock.mock.calls[1]).toEqual(call('kid-2', ['q-2']));
   });
 
-  it("a named kid's questions are theirs, and two kids in turn keep their own resend times (#177)", async () => {
+  it("a named kid's questions are theirs, and two kids in turn keep their own resend times (#186)", async () => {
     const { markSeen, SEEN_FLUSH_MS } = await fresh();
     // A duel: the kid playing, then Player 2, round and round.
     markSeen('q-1');

@@ -252,7 +252,7 @@ export default function MenuOverlay({
           </div>
         </div>
 
-        {/* Co-op battles (#178): Player 2 plays the companion. */}
+        {/* Co-op battles (#187): Player 2 plays the companion. */}
         <CoopPanel />
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">

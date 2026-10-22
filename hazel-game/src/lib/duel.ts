@@ -3,7 +3,7 @@ import { isStarterId } from '../content/starterQuestions';
 import type { Question, Topic } from '../types';
 
 /**
- * 🆚 Quiz Duel (#177): two players on one screen take turns — the kid playing
+ * 🆚 Quiz Duel (#186): two players on one screen take turns — the kid playing
  * first, then Player 2, round and round — each answering questions at their
  * own level, so a 6-year-old and a 12-year-old (or a grown-up) play fair.
  * The most right answers wins. Each family kid earns XP for their right

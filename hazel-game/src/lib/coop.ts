@@ -2,7 +2,7 @@ import { clampLevel } from './age';
 import type { SeatIndex } from './duel';
 
 /**
- * 👥 Co-op battles (#178): Player 2 (`lib/playerTwo.ts`) fights beside the
+ * 👥 Co-op battles (#187): Player 2 (`lib/playerTwo.ts`) fights beside the
  * kid playing as the companion. Each round: the hero's command (the kid
  * playing), then the companion's (Player 2 — its strike or a Pair Attack, a
  * question at Player 2's own level; with no companion able to fight, a

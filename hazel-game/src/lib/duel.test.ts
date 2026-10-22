@@ -4,7 +4,7 @@ import type { Question } from '../types';
 
 const q = (id: string): Question => ({ id, topic: 'math', level: 3, text: id, options: ['a', 'b', 'c', 'd'], correctIndex: 0 });
 
-describe('🆚 Quiz Duel rules (#177)', () => {
+describe('🆚 Quiz Duel rules (#186)', () => {
   it('turns go the kid playing, then Player 2, round and round — five each', () => {
     expect(DUEL_QUESTIONS_EACH).toBe(5);
     expect(DUEL_TURNS).toBe(10);

@@ -9,7 +9,7 @@ import { kidIcon, MAX_KID_NAME } from '../content/family';
 import type { Kid, PowerUps, QuestionSeat, SkillLevels, Topic } from '../types';
 
 /**
- * Player 2 (#177): who plays beside the kid playing — in a 🆚 Quiz Duel, and in
+ * Player 2 (#186): who plays beside the kid playing — in a 🆚 Quiz Duel, and in
  * co-op battles. Either another kid of the family, who plays at their own age
  * and level (their questions are asked for under their own id, so the server
  * pitches them to their age and keeps their seen questions their own), or a

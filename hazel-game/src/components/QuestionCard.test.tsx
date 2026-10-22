@@ -21,7 +21,7 @@ describe('QuestionCard — on screen = seen (#134)', () => {
     expect(markSeen).toHaveBeenLastCalledWith('q2', undefined);
   });
 
-  it("a co-op battle's Player 2 question is seen by them (#178)", () => {
+  it("a co-op battle's Player 2 question is seen by them (#187)", () => {
     markSeen.mockClear();
     render(<QuestionCard question={q} seenBy="kid-2" onAnswered={() => {}} onContinue={() => {}} />);
     expect(markSeen).toHaveBeenCalledWith('q', 'kid-2');

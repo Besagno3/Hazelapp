@@ -122,7 +122,7 @@ async function play(right: boolean) {
   return id;
 }
 
-describe('🆚 Quiz Duel — picking Player 2 (#177)', () => {
+describe('🆚 Quiz Duel — picking Player 2 (#186)', () => {
   it("offers the family's other kids and a guest — never the kid playing — and the topics once picked", async () => {
     render(<QuizDuel />);
     expect(screen.getByRole('heading', { name: /Quiz Duel/ })).toBeInTheDocument();
@@ -221,7 +221,7 @@ describe('🆚 Quiz Duel — picking Player 2 (#177)', () => {
   });
 });
 
-describe('🆚 Quiz Duel — playing (#177)', () => {
+describe('🆚 Quiz Duel — playing (#186)', () => {
   it('each player gets questions asked for as them, at their own level', async () => {
     await startWithMia();
     await screen.findByRole('heading', { name: /Ada's turn/ });
@@ -303,7 +303,7 @@ describe('🆚 Quiz Duel — playing (#177)', () => {
   });
 });
 
-describe('🆚 Quiz Duel — the results (#177)', () => {
+describe('🆚 Quiz Duel — the results (#186)', () => {
   it('the most right answers wins: the winner, both scores, the XP earned, what each missed — and no levels move', async () => {
     await startWithMia();
     for (let t = 0; t < 10; t++) await play(t % 2 === 0);

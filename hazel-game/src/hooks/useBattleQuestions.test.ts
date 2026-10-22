@@ -44,7 +44,7 @@ describe('useBattleQuestions (#158)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     // The battle is on with three, while the rest are still being written.
     expect(result.current.questions.map((x) => x.id)).toEqual(['s1', 's2', 's3']);
-    // Asked for as the kid playing (#177: a duel's Player 2 names their own).
+    // Asked for as the kid playing (#186: a duel's Player 2 names their own).
     expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 9, [q('s1'), q('s2'), q('s3')], undefined, 'kid-1');
 
     await act(async () => finish([q('n1'), q('n2'), q('n3'), q('n4'), q('n5'), q('n6')]));
@@ -90,7 +90,7 @@ describe('useBattleQuestions (#158)', () => {
     expect(more.mock.calls[0][5]).toBe('spell');
   });
 
-  it("a seat's pool is asked for as that kid, at their age and level, and takes their carried questions (#177)", async () => {
+  it("a seat's pool is asked for as that kid, at their age and level, and takes their carried questions (#186)", async () => {
     carryOver('kid-2', 'math', [q('c1')]);
     carryOver('kid-1', 'math', [q('mine')]);
     quick.mockResolvedValue(started([q('x1'), q('x2'), q('x3')]));

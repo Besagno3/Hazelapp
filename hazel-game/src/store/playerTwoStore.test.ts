@@ -14,7 +14,7 @@ beforeEach(() => {
   usePlayerTwoStore.getState().clear();
 });
 
-describe('playerTwoStore (#177)', () => {
+describe('playerTwoStore (#186)', () => {
   it('a kid is Player 2 at once; their levels, power-ups and open world follow once read', async () => {
     let answer!: (levels: object) => void;
     readKidPlay.mockReturnValue(new Promise((r) => (answer = r)));
@@ -54,7 +54,7 @@ describe('playerTwoStore (#177)', () => {
     expect(usePlayerTwoStore.getState()).toMatchObject({ playerTwo: null, coop: false });
   });
 
-  it('co-op battles only turn on with a Player 2 picked (#178)', () => {
+  it('co-op battles only turn on with a Player 2 picked (#187)', () => {
     usePlayerTwoStore.getState().setCoop(true);
     expect(usePlayerTwoStore.getState().coop).toBe(false);
     usePlayerTwoStore.getState().chooseGuest('Dad', 'same');

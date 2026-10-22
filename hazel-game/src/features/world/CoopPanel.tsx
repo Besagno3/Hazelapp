@@ -10,7 +10,7 @@ import PlayerTwoPicker from '../duel/PlayerTwoPicker';
 export const COOP_XP_NOTE = 'A family player earns XP for their own right answers; a guest plays just for fun.';
 
 /**
- * 👥 Play together (#178), in the world's 📜 Menu: co-op battles on or off.
+ * 👥 Play together (#187), in the world's 📜 Menu: co-op battles on or off.
  * Off, one row says what it is; tapping it asks who's Player 2
  * (`PlayerTwoPicker`, the duel's) and "👥 Play together!" turns it on. On, it
  * says who plays the companion, and "Stop playing together" turns it off. For

@@ -59,7 +59,7 @@ export default function TopicSelect() {
               🗺️ Enter Lumina
             </motion.button>
           )}
-          {/* Two players on one screen (#177) — any time, it changes nothing. */}
+          {/* Two players on one screen (#186) — any time, it changes nothing. */}
           <motion.button
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}

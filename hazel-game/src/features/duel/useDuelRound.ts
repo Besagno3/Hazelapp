@@ -7,7 +7,7 @@ import type { Seat } from '../../lib/playerTwo';
 import type { Question, Topic } from '../../types';
 
 /**
- * A 🆚 Quiz Duel's questions (#177): one pool per player, loaded the quiz's way
+ * A 🆚 Quiz Duel's questions (#186): one pool per player, loaded the quiz's way
  * (`useBattleQuestions`, #158/#163 — saved questions at once, starters for a
  * thin or slow bank, the rest while they play), each at that player's own
  * level and asked for as them (`Seat`: a family kid's own id; a guest under

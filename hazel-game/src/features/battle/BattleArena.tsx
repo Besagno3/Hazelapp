@@ -117,7 +117,7 @@ const nowMs = () => performance.now();
 /**
  * `hide` = wrong options crossed out before the player starts (Pip's peek).
  * `seq` = which ask this is (unique per battle) — keys the question card.
- * `who` = whose question it is in a co-op battle (#178): 1 = Player 2 (by
+ * `who` = whose question it is in a co-op battle (#187): 1 = Player 2 (by
  * default the kid playing's). `pairStep` = a co-op Pair Attack's answer:
  * Player 2's first (1), then the kid playing's (2).
  */
@@ -127,7 +127,7 @@ type Turn =
   | { kind: 'items' }
   | { kind: 'companion' }
   | { kind: 'swap' }
-  /** Player 2's move in a co-op battle (#178): the companion's, or a cheer. */
+  /** Player 2's move in a co-op battle (#187): the companion's, or a cheer. */
   | { kind: 'partner' }
   | { kind: 'question'; mode: 'attack' | 'guard' | 'companion' | 'cheer'; question: Question; hide?: number; seq?: number; who?: SeatIndex }
   | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number; seq?: number; who?: SeatIndex }
@@ -250,7 +250,7 @@ export default function BattleArena() {
   const addXp = useProfileStore((s) => s.addXp);
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const recordActivity = useProfileStore((s) => s.recordActivity);
-  // 👥 Co-op (#178): Player 2 plays the companion — turned on in 📜 Menu, for the session.
+  // 👥 Co-op (#187): Player 2 plays the companion — turned on in 📜 Menu, for the session.
   const playerTwo = usePlayerTwoStore((s) => (s.coop ? s.playerTwo : null));
   const kids = useFamilyStore((s) => s.kids);
   const activeKidId = useFamilyStore((s) => s.activeKidId);
@@ -265,7 +265,7 @@ export default function BattleArena() {
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
 
-  // The two players in co-op (#178): the kid playing, and Player 2 at their own
+  // The two players in co-op (#187): the kid playing, and Player 2 at their own
   // level — a guest's pace counted from this fight's (eased by mercy below, as the hero's are).
   const one = playerOneSeat(kids.find((k) => k.id === activeKidId), profile, age, topic);
   const liveTwo = playerTwo && enemy ? playerTwoSeat(playerTwo, { ...one, skillLevel: clampLevel(enemy.level) }, topic) : null;
@@ -276,7 +276,7 @@ export default function BattleArena() {
   // - The loss count behind mercy (easier questions) — recording this fight's
   //   loss must not re-key the question pool (and flash a loading screen over
   //   the defeat).
-  // - Player 2 and their level (#178) — a new pick, or a kid's levels read
+  // - Player 2 and their level (#187) — a new pick, or a kid's levels read
   //   late, would re-key their pools mid-fight (and bring the intro back over it).
   const liveEmber = emberStatus(save?.flags ?? {}).stage;
   const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar, two: liveTwo }));
@@ -325,7 +325,7 @@ export default function BattleArena() {
     enemy ? clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop) : undefined,
     'spell',
   );
-  // Player 2's own pools (#178), asked for as them at their level; none in a fight alone.
+  // Player 2's own pools (#187), asked for as them at their level; none in a fight alone.
   const { questions: twoQs, loading: twoLoading } = useBattleQuestions(topic, BATTLE_QUESTION_COUNT, twoLevel, undefined, {
     seat: two ?? undefined,
     off: !two,
@@ -338,7 +338,7 @@ export default function BattleArena() {
     { seat: two ?? undefined, off: !two },
   );
   // The encounter flash plays while the first questions load (#158 review);
-  // nothing in the battle starts until both are done (and Player 2's, #178).
+  // nothing in the battle starts until both are done (and Player 2's, #187).
   const [introDone, setIntroDone] = useState(false);
   const finishIntro = useCallback(() => setIntroDone(true), []);
   const waiting = loading || twoLoading || !introDone;
@@ -355,14 +355,14 @@ export default function BattleArena() {
   const spellPoolRef = useRef(spellQs);
   spellPoolRef.current = spellQs;
   const spellIdxRef = useRef(0);
-  // Player 2's pools and where the fight is in them (#178), read as the hero's are.
+  // Player 2's pools and where the fight is in them (#187), read as the hero's are.
   const twoPoolRef = useRef(twoQs);
   twoPoolRef.current = twoQs;
   const twoIdxRef = useRef(0);
   const twoSpellPoolRef = useRef(twoSpellQs);
   twoSpellPoolRef.current = twoSpellQs;
   const twoSpellIdxRef = useRef(0);
-  /** Each player's right answers, for the result's team line (co-op, #178). */
+  /** Each player's right answers, for the result's team line (co-op, #187). */
   const [teamRight, setTeamRight] = useState<[number, number]>([0, 0]);
   /** Player 2's right answers on bank questions — their XP (a starter pays none, #153). */
   const twoBankRight = useRef(0);
@@ -554,7 +554,7 @@ export default function BattleArena() {
     qIndexRef.current += 1;
     return shuffleAnswers(q);
   };
-  /** Player 2's next question (#178), from their own pool — round and round, never one the hero's holds (`partnerPick`). */
+  /** Player 2's next question (#187), from their own pool — round and round, never one the hero's holds (`partnerPick`). */
   const nextTwoQuestion = () => {
     const heroIds = new Set([...poolRef.current, ...boostPool.current.qs].map((q) => q.id));
     const q = partnerPick(twoPoolRef.current, heroIds, twoIdxRef.current);
@@ -603,7 +603,7 @@ export default function BattleArena() {
   }
 
   /**
-   * An answer is in. `who` 1 is Player 2's (#178): it fills the team's charge
+   * An answer is in. `who` 1 is Player 2's (#187): it fills the team's charge
    * and streak like any, but only the kid playing's answers move their level,
    * the speed trigger, the Library and their XP — Player 2's right answers on
    * bank questions are counted for their own (`twoBankRight`, `payPartner`).
@@ -785,7 +785,7 @@ export default function BattleArena() {
    * The companion's strike. A correct answer also triggers its perk — Ember
    * stokes an extra ◆, Pip crosses out a wrong answer on the next question,
    * Wisp mends the hero. A wrong answer is a glancing blow (effort never zero).
-   * `then`: what follows — Player 2's strike (#178) hands on with `afterPartner`.
+   * `then`: what follows — Player 2's strike (#187) hands on with `afterPartner`.
    */
   function resolveCompanionStrike(wasCorrect: boolean, then: () => void = endHeroTurn) {
     const dmg = boost(companionAttackDamage(wasCorrect, cPower));
@@ -816,7 +816,7 @@ export default function BattleArena() {
     heroStrike(dmg, text, 'text-orange-300', { choreo: COMPANION_STRIKE, sound: companion.sound, heal, then });
   }
 
-  /** Fire a Pair Attack once its super-hard question resolves (`then`: after a co-op one, `afterPartner`, #178). */
+  /** Fire a Pair Attack once its super-hard question resolves (`then`: after a co-op one, `afterPartner`, #187). */
   function resolvePair(pair: PairAttack, wasCorrect: boolean, then: () => void = endHeroTurn) {
     if (!wasCorrect) {
       // Same promise as spells: a miss fizzles and the charge is safe.
@@ -845,7 +845,7 @@ export default function BattleArena() {
     });
   }
 
-  // --- Co-op (#178) -----------------------------------------------------------
+  // --- Co-op (#187) -----------------------------------------------------------
 
   /** The hero's move is done: Player 2's turn in co-op, else the enemy's. */
   function endHeroTurn() {
@@ -1014,7 +1014,7 @@ export default function BattleArena() {
       // Time Ripple (#75 item 14h): the enemy is caught in the ripple and loses
       // its turn — its plan (a power move gathering, say) waits for the next one.
       later(() => float('⏳ Frozen!', 'enemy', 'text-teal-200'), choreo.hitMs + 200);
-      // In co-op Player 2 still has their move; the enemy's lost turn comes after it (#178).
+      // In co-op Player 2 still has their move; the enemy's lost turn comes after it (#187).
       say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => {
         if (coop) {
           skipEnemy.current = true;
@@ -1072,7 +1072,7 @@ export default function BattleArena() {
       say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
     }
-    // In co-op the players block in turn, each with their own question (#178) —
+    // In co-op the players block in turn, each with their own question (#187) —
     // plain blows in turn, and a boss's power moves in turn too.
     const kind = charging ? 'power' : 'attack';
     const who = coop ? defenderFor(blows.current[kind]++) : 0;
@@ -1109,7 +1109,7 @@ export default function BattleArena() {
   function defendTimedOut(q: Question, who: SeatIndex = 0) {
     sfx('wrong');
     setStreak(0);
-    // Only the kid playing's answers count for them (#178): Player 2's miss is the team's blow alone.
+    // Only the kid playing's answers count for them (#187): Player 2's miss is the team's blow alone.
     if (who === 0) {
       speedRun.current = 0;
       setAnswers((a) => [...a, false]);
@@ -1256,7 +1256,7 @@ export default function BattleArena() {
   }
 
   /**
-   * Player 2's XP as the fight ends (co-op, #178): their right answers at their
+   * Player 2's XP as the fight ends (co-op, #187): their right answers at their
    * own XP a right answer and — won — the win's XP too, as the kid playing gets
    * it. A sibling's goes to their own game (`giveKidXp`); a guest earns none.
    */
@@ -1527,7 +1527,7 @@ export default function BattleArena() {
             isBoss={enemy.isBoss}
             powerMove={charging ? powerMove : null}
             companion={companion}
-            // In co-op the companion is Player 2's (#178): their move comes next.
+            // In co-op the companion is Player 2's (#187): their move comes next.
             companionReady={cReady && !two}
             companionHint={two ? `${two.icon} ${two.name} plays next` : cReady ? `${cMove.name} · Pair Attacks` : 'Still an egg…'}
             canSwap={party.length > 1}
@@ -1658,7 +1658,7 @@ export default function BattleArena() {
 
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
-            {/* Whose question it is, in co-op (#178): the duel's colours, sky and amber, with the name. */}
+            {/* Whose question it is, in co-op (#187): the duel's colours, sky and amber, with the name. */}
             {/* Smaller on a short screen, so a 320×568 phone keeps the last answer on it. */}
             {two && (
               <p className="text-center mb-1.5 [@media(max-height:600px)]:mb-0.5">
@@ -1674,7 +1674,7 @@ export default function BattleArena() {
               <DefendTimer
                 // Its own key: it sits beside the QuestionCard keyed by `qKey`.
                 key={`${qKey}:timer`}
-                // The countdown suits the one answering (#178): Player 2's own age.
+                // The countdown suits the one answering (#187): Player 2's own age.
                 durationMs={defendTimeMs(turn.who === 1 && two ? two.age : age, mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
                 paused={pausedKey === qKey}
@@ -1691,7 +1691,7 @@ export default function BattleArena() {
                       spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
                       pair:
                         turn.mode === 'pair' &&
-                        // A co-op one's two answers (#178), short: the chip above says whose, and one line fits 320 px.
+                        // A co-op one's two answers (#187), short: the chip above says whose, and one line fits 320 px.
                         (turn.pairStep === 1
                           ? `${turn.pair.emoji} ${turn.pair.name} — ${two?.name} first!`
                           : turn.pairStep === 2
@@ -1710,7 +1710,7 @@ export default function BattleArena() {
             <QuestionCard
               key={qKey}
               question={turn.question}
-              // Player 2's question is seen by them (#178) — a guest's by the kid playing.
+              // Player 2's question is seen by them (#187) — a guest's by the kid playing.
               seenBy={turn.who === 1 ? (two?.kid ?? undefined) : undefined}
               // Fox Sense (Kira): a free hint on top of the feathers, used first.
               // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).

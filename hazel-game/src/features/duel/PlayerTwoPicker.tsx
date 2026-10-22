@@ -17,7 +17,7 @@ const PACE_WORDS: Record<GuestPace, (one: string) => { emoji: string; label: str
 };
 
 /**
- * Who's Player 2 (#177): another kid of the family — who types their own PIN
+ * Who's Player 2 (#186): another kid of the family — who types their own PIN
  * first, as on "Who's playing?", since they earn XP as themselves (the
  * owner's call) — or a friend or grown-up as a guest, with a name (optional)
  * and how tricky their questions are. The pick is the store's

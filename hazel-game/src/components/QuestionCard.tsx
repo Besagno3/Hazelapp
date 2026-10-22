@@ -67,7 +67,7 @@ export default function QuestionCard({
   onSecondChance?: () => void;
   /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #165). */
   afterAnswer?: ReactNode;
-  /** Whose question it is, when it isn't the kid playing's: a co-op battle's Player 2 (#178) — it's seen by them. */
+  /** Whose question it is, when it isn't the kid playing's: a co-op battle's Player 2 (#187) — it's seen by them. */
   seenBy?: string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);

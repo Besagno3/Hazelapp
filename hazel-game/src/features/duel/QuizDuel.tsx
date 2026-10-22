@@ -77,7 +77,7 @@ const PAGE = 'min-h-screen flex flex-col items-center bg-gradient-to-br from-ind
 const CARD = 'bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-lg [@media(max-height:500px)]:px-6 [@media(max-height:500px)]:py-4';
 
 /**
- * 🆚 Quiz Duel (#177), from the Training Grounds: two players on one screen.
+ * 🆚 Quiz Duel (#186), from the Training Grounds: two players on one screen.
  * Pick Player 2 (`PlayerTwoPicker`) and a topic, then take turns — the kid
  * playing, then Player 2, five questions each, every question at that
  * player's own level (`lib/playerTwo.ts`) — and the most right answers wins.
