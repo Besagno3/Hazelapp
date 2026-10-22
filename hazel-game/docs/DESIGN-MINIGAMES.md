@@ -294,7 +294,9 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   Candle. Review round 1: every picture is drawn the real sky's way round
   (turned, never mirrored — Cassiopeia, Leo and the hunt's Big Dipper were
   mirrored); Tricky says how far the sky has turned; the picture's stars are
-  bigger than the sky's others; the step's card sits by the sky.
+  bigger than the sky's others; the step's card sits by the sky. Review
+  round 2: the North Star hunt's words match its redrawn stars and it has a
+  hint; star names are placed clear of the stars and each other.
 
 ### 5.7 🌳 Ringwood's Rings — Nature · Old Ringwood, Eldergrove
 

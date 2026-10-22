@@ -1,22 +1,26 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   GUIDE_BOWL,
   capitalise,
+  HUNT_WORDS,
   JOBS_PER_ROUND,
   PICTURES,
   PICTURE_BY_ID,
   POINTERS,
   isLine,
+  isTiny,
   jobFor,
   jobWords,
   joinWords,
   learnedLine,
   lineKey,
   looksWords,
+  nameSpots,
   placeWords,
   pointerArrow,
   roundQueue,
+  shortName,
   starName,
   type PictureId,
   type SkyStar,
@@ -47,30 +51,40 @@ const TAP_REACH_PX = 22;
 /** A press that moves this far (px) before it lifts is a swipe, scrolling the page — not a tap (UX review round 1). */
 const SWIPE_PX = 10;
 
-/** A split screen (the board beside the job, as the stage's `split`); a board held sideways (the step's card beside the sky). */
+/** A split screen (the board beside the job, as the stage's `split`). */
 const SPLIT = '(min-width: 768px), (min-width: 640px) and (max-height: 500px)';
-const SIDEWAYS = '(min-width: 560px) and (min-aspect-ratio: 6/5)';
-/** Room kept under the sky on a board held upright: on a phone, for the picture card over it and the step card's top; split, all the card. */
-const UPRIGHT_KEEP = { phone: 290, split: 250 } as const;
+/**
+ * Room kept under the sky on a board held upright: on a phone, for the
+ * picture card over it and the step card's top; split, all the card — more
+ * over 700 px high, where its "Picture 1 of 3" shows (UX review round 2: on an
+ * iPad held upright the card was cut, Next half hidden).
+ */
+const UPRIGHT_KEEP = { phone: 306, split: 250, splitTall: 310 } as const;
 /** The smallest sky (px). */
 const MIN_SKY = 160;
 
-/** Beside the sky, the step's card is at least this wide (px): the fact card's wider, its fact being long. */
-function cardMin(width: number, done: boolean) {
-  return done ? Math.min(340, width * 0.5) : Math.min(300, width * 0.42);
+/**
+ * Beside the sky, the step's card is at least this wide (px) — on a short
+ * screen half the board, so the fact card fits it too: the same card width
+ * all through, so the finished picture doesn't shrink at the payoff (UX
+ * review round 2).
+ */
+function cardMin(width: number, short: boolean) {
+  return short ? Math.min(340, width * 0.5) : Math.min(300, width * 0.42);
 }
 
 /**
  * The sky's size (px), as big as fits (UX review round 1: at 568 × 320 it
  * was taller than the screen; on short screens it had a narrow column, the
- * card out of sight). On a board held sideways: as high as the board (on a
- * phone, the screen under the header), with the card beside it. Held
- * upright: as wide as the board, with room for the card under it — on a
- * phone, at most 360 px and the card's top in sight. Null where it can't be
- * measured (tests): the sky takes the width.
+ * card out of sight), and where the step's card goes: beside it — as high as
+ * the board (on a phone, the screen under the header) — or under it — as
+ * wide as the board, with room for the card; on a phone at most 360 px and
+ * the card's top in sight — whichever lets the sky be bigger (UX review
+ * round 2: squarish windows put the card under a small sky). Null where it
+ * can't be measured (tests): the sky takes the width.
  */
-function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTMLElement | null>, done: boolean) {
-  const [size, setSize] = useState<number | null>(null);
+function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTMLElement | null>) {
+  const [fit, setFit] = useState<{ size: number; beside: boolean } | null>(null);
   useLayoutEffect(() => {
     const p = page.current;
     const b = board.current;
@@ -81,10 +95,10 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
       const w = b.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
       const split = window.matchMedia(SPLIT).matches;
       const h = (split ? b.clientHeight : window.innerHeight - p.getBoundingClientRect().top) - px(cs.paddingTop) - px(cs.paddingBottom);
-      const fits = window.matchMedia(SIDEWAYS).matches
-        ? Math.min(h, w - cardMin(w, done) - px(cs.columnGap))
-        : Math.min(w, split ? h - UPRIGHT_KEEP.split : Math.min(360, h - UPRIGHT_KEEP.phone));
-      setSize(Math.max(MIN_SKY, Math.floor(fits)));
+      const beside = Math.min(h, w - cardMin(w, window.innerHeight <= 500) - px(cs.columnGap));
+      const keep = split ? (window.innerHeight > 700 ? UPRIGHT_KEEP.splitTall : UPRIGHT_KEEP.split) : UPRIGHT_KEEP.phone;
+      const under = Math.min(w, h - keep, split ? Infinity : 360);
+      setFit({ size: Math.max(MIN_SKY, Math.floor(Math.max(beside, under))), beside: beside > under });
     };
     const ro = new ResizeObserver(fit);
     ro.observe(b);
@@ -95,8 +109,8 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
       ro.disconnect();
       window.removeEventListener('resize', fit);
     };
-  }, [page, board, done]);
-  return size;
+  }, [page, board]);
+  return fit;
 }
 
 /**
@@ -123,6 +137,8 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
   const [pointed, setPointed] = useState(0);
   const [said, setSaid] = useState<string | null>(null);
   const [hint, setHint] = useState<readonly [string, string] | null>(null);
+  // The last line joined (its two stars named, on a small sky while joining).
+  const [last, setLast] = useState<string | null>(null);
   const [newPage, setNewPage] = useState(false);
   const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
@@ -139,9 +155,13 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
    * round 1: a second tap let it go, unseen, so following the hint did nothing).
    */
   function pickWords(id: string, again: boolean) {
-    const name = (starName(picture, id) ?? '').replace(/, the North Star$/, '');
+    const name = shortName(picture, id) ?? '';
+    // Every line from it joined: where the next stroke starts (code review round 2: "now tap the next star", and there was none).
+    const open = picture.lines.find(([a, b]) => !joined.has(lineKey(a, b)));
+    if (open && picture.lines.every(([a, b]) => (a !== id && b !== id) || joined.has(lineKey(a, b))))
+      return `${name}’s lines are all joined. Start the next from ${shortName(picture, open[0])} or ${shortName(picture, open[1])}.`;
     const other = hint?.includes(id) ? hint.find((h) => h !== id) : undefined;
-    const next = other ? `${starName(picture, other)} — it’s glowing` : job.outline ? 'the next star along a dotted line' : 'a star it’s joined to';
+    const next = other ? `${shortName(picture, other)} — it’s glowing` : job.outline ? 'the next star along a dotted line' : 'a star it’s joined to';
     return `${again ? `You’ve picked ${name}.` : `${name}!`} Now tap ${next}.`;
   }
 
@@ -154,27 +174,24 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
         if (id === POINTERS[pointed]) {
           sfx('select');
           setPointed((n) => n + 1);
-          setSaid(pointed === 0 ? 'Merak! Now Dubhe — the star above it, at the top of the bowl’s end.' : 'Dubhe! The two of them point the way: follow the arrow to the North Star.');
-        } else if (id === 'polaris')
-          setSaid(
-            pointed === 0
-              ? 'That’s the North Star! Now find it the star-watchers’ way: tap Merak, then Dubhe — they point to it.'
-              : 'That’s the North Star! Tap Dubhe first — Merak and Dubhe point to it.',
-          );
-        else setSaid(pointed === 0 ? 'Not that one: Merak is the bottom star at the end of the Big Dipper’s bowl.' : 'Not that one: Dubhe is just above Merak, at the end of the bowl.');
+          setHint(null);
+          setSaid(pointed === 0 ? HUNT_WORDS.merak : HUNT_WORDS.dubhe);
+        } else if (id === 'polaris') setSaid(HUNT_WORDS.polarisEarly[pointed]);
+        else setSaid(pointed === 0 ? HUNT_WORDS.notMerak : HUNT_WORDS.notDubhe);
         return;
       }
       if (id === 'polaris') {
         sfx('chest');
         setStep('join');
         setPicked('polaris');
-        setSaid('The North Star! It’s the end of the Little Dipper’s handle — join its stars from here.');
-      } else setSaid('Follow the arrow from Merak through Dubhe — the North Star is further along it.');
+        setHint(null);
+        setSaid(HUNT_WORDS.found);
+      } else setSaid(HUNT_WORDS.followArrow);
       return;
     }
     if (!starName(picture, id)) {
       if (picked) sfx('wrong');
-      setSaid(joinWords(picture, id, id, false));
+      setSaid(joinWords(picture, id, id, false, job.outline));
       return;
     }
     if (!picked || picked === id) {
@@ -190,7 +207,8 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
     if (isLine(picture, picked, id) && !already) {
       const next = new Set(joined).add(lineKey(picked, id));
       setJoined(next);
-      setSaid(joinWords(picture, picked, id, false));
+      setLast(lineKey(picked, id));
+      setSaid(joinWords(picture, picked, id, false, job.outline));
       setHint(null);
       setPicked(id);
       sfx('select');
@@ -213,12 +231,30 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
     }
     if (!already) sfx('wrong');
     setPicked(id);
-    setSaid(joinWords(picture, picked, id, already));
+    setSaid(joinWords(picture, picked, id, already, job.outline));
   }
 
-  /** Show one line still to join — from the star picked, if one's left from it: its two stars glow, and one's picked. */
+  /** A tap on empty sky, far from any star (UX review round 2: it said nothing). */
+  function tapSky() {
+    if (step === 'done' || !settled()) return;
+    setSaid('That’s empty sky — tap right on a star.');
+  }
+
+  /**
+   * Show one line still to join — from the star picked, if one's left from
+   * it: its two stars glow, and one's picked. In the North Star's hunt, the
+   * star to tap next glows (UX review round 2: the hunt had no hint).
+   */
   function showMe() {
-    if (step !== 'join' || !settled()) return;
+    if (step === 'done' || !settled()) return;
+    if (step === 'north') {
+      const next = pointed < POINTERS.length ? POINTERS[pointed] : 'polaris';
+      sfx('select');
+      setRead(null);
+      setHint([next, next]);
+      setSaid(`${next === 'polaris' ? 'The North Star' : next === 'merak-g' ? 'Merak' : 'Dubhe'} is glowing — tap it!`);
+      return;
+    }
     const left = picture.lines.filter(([a, b]) => !joined.has(lineKey(a, b)));
     const line = left.find(([a, b]) => a === picked || b === picked) ?? left[0];
     if (!line) return;
@@ -227,7 +263,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
     setRead(null);
     setHint(line);
     setPicked(from);
-    setSaid(`Here’s one: ${starName(picture, from)} to ${starName(picture, to)} — they’re glowing. ${from === picked ? 'Now' : `I’ve picked ${starName(picture, from)}:`} tap ${starName(picture, to)}!`);
+    setSaid(`Here’s one: ${shortName(picture, from)} to ${shortName(picture, to)} — they’re glowing. ${from === picked ? 'Now' : `I’ve picked ${shortName(picture, from)}:`} tap ${shortName(picture, to)}!`);
   }
 
   function next() {
@@ -241,6 +277,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
     setDone((n) => n + 1);
     setStep(nextJob.findNorth ? 'north' : 'join');
     setJoined(new Set());
+    setLast(null);
     setPicked(null);
     setPointed(0);
     setSaid(null);
@@ -275,17 +312,29 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
       const top = b.getBoundingClientRect().top - base;
       const show = (go ? go.getBoundingClientRect().bottom - base : top) + 12 - s.clientHeight;
       s.scrollTo?.({ top: Math.max(0, step === 'done' ? Math.max(top, show) : Math.min(top, show)), behavior });
-    } else card.current?.scrollTo?.({ top: 0, behavior });
+    } else if (step !== 'done') card.current?.scrollTo?.({ top: 0, behavior });
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const size = useSkySize(page, board, step === 'done');
+  const fit = useSkySize(page, board);
+  const size = fit?.size ?? null;
+
+  // On a split screen, a fact card taller than its room scrolls within: from its top, as far as Next needs (code review
+  // round 2: Tricky's long facts hid Next below it at 640 × 360). Measured once the sky's size has settled.
+  useLayoutEffect(() => {
+    const c = card.current;
+    const go = goRef.current;
+    if (step !== 'done' || !c || !go || c.scrollHeight <= c.clientHeight) return;
+    c.scrollTop = 0;
+    const over = go.getBoundingClientRect().bottom - c.getBoundingClientRect().bottom + 8;
+    if (over > 0) c.scrollTop = over;
+  }, [step, done, size]);
 
   let line: string;
   if (read) line = `${PICTURE_BY_ID[read].name}: ${PICTURE_BY_ID[read].note}`;
   // Her cheer when a picture's whole (the last join's words would cover it).
   else if (step === 'done') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Ready for the next?' : 'What a night’s work!'}`;
   else if (said) line = said;
-  else if (step === 'north') line = 'Before the Little Dipper, let’s find the North Star: tap Merak, then Dubhe — the Big Dipper’s pointers show the way!';
+  else if (step === 'north') line = HUNT_WORDS.start;
   else
     line = job.outline
       ? `Here’s ${picture.called}: ${looksWords(job)}. Tap a star, then the next along a dotted line.`
@@ -294,7 +343,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
   // What to do, in the card till Vela says something (then what she said).
   const doing =
     step === 'north'
-      ? 'Tap Merak, then Dubhe: the two stars at the end of the Big Dipper’s bowl. They point at the North Star — then tap it.'
+      ? HUNT_WORDS.doing
       : job.outline
         ? 'Tap a star, then the next along a dotted line — a line appears.'
         : 'Tap a star, then one it’s joined to — a line appears.';
@@ -304,7 +353,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
 
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto split:overflow-hidden">
-      <div className="grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)] split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)]">
+      <div className="grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)] split:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]">
         {/* Up to 700 px high the sky has the whole column: under the scene it was a small square (review lesson). */}
         <div aria-hidden="true" className="relative hidden overflow-hidden split:col-start-1 split:row-start-1 split:block [@media(max-height:700px)]:hidden">
           <Observatory cheer={step === 'done'} />
@@ -315,30 +364,45 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
         <section
           ref={board}
           aria-labelledby="sc-step"
-          className="flex flex-col gap-2 bg-[#0d1236] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:border-t-4 split:border-[#1b0f22] split:p-4 [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:flex-row split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(max-height:500px)]:p-2"
+          className={cn(
+            'flex gap-2 bg-[#0d1236] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:border-t-4 split:border-[#1b0f22] split:p-4 split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(max-height:500px)]:p-2',
+            // Measured, beside or under; till then, beside on a board held sideways.
+            fit ? (fit.beside ? 'flex-row' : 'flex-col') : 'flex-col [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:flex-row',
+          )}
         >
           {/* On a phone held upright the picture card's over the sky, so the shape's in sight while joining. */}
           {step !== 'done' && (
-            <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2 py-1.5 text-[14px] font-bold leading-snug text-[#1b0f22] split:hidden [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:hidden">
-              <PictureCard id={job.picture} size={48} />
-              {jobWords(job)}
+            <p
+              aria-hidden="true"
+              className={cn(
+                'items-center gap-2 rounded-md bg-[#fff6dc] px-2 py-1.5 text-[14px] font-bold leading-snug text-[#1b0f22] split:hidden',
+                fit ? (fit.beside ? 'hidden' : 'flex') : 'flex [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:hidden',
+              )}
+            >
+              {/* Big enough to see its shape (UX review round 2: at 48 px Leo's head was a few pixels). */}
+              <PictureCard id={job.picture} size={64} />
+              {/* Short — the card beside it shows the shape (the board's room: UX review round 2's bench). */}
+              {jobWords(job, false)}
             </p>
           )}
           <div className="flex flex-none flex-col items-center split:justify-center">
             <div className="w-full max-w-[360px] split:max-w-none" style={size ? { width: size } : undefined}>
               <Sky
+                key={done}
                 ref={skyRef}
                 stars={sky}
                 picture={picture}
                 job={job}
                 step={step}
                 joined={joined}
+                last={last}
                 picked={picked}
                 pointed={pointed}
                 hint={hint}
                 still={still}
                 size={size}
                 onTap={tapStar}
+                onMiss={tapSky}
               />
             </div>
           </div>
@@ -347,7 +411,8 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
             ref={card}
             className={cn(
               windowClass,
-              'flex min-w-0 flex-col gap-2.5 p-3 [&>*]:flex-none split:min-h-0 split:flex-1 split:overflow-y-auto [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:flex-1 [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
+              'flex min-w-0 flex-col gap-2.5 p-3 [&>*]:flex-none split:min-h-0 split:flex-1 split:overflow-y-auto [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
+              fit ? fit.beside && 'flex-1' : '[@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:flex-1',
             )}
           >
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:700px)]:hidden">
@@ -366,7 +431,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                 </h2>
                 {/* Vela's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{line}</p>
-                <p id="sc-fact" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
+                <p id="sc-fact" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
                   {lessons[lessons.length - 1]}
                   {newPage && ` ${capitalise(picture.called)} is on Vela’s chart!`}
                 </p>
@@ -379,7 +444,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                 <div className="flex items-center gap-2.5">
                   {/* Beside the sky, and on a split screen, the picture card's here (on a phone held upright, over the sky). */}
                   {step === 'join' && (
-                    <span aria-hidden="true" className="hidden flex-none split:block [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:block">
+                    <span aria-hidden="true" className={cn('flex-none', fit ? (fit.beside ? 'block' : 'hidden split:block') : 'hidden split:block [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:block')}>
                       <PictureCard id={job.picture} size={60} />
                     </span>
                   )}
@@ -391,15 +456,23 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                   </div>
                 </div>
                 {step === 'join' && (
-                  <>
-                    <p aria-hidden="true" className="hidden text-[15px] leading-snug text-[#e4e1ff] [@media(min-width:560px)_and_(min-aspect-ratio:6/5)_and_(min-height:501px)]:block [@media(min-width:768px)_and_(min-height:501px)]:block">
-                      It looks like {looksWords(job)}.
-                    </p>
-                    <button type="button" onClick={showMe} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
-                      💡 Show me a line
-                    </button>
-                  </>
+                  <p
+                    aria-hidden="true"
+                    className={cn(
+                      'text-[15px] leading-snug text-[#e4e1ff]',
+                      fit
+                        ? fit.beside
+                          ? 'block [@media(max-height:500px)]:hidden'
+                          : 'hidden [@media(min-width:768px)_and_(min-height:501px)]:block'
+                        : 'hidden [@media(min-width:560px)_and_(min-aspect-ratio:6/5)_and_(min-height:501px)]:block [@media(min-width:768px)_and_(min-height:501px)]:block',
+                    )}
+                  >
+                    It looks like {looksWords(job)}.
+                  </p>
                 )}
+                <button type="button" onClick={showMe} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
+                  💡 {step === 'north' ? 'Show me where' : 'Show me a line'}
+                </button>
                 {/* What Vela said of the last tap, by the sky too: her bubble can be out of sight (under the board on a phone).
                     Under the hint, so a long one moves nothing a finger's going to. Not read out: her bubble is. */}
                 <p
@@ -453,6 +526,8 @@ interface SkyProps {
   job: ReturnType<typeof jobFor>;
   step: Step;
   joined: ReadonlySet<string>;
+  /** The last line joined, by its key. */
+  last: string | null;
   picked: string | null;
   pointed: number;
   hint: readonly [string, string] | null;
@@ -460,20 +535,38 @@ interface SkyProps {
   /** Its width, px (null: not measured). */
   size: number | null;
   onTap: (id: string) => void;
+  /** A tap on empty sky. */
+  onMiss: () => void;
 }
 
-/** One of the sky's others, drawn tiny (not the Big Dipper's bowl, drawn for the North Star's hunt). */
-const isTiny = (st: SkyStar) => st.extra && !st.id.endsWith('-g');
 
-const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, job, step, joined, picked, pointed, hint, still, size, onTap }, ref) {
+/** A name's width in px at a font size, measured in the page's font (estimated where there's no canvas, as in tests). */
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+function textWidth(text: string, font: number, measure: boolean): number {
+  if (measure && measureCtx === undefined) measureCtx = document.createElement('canvas').getContext('2d');
+  if (!measure || !measureCtx) return text.length * font * 0.6;
+  measureCtx.font = `700 ${font}px ${getComputedStyle(document.body).fontFamily}`;
+  return measureCtx.measureText(text).width;
+}
+
+const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, job, step, joined, last, picked, pointed, hint, still, size, onTap, onMiss }, ref) {
   const at = useMemo(() => Object.fromEntries(stars.map((st) => [st.id, st])), [stars]);
-  const [focusId, setFocusId] = useState<string | null>(null);
+  // The star last focused, and the line shown then: a new one shown, the tab order's star is the one it picked (UX review
+  // round 2: Shift+Tab came back to the last focused).
+  const [focus, setFocus] = useState<{ id: string; under: SkyProps['hint'] } | null>(null);
+  const setFocusId = (id: string) => setFocus({ id, under: hint });
   const order = useMemo(() => [...stars].sort((a, b) => a.x - b.x || a.y - b.y), [stars]);
-  // The star in the tab order: the last focused, the one picked, or the picture's first — never one of the others.
-  const tabId = focusId && at[focusId] ? focusId : (picked ?? order.find((st) => !st.extra)?.id);
+  // The star in the tab order: the last focused, the one picked (or glowing), in the hunt the one to tap next (code review
+  // round 2), or the picture's first — never one of the others.
+  const hunting = step === 'north' ? (pointed < POINTERS.length ? POINTERS[pointed] : 'polaris') : undefined;
+  const tabId = focus && focus.under === hint && at[focus.id] ? focus.id : (picked ?? hint?.[0] ?? hunting ?? order.find((st) => !st.extra)?.id);
+  // A press on the sky: its star's click that follows is the sky's tap, not a second. A click with none before it is a
+  // keyboard's, or a screen reader's (which can come with a click count: code review round 2).
+  const pointerPress = useRef(false);
   const degree = (id: string) => [...joined].filter((k) => k.split('|').includes(id)).length;
   const done = step === 'done';
-  const press = useRef<{ id: string; pointer: number; x: number; y: number } | null>(null);
+  // A press, remembered till it lifts: on a star (its id), or on empty sky (null).
+  const press = useRef<{ id: string | null; pointer: number; x: number; y: number } | null>(null);
   const small = size !== null && size < 240;
 
   // How each star's said: by where it is — two said alike numbered, left to right (UX review round 1).
@@ -499,6 +592,7 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     return best;
   }
 
+  /** The arrow keys: to the nearest star that way — the picture's and the hunt's, not the tiny others (UX review round 2). */
   function onKey(e: KeyboardEvent<HTMLButtonElement>, id: string) {
     const dir: Record<string, [number, number]> = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
     const d = dir[e.key];
@@ -511,6 +605,7 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     let best: SkyStar | null = null;
     let score = Infinity;
     for (const st of stars) {
+      if (isTiny(st)) continue;
       const dx = st.x - from.x;
       const dy = st.y - from.y;
       const along = dx * d[0] + dy * d[1];
@@ -527,36 +622,23 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     e.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-star="${best.id}"]`)?.focus();
   }
 
-  // Named once joined, or picked (a word with its gold ring: code review round 1), and the pointers in the hunt.
-  const showNames = (id: string) => done || degree(id) > 0 || picked === id || (step === 'north' && (POINTERS as readonly string[]).includes(id));
+  // Named once joined, or picked (a word with its gold ring: code review round 1), and the pointers in the hunt. On a
+  // small sky, while joining, only the picked star and the last line's (UX review round 2: the names piled up); all once
+  // it's whole.
+  const showNames = (id: string) =>
+    done || picked === id || (small ? (last?.split('|').includes(id) ?? false) : degree(id) > 0) || (step === 'north' && (POINTERS as readonly string[]).includes(id));
   // A star's name, said in full; and as it's written on the sky (short).
   const fullName = (id: string) => starName(picture, id) ?? (id === 'merak-g' ? 'Merak' : id === 'dubhe-g' ? 'Dubhe' : null);
-  const nameOf = (id: string) => fullName(id)?.replace(/, the North Star$/, '') ?? null;
-  // Where each name goes: under its star, or over it where under would cover another star or name, or run off the sky
-  // (UX review round 1: names covered stars, and each other). Worked out for every star that can be named, left to right,
-  // so a name never jumps as others appear. Near a side, a name keeps inside the sky.
-  const above = useMemo(() => {
-    const u = 100 / (size ?? 400);
-    const off = 16 * u;
-    const h = (small ? 13 : 15) * u;
-    const boxes: { x0: number; x1: number; y0: number; y1: number }[] = [];
-    const out: Record<string, boolean> = {};
-    for (const st of order) {
-      const name = nameOf(st.id);
-      if (!name) continue;
-      const w = (name.length * (small ? 5.6 : 6.2) + (small ? 4 : 8)) * u;
-      const x0 = st.x < 14 ? st.x - off : st.x > 86 ? st.x + off - w : st.x - w / 2;
-      const box = (up: boolean) => ({ x0, x1: x0 + w, y0: up ? st.y - off - h : st.y + off, y1: up ? st.y - off : st.y + off + h });
-      const clash = (b: (typeof boxes)[number]) =>
-        b.y0 < 0 ||
-        b.y1 > 100 ||
-        boxes.some((o) => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1) ||
-        stars.some((o) => o !== st && !isTiny(o) && o.x > b.x0 - 2 && o.x < b.x1 + 2 && o.y > b.y0 - 2 && o.y < b.y1 + 2);
-      out[st.id] = clash(box(false)) && !clash(box(true));
-      boxes.push(box(out[st.id]));
-    }
-    return out;
-  }, [order, stars, size, small]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nameOf = (id: string) => shortName(picture, id) ?? (id === 'merak-g' ? 'Merak' : id === 'dubhe-g' ? 'Dubhe' : null);
+  // Where each name goes (`nameSpots`), worked out for every star that can be named, in the sky's inner box.
+  const font = small ? 10 : 11;
+  const spots = useMemo(() => {
+    const names = Object.fromEntries(stars.flatMap((st) => {
+      const n = shortName(picture, st.id) ?? (st.id === 'merak-g' ? 'Merak' : st.id === 'dubhe-g' ? 'Dubhe' : null);
+      return n ? [[st.id, n]] : [];
+    }));
+    return nameSpots(stars, names, (size ?? 400) - 8, font, (n) => textWidth(n, font, size !== null));
+  }, [stars, picture, size, font]);
   const arrow = step === 'north' && pointed >= 2 && at.polaris ? pointerArrow(at.polaris) : null;
 
   return (
@@ -567,17 +649,23 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
       aria-describedby="sc-job"
       tabIndex={-1}
       className={cn(
-        'relative aspect-square w-full select-none overflow-hidden rounded-lg border-4 border-[#1b0f22] bg-[radial-gradient(circle_at_50%_40%,#26306e_0%,#141a46_60%,#0b0f2c_100%)] outline-none focus-visible:outline-dashed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white',
+        'relative aspect-square w-full select-none overflow-hidden rounded-lg border-4 border-[#1b0f22] bg-[radial-gradient(circle_at_50%_40%,#26306e_0%,#141a46_60%,#0b0f2c_100%)] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300/70',
         !done && 'touch-manipulation',
       )}
+      // A mouse press focuses the star under it (no ring for a mouse) — so the sky's own frame doesn't stay lit (UX review
+      // round 2); a finger's left free to scroll the page.
       onPointerDown={(e) => {
         press.current = null;
+        pointerPress.current = true;
         if (done || e.button !== 0) return;
-        const id = nearest(e);
-        if (!id) return;
-        press.current = { id, pointer: e.pointerId, x: e.clientX, y: e.clientY };
-        // A mouse press would focus the star under it and start a selection (a finger's left free to scroll the page).
-        if (e.pointerType === 'mouse') e.preventDefault();
+        press.current = { id: nearest(e), pointer: e.pointerId, x: e.clientX, y: e.clientY };
+      }}
+      onKeyDown={() => {
+        pointerPress.current = false;
+      }}
+      // After a star's own click (which bubbles here) — or a press on empty sky, whose click no star has.
+      onClick={() => {
+        pointerPress.current = false;
       }}
       onPointerMove={(e) => {
         const p = press.current;
@@ -589,7 +677,9 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
       onPointerUp={(e) => {
         const p = press.current;
         press.current = null;
-        if (p && p.pointer === e.pointerId && !done) onTap(p.id);
+        if (!p || p.pointer !== e.pointerId || done) return;
+        if (p.id) onTap(p.id);
+        else onMiss();
       }}
     >
       <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
@@ -618,11 +708,10 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
         })}
       </svg>
       {stars.map((st) => {
-        const name = nameOf(st.id);
         const isPicked = picked === st.id;
         const hinted = hint?.includes(st.id) ?? false;
         const n = degree(st.id);
-        const label = `${placed[st.id]}${showNames(st.id) && name ? `: ${fullName(st.id)}` : ''}${isPicked ? ', picked' : ''}${n ? `, joined to ${n === 1 ? 'one star' : `${n} stars`}` : ''}${hinted ? ', glowing' : ''}`;
+        const label = `${placed[st.id]}${showNames(st.id) && fullName(st.id) ? `: ${fullName(st.id)}` : ''}${isPicked ? ', picked' : ''}${n ? `, joined to ${n === 1 ? 'one star' : `${n} stars`}` : ''}${hinted ? ', glowing' : ''}`;
         const tiny = isTiny(st);
         const dot = tiny ? 5 : st.mag === 1 ? 14 : st.mag === 2 ? 11 : 9;
         return (
@@ -634,9 +723,10 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
             aria-label={label}
             aria-pressed={isPicked}
             aria-disabled={done || undefined}
-            onClick={(e) => {
-              // A press from the keyboard (a pointer press is the sky's).
-              if (e.detail === 0) onTap(st.id);
+            onClick={() => {
+              // A press from the keyboard or a screen reader (a pointer press is the sky's).
+              if (pointerPress.current) pointerPress.current = false;
+              else onTap(st.id);
             }}
             onFocus={() => setFocusId(st.id)}
             onKeyDown={(e) => onKey(e, st.id)}
@@ -655,26 +745,38 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
               )}
               style={{ width: dot, height: dot }}
             />
-            {showNames(st.id) && name && (
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'pointer-events-none absolute whitespace-nowrap rounded bg-[#1b0f22]/80 font-bold leading-tight text-[#fde68a]',
-                  small ? 'px-0.5 text-[10px]' : 'px-1 text-[11px]',
-                  above[st.id] ? 'bottom-full' : 'top-full',
-                  st.x < 14 ? 'left-0' : st.x > 86 ? 'right-0' : 'left-1/2 -translate-x-1/2',
-                )}
-              >
-                {name}
-              </span>
-            )}
           </button>
+        );
+      })}
+      {/* The names, over the stars' buttons: each in its spot. */}
+      {stars.map((st) => {
+        const name = nameOf(st.id);
+        const spot = spots[st.id]?.spot;
+        if (!name || !spot || !showNames(st.id)) return null;
+        const off = 8;
+        const style: CSSProperties =
+          spot === 'below' || spot === 'above'
+            ? { left: `${st.x}%`, transform: 'translateX(-50%)' }
+            : spot.endsWith('left')
+              ? { right: `calc(${100 - st.x}% + ${off}px)` }
+              : { left: `calc(${st.x}% + ${off}px)` };
+        if (spot === 'right' || spot === 'left') Object.assign(style, { top: `${st.y}%`, transform: 'translateY(-50%)' });
+        else if (spot.startsWith('above')) style.bottom = `calc(${100 - st.y}% + ${off}px)`;
+        else style.top = `calc(${st.y}% + ${off}px)`;
+        return (
+          <span
+            key={`n-${st.id}`}
+            aria-hidden="true"
+            className={cn('pointer-events-none absolute whitespace-nowrap rounded bg-[#1b0f22]/80 font-bold leading-tight text-[#fde68a]', small ? 'px-0.5 text-[10px]' : 'px-1 text-[11px]')}
+            style={style}
+          >
+            {name}
+          </span>
         );
       })}
     </div>
   );
 });
-
 /** Vela's Observatory, close up (§2.2): the dome open on the night, Vela at her telescope, Ember looking up. */
 function Observatory({ cheer }: { cheer: boolean }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
@@ -726,7 +828,8 @@ function Chart({ known, read, onRead }: { known: (id: PictureId) => boolean; rea
           {count} of {PICTURES.length} pages
         </span>
       </div>
-      <ul className="grid grid-cols-3 gap-1.5">
+      {/* Two across in a narrow side panel (UX review round 2: names clipped on a phone on its side under 700 px). */}
+      <ul className="grid grid-cols-3 gap-1.5 [@media(max-width:700px)_and_(max-height:500px)]:grid-cols-2">
         {PICTURES.map((p) => (
           <li key={p.id}>
             {known(p.id) ? (

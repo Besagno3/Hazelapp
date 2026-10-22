@@ -391,6 +391,24 @@ export const GUIDE_BOWL: readonly (readonly [string, string])[] = [
   ['phecda-g', 'megrez-g'],
 ];
 
+/**
+ * The North Star's hunt, said as `POINTER_GUIDE` draws it (UX review round 2:
+ * the words still said where the stars were before round 1 moved them):
+ * Merak is the bowl's highest star, Dubhe just left of it; the arrow runs on,
+ * left, to Polaris.
+ */
+export const HUNT_WORDS = {
+  start: 'Before the Little Dipper, let’s find the North Star: tap Merak, the highest star of the Big Dipper’s bowl, then Dubhe just left of it!',
+  doing: 'Tap Merak — the highest star of the Big Dipper’s bowl, at the top right — then Dubhe, just left of it. They point at the North Star; then tap it.',
+  notMerak: 'Not that one: Merak is the highest star of the Big Dipper’s bowl, at the top right.',
+  merak: 'Merak! Now Dubhe — the bright star just left of it.',
+  notDubhe: 'Not that one: Dubhe is the bright star just left of Merak.',
+  dubhe: 'Dubhe! The two of them point the way: follow the arrow left, to the bright star near the top left.',
+  followArrow: 'Follow the arrow from Merak through Dubhe, to the left — the North Star is the bright star at its end.',
+  polarisEarly: ['That’s the North Star! Now find it the star-watchers’ way: tap Merak, then Dubhe — they point to it.', 'That’s the North Star! Tap Dubhe first — Merak and Dubhe point to it.'],
+  found: 'The North Star! It’s the end of the Little Dipper’s handle — join its stars from here.',
+} as const;
+
 /** The pointers, in the order to tap them: Merak, then Dubhe — the line runs on to Polaris. */
 export const POINTERS = ['merak-g', 'dubhe-g'] as const;
 
@@ -405,6 +423,72 @@ export const lineKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${
 /** A star's name in a picture, or null for one of the sky's others. */
 export function starName(p: Picture, id: string): string | null {
   return p.stars.find((st) => st.id === id)?.name ?? null;
+}
+
+/** A star's name as it's said in a line or written on the sky: Polaris without its ", the North Star" (code review round 2). */
+export function shortName(p: Picture, id: string): string | null {
+  return starName(p, id)?.replace(/, the North Star$/, '') ?? null;
+}
+
+/** One of the sky's others — drawn tiny (not the Big Dipper's bowl, drawn for the North Star's hunt). */
+export const isTiny = (st: SkyStar) => st.extra && !st.id.endsWith('-g');
+
+/** Where a star's name sits round it. */
+export type NameSpot = 'below' | 'above' | 'right' | 'left' | 'below-right' | 'below-left' | 'above-right' | 'above-left';
+export const NAME_SPOTS: readonly NameSpot[] = ['below', 'above', 'right', 'left', 'below-right', 'below-left', 'above-right', 'above-left'];
+/** A name's box on the sky, in sky units (0–100). */
+export interface NameBox {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+/**
+ * Where each named star's name goes (UX and code review rounds 1 and 2:
+ * names covered stars and each other, or ran off the sky): under it, over
+ * it, beside it or at a corner — the first that's in the sky and covers
+ * nothing, else the least bad: off the sky worst, then over a star of the
+ * picture, then over a name already placed. Left to right, so a name never
+ * jumps as others appear. `skyPx` is the sky's inner width; `width` measures
+ * a name in px at `font`.
+ */
+export function nameSpots(
+  stars: readonly SkyStar[],
+  names: Readonly<Record<string, string>>,
+  skyPx: number,
+  font: number,
+  width: (name: string) => number,
+): Record<string, { spot: NameSpot; box: NameBox }> {
+  const u = 100 / skyPx;
+  const h = (font * 1.25 + 2) * u;
+  const off = 8 * u;
+  const overlap = (a: NameBox, b: NameBox) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+  const dots = stars.filter((o) => !isTiny(o)).map((o) => ({ id: o.id, box: { x0: o.x - 9 * u, x1: o.x + 9 * u, y0: o.y - 9 * u, y1: o.y + 9 * u } }));
+  const placed: NameBox[] = [];
+  const out: Record<string, { spot: NameSpot; box: NameBox }> = {};
+  for (const st of [...stars].sort((a, b) => a.x - b.x || a.y - b.y)) {
+    const name = names[st.id];
+    if (!name) continue;
+    const w = (width(name) + 8) * u;
+    const box = (spot: NameSpot): NameBox => {
+      const x0 = spot === 'below' || spot === 'above' ? st.x - w / 2 : spot.endsWith('left') ? st.x - off - w : st.x + off;
+      const y0 = spot === 'right' || spot === 'left' ? st.y - h / 2 : spot.startsWith('above') ? st.y - off - h : st.y + off;
+      return { x0, x1: x0 + w, y0, y1: y0 + h };
+    };
+    let best: { spot: NameSpot; box: NameBox; cost: number } | null = null;
+    NAME_SPOTS.forEach((spot, k) => {
+      const b = box(spot);
+      const outside = Math.max(0, -b.x0) + Math.max(0, b.x1 - 100) + Math.max(0, -b.y0) + Math.max(0, b.y1 - 100);
+      const onStars = dots.reduce((c, o) => c + (o.id === st.id ? 0 : overlap(b, o.box)), 0);
+      const onNames = placed.reduce((c, o) => c + overlap(b, o), 0);
+      const cost = outside * 1000 + onStars * 30 + onNames * 10 + k * 0.01;
+      if (!best || cost < best.cost) best = { spot, box: b, cost };
+    });
+    out[st.id] = { spot: best!.spot, box: best!.box };
+    placed.push(best!.box);
+  }
+  return out;
 }
 
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -425,22 +509,28 @@ export function looksWords(job: Job): string {
   return job.turn ? (p.turnedLooks ?? p.looks) : p.looks;
 }
 
-/** The job, as its ticket says it. */
-export function jobWords(job: Job): string {
+/** The job, as its ticket says it — with what the picture looks like, but for the strip over a phone's sky (it has the card). */
+export function jobWords(job: Job, looks = true): string {
   const p = PICTURE_BY_ID[job.picture];
   const n = NUM[p.stars.length];
   if (job.findNorth) return `First find the North Star: follow the Big Dipper’s two pointer stars. Then join the ${n} stars of ${p.called}.`;
   if (job.outline) return `Join the ${n} stars of ${p.called} along the dotted lines.`;
-  if (job.turn) return `Join the ${n} stars of ${p.called} — the sky has turned, so it’s ${turnWords(job.turn)}.`;
-  return `Join the ${n} stars of ${p.called}. The card shows its shape.`;
+  // What it looks like, said too (UX review round 2: "the card shows its shape" — the card's a picture, hidden from a reader).
+  const like = looks ? ` It looks like ${looksWords(job)}.` : '';
+  if (job.turn) return `Join the ${n} stars of ${p.called} — the sky has turned, so it’s ${turnWords(job.turn)}.${like}`;
+  return `Join the ${n} stars of ${p.called}.${like}`;
 }
 
-/** After two stars are tapped: joined, already joined, or not a line of the picture. Never scolded. */
-export function joinWords(p: Picture, a: string, b: string, done: boolean): string {
-  const an = starName(p, a);
-  const bn = starName(p, b);
-  if (!an || !bn) return `That tiny star isn’t part of ${p.called} — its stars are bigger. Look at the card!`;
-  if (!isLine(p, a, b)) return `${an} and ${bn} are both in ${p.called}, but they aren’t joined. Look at the card again!`;
+/**
+ * After two stars are tapped: joined, already joined, or not a line of the
+ * picture. Never scolded. Where to look: the card — or on Gentle, the dotted
+ * lines (`outline`; UX review round 2).
+ */
+export function joinWords(p: Picture, a: string, b: string, done: boolean, outline = false): string {
+  const an = shortName(p, a);
+  const bn = shortName(p, b);
+  if (!an || !bn) return `That tiny dot isn’t part of ${p.called} — ${outline ? 'its stars are on the dotted lines' : 'its stars are bigger. Look at the card'}!`;
+  if (!isLine(p, a, b)) return `${an} and ${bn} are both in ${p.called}, but they aren’t joined. ${outline ? 'Follow a dotted line!' : 'Look at the card again!'}`;
   if (done) return `${an} and ${bn} are joined already.`;
   return `${an} to ${bn} — joined!`;
 }
@@ -453,12 +543,12 @@ export function learnedLine(job: Job, band: Band): string {
   return `${p.note} The light you see from ${star} left it ${atLeast ? 'at least ' : about ? 'about ' : ''}${years.toLocaleString('en-GB')} years ago.`;
 }
 
-/** How a star is said on the sky, by where it is: "a bright star near the top left"; one of the sky's others, "a tiny star". */
+/** How a star is said on the sky, by where it is: "a bright star near the top left"; one of the sky's others, "a tiny dot" (a "faint star" is the picture's). */
 export function placeWords(x: number, y: number, mag: 1 | 2 | 3, extra = false): string {
   const v = y < 34 ? 'top' : y > 66 ? 'bottom' : 'middle';
   const h = x < 34 ? 'left' : x > 66 ? 'right' : 'middle';
   const where = v === 'middle' && h === 'middle' ? 'the middle' : v === 'middle' ? `the middle ${h}` : h === 'middle' ? `the ${v}` : `the ${v} ${h}`;
-  return `${extra ? 'A tiny' : mag === 1 ? 'A bright' : mag === 2 ? 'A' : 'A faint'} star near ${where}`;
+  return `${extra ? 'A tiny dot' : mag === 1 ? 'A bright star' : mag === 2 ? 'A star' : 'A faint star'} near ${where}`;
 }
 
 export { cap as capitalise };

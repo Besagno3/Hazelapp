@@ -3,6 +3,8 @@ import {
   BAND_PICTURES,
   EXTRA_GAP,
   GUIDE_BOWL,
+  HUNT_WORDS,
+  NAME_SPOTS,
   JOBS_PER_ROUND,
   PICTURES,
   PICTURE_BY_ID,
@@ -16,10 +18,12 @@ import {
   learnedLine,
   lineKey,
   looksWords,
+  nameSpots,
   placeWords,
   pointerArrow,
   roundQueue,
   segmentGap,
+  shortName,
   starName,
   turnWords,
   turned,
@@ -58,11 +62,58 @@ const REAL: Record<string, [number, number]> = {
   betelgeuse: [hms(5, 55.2), 7.41], bellatrix: [hms(5, 25.1), 6.35], rigel: [hms(5, 14.5), -8.2], saiph: [hms(5, 47.8), -9.67],
   'deneb-c': [hms(20, 41.4), 45.28], gienah: [hms(20, 46.2), 33.97], albireo: [hms(19, 30.7), 27.96], 'delta-cyg': [hms(19, 45), 45.13],
   regulus: [hms(10, 8.4), 11.97], algieba: [hms(10, 20), 19.84], rasalas: [hms(9, 52.8), 26.01], zosma: [hms(11, 14.1), 20.52], denebola: [hms(11, 49.1), 14.57],
+  mizar: [hms(13, 23.9), 54.93], alioth: [hms(12, 54), 55.96], 'epsilon-umi': [hms(16, 46), 82.04], 'eta-umi': [hms(16, 17.5), 75.76],
+  sadr: [hms(20, 22.2), 40.26], 'eta-cyg': [hms(19, 56.3), 35.08], 'eta-leo': [hms(10, 7.3), 16.76], adhafera: [hms(10, 16.7), 23.42], chertan: [hms(11, 14.2), 15.43],
 };
+const realOf = (id: string) => REAL[id.replace(/-[go]$/, '')];
+
+/**
+ * A picture fitted to its stars' real places, seen from the ground (east to
+ * the left, north up), by a turn and a size only: how far, at most, a star is
+ * from where the fit puts it (sky units) — and the same, mirrored.
+ */
+function fitError(p: (typeof PICTURES)[number]): { turned: number; mirrored: number } {
+  const r = Math.PI / 180;
+  const ids = p.stars.map((st) => st.id);
+  const raw = ids.map((id) => realOf(id));
+  // Round their middle: a flat sky (gnomonic), x east-left, y south-down, as the picture's drawn.
+  const v = raw.map(([ra, dec]) => [Math.cos(dec * r) * Math.cos(ra * r), Math.cos(dec * r) * Math.sin(ra * r), Math.sin(dec * r)]);
+  const m = [0, 1, 2].map((i) => v.reduce((t, q) => t + q[i], 0));
+  const a0 = Math.atan2(m[1], m[0]);
+  const d0 = Math.atan2(m[2], Math.hypot(m[0], m[1]));
+  const flat = raw.map(([ra, dec]) => {
+    const [a, d] = [ra * r, dec * r];
+    const c = Math.sin(d0) * Math.sin(d) + Math.cos(d0) * Math.cos(d) * Math.cos(a - a0);
+    return [-(Math.cos(d) * Math.sin(a - a0)) / c, -(Math.cos(d0) * Math.sin(d) - Math.sin(d0) * Math.cos(d) * Math.cos(a - a0)) / c];
+  });
+  const drawn = p.stars.map((st) => [st.x, st.y]);
+  const fit = (P: number[][]) => {
+    const n = P.length;
+    const mp = [0, 1].map((i) => P.reduce((t, q) => t + q[i], 0) / n);
+    const mq = [0, 1].map((i) => drawn.reduce((t, q) => t + q[i], 0) / n);
+    let A = 0;
+    let B = 0;
+    let pp = 0;
+    P.forEach(([x, y], k) => {
+      const [dx, dy] = [x - mp[0], y - mp[1]];
+      const [ex, ey] = [drawn[k][0] - mq[0], drawn[k][1] - mq[1]];
+      A += dx * ex + dy * ey;
+      B += dx * ey - dy * ex;
+      pp += dx * dx + dy * dy;
+    });
+    const k = Math.hypot(A, B) / pp;
+    const t = Math.atan2(B, A);
+    return Math.max(...P.map(([x, y], i) => {
+      const [dx, dy] = [x - mp[0], y - mp[1]];
+      return Math.hypot(mq[0] + k * (dx * Math.cos(t) - dy * Math.sin(t)) - drawn[i][0], mq[1] + k * (dx * Math.sin(t) + dy * Math.cos(t)) - drawn[i][1]);
+    }));
+  };
+  return { turned: fit(flat), mirrored: fit(flat.map(([x, y]) => [-x, y])) };
+}
 /** Seen from the ground, does A → B → C turn anticlockwise? */
 function realTurn(a: string, b: string, c: string) {
   const unit = ([ra, dec]: [number, number]) => { const r = Math.PI / 180; return [Math.cos(dec * r) * Math.cos(ra * r), Math.cos(dec * r) * Math.sin(ra * r), Math.sin(dec * r)]; };
-  const [A, B, C] = [a, b, c].map((id) => unit(REAL[id.replace(/-g$/, '')]));
+  const [A, B, C] = [a, b, c].map((id) => unit(realOf(id)));
   const u = B.map((v, i) => v - A[i]);
   const v = C.map((x, i) => x - A[i]);
   const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
@@ -126,6 +177,15 @@ describe('the star pictures (docs/DESIGN-MINIGAMES.md §5.6)', () => {
       ['megrez-g', 'polaris', 'zeta-umi'],
     ] as const)
       expect(gameTurn(hunt[a], hunt[b], hunt[c]), `${a} ${b} ${c}`).toBe(realTurn(a, b, c));
+  });
+
+  it('each, whole, where its stars are in the sky — every star within 6 of the fit, turned; mirrored, far worse (code review round 2)', () => {
+    for (const p of PICTURES) {
+      const { turned, mirrored } = fitError(p);
+      expect(turned, p.id).toBeLessThan(6);
+      // Three in a line fit as well either way round.
+      if (p.id !== 'belt') expect(mirrored, p.id).toBeGreaterThan(turned * 3);
+    }
   });
 
   it('Gentle joins 3–5 stars; Medium the bigger ones, 6–8; Tricky all nine', () => {
@@ -202,6 +262,59 @@ describe('the jobs', () => {
       for (const st of j.sky.filter((x) => !['merak-g', 'dubhe-g', 'polaris'].includes(x.id))) expect(segmentGap(st, m, polaris), st.id).toBeGreaterThanOrEqual(EXTRA_GAP.line);
   });
 
+  it('the hunt says where its stars are as they’re drawn (UX review round 2: it said “the bottom star”, “above it”)', () => {
+    const [m, d, ...bowl] = POINTER_GUIDE;
+    // Merak: the bowl's highest star, at the top right; Dubhe: just left of it; the North Star: left along the arrow, at the top left.
+    expect(m.y).toBeLessThan(Math.min(d.y, ...bowl.map((st) => st.y)));
+    expect(placeWords(m.x, m.y, m.mag)).toMatch(/top right$/);
+    expect(d.x).toBeLessThan(m.x);
+    expect(Math.abs(d.y - m.y)).toBeLessThan(Math.abs(d.x - m.x));
+    const polaris = PICTURE_BY_ID['little-dipper'].stars.find((st) => st.id === 'polaris')!;
+    expect(polaris.x).toBeLessThan(d.x);
+    expect(placeWords(polaris.x, polaris.y, polaris.mag)).toBe('A bright star near the top left');
+    expect(HUNT_WORDS.notMerak).toContain('the highest star of the Big Dipper’s bowl, at the top right');
+    expect(HUNT_WORDS.merak).toContain('just left of it');
+    expect(HUNT_WORDS.dubhe).toContain('follow the arrow left, to the bright star near the top left');
+    for (const w of Object.values(HUNT_WORDS).flat()) expect(w, w).not.toMatch(/\b(bottom|above|below)\b/);
+  });
+
+  it('the names: in the sky, off the stars and each other — every finished picture, at every sky size (code review round 2)', () => {
+    const width = (font: number) => (n: string) => n.length * font * 0.6;
+    let worst = 0;
+    for (const band of BANDS)
+      for (const j of jobs(band)) {
+        const sky = j.sky.filter((st) => !st.id.endsWith('-g'));
+        const p = PICTURE_BY_ID[j.picture];
+        const names = Object.fromEntries(p.stars.map((st) => [st.id, shortName(p, st.id)!]));
+        for (const px of [200, 250, 300, 480]) {
+          const font = px < 240 ? 10 : 11;
+          const spots = nameSpots(sky, names, px, font, width(font));
+          const boxes = Object.entries(spots);
+          expect(boxes).toHaveLength(p.stars.length);
+          for (const [id, { box }] of boxes) {
+            // In the sky, always.
+            expect(box.x0, `${j.picture} ${id} ${px}`).toBeGreaterThanOrEqual(0);
+            expect(box.x1, `${j.picture} ${id} ${px}`).toBeLessThanOrEqual(100);
+            expect(box.y0, `${j.picture} ${id} ${px}`).toBeGreaterThanOrEqual(0);
+            expect(box.y1, `${j.picture} ${id} ${px}`).toBeLessThanOrEqual(100);
+            // Over no star of the picture but its own (its dot's middle).
+            for (const st of sky.filter((x) => !x.extra)) if (st.id !== id) expect(st.x > box.x0 && st.x < box.x1 && st.y > box.y0 && st.y < box.y1, `${j.picture} ${id} over ${st.id} at ${px}`).toBe(false);
+          }
+          // Names on names: as little as can be — under a tenth of a name's box, summed, on the busiest sky.
+          let over = 0;
+          for (let a = 0; a < boxes.length; a++)
+            for (let b = a + 1; b < boxes.length; b++) {
+              const [p1, p2] = [boxes[a][1].box, boxes[b][1].box];
+              over += Math.max(0, Math.min(p1.x1, p2.x1) - Math.max(p1.x0, p2.x0)) * Math.max(0, Math.min(p1.y1, p2.y1) - Math.max(p1.y0, p2.y0));
+            }
+          if (px >= 250) worst = Math.max(worst, over);
+        }
+      }
+    expect(worst).toBeLessThan(5);
+    // Placing them is what keeps them apart: all "below" would clash.
+    expect(NAME_SPOTS[0]).toBe('below');
+  });
+
   it('a job’s sky is the same each time it comes up; another round, the others move', () => {
     expect(jobFor('medium', 1, 2)).toEqual(jobFor('medium', 1, 2));
     const extrasOf = (j: Job) => j.sky.filter((st) => st.extra).map((st) => `${st.x},${st.y}`);
@@ -235,13 +348,16 @@ describe('joining and the words', () => {
     expect(joinWords(dipper, 'merak', 'dubhe', true)).toBe('Merak and Dubhe are joined already.');
     expect(joinWords(dipper, 'alkaid', 'dubhe', false)).toBe('Alkaid and Dubhe are both in the Big Dipper, but they aren’t joined. Look at the card again!');
     // A star of the sky's others: they're tiny, the picture's bigger (code review round 1: "brighter" wasn't so).
-    expect(joinWords(dipper, 'alkaid', 'extra-2', false)).toBe('That tiny star isn’t part of the Big Dipper — its stars are bigger. Look at the card!');
+    expect(joinWords(dipper, 'alkaid', 'extra-2', false)).toBe('That tiny dot isn’t part of the Big Dipper — its stars are bigger. Look at the card!');
+    // On Gentle, where to look is the dotted lines (UX review round 2).
+    expect(joinWords(dipper, 'alkaid', 'extra-2', false, true)).toBe('That tiny dot isn’t part of the Big Dipper — its stars are on the dotted lines!');
+    expect(joinWords(dipper, 'alkaid', 'dubhe', false, true)).toBe('Alkaid and Dubhe are both in the Big Dipper, but they aren’t joined. Follow a dotted line!');
   });
 
   it('a turned sky said as it is: on its side, upside down, tilted — and no "up" or "down" in what it looks like', () => {
     expect([90, -90, 180, 45, -45, 135].map(turnWords)).toEqual(['on its side', 'on its side', 'upside down', 'tilted', 'tilted', 'tilted, nearly upside down']);
     const belt = jobs('tricky').find((j) => j.picture === 'belt')!;
-    expect(jobWords(belt)).toBe(`Join the three stars of Orion’s Belt — the sky has turned, so it’s ${turnWords(belt.turn)}.`);
+    expect(jobWords(belt)).toBe(`Join the three stars of Orion’s Belt — the sky has turned, so it’s ${turnWords(belt.turn)}. It looks like three stars in a short straight line.`);
     for (const j of jobs('tricky')) expect(looksWords(j), j.picture).not.toMatch(/\b(up|down|bottom|top|left|right)\b/);
     expect(looksWords(jobFor('gentle', 0, 0))).toBe(PICTURE_BY_ID.belt.looks);
   });
@@ -273,6 +389,9 @@ describe('joining and the words', () => {
     expect(placeWords(20, 20, 1)).toBe('A bright star near the top left');
     expect(placeWords(50, 50, 3)).toBe('A faint star near the middle');
     expect(placeWords(80, 50, 2)).toBe('A star near the middle right');
-    expect(placeWords(50, 50, 3, true)).toBe('A tiny star near the middle');
+    expect(placeWords(50, 50, 3, true)).toBe('A tiny dot near the middle');
+    // Medium's ticket says the shape too (its card's a picture, hidden from a reader).
+    expect(jobWords(jobFor('medium', 0, 0))).toBe(`Join the seven stars of the Big Dipper. It looks like ${PICTURE_BY_ID['big-dipper'].looks}.`);
+    expect(jobWords(jobFor('medium', 0, 0), false)).toBe('Join the seven stars of the Big Dipper.');
   });
 });

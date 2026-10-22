@@ -245,12 +245,16 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   easy to hit; from the keyboard one star is in the tab order (a picture's,
   never one of the others) and the arrow keys move to the nearest that way;
   each star is said by where it is (`placeWords`; alike ones numbered) and,
-  picked or joined, its name, written over the star where under it would
-  cover another. The step's card — the picture card, the lines joined, the
-  hint, what Vela said (not live — her bubble is) — is beside the sky on a
-  board held sideways (from 560 px, wider than 6∶5), under it upright; the
-  sky is sized to fit beside or over it (`useSkySize`: on a phone, the
-  screen's height under the header, the card's top kept in sight), the whole
-  column up to 700 px high. The
+  picked or joined, its name — placed under, over, beside or at a corner of
+  its star, whichever covers least (`nameSpots`, pure, tested for every
+  sky), on a small sky only the picked star's and the last line's while
+  joining. The hunt's words are `HUNT_WORDS`, tested against where
+  `POINTER_GUIDE` draws its stars. The step's card — the picture card, the
+  lines joined, the hint, what Vela said (not live — her bubble is) — is
+  beside the sky or under it, whichever lets the sky be bigger
+  (`useSkySize`: on a phone, the screen's height under the header, the
+  card's top kept in sight; the same card width all through a picture, so
+  the sky doesn't change at the payoff), the whole column up to 700 px high;
+  a fact card taller than its room scrolls to its Next. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
