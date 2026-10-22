@@ -24,40 +24,42 @@ export const SEEN_BATCH_MAX = 20;
  */
 export const SEEN_RESEND_MS = 30 * 60 * 1000;
 
-let pending: { kid: string; ids: Set<string> } | null = null;
+/** Ids waiting to be sent, per kid (a duel shows two kids' questions in turn, #177). */
+const pending = new Map<string, Set<string>>();
 let timer: ReturnType<typeof setTimeout> | null = null;
-/** When each id was last sent for this kid. */
-let sent: { kid: string; at: Map<string, number> } | null = null;
+/** When each id was last sent, per kid. */
+const sent = new Map<string, Map<string, number>>();
 
-/** Notes that a question is on screen for the kid playing now. */
-export function markSeen(questionId: string): void {
+/**
+ * Notes that a question is on screen for the kid playing now — or for `kid`,
+ * a duel's or a co-op battle's Player 2 (#177), whose questions are their own.
+ */
+export function markSeen(questionId: string, kid: string | null = useFamilyStore.getState().activeKidId): void {
   // Starter questions (B5) and ones that failed to cache ("fresh-…") aren't in the bank.
   if (!questionId || questionId.startsWith('fresh-') || isStarterId(questionId)) return;
-  const kid = useFamilyStore.getState().activeKidId;
   if (!kid) return;
-  if (sent?.kid !== kid) sent = { kid, at: new Map() };
+  let at = sent.get(kid);
+  if (!at) sent.set(kid, (at = new Map()));
   const now = Date.now();
-  const last = sent.at.get(questionId);
+  const last = at.get(questionId);
   if (last !== undefined && now - last < SEEN_RESEND_MS) return;
-  sent.at.set(questionId, now);
-  // A switch of player: send the last kid's first, as theirs.
-  if (pending && pending.kid !== kid) flushSeen();
-  if (!pending) pending = { kid, ids: new Set() };
-  pending.ids.add(questionId);
-  if (pending.ids.size >= SEEN_BATCH_MAX) flushSeen();
+  at.set(questionId, now);
+  let ids = pending.get(kid);
+  if (!ids) pending.set(kid, (ids = new Set()));
+  ids.add(questionId);
+  if (ids.size >= SEEN_BATCH_MAX) flushSeen();
   else if (!timer) timer = setTimeout(flushSeen, SEEN_FLUSH_MS);
 }
 
-/** Sends whatever is waiting now (also on a timer, and when a batch fills). */
+/** Sends whatever is waiting now, each kid's as theirs (also on a timer, and when a batch fills). */
 export function flushSeen(): void {
   if (timer) {
     clearTimeout(timer);
     timer = null;
   }
-  const batch = pending;
-  pending = null;
-  if (!batch || batch.ids.size === 0) return;
-  void sendSeen(batch.kid, [...batch.ids]);
+  const batches = [...pending];
+  pending.clear();
+  for (const [kid, ids] of batches) if (ids.size > 0) void sendSeen(kid, [...ids]);
 }
 
 async function sendSeen(kid: string, ids: string[]): Promise<void> {
@@ -70,5 +72,6 @@ async function sendSeen(kid: string, ids: string[]): Promise<void> {
   if (!failure) return;
   console.error('Could not mark questions seen:', errorMessage(failure));
   // Not sent after all: the next time one of them shows, try again.
-  if (sent?.kid === kid) for (const id of ids) sent.at.delete(id);
+  const at = sent.get(kid);
+  if (at) for (const id of ids) at.delete(id);
 }

@@ -46,18 +46,31 @@ export default function TopicSelect() {
           )}
         </p>
 
-        {/* Above the topics, so ten cards never push it off a phone's screen (#135c). */}
-        {worldUnlocked && (
+        {/* Above the topics, so ten cards never push them off a phone's screen (#135c). */}
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+          {worldUnlocked && (
+            <motion.button
+              initial={{ y: 16, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              whileHover={{ scale: 1.04 }}
+              onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold rounded-2xl px-8 py-4 text-lg shadow-xl"
+            >
+              🗺️ Enter Lumina
+            </motion.button>
+          )}
+          {/* Two players on one screen (#177) — any time, it changes nothing. */}
           <motion.button
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             whileHover={{ scale: 1.04 }}
-            onClick={() => sendFlow({ type: 'ENTER_WORLD' })}
-            className="mb-6 bg-amber-400 hover:bg-amber-300 text-amber-950 font-extrabold rounded-2xl px-8 py-4 text-lg shadow-xl"
+            onClick={() => sendFlow({ type: 'START_DUEL' })}
+            className="bg-white/15 hover:bg-white/25 border-2 border-white/50 text-white font-extrabold rounded-2xl px-6 py-3 text-lg shadow-xl"
           >
-            🗺️ Enter Lumina
+            <span aria-hidden>🆚 </span>Quiz Duel
+            <span className="block text-xs font-semibold text-indigo-100">2 players</span>
           </motion.button>
-        )}
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 auto-rows-fr gap-3 sm:gap-4 w-full max-w-md sm:max-w-2xl lg:max-w-5xl">
           {/* Every topic stays open: a child can train the same topic as often as they like. */}

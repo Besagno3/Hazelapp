@@ -22,6 +22,17 @@ describe('TopicSelect', () => {
     }
   });
 
+  it('🆚 Quiz Duel is a button above the topics, before the world opens too (#177)', () => {
+    sendFlow.mockClear();
+    render(<TopicSelect />);
+    const duel = screen.getByRole('button', { name: /Quiz Duel/ });
+    expect(duel).toHaveTextContent('2 players');
+    const firstTopic = screen.getByRole('button', { name: new RegExp(ALL_TOPIC_INFO[0].label) });
+    expect(duel.compareDocumentPosition(firstTopic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(duel);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'START_DUEL' });
+  });
+
   it('the level, streak and Switch sit in a top bar in the page, not over the heading (#110h)', () => {
     render(<TopicSelect />);
     const bar = screen.getByTestId('screen-topbar');

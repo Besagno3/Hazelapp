@@ -77,14 +77,31 @@ describe('markSeen — the app tells the server what was on screen (#134)', () =
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
-  it("a switch of player sends the last kid's questions as theirs first", async () => {
+  it("a switch of player sends each kid's questions as theirs", async () => {
     const { markSeen, SEEN_FLUSH_MS, useFamilyStore } = await fresh();
     markSeen('q-1');
     useFamilyStore.setState({ activeKidId: 'kid-2' });
     markSeen('q-2');
-    expect(rpcMock.mock.calls[0]).toEqual(call('kid-1', ['q-1']));
     vi.advanceTimersByTime(SEEN_FLUSH_MS);
+    expect(rpcMock).toHaveBeenCalledTimes(2);
+    expect(rpcMock.mock.calls[0]).toEqual(call('kid-1', ['q-1']));
     expect(rpcMock.mock.calls[1]).toEqual(call('kid-2', ['q-2']));
+  });
+
+  it("a named kid's questions are theirs, and two kids in turn keep their own resend times (#177)", async () => {
+    const { markSeen, SEEN_FLUSH_MS } = await fresh();
+    // A duel: the kid playing, then Player 2, round and round.
+    markSeen('q-1');
+    markSeen('q-2', 'kid-2');
+    markSeen('q-3');
+    markSeen('q-4', 'kid-2');
+    vi.advanceTimersByTime(SEEN_FLUSH_MS);
+    expect(rpcMock.mock.calls).toEqual([call('kid-1', ['q-1', 'q-3']), call('kid-2', ['q-2', 'q-4'])]);
+    // Shown again a moment later (a co-op battle goes round its pool): not sent again for either.
+    markSeen('q-1');
+    markSeen('q-2', 'kid-2');
+    vi.advanceTimersByTime(SEEN_FLUSH_MS);
+    expect(rpcMock).toHaveBeenCalledTimes(2);
   });
 
   it('a failed send is logged, never thrown, and tried again the next time it shows (review fix)', async () => {

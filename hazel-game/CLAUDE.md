@@ -17,7 +17,7 @@ shared source of truth for how this project works.
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `grownUpsStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `grownUpsStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`, `playerTwoStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -73,6 +73,12 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   no XP chart (#169). Charts follow the dataviz method: forms by job (one hero
   number, meters and cells with their values in words), one sequential hue
   plus the de-emphasis grey, validated against the card's surface.
+- **Two players on one screen (2026-10-22, #177, the owner's call):** a kid
+  asked to play with a sibling or a friend, so same-screen play is in scope
+  now (it reverses `docs/DESIGN-JRPG.md` §6 question 4 for one screen;
+  playing online, across devices or families, stays out). Player 2 is
+  another kid of the family or a guest (`lib/playerTwo.ts`); nothing of
+  theirs is saved. The 🆚 Quiz Duel is the first mode.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
@@ -339,12 +345,60 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   closing the account deletes it (cascade). Kids have no login, so "the kid's
   own session" is the family's sign-in playing as them, as with saves.
 - **Routing is the game-flow machine** (`src/machines/gameFlow.ts`, xstate v5):
-  `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle`, with world
+  `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle` (and
+  `topicSelect ⇄ duel`, the 🆚 Quiz Duel — `START_DUEL` / `EXIT_DUEL`, #177), with world
   substates `exploring / dialogue / service / path / menu` driving DOM
   overlays. App sends `READY` once session + save are loaded; sign-out sends
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
-- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `battle`, `world`.
+- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `duel`, `battle`, `world`.
+- **Two players (#177, `lib/playerTwo.ts`, `store/playerTwoStore.ts`,
+  `features/duel/`):** **Player 2** is another kid of the family — no PIN,
+  since nothing of theirs changes: their `skill_levels` are read once
+  (`readKidLevels`: their `profiles` row within `LEVELS_WAIT_MS` (3 s), else
+  this device's copy, else none — every topic at their age's start) and their
+  questions are asked for **as them** (`profileId` = their id), so the server
+  pitches them to their own age (it never takes an age from the app, B8),
+  charges their budget and keeps their seen questions their own — or a
+  **guest** (a friend or a grown-up): a name (optional, `guestName`, ≤ 20,
+  "Guest") and a pace, 🌱 Easier / ⚖️ Same as <kid> / 🔥 Harder
+  (`GUEST_PACE_OFFSET` −2 / 0 / +2 levels from the kid playing's own for the
+  topic); a guest's questions are asked for under the kid playing, so they're
+  written for that kid's age (the picker says so). `playerOneSeat` /
+  `playerTwoSeat` turn them into a `Seat` (`QuestionSeat` in `types` — kid,
+  age, level — plus name and emoji). The pick lives in `playerTwoStore` for
+  the session (a later pick drops a slower read, `pickGen`) and goes with
+  the game (`putAwayGame`). **Nothing of Player 2's is saved**, and a duel
+  pays the kid playing nothing either: no XP, no level moves, no Library —
+  said on the setup and results screens. The question plumbing takes a kid:
+  `useBattleQuestions(…, { seat })`, `quickQuestions({ kid })`,
+  `moreQuestions(…, kid)`, `takeCarried(…, kid)` (the look-ahead cache key
+  and carried questions are per kid), and `markSeen(id, kid)` keeps what's
+  waiting and what was sent **per kid** (two kids in turn no longer reset
+  each other's resend times; each kid's batch goes as theirs on the shared
+  timer). **🆚 Quiz Duel** (`QuizDuel`, from a button above the Training
+  Grounds' topics, any time): pick Player 2 (`PlayerTwoPicker`, the family's
+  other kids and "A friend or grown-up"; `aria-pressed` tiles) and a topic
+  (shown once Player 2 is picked; `aria-disabled` while a kid's levels are
+  read), then turns go the kid playing, then Player 2, five each
+  (`lib/duel.ts`: `DUEL_QUESTIONS_EACH`, `duelTurn`, `duelScores`,
+  `duelWinner`). `useDuelRound` keeps one pool per player (the quiz's
+  loading, #163: saved first, starters for a thin or slow bank, the rest
+  while they play), takes each turn's question as it's reached — never one
+  either player had (`allAsked`; a guest at the same level gets the same
+  batch as the kid) — gives a starter after `QUICK_WAIT_MS` with nothing new
+  (`withDuelStarters`), and carries what a pool couldn't use to that kid's
+  next round. The screen: a scoreboard (sky for the kid playing, amber for
+  Player 2, the player's turn a thick ring — names and emoji always beside
+  the colour), "<name>'s turn" (focused each turn, the Next just tapped
+  being gone), the topic and that player's level, the question as the quiz
+  shows it with ✅ / ❌ words, 💡, 🚩, and "Next: <name>'s turn →" in the
+  next player's colour (a second tap never skips a turn); "End duel" takes
+  two taps (`SWITCH_ARM_MS` / `SWITCH_CONFIRM_GAP_MS`). Results: "<name>
+  wins!" or "It's a tie!" (focused, confetti), "5 to 2. Great try, <name>!",
+  both scores, "What <name> missed (n)" folded per player, a fun fact,
+  🔁 Rematch (same players and topic, fresh questions), "New players or
+  topic", "Back to the Training Grounds". Music: the Training Grounds'.
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the **crystal** topics with crystal/Fiend/zone, each in
   an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
@@ -1534,6 +1588,9 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — 🆚 Quiz Duel: two players on one screen, each at their own level (#177)
+A kid asked to play with a sibling or a friend. The Training Grounds get a "🆚 Quiz Duel · 2 players" button above the topics (any time — before the world opens too). Player 2 is another kid of the family (no PIN: their levels are only read, and their questions are asked for as them, so the server pitches them to their own age and keeps their seen questions their own) or a guest — a friend or grown-up with an optional name and 🌱 Easier / ⚖️ Same as <kid> / 🔥 Harder, two levels either side of the kid playing's own, written for the kid playing's age (the server never takes an age from the app, B8). Then a topic, and turns: the kid playing, then Player 2, five questions each; the most right answers wins (or a tie). Just for fun — no XP, no level moves, nothing to the Library, for either. New: `lib/playerTwo.ts`, `store/playerTwoStore.ts` (session only, cleared by `putAwayGame`), `lib/duel.ts`, `features/duel/` (`QuizDuel`, `PlayerTwoPicker`, `useDuelRound`), the flow's `duel` state (`START_DUEL` / `EXIT_DUEL`), `QuestionSeat` in `types`, the music's `duel` screen. Changed: the question plumbing takes a kid (`invokeGenerate`'s `profileId`, the look-ahead key, `quickQuestions` / `moreQuestions` / `takeCarried`, `useBattleQuestions`' `seat`), and `markSeen` keeps its batches and resend times per kid (a switch of player no longer sends at once — each kid's batch still goes as theirs, on the timer). The Decisions list notes same-screen play is in scope now (`DESIGN-JRPG.md` §6 Q4 updated). Tests: `duel.test`, `playerTwo.test`, `playerTwoStore.test`, `QuizDuel.test` (a whole duel against the question service stood in for at the wire: who each request is for and at what level, turn order, focus, no repeats for a guest at the same level, End duel, the results, no XP or level writes), `useBattleQuestions` (a seat), `seen` (two kids in turn), `gameFlow`, `audio`, `TopicSelect`; the existing argument checks now see the kid. Rendered on the real app with Supabase stubbed at 375×667, 320×568, 740×360 (touch) and 1024×768: every step fits, no sideways scroll, focus on the new turn; at 320 the chip's "their turn" moved to screen readers only (it wrapped to three lines). Co-op battles (Player 2 as the companion) come next.
 
 ### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
 CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.

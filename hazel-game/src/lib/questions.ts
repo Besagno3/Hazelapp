@@ -40,11 +40,13 @@ async function invokeGenerate(
   count: number,
   flavor?: FlavorId,
   cacheOnly = false,
+  kid?: string | null,
 ): Promise<Question[]> {
-  // The kid playing (#124): their seen questions are their own. This app tells
-  // the server what it shows (`markSeen`, #134), so a batch handed over here is
-  // only held back, not counted as seen.
-  const profileId = useFamilyStore.getState().activeKidId;
+  // The kid playing (#124) — or the one named, a duel's Player 2 (#177): their
+  // seen questions are their own, and the server pitches the questions to
+  // their age. This app tells the server what it shows (`markSeen`, #134), so
+  // a batch handed over here is only held back, not counted as seen.
+  const profileId = kid ?? useFamilyStore.getState().activeKidId;
   // The server's hold on what it hands over starts with the request (#163 review round 2).
   const sentAt = Date.now();
   const { data, error } = await supabase.functions.invoke('generate-questions', {
@@ -134,9 +136,9 @@ function takePrefetched(key: string): Promise<Question[]> | undefined {
   return Date.now() - warm.at < HELD_FOR_MS ? warm.promise : undefined;
 }
 
-function cacheKey(topic: Topic, skillLevel: number, count: number, flavor?: FlavorId): string {
+function cacheKey(topic: Topic, skillLevel: number, count: number, flavor?: FlavorId, kid?: string | null): string {
   // Per kid, so a batch warmed for one never goes to a sibling after a switch.
-  return `${useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${flavor ?? ''}`;
+  return `${kid ?? useFamilyStore.getState().activeKidId ?? ''}|${topic}|${skillLevel}|${count}|${flavor ?? ''}`;
 }
 
 export interface PrefetchOptions {
@@ -182,9 +184,10 @@ async function fromServer(
   skillLevel: number,
   count: number,
   flavor?: FlavorId,
+  kid?: string | null,
 ): Promise<Question[]> {
   try {
-    return await invokeGenerate(topic, age, skillLevel, count, flavor);
+    return await invokeGenerate(topic, age, skillLevel, count, flavor, false, kid);
   } catch (e) {
     console.warn('Questions unavailable — using starter questions:', errorMessage(e));
     return [];
@@ -263,6 +266,8 @@ export interface QuickOptions {
    * `start` of them the pool starts at once, the saved ones coming as `late`.
    */
   have?: Question[];
+  /** The kid they're for, when it isn't the kid playing (a duel's Player 2, #177). */
+  kid?: string | null;
 }
 
 /**
@@ -277,12 +282,12 @@ export async function quickQuestions(
   age: number,
   skillLevel: number,
   count: number,
-  { start = BATTLE_START_COUNT, fill = BATTLE_START_FILL, waitMs = QUICK_WAIT_MS, flavor, have = [] }: QuickOptions = {},
+  { start = BATTLE_START_COUNT, fill = BATTLE_START_FILL, waitMs = QUICK_WAIT_MS, flavor, have = [], kid }: QuickOptions = {},
 ): Promise<QuickStart> {
-  const pre = takePrefetched(cacheKey(topic, skillLevel, count, flavor));
+  const pre = takePrefetched(cacheKey(topic, skillLevel, count, flavor, kid));
   const need = count - have.length;
   const ids = new Set(have.map((q) => q.id));
-  const source = (pre ?? (need > 0 ? invokeGenerate(topic, age, skillLevel, need, flavor, true) : Promise.resolve([]))).then(
+  const source = (pre ?? (need > 0 ? invokeGenerate(topic, age, skillLevel, need, flavor, true, kid) : Promise.resolve([]))).then(
     (qs) => qs.filter((q) => !ids.has(q.id)).slice(0, count),
     () => [] as Question[],
   );
@@ -301,7 +306,8 @@ export async function quickQuestions(
  * questions to make `count` (starter questions in `have` don't count — they
  * only filled in), asked of the server as usual (Claude may write them), none
  * repeating what's there. What the server can't give comes from the starter
- * questions, so the pool still ends up full. Never fails.
+ * questions, so the pool still ends up full. Never fails. `kid`: who they're
+ * for, when it isn't the kid playing (a duel's Player 2, #177).
  */
 export async function moreQuestions(
   topic: Topic,
@@ -310,11 +316,12 @@ export async function moreQuestions(
   count: number,
   have: Question[],
   flavor?: FlavorId,
+  kid?: string | null,
 ): Promise<Question[]> {
   const missing = count - have.filter((q) => !isStarterId(q.id)).length;
   if (missing <= 0) return [];
   const ids = new Set(have.map((q) => q.id));
-  const fresh = (await fromServer(topic, age, skillLevel, missing, flavor)).filter((q) => !ids.has(q.id)).slice(0, missing);
+  const fresh = (await fromServer(topic, age, skillLevel, missing, flavor, kid)).filter((q) => !ids.has(q.id)).slice(0, missing);
   fresh.forEach((q) => ids.add(q.id));
   const short = count - have.length - fresh.length;
   if (short <= 0) return fresh;
@@ -439,15 +446,19 @@ export function carryOver(kid: string | null, topic: Topic, questions: Question[
   if (list.length) carried.set(key, list);
 }
 
-/** The kid playing's carried questions a round of `topic` at `skillLevel` can use, oldest first. */
-function usable(topic: Topic, skillLevel: number) {
-  const key = carryKey(activeKid(), topic);
+/** `kid`'s carried questions (the kid playing's by default) a round of `topic` at `skillLevel` can use, oldest first. */
+function usable(topic: Topic, skillLevel: number, kid: string | null = activeKid()) {
+  const key = carryKey(kid, topic);
   return { key, list: stillHeld(key), fits: (q: Question) => Math.abs(q.level - skillLevel) <= CARRY_LEVEL_BAND };
 }
 
-/** Up to `count` of the kid playing's carried questions for a round of `topic` at `skillLevel`, oldest first — taken, so no other round gets them. */
-export function takeCarried(topic: Topic, skillLevel: number, count: number): Question[] {
-  const { key, list, fits } = usable(topic, skillLevel);
+/**
+ * Up to `count` of the kid playing's carried questions — or `kid`'s, a duel's
+ * Player 2 (#177) — for a round of `topic` at `skillLevel`, oldest first —
+ * taken, so no other round gets them.
+ */
+export function takeCarried(topic: Topic, skillLevel: number, count: number, kid?: string | null): Question[] {
+  const { key, list, fits } = usable(topic, skillLevel, kid ?? activeKid());
   const taken = list.filter((c) => fits(c.question)).slice(0, count);
   const rest = list.filter((c) => !taken.includes(c));
   if (rest.length) carried.set(key, rest);

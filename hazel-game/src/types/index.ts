@@ -212,6 +212,19 @@ export interface Kid {
   birthMonth: number;
 }
 
+/**
+ * Who a pool of questions is for, when it isn't the kid playing (#177): a
+ * duel's or a co-op battle's Player 2 — a kid of the family (their own id, age
+ * and level) or a guest (the kid playing's id and age, at the level the guest
+ * chose). See `lib/playerTwo.ts`.
+ */
+export interface QuestionSeat {
+  /** The kid whose questions they are (`profileId`); null = the kid playing. */
+  kid: string | null;
+  age: number;
+  skillLevel: number;
+}
+
 /** What a grown-up fills in to add or change a kid. */
 export interface KidInput {
   name: string;

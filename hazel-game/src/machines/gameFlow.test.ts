@@ -33,6 +33,22 @@ describe('gameFlowMachine', () => {
     expect(actor.getSnapshot().matches('world')).toBe(true);
   });
 
+  it('🆚 Quiz Duel opens from the Training Grounds and goes back there (#177)', () => {
+    const actor = startActor();
+    actor.send({ type: 'READY' });
+    actor.send({ type: 'START_DUEL' });
+    expect(actor.getSnapshot().value).toBe('duel');
+    // Nothing else leaves it — a topic pick or the world wait for the Training Grounds.
+    actor.send({ type: 'PICK_TOPIC', topic: 'math' });
+    actor.send({ type: 'ENTER_WORLD' });
+    expect(actor.getSnapshot().value).toBe('duel');
+    actor.send({ type: 'EXIT_DUEL' });
+    expect(actor.getSnapshot().value).toBe('topicSelect');
+    actor.send({ type: 'START_DUEL' });
+    actor.send({ type: 'RESET' });
+    expect(actor.getSnapshot().value).toBe('boot');
+  });
+
   it('picking a topic enters the quiz with the topic in context', () => {
     const actor = startActor();
     actor.send({ type: 'READY' });

@@ -26,6 +26,7 @@ import { useProfileStore } from './profileStore';
 import { useSaveStore } from './saveStore';
 import { useFinaleStore } from './finaleStore';
 import { useBattleStore } from './battleStore';
+import { usePlayerTwoStore } from './playerTwoStore';
 import { useAuthStore } from './authStore';
 import type { Kid, KidInput } from '../types';
 
@@ -227,12 +228,13 @@ export async function signInAgain(): Promise<void> {
   await signOutHere('Signing out to sign in again');
 }
 
-/** Put away the game in progress: profile, save, battle, flow. */
+/** Put away the game in progress: profile, save, battle, Player 2 (#177), flow. */
 export function putAwayGame(): void {
   useProfileStore.getState().clearProfile();
   useSaveStore.getState().clear();
   useBattleStore.getState().reset();
   useFinaleStore.getState().reset();
+  usePlayerTwoStore.getState().clear();
   sendFlow({ type: 'RESET' });
 }
 
