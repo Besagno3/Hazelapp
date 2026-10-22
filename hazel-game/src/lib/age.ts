@@ -14,6 +14,13 @@ export const DEFAULT_AGE = 10;
 /** Oldest age questions are pitched at; anyone older plays as this age. */
 export const MAX_PLAYER_AGE = 18;
 
+/**
+ * Youngest age a topic start keeps (`profiles.skill_starts`, migration 0026 —
+ * its trigger keeps an age within this and `MAX_PLAYER_AGE`;
+ * `playDays.limits.test` holds the two together, #182).
+ */
+export const MIN_START_AGE = 3;
+
 /** The player's age (capped at MAX_PLAYER_AGE), falling back to DEFAULT_AGE without a profile. */
 export function playerAge(profile: Pick<Profile, 'birthYear' | 'birthMonth'> | null): number {
   return profile ? Math.min(MAX_PLAYER_AGE, calcAge(profile.birthYear, profile.birthMonth)) : DEFAULT_AGE;

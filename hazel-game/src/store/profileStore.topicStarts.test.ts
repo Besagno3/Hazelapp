@@ -5,7 +5,7 @@ import type { Profile } from '../types';
 vi.mock('../lib/supabase', () => {
   const ok = { data: null, error: null };
   const chain: Record<string, unknown> = {};
-  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle']) chain[m] = () => chain;
+  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle', 'abortSignal']) chain[m] = () => chain;
   chain.then = (res: (v: unknown) => unknown) => Promise.resolve(ok).then(res);
   return { supabase: { rpc: vi.fn(async () => ({ data: 1, error: null })), from: () => chain } };
 });
@@ -15,7 +15,11 @@ const { useSaveStore } = await import('./saveStore');
 const { defaultSave } = await import('../lib/save');
 
 // Born in January 9 years ago: 9 today, so a topic not saved yet stands at level 4.
+const { todayIso } = await import('../lib/streak');
+
 const YEAR = new Date().getFullYear();
+/** A start noted today (#183: with the day it was noted). */
+const today = (level: number, age: number) => ({ level, age, on: todayIso() });
 const kid = (skillLevels: Profile['skillLevels'] = {}): Profile => ({
   id: 'kid-1',
   birthYear: YEAR - 9,
@@ -39,9 +43,10 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
   it('the first save of a topic notes where it started — the level for their age now, and that age — in their save', async () => {
     useProfileStore.setState({ profile: kid() });
     await useProfileStore.getState().setSkillLevel('math', 6);
-    expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: { level: 4, age: 9 } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: today(4, 9) });
     expect(useSaveStore.getState().save?.revision).toBe(11);
     expect(useProfileStore.getState().profile?.skillLevels).toEqual({ math: 6 });
+    expect(useProfileStore.getState().profile?.skillStarts).toEqual({ math: today(4, 9) }); // on the profile too (#174)
   });
 
   it('later saves of that topic never move its start — a birthday, a climb or a drop', async () => {
@@ -52,7 +57,7 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
     useProfileStore.setState({ profile: { ...useProfileStore.getState().profile!, birthYear: YEAR - 10 } });
     await useProfileStore.getState().setSkillLevel('math', 3);
     await useProfileStore.getState().setSkillLevel('science', 5);
-    expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: { level: 4, age: 9 }, science: { level: 5, age: 10 } });
+    expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: today(4, 9), science: today(5, 10) });
   });
 
   it('a topic already saved before starts were noted gets none: the page makes no claim about it', async () => {
@@ -68,6 +73,8 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
     await useProfileStore.getState().setSkillLevel('math', 4);
     expect(useSaveStore.getState().save?.topicStarts).toEqual({ math: { level: 2, age: 7 } });
     expect(useSaveStore.getState().save?.revision).toBe(10);
+    // …and it's the start the profile notes too (#174) — never "level 4 at 9".
+    expect(useProfileStore.getState().profile?.skillStarts).toEqual({ math: { level: 2, age: 7 } });
   });
 
   it("never into another kid's save (a Switch player mid-write)", async () => {
@@ -80,6 +87,6 @@ describe("a topic's real start is noted when its level is first saved (#29 revie
   it('a teen starts at 6 (#156), and the age is kept as the game plays it (18 at most)', async () => {
     useProfileStore.setState({ profile: { ...kid(), birthYear: YEAR - 25 } });
     await useProfileStore.getState().setSkillLevel('words', 6);
-    expect(useSaveStore.getState().save?.topicStarts.words).toEqual({ level: 6, age: 18 });
+    expect(useSaveStore.getState().save?.topicStarts.words).toEqual(today(6, 18));
   });
 });

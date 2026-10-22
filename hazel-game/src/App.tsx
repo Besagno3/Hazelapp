@@ -3,6 +3,9 @@ import { useAuthInit } from './features/auth/useAuthInit';
 import { useAuthStore } from './store/authStore';
 import { useSaveStore, watchPageForSaves } from './store/saveStore';
 import { watchKeyboard } from './store/keyboardStore';
+import { countMinutesPlayed, dayPlayed, useProfileStore } from './store/profileStore';
+import { watchActiveMinutes } from './lib/activeMinutes';
+import { watchPlayDays } from './lib/playDays';
 import { useBattleStore } from './store/battleStore';
 import { musicScreen, useScreenMusic } from './lib/audio';
 import { dropSignupParam } from './lib/signupLink';
@@ -33,6 +36,18 @@ import BattleArena from './features/battle/BattleArena';
 // (offline, or a new version deployed while the tab was open) the screen says
 // so and can try again, instead of the crash screen (#29 review round 1).
 const worldScreen = retryableLazy(() => import('./features/world/WorldScreen'));
+
+/** The kid playing on this page, whose minutes and days are noted (#29, #172). */
+const kidPlaying = () => useProfileStore.getState().profile?.id ?? null;
+
+/**
+ * The game is what's on screen (#172): signed in, a kid picked and their
+ * save ready — not sign-in, the family screens or 👪 Grown-ups.
+ */
+function gameOnScreen(): boolean {
+  const { session, passwordRecovery } = useAuthStore.getState();
+  return !!session && !passwordRecovery && familyScreen(useFamilyStore.getState()) === 'play' && useSaveStore.getState().status === 'ready';
+}
 
 /**
  * Routing is the game-flow machine (#37, resolves #11): App renders whatever
@@ -101,6 +116,12 @@ export default function App() {
   useEffect(() => watchPageForSaves(), []);
   // The first press from a real keyboard opens the typing features (#165).
   useEffect(() => watchKeyboard(), []);
+  // Minutes really played count for 📈 Progress (#172) — and go up at once
+  // as play on a day the profile already counts (review round 2), and five
+  // of them count the day as played (#177) — and a tab going out of view
+  // sends the kid's day at once (#29).
+  useEffect(() => watchActiveMinutes({ kid: kidPlaying, inGame: gameOnScreen, played: dayPlayed, countDay: countMinutesPlayed }), []);
+  useEffect(() => watchPlayDays(kidPlaying), []);
 
   // Already signed in when the public site's sign-up button brought them
   // here: drop its ?signup, or a later sign-out would open on sign-up (#146).
