@@ -309,6 +309,15 @@ Old Ringwood is the tree who loses count of his rings.
 - **Tricky:** match the thin-ring pattern of an old beam to a living tree to
   find when the beam was cut (cross-dating, how scientists really date wood).
 - **Collection:** eight trees of Eldergrove, each with its own story.
+- **Built (PR 7):** the grove's weather is one for every tree, so their
+  rings match. Gentle counts a young tree's slice (4–8 rings) and finds its
+  wettest year; Medium reads a core of 10–14 rings (not 20: a core's thin
+  rings must stay big enough to tap) — the year a thing happened, counted
+  back from the bark, then every dry year; Tricky slides an old beam's core
+  along a living tree's till the thin rings line up. The grove book's eight:
+  Silver Birch, Weeping Willow, Beech, Rowan, Old Oak, Lodgepole Pine, Yew,
+  Giant Sequoia. Ringwood has no quest, so 🌳 is his gold offer; the first
+  round gives a Lucky Clover.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 

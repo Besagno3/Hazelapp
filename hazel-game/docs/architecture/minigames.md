@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call and ✨ Vela's Star Charts.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts and 🌳 Ringwood's Rings.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -255,6 +255,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   (`useSkySize`: on a phone, the screen's height under the header, the
   card's top kept in sight; the same card width all through a picture, so
   the sky doesn't change at the payoff), the whole column up to 700 px high;
-  a fact card taller than its room scrolls to its Next. The
+  a fact card taller than its room scrolls to its Next. **🌳 Ringwood's Rings**
+  (`elder-ringwood`, Old Ringwood, Eldergrove — no quest of his own, so 🌳
+  is his gold offer; `lib/minigames/rings.ts`, `features/minigames/rings/`):
+  reading tree rings. The grove's weather (`weather`) is one for every tree,
+  its dry years unevenly spaced, so a run of rings fits one place only; a
+  ring's width is its weather's (`RING_WIDTH`). Eight trees (`TREES`, the
+  year each fell or was cored, a fire's scar on some); Gentle counts a
+  slice (`count`: 4, 6, 8 rings, then the widest), Medium reads a core
+  (`date`: 10–14 rings — the year counted back from the bark, then every
+  thin ring), Tricky cross-dates (`match`: a beam of 8–10 rings slid along a
+  living tree's 30-ring core, `matchesAt` / `fitOffset`, till it fits). The
+  slice and the core are each one pointer target — the nearest ring within
+  reach, however thin (`TAP_REACH_PX`) — with a button per ring for the
+  keyboard (one in the tab order, the arrow keys in and out) and a reader
+  (where it is, how it grew); the slice's rings are drawn to their widths
+  (`data-band`), the core's as bands; the beam slides by its ◀ ▶ buttons,
+  both cores' rings said under them (`rr-under`). What Ringwood said is in
+  the step's card by the wood. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

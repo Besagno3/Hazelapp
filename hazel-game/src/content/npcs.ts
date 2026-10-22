@@ -1678,6 +1678,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       'Hrrrm. A visitor. Stand still while I count my rings. One… two… three…',
       '…eight hundred and ninety-nine… nine hundred… nine hundred and… oh, bother. Lost count again.',
+      'You could help, you know. I keep slices and cores of the grove’s trees — every ring a year. Read them with me?',
       {
         text: 'Mind the Great Ring, just south of me. The Ringkeeper lives there — older than me, older than this whole grove.',
         unlessFlag: keyFlag('memoria'),
