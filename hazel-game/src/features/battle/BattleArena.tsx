@@ -628,6 +628,9 @@ export default function BattleArena() {
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
+    // A battle fled after answering is a battle played (#29 progress history review round 2): the day counts,
+    // as a won or lost one's does, so its answers in 📈 Progress go up with it.
+    if (answerCount.current > 0) void recordActivity();
     // Fleeing skips the battle ramp, but a level the speed trigger earned stays earned.
     if (profile && speedBoost.current > 0) {
       const current = skillLevelFor(profile.skillLevels, topic, age);

@@ -45,7 +45,7 @@ describe('watchActiveMinutes: a minute a minute while someone plays (#172)', () 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
     vi.advanceTimersByTime(MINUTE_MS);
     expect(addDayMinute).toHaveBeenCalledTimes(1);
-    expect(addDayMinute).toHaveBeenLastCalledWith('kid-1', '2026-10-21');
+    expect(addDayMinute).toHaveBeenLastCalledWith('kid-1', '2026-10-21', { played: false });
     window.dispatchEvent(new Event('pointerdown'));
     vi.advanceTimersByTime(MINUTE_MS);
     window.dispatchEvent(new Event('touchstart'));
@@ -93,6 +93,46 @@ describe('watchActiveMinutes: a minute a minute while someone plays (#172)', () 
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
     vi.advanceTimersByTime(3 * MINUTE_MS);
     expect(addDayMinute).not.toHaveBeenCalled();
+  });
+
+  it("across Switch player, the outgoing kid's last part-minute and the incoming kid's PIN are nobody's minute (review round 2)", () => {
+    // Kid A plays from 0 to 50 s, then switches.
+    for (let t = 0; t < 50_000; t += 5_000) {
+      window.dispatchEvent(new Event('pointerdown'));
+      vi.advanceTimersByTime(5_000);
+    }
+    kid = null;
+    inGame = false; // "Who's playing?"
+    vi.advanceTimersByTime(3_000);
+    window.dispatchEvent(new Event('pointerdown')); // B taps their tile and types their PIN
+    vi.advanceTimersByTime(5_000);
+    kid = 'kid-2';
+    inGame = true; // B in the game at 58 s, no key yet
+    vi.advanceTimersByTime(2_000); // the tick at 60 s
+    expect(addDayMinute).not.toHaveBeenCalled();
+    // B's own play counts from their first key on a game screen.
+    window.dispatchEvent(new Event('pointerdown'));
+    vi.advanceTimersByTime(MINUTE_MS);
+    expect(addDayMinute).toHaveBeenCalledTimes(1);
+    expect(addDayMinute).toHaveBeenLastCalledWith('kid-2', '2026-10-21', { played: false });
+  });
+
+  it('input off the game screens (the PIN pad, the family screens, 👪) never counts, even for the same kid (review round 2)', () => {
+    inGame = false;
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: '1' }));
+    inGame = true; // back in the game within the minute, nothing touched there
+    vi.advanceTimersByTime(MINUTE_MS);
+    expect(addDayMinute).not.toHaveBeenCalled();
+  });
+
+  it("a day the profile already counts as played: the minute says so, so it goes up like the day's play (review round 2)", () => {
+    stop();
+    const played = vi.fn((id: string, day: string) => id === 'kid-1' && day === '2026-10-21');
+    stop = watchActiveMinutes({ kid: () => kid, inGame: () => inGame, played });
+    window.dispatchEvent(new Event('touchstart'));
+    vi.advanceTimersByTime(MINUTE_MS);
+    expect(played).toHaveBeenCalledWith('kid-1', '2026-10-21');
+    expect(addDayMinute).toHaveBeenLastCalledWith('kid-1', '2026-10-21', { played: true });
   });
 
   it('two windows of the game, both in view and used in turn: one minute counted, not two (review round 1)', () => {

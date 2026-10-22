@@ -50,7 +50,7 @@ describe('noting the days a kid played (#29, migration 0025)', () => {
     expect(mod.pendingPlayDays('kid-1')).toEqual([]);
   });
 
-  it('before migration 0025 (neither function): kept, said once each, and nothing more is sent this session (review round 1)', async () => {
+  it('before migration 0025 (neither function): kept, said once each, and nothing more is sent for a while (review round 1)', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     rpc.mockImplementation(async (fn: string) => (fn === 'note_play_history' ? noHistory : noDays));
     await mod.notePlayDay('kid-1', '2026-10-20');
@@ -212,15 +212,67 @@ describe('the play on each day: XP, minutes, answers (#169, #172, #173; migratio
     expect(localStorage.getItem(mod.playDaysKey('kid-1'))).toBeNull();
   });
 
-  it('a day already played elsewhere (markPlayDay): a record kept here becomes one to send; nothing is made for a day with no play here (review round 1)', () => {
+  it('days already played elsewhere (markPlayDays): the records kept here become ones to send; nothing is made for a day with no play here (review rounds 1–2)', () => {
+    void mod.addDayMinute('kid-1', '2026-10-19');
+    void mod.addDayMinute('kid-1', '2026-10-20');
     void mod.addDayMinute('kid-1', TODAY);
     expect(mod.pendingPlayDays('kid-1')).toEqual([]);
-    mod.markPlayDay('kid-1', TODAY);
-    expect(mod.pendingPlayDays('kid-1')).toEqual([TODAY]);
-    mod.markPlayDay('kid-2', TODAY);
+    // The profile proves yesterday and today (a streak of 2 ending today); the 19th stays as it was.
+    mod.markPlayDays('kid-1', (d) => d >= '2026-10-20');
+    expect(mod.pendingPlayDays('kid-1')).toEqual(['2026-10-20', TODAY]);
+    mod.markPlayDays('kid-2', () => true);
     expect(mod.playDayRecords('kid-2')).toEqual([]);
     // It sends nothing itself.
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('play noted for a day the profile already counts (`played`) marks it played as it is noted — minutes, answers, XP, a level (review round 2)', async () => {
+    rpc.mockResolvedValue(ok);
+    // The first send after a while goes at once; the next waits SEND_EVERY_MS, as for any played day.
+    await mod.addDayMinute('kid-1', TODAY, { played: true });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(sentDays()).toEqual([{ day: TODAY, xp: 0, minutes: 1, topics: {} }]);
+    await mod.noteDayAnswer('kid-1', TODAY, 'math', false, 4, { played: true });
+    expect(rpc).toHaveBeenCalledTimes(1);
+    later(mod.SEND_EVERY_MS + 1);
+    await mod.noteDayAnswer('kid-1', TODAY, 'math', false, 4, { played: true });
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(sentDays()).toEqual([{ day: TODAY, xp: 0, minutes: 1, topics: { math: { a: 2, r: 0, l: 4 } } }]);
+    // Each kind marks it: a day that wasn't counted yet becomes one to send.
+    for (const [day, note] of [
+      ['2026-10-17', () => mod.addDayXp('kid-1', '2026-10-17', 5, { played: true })],
+      ['2026-10-18', () => mod.noteDayLevel('kid-1', '2026-10-18', 'math', 5, { played: true })],
+    ] as const) {
+      void note();
+      expect(mod.pendingPlayDays('kid-1')).toContain(day);
+    }
+    // Without it, a day nobody counted stays unsent (#177).
+    void mod.addDayMinute('kid-1', '2026-10-19');
+    void mod.addDayMinute('kid-1', '2026-10-19', { played: false });
+    expect(mod.pendingPlayDays('kid-1')).not.toContain('2026-10-19');
+  });
+
+  it('a record dated more than a day ahead (a device clock set ahead, then fixed) leaves at the next write — it never holds a place for good (review round 2)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // A week played with the clock in 2099, offline: eight days kept to send.
+    rpc.mockRejectedValue(offline());
+    for (let i = 1; i <= mod.PENDING_MAX; i++) {
+      vi.setSystemTime(new Date(`2099-01-0${i}T12:00:00`));
+      await mod.addDayXp('kid-1', `2099-01-0${i}`, 10);
+      await mod.notePlayDay('kid-1', `2099-01-0${i}`);
+    }
+    expect(mod.playDayRecords('kid-1')).toHaveLength(mod.PENDING_MAX);
+    // The clock is right again: the real day's play is kept (it used to be the one dropped, the oldest of nine)
+    // and sent; the far-future records are gone.
+    vi.setSystemTime(new Date('2026-10-21T12:00:00'));
+    await mod.addDayXp('kid-1', TODAY, 120);
+    rpc.mockResolvedValue(ok);
+    await mod.notePlayDay('kid-1', TODAY);
+    expect(sentDays()).toEqual([{ day: TODAY, xp: 120, minutes: 0, topics: {} }]);
+    expect(mod.playDayRecords('kid-1').map((r) => r.day)).toEqual([TODAY]);
+    // A day one ahead (the clock moved back a little, or a time zone west) stays: it may still be the kid's today.
+    void mod.addDayMinute('kid-1', '2026-10-22');
+    expect(mod.playDayRecords('kid-1').map((r) => r.day)).toEqual([TODAY, '2026-10-22']);
   });
 
   it('XP, minutes and answers add up in the day’s record; the tally keeps right ≤ asked and the level last noted', async () => {
@@ -371,6 +423,46 @@ describe('the play on each day: XP, minutes, answers (#169, #172, #173; migratio
       { day: TODAY, xp: 10, minutes: 0, topics: {} },
     ]);
     expect(mod.playDayRecords('kid-1').map((r) => r.day)).toEqual([TODAY]);
+  });
+
+  it('a missing function is asked for again after MISSING_RECHECK_MS, and at once after recheckPlayFunctions (a profile load) — never for the tab’s whole life (review round 2)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // 0026 not there yet: the day alone goes; the rest waits.
+    rpc.mockImplementation(async (fn: string) => (fn === 'note_play_history' ? noHistory : ok));
+    void mod.addDayXp('kid-1', '2026-10-20', 40);
+    await mod.notePlayDay('kid-1', '2026-10-20');
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history', 'note_play_days']);
+    // 0026 is applied (the tab stayed open across the deploy). Within the while: still the days alone.
+    rpc.mockReset();
+    rpc.mockResolvedValue(ok);
+    later(mod.MISSING_RECHECK_MS - 1000);
+    void mod.addDayXp('kid-1', TODAY, 10);
+    await mod.notePlayDay('kid-1', TODAY);
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_days']);
+    // After it: note_play_history again, and the play waiting on the device goes whole.
+    later(1001 + mod.SEND_EVERY_MS);
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc).toHaveBeenLastCalledWith('note_play_history', {
+      p_kid: 'kid-1',
+      p_days: [
+        { day: '2026-10-20', xp: 40, minutes: 0, topics: {} },
+        { day: TODAY, xp: 10, minutes: 0, topics: {} },
+      ],
+    });
+    // Neither function (0025 not there): nothing for a while — then asked again, or at once after a profile load.
+    mod.forgetPlayDays('kid-1');
+    rpc.mockReset();
+    rpc.mockImplementation(async (fn: string) => (fn === 'note_play_history' ? noHistory : noDays));
+    await mod.notePlayDay('kid-1', TODAY);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc).toHaveBeenCalledTimes(2);
+    rpc.mockReset();
+    rpc.mockResolvedValue(ok);
+    mod.recheckPlayFunctions();
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history']);
+    expect(mod.pendingPlayDays('kid-1')).toEqual([]);
   });
 
   it('minutes and answers on a day nothing counted as played wait on the device, and go with the day once it is played', async () => {

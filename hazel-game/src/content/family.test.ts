@@ -43,13 +43,20 @@ describe('the privacy notice and the play history (#169–#174)', () => {
     const { default: migration0026 } = await import('../../supabase/migrations/0026_progress_history.sql?raw');
     const { HISTORY_DAYS } = await import('../lib/progress');
     const collect = PRIVACY_NOTICE.find((s) => s.heading === 'What we collect')?.body ?? '';
+    // The day's note in its own sentence; where each topic started is one of the "levels" (review round 2).
     expect(collect).toMatch(
-      /a note of each day they play: how long they played, the XP they earned, how many questions of each topic they got right and wrong that day, and the level each topic reached/,
+      /For each day they play, we also keep a note: how long they played, the XP they earned, their right and wrong answers in each topic, and the level each topic reached\./,
     );
-    expect(collect).toMatch(/the level each topic started at/);
+    expect(collect).toMatch(/game progress \(answers, levels, items and saved game\)/);
     const keep = PRIVACY_NOTICE.find((s) => s.heading === 'How long we keep it')?.body ?? '';
-    expect(keep).toMatch(/the note of each day they play, which is deleted after five weeks/);
-    expect(keep).toMatch(/the date of the first day noted is kept/);
+    // Exactly what happens (review round 2): the read policy hides a day after five weeks; the tidy-up runs inside
+    // the note functions, as children play — no scheduled job, so "deleted after five weeks" claimed too much.
+    expect(keep).toMatch(/Each day's note is kept for five weeks; after that your family can't see it, and it is deleted as the game tidies up \(as children play\)/);
+    expect(keep).not.toMatch(/deleted after five weeks/);
+    expect(keep).toMatch(/Only the date of their first day stays, to show from when days played are recorded/);
+    // The tidy-up is part of noting a day: no scheduled job does it.
+    expect(migration0026).toMatch(/function public\.note_play_history\([\s\S]*?perform public\.play_days_tidy\(\)/);
+    expect(migration0026).not.toMatch(/cron\.schedule/);
     expect(HISTORY_DAYS).toBe(5 * 7);
     // The purge and the read policy (0026) at the same five weeks.
     expect(Number(migration0026.match(/where o\.day < current_date - (\d+)/)?.[1])).toBe(HISTORY_DAYS);

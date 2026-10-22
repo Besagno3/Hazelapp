@@ -71,13 +71,11 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
     heading: 'What we collect',
     body:
       'From you, the grown-up: your email address and password, to run your family account. ' +
-      'For each child you add: a nickname, their birth month and year, the picture you pick ' +
-      'for them, their PIN (stored scrambled, so no one can read it back), their game ' +
-      "progress (answers, levels, items and saved game, and the level each topic started at), " +
-      'and a note of each day they play: how long they played, the XP they earned, how ' +
-      'many questions of each topic they got right and wrong that day, and the level each ' +
-      'topic reached. We do not ' +
-      "ask for a child's full name, email, photo, voice or location.",
+      'For each child: a nickname, their birth month and year, the picture you pick, their PIN ' +
+      '(stored scrambled, so no one can read it back) and their game progress (answers, levels, ' +
+      'items and saved game). For each day they play, we also keep a note: how long they ' +
+      'played, the XP they earned, their right and wrong answers in each topic, and the level ' +
+      "each topic reached. We do not ask for a child's full name, email, photo, voice or location.",
   },
   {
     heading: 'How we use it',
@@ -99,14 +97,14 @@ export const PRIVACY_NOTICE: { heading: string; body: string }[] = [
   {
     heading: 'How long we keep it',
     body:
-      "A child's information is kept while they are on your account, except the note of each " +
-      'day they play, which is deleted after five weeks (the date of the first day noted is ' +
-      'kept, so the Grown-ups area can say from when days were counted). Removing a child in the ' +
-      'Grown-ups area deletes their information straight away, except a note of how many new ' +
-      "questions were written for them that day — without their name — which is kept for one " +
-      "day so your family's daily question limit still works. Closing your account deletes " +
-      "your login and every child's information straight away, keeping only that same " +
-      "nameless note of the day's question count for one day. [RETENTION PERIOD for backups.]",
+      "A child's information is kept while they are on your account. Each day's note is kept " +
+      "for five weeks; after that your family can't see it, and it is deleted as the game tidies " +
+      'up (as children play). Only the date of their first day stays, to show from when days ' +
+      'played are recorded. Removing a child in the Grown-ups area deletes their information ' +
+      'straight away, except a count of the new questions written for them that day, without ' +
+      "their name, kept for one day so your family's daily question limit still works. Closing " +
+      "your account deletes your login and every child's information straight away, keeping " +
+      'only that nameless count for one day. [RETENTION PERIOD for backups.]',
   },
   {
     heading: 'Your choices',

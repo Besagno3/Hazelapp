@@ -384,7 +384,7 @@ describe('a row that wasn\'t read is asked for again, and the levels played mean
     reads.push(FAILED);
     await useProfileStore.getState().loadProfile('kid-1', birth);
     await useProfileStore.getState().addXp(30); // real XP, whatever the profile
-    useProfileStore.getState().noteAnswer({ id: 'bank-q', topic: 'math' }, true);
+    useProfileStore.getState().noteAnswer({ id: 'bank-q', topic: 'math', level: 5 }, true);
     await useProfileStore.getState().setSkillLevel('math', 6); // up 1 from the made-up 5
     expect(playDayRecords('kid-1')).toEqual([{ day: TODAY, xp: 30, minutes: 0, topics: { math: { a: 1, r: 1 } } }]);
     later();
@@ -393,7 +393,7 @@ describe('a row that wasn\'t read is asked for again, and the levels played mean
     expect(useProfileStore.getState().profile?.skillLevels.math).toBe(8);
     // Math's level today is the real one, 7 + 1.
     expect(playDayRecords('kid-1')[0].topics).toEqual({ math: { a: 1, r: 1, l: 8 } });
-    useProfileStore.getState().noteAnswer({ id: 'bank-q2', topic: 'science' }, false);
+    useProfileStore.getState().noteAnswer({ id: 'bank-q2', topic: 'science', level: 6 }, false);
     expect(playDayRecords('kid-1')[0].topics.science).toEqual({ a: 1, r: 0, l: 6 });
   });
 });

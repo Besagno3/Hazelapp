@@ -14,16 +14,21 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * a send** and goes again, whole, once it has grown; a past day leaves once
  * the database has it as it stands; a day older than the database takes (7
  * back) is dropped. A day is sent only once it counts as played
- * (`notePlayDay`, from `profileStore.recordActivity`), so the week, the 🔥
+ * (`notePlayDay`, from `profileStore.recordActivity`, or the profile already
+ * counts it — below), so the week, the 🔥
  * streak and "last played" still agree: minutes or answers on a day nothing
  * else counted wait on the device, and go if the day is played. Never throws
  * and never holds up play: the dashboard can only be missing play, never
  * shows play that didn't happen.
  *
  * A day the profile already counts as played — on another device or
- * browser, earlier today — is this device's to send too once it has play of
- * its own (`markPlayDay`, review round 1): the database keeps the larger of
- * the two, so this device's play is never left out of 📈.
+ * browser, earlier today, or a day inside the live streak it proves — is
+ * this device's to send too once it has play of its own: the database keeps
+ * the larger of the two, so this device's play is never left out of 📈.
+ * Play noted for such a day marks it played as it's noted (`played`, review
+ * round 2 — round 1 marked only the records kept when a profile loaded, so
+ * minutes and wrong answers noted afterwards never went), and a profile
+ * read marks every kept day it proves (`markPlayDays`).
  *
  * Not one call per answer: a send asked for without `now` (a round's end,
  * XP, a minute, an answer) goes at most every `SEND_EVERY_MS`; a new day, a
@@ -39,11 +44,14 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * When a send fails it backs off rather than trying after every round
  * (#29 review round 1): no `note_play_history` (0026 not applied) → the days
  * alone go to `note_play_days` as before, and the rest of each record stays
- * on the device until a session finds 0026 (while it's within the week);
- * neither function (0025 not applied either) → nothing more is sent this
- * session; offline or unreachable → again once the device is back online, or
- * after `RETRY_OFFLINE_MS`; any other refusal → again on the kid's next new
- * day or the next time their profile loads.
+ * on the device until 0026 is found (while it's within the week); neither
+ * function (0025 not applied either) → nothing more is sent. Either is
+ * asked about again after `MISSING_RECHECK_MS` and on the next profile load
+ * (`recheckPlayFunctions`; review round 2: remembered for the tab's whole
+ * life, a family tablet left open across the deploy kept sending days alone
+ * and dropped a week of play); offline or unreachable → again once the
+ * device is back online, or after `RETRY_OFFLINE_MS`; any other refusal →
+ * again on the kid's next new day or the next time their profile loads.
  */
 
 const PREFIX = 'hazel-play-history-';
@@ -59,6 +67,9 @@ export const RETRY_OFFLINE_MS = 10 * 60_000;
 
 /** After a send, the next one asked for without `now` waits at least this long (not one call per answer). */
 export const SEND_EVERY_MS = 2 * 60_000;
+
+/** A note function the database didn't have (a migration not applied yet) is asked for again after this long (review round 2). */
+export const MISSING_RECHECK_MS = 10 * 60_000;
 
 /** The database's limits on a day (migration 0026): what a record is clamped to here too. */
 const MAX_XP = 100_000;
@@ -158,14 +169,17 @@ function readKept(kidId: string): Kept[] {
 
 /**
  * Keep a kid's days: oldest first; a day the database won't take any more
- * (older than 7 back) and a past day it has as it stands leave; at most
- * `PENDING_MAX`.
+ * (older than 7 back), a past day it has as it stands, and a day more than
+ * one ahead (a device clock that was set ahead: the database never takes it,
+ * and it would hold one of the `PENDING_MAX` places for good — review round
+ * 2) leave; at most `PENDING_MAX`.
  */
 function writeKept(kidId: string, list: Kept[]): void {
   const today = todayIso();
   const oldest = isoOffset(today, -7);
+  const newest = isoOffset(today, 1);
   const days = list
-    .filter((r) => r.day >= oldest && !(r.sent === 'all' && r.day < today))
+    .filter((r) => r.day >= oldest && r.day <= newest && !(r.sent === 'all' && r.day < today))
     .sort((a, b) => (a.day < b.day ? -1 : 1))
     .slice(-PENDING_MAX);
   try {
@@ -187,10 +201,19 @@ const contents = (r: PlayDayRecord): string => JSON.stringify([r.xp, r.minutes, 
 const recordOf = ({ day, xp, minutes, topics }: Kept): PlayDayRecord => ({ day, xp, minutes, topics });
 
 /**
+ * How play is noted. `played`: the profile already counts the day as played
+ * (its last day played, or a day its live streak proves — `profileStore`
+ * says), so the record goes like any played day's (review round 2).
+ */
+export interface Noting {
+  played?: boolean;
+}
+
+/**
  * Change a kid's record for `day` (made if it isn't kept yet). A record the
  * database had as it stood has more to send once it changes.
  */
-function change(kidId: string, day: string, edit: (r: Kept) => void): boolean {
+function change(kidId: string, day: string, edit: (r: Kept) => void, { played = false }: Noting = {}): boolean {
   if (!ISO_DAY.test(day)) return false;
   try {
     const list = readKept(kidId).map((r) => ({ ...r, topics: { ...r.topics } }));
@@ -201,6 +224,7 @@ function change(kidId: string, day: string, edit: (r: Kept) => void): boolean {
     }
     const before = contents(rec);
     edit(rec);
+    if (played) rec.played = true;
     if (rec.sent === 'all' && contents(rec) !== before) rec.sent = 'day';
     writeKept(kidId, list);
     return true;
@@ -229,10 +253,23 @@ export function forgetPlayDays(kidId: string): void {
 
 /** One send per kid at a time; a send asked for meanwhile runs after it. */
 const inFlight = new Map<string, Promise<void>>();
-/** Neither function exists (0025 isn't applied): nothing more is sent this session. */
-let missing = false;
-/** `note_play_history` doesn't exist (0026 isn't applied): the days alone go to `note_play_days` this session. */
-let historyMissing = false;
+/** Until when (ms) neither function is asked for (0025 isn't applied): nothing is sent meanwhile. */
+let missingUntil = 0;
+/** Until when (ms) `note_play_history` isn't asked for (0026 isn't applied): the days alone go to `note_play_days` meanwhile. */
+let historyMissingUntil = 0;
+const missing = () => Date.now() < missingUntil;
+const historyMissing = () => Date.now() < historyMissingUntil;
+
+/**
+ * Ask the database for the note functions again on the next send, though a
+ * send found one missing a while ago (a profile load does — review round 2:
+ * a migration applied since is found at once, not only after
+ * `MISSING_RECHECK_MS`).
+ */
+export function recheckPlayFunctions(): void {
+  missingUntil = 0;
+  historyMissingUntil = 0;
+}
 /**
  * When a kid's days may go again without `now` (ms): `SEND_EVERY_MS` after a
  * send, or the back-off after a failed one (`failed`) — and whether coming
@@ -255,29 +292,29 @@ export function notePlayDay(kidId: string, day: string): Promise<void> {
 }
 
 /**
- * `day` already counts as played (the profile says so — another device or
- * browser played it, review round 1): this device's record of it, if it
- * keeps one, is sent like any played day's — the database keeps the larger
- * of the two. Nothing is made for a day this device has no play on, and
- * nothing is sent here: the caller's own send (throttled, or a load's at
- * once) takes it.
+ * The days `played` says count as played (the profile says so — another
+ * device or browser played them, or the live streak proves them; review
+ * rounds 1–2): this device's records of them, where it keeps any, are sent
+ * like any played day's — the database keeps the larger of the two. Nothing
+ * is made for a day this device has no play on, and nothing is sent here:
+ * the caller's own send (throttled, or a load's at once) takes them.
  */
-export function markPlayDay(kidId: string, day: string): void {
+export function markPlayDays(kidId: string, played: (day: string) => boolean): void {
   const list = readKept(kidId);
-  if (!list.some((r) => r.day === day && !r.played)) return;
-  writeKept(kidId, list.map((r) => (r.day === day ? { ...r, played: true as const } : r)));
+  if (!list.some((r) => !r.played && played(r.day))) return;
+  writeKept(kidId, list.map((r) => (!r.played && played(r.day) ? { ...r, played: true as const } : r)));
 }
 
 /** `amount` XP earned on `day` (#169): added to the day's total, sent within a couple of minutes. */
-export function addDayXp(kidId: string, day: string, amount: number): Promise<void> {
+export function addDayXp(kidId: string, day: string, amount: number, noting?: Noting): Promise<void> {
   if (!(amount > 0) || !Number.isFinite(amount)) return Promise.resolve();
-  if (!change(kidId, day, (r) => (r.xp = Math.min(MAX_XP, r.xp + Math.round(amount))))) return Promise.resolve();
+  if (!change(kidId, day, (r) => (r.xp = Math.min(MAX_XP, r.xp + Math.round(amount))), noting)) return Promise.resolve();
   return flushPlayDays(kidId);
 }
 
 /** One more active minute played on `day` (#172, `lib/activeMinutes`). */
-export function addDayMinute(kidId: string, day: string): Promise<void> {
-  if (!change(kidId, day, (r) => (r.minutes = Math.min(MAX_MINUTES, r.minutes + 1)))) return Promise.resolve();
+export function addDayMinute(kidId: string, day: string, noting?: Noting): Promise<void> {
+  if (!change(kidId, day, (r) => (r.minutes = Math.min(MAX_MINUTES, r.minutes + 1)), noting)) return Promise.resolve();
   return flushPlayDays(kidId);
 }
 
@@ -295,31 +332,41 @@ function tallyFor(r: Kept, topic: string): TopicTally | null {
  * final pick (`profileStore.noteAnswer` decides). `level`: the topic's level
  * as it was answered, when it's known (not from a profile that wasn't read).
  */
-export function noteDayAnswer(kidId: string, day: string, topic: string, correct: boolean, level?: number): Promise<void> {
+export function noteDayAnswer(kidId: string, day: string, topic: string, correct: boolean, level?: number, noting?: Noting): Promise<void> {
   if (!TOPIC_KEY.test(topic)) return Promise.resolve();
-  const noted = change(kidId, day, (r) => {
-    const t = tallyFor(r, topic);
-    if (!t || t.a >= MAX_ANSWERS) return;
-    t.a += 1;
-    if (correct) t.r += 1;
-    if (isLevel(level)) t.l = level;
-  });
+  const noted = change(
+    kidId,
+    day,
+    (r) => {
+      const t = tallyFor(r, topic);
+      if (!t || t.a >= MAX_ANSWERS) return;
+      t.a += 1;
+      if (correct) t.r += 1;
+      if (isLevel(level)) t.l = level;
+    },
+    noting,
+  );
   return noted ? flushPlayDays(kidId) : Promise.resolve();
 }
 
 /** `topic`'s level was saved on `day` (#173): the day's level for it, the last one saved that day. */
-export function noteDayLevel(kidId: string, day: string, topic: string, level: number): Promise<void> {
+export function noteDayLevel(kidId: string, day: string, topic: string, level: number, noting?: Noting): Promise<void> {
   if (!isLevel(level) || !TOPIC_KEY.test(topic)) return Promise.resolve();
-  const noted = change(kidId, day, (r) => {
-    const t = tallyFor(r, topic);
-    if (t) t.l = level;
-  });
+  const noted = change(
+    kidId,
+    day,
+    (r) => {
+      const t = tallyFor(r, topic);
+      if (t) t.l = level;
+    },
+    noting,
+  );
   return noted ? flushPlayDays(kidId) : Promise.resolve();
 }
 
 /** What's waiting to go for a kid: played days the database doesn't have as they stand (or, before 0026, the days themselves). */
 function toSend(kidId: string): Kept[] {
-  return readKept(kidId).filter((r) => r.played && (historyMissing ? !r.sent : r.sent !== 'all'));
+  return readKept(kidId).filter((r) => r.played && (historyMissing() ? !r.sent : r.sent !== 'all'));
 }
 
 /**
@@ -328,12 +375,12 @@ function toSend(kidId: string): Kept[] {
  * send and respects the back-off after a failed one; `hidden` (the tab going
  * out of view) skips the first wait but not the second; `now` (a new day, a
  * profile load, back online) tries anyway — unless the database has neither
- * function, which stops it for the session.
+ * function, which stops it until they're asked for again.
  */
 export function flushPlayDays(kidId: string, { now = false, hidden = false }: { now?: boolean; hidden?: boolean } = {}): Promise<void> {
   const running = inFlight.get(kidId);
   if (running) return running.then(() => flushPlayDays(kidId, { now, hidden }));
-  if (missing || toSend(kidId).length === 0) return Promise.resolve();
+  if (missing() || toSend(kidId).length === 0) return Promise.resolve();
   const w = wait.get(kidId);
   if (!now && w && Date.now() < w.at && (w.failed || !hidden)) return Promise.resolve();
   const send = sendPending(kidId).finally(() => inFlight.delete(kidId));
@@ -382,13 +429,13 @@ function settle(kidId: string, sent: Kept[], what: 'day' | 'all'): void {
 async function sendPending(kidId: string): Promise<void> {
   const records = toSend(kidId);
   try {
-    if (!historyMissing) {
+    if (!historyMissing()) {
       const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: records.map(recordOf) });
       if (!error) return settle(kidId, records, 'all');
       if (notYours(error)) return forgetPlayDays(kidId);
       if (!noFunction(error)) return backOff(kidId, error);
-      // Migration 0026 isn't applied: the days alone, as before it; the rest waits on the device.
-      historyMissing = true;
+      // Migration 0026 isn't applied (yet): the days alone, as before it; the rest waits on the device.
+      historyMissingUntil = Date.now() + MISSING_RECHECK_MS;
       console.warn('Noting play history needs migration 0026 — the days alone are sent:', errorMessage(error));
     }
     const days = records.filter((r) => !r.sent);
@@ -397,8 +444,8 @@ async function sendPending(kidId: string): Promise<void> {
     if (error) {
       if (notYours(error)) return forgetPlayDays(kidId);
       if (noFunction(error)) {
-        // Migration 0025 isn't applied either: said once, and nothing more is sent this session.
-        missing = true;
+        // Migration 0025 isn't applied either: said, and nothing more is sent until it's asked for again.
+        missingUntil = Date.now() + MISSING_RECHECK_MS;
         console.warn('Noting the days played failed (kept to send later):', errorMessage(error));
         return;
       }

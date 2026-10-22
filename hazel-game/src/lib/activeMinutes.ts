@@ -12,7 +12,11 @@ import { todayIso } from './streak';
  * minute); never a minute nobody played — nor one minute twice: two windows
  * of the game on this device, both in view and used in turn, share a stamp
  * of the kid's last minute counted, and a minute counts only when none was
- * counted in the last `MINUTE_GAP_MS` (review round 1).
+ * counted in the last `MINUTE_GAP_MS` (review round 1). A key, pointer or
+ * touch counts only on a game screen and only for the kid playing as it came
+ * (review round 2: a minute went to whoever was playing at the tick, so
+ * across Switch player the outgoing kid's last part-minute — or the PIN
+ * typed on "Who's playing?" — became the incoming kid's minute).
  */
 
 /** How often a minute is judged, and how recent the last key, pointer or touch must be. */
@@ -67,24 +71,36 @@ const INPUT_EVENTS = ['keydown', 'pointerdown', 'touchstart'] as const;
  * `App`): every `MINUTE_MS`, one minute for `kid()` when `minuteCounts`
  * and no other window of the game counted it (`claimMinute`).
  * Input is heard on the window before anything else handles it (a focused
- * button, the world's canvas). A tab going out of view forgets the last
- * input, so coming back needs a new one. Returns the clean-up.
+ * button, the world's canvas), and stamped with the kid playing as it came
+ * — only while the game is on screen (not the PIN pad, the family screens or
+ * 👪 Grown-ups): a minute counts only for the kid whose input it was. A tab
+ * going out of view forgets the last input, so coming back needs a new one.
+ * `played`: whether the profile already counts that day as played, so the
+ * minute goes up like a played day's play (`lib/playDays`, review round 2).
+ * Returns the clean-up.
  */
 export function watchActiveMinutes({
   kid,
   inGame,
+  played,
   win = window,
 }: {
   /** The kid playing on this page, if any. */
   kid: () => string | null;
   /** Whether the game is what's on screen. */
   inGame: () => boolean;
+  /** Whether the profile already counts `day` as played for the kid (`profileStore.dayPlayed`). */
+  played?: (kidId: string, day: string) => boolean;
   win?: Window;
 }): () => void {
   const doc = win.document;
   let lastInputAt = Number.NEGATIVE_INFINITY;
+  /** Whose input `lastInputAt` was. */
+  let inputBy: string | null = null;
   const onInput = () => {
+    if (!inGame()) return; // the PIN pad, "Who's playing?", 👪: not play
     lastInputAt = Date.now();
+    inputBy = kid();
   };
   const onVisibility = () => {
     if (doc.visibilityState !== 'visible') lastInputAt = Number.NEGATIVE_INFINITY;
@@ -95,8 +111,11 @@ export function watchActiveMinutes({
   const timer = win.setInterval(() => {
     const id = kid();
     if (!id) return;
-    const check = { inGame: inGame(), visible: doc.visibilityState === 'visible', lastInputAt, now: Date.now() };
-    if (minuteCounts(check) && claimMinute(id, check.now)) void addDayMinute(id, todayIso());
+    // Another kid's input (before a Switch player) says nothing about this kid's minute.
+    const check = { inGame: inGame(), visible: doc.visibilityState === 'visible', lastInputAt: inputBy === id ? lastInputAt : Number.NEGATIVE_INFINITY, now: Date.now() };
+    if (!minuteCounts(check) || !claimMinute(id, check.now)) return;
+    const day = todayIso();
+    void addDayMinute(id, day, { played: played?.(id, day) ?? false });
   }, MINUTE_MS);
   return () => {
     win.clearInterval(timer);

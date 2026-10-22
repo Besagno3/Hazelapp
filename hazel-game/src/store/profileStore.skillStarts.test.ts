@@ -34,7 +34,7 @@ vi.mock('../lib/supabase', () => {
   return { supabase: { rpc: vi.fn(async () => ({ data: 1, error: null })), from } };
 });
 
-// Whether the database has `skill_starts` is remembered for the session (module state): a fresh module each test.
+// Whether the database has `skill_starts` is remembered for a while (module state): a fresh module each test.
 let store: typeof import('./profileStore');
 let saves: typeof import('./saveStore');
 let defaultSave: typeof import('../lib/save').defaultSave;
@@ -51,7 +51,10 @@ beforeEach(async () => {
   saves.useSaveStore.setState({ userId: 'kid-1', save: { ...defaultSave(), revision: 10 }, status: 'ready' });
 });
 // A failed read leaves a timer that would read again later: put the game away so it can't reach the next test's queue.
-afterEach(() => store.useProfileStore.getState().clearProfile());
+afterEach(() => {
+  store.useProfileStore.getState().clearProfile();
+  vi.useRealTimers();
+});
 
 const YEAR = new Date().getFullYear();
 /** Ada, 9 (a topic not saved yet stands at level 4), Math at 6 since long ago. */
@@ -108,7 +111,8 @@ describe("each topic's start on the profile, profiles.skill_starts (#174)", () =
     expect(writes.slice(before)).toHaveLength(1);
   });
 
-  it('a database without the column (0026 not applied): the read is asked again without it, and never with it again this session', async () => {
+  it('a database without the column (0026 not applied): the read is asked again without it, and the column left out for a while — then asked for again, and on every load (review round 2)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
     reads.push(NO_COLUMN_READ, { data: ROW, error: null });
     await store.useProfileStore.getState().loadProfile('kid-1', birth);
     expect(asked).toHaveLength(2);
@@ -121,11 +125,19 @@ describe("each topic's start on the profile, profiles.skill_starts (#174)", () =
     await store.useProfileStore.getState().setSkillLevel('science', 5);
     expect(save().topicStarts).toEqual({ science: { level: 4, age: 9 } });
     expect(updates().every((row) => !('skill_starts' in row))).toBe(true);
-    // The next load reads once, without it.
-    reads.push({ data: ROW, error: null });
+    // After a while (the migration applied while the tab stayed open), a write names it again.
+    vi.setSystemTime(Date.now() + store.STARTS_RECHECK_MS + 1);
+    await store.useProfileStore.getState().setSkillLevel('history', 5);
+    expect(updates().at(-1)).toMatchObject({ skill_starts: { history: { level: 4, age: 9 } } });
+    // A profile load asks for it again at once, whenever the last miss was (review round 2: it was never asked again in that tab).
+    reads.push(NO_COLUMN_READ, { data: ROW, error: null });
     await store.useProfileStore.getState().loadProfile('kid-1', birth);
-    expect(asked).toHaveLength(3);
-    expect(asked[2]).not.toContain('skill_starts');
+    expect(asked).toHaveLength(4);
+    expect(asked[2]).toContain('skill_starts');
+    expect(asked[3]).not.toContain('skill_starts');
+    reads.push({ data: { ...ROW, skill_starts: {} }, error: null });
+    await store.useProfileStore.getState().loadProfile('kid-1', birth);
+    expect(asked[4]).toContain('skill_starts');
   });
 
   it("a write the database refuses for the column is sent again without it, and later writes leave it out", async () => {

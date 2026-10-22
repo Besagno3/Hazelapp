@@ -1531,3 +1531,41 @@ describe("BattleArena — a defend question that runs out counts as a miss in th
     expect(noteAnswer).toHaveBeenCalledWith(expect.objectContaining({ id: 'q1', topic: 'math' }), false);
   });
 });
+
+describe('fleeing a battle (#29 progress history review round 2)', () => {
+  const recordActivity = vi.fn();
+  beforeEach(() => {
+    recordActivity.mockReset();
+    useProfileStore.setState({
+      profile: {
+        id: 'kid', birthYear: 2017, birthMonth: 1, skillLevels: { math: 3 }, xp: 0, powerUps: {},
+        currentStreak: 0, longestStreak: 0, lastPlayedOn: null,
+      } as Profile,
+      recordActivity,
+      addXp: vi.fn(),
+      setSkillLevel: vi.fn(),
+    });
+  });
+  afterEach(() => useProfileStore.setState({ profile: null }));
+
+  it('fled after answering, the battle counts the day — as a won or lost one does — so its answers go up with it', () => {
+    render(<BattleArena />);
+    fireEvent.click(screen.getByText('Attack'));
+    fireEvent.click(screen.getByText('5')); // a miss
+    fireEvent.click(screen.getByText('▶ Go!'));
+    for (let i = 0; i < 10 && !screen.queryByRole('button', { name: /Flee/ }); i++) {
+      const next = screen.queryByText(/tap to continue/) ?? screen.queryByText('4');
+      if (next) fireEvent.click(next);
+      const go = screen.queryByText('▶ Go!');
+      if (go) fireEvent.click(go);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Flee/ }));
+    expect(recordActivity).toHaveBeenCalledTimes(1);
+  });
+
+  it('fled before answering anything: no day counted', () => {
+    render(<BattleArena />);
+    fireEvent.click(screen.getByRole('button', { name: /Flee/ }));
+    expect(recordActivity).not.toHaveBeenCalled();
+  });
+});

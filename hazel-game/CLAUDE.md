@@ -78,9 +78,17 @@ measured ~106 KB gzipped for one bar chart.
   kid's first day ever noted (`play_history_since`), so a gap before it reads
   "not recorded"; a day noted without its play (an older app) says so, never
   0 XP. A day's play goes up only once the day counts as played (XP, a
-  round, a battle… — `recordActivity`): a kid who only walks the world has
-  those minutes kept on the device unsent, so the week, the streak and "last
-  played" agree (the lead, 2026-10-21; #177). Charts follow the dataviz
+  round, a battle, a battle fled after answering… — `recordActivity`), or
+  the profile already counts it (its last day played, or a day its live
+  streak proves — another device played it; then play noted for it goes up
+  whenever it's noted, #89 review round 2): a kid who only walks the world
+  on a day nobody has played has those minutes kept on the device unsent,
+  so the week, the streak and "last played" agree (the lead, 2026-10-21;
+  #177). One pair of words on the page and in the notice: days played "are
+  recorded from" the first day noted; a day is "played", has "no play
+  recorded", or (before that) is "not recorded"; a day played may have its
+  "XP not recorded" — and a total that leaves days out is "At least …"
+  (#89 review round 2). Charts follow the dataviz
   method: forms by job (one hero number, meters and cells with their values
   in words; daily XP as columns — many days have no play, and a line would
   draw through them), one sequential hue plus the de-emphasis grey,
@@ -243,9 +251,10 @@ measured ~106 KB gzipped for one bar chart.
   validated by `playDayFromRow`), and `play_history_since`; a database
   without 0026 (`missingColumn`, `missingTable`) is read again as before it —
   the profiles without `skill_starts`, the last week's days alone, no "since"
-  — and that's remembered for the session (`lacking`; tests reset it with
-  `forgetMissingProgress`), so later opens read that shape straight away, in
-  one round (#89 review round 1). Reading is
+  — and that's remembered for `LACKING_RECHECK_MS` (10 min; the page's own
+  Try again forgets it, `forgetMissingProgress`), so opens meanwhile read
+  that shape straight away, in one round (#89 review round 1), and a tab
+  open across the deploy finds 0026 after that (round 2). Reading is
   not a grown-up action (no `asGrownUp`, no 👪 window needed — RLS keeps it to
   the family's own kids), but the page is only reachable through the gate and
   goes back to it when the 15 minutes run out, like the list. The page opens
@@ -253,9 +262,9 @@ measured ~106 KB gzipped for one bar chart.
   days played this week ("Not sure which days they played" when their
   device's date is set ahead, like the tiles — review round 3), ⏱️ about
   how long they played in the last 7 days (`minutesText`, #172; when some
-  days played weren't recorded, the number says what it covers: "About 5
-  minutes of play on 1 recorded day · 4 days played weren't recorded." — #89
-  review round 1: never a part said as the whole), the topics
+  days played had no time recorded, how many did comes first: "Time
+  recorded on 2 of the 6 days played: about 50 minutes." — #89 review
+  rounds 1–2: never a part said as the whole, nor first), the topics
   that climbed since their noted start (`climbedText`: "Most progress" only
   when every measured topic has a noted start and there are two or more —
   `Glance.ranked`; otherwise "Up since they started: Maps & Places (level 4
@@ -265,10 +274,12 @@ measured ~106 KB gzipped for one bar chart.
   its reasons in a few words — "below their start", "under half right" (in
   the last 7 days, `ENOUGH_ANSWERS` (5) or more, #173), "3 to try again"
   (`SEVERAL_MISSED` questions of one topic waiting at the Library) — the
-  most reasons first, at most `PRACTISE_NAMED` (2) named and the rest "and
-  3 more topics", #89 review round 1: grouped by why it ran 12 lines on a
-  phone; "nothing stands out" only when both the levels and the Library
-  were read) and how many questions wait), then h3 sections — ⭐, 🎯, then
+  most reasons first, at most `PRACTISE_NAMED` (2) with their reasons and
+  the rest named after them — "Also: Words & Stories, Science and Space."
+  — #89 review round 1: grouped by why it ran 12 lines on a phone; round 2:
+  "and 3 more topics" couldn't be found below; "nothing stands out" only
+  when both the levels and the Library were read) and how many questions
+  wait), then h3 sections — ⭐, 🎯, then
   📊 XP (after the topics since #89 review round 1), 🗺️, 📚, ⌨️
   (emoji `aria-hidden`); switching kids is said in the page's status region.
   Pure shaping in `lib/progress.ts`: `levelSummary` (the **player level**, so
@@ -281,21 +292,29 @@ measured ~106 KB gzipped for one bar chart.
   database noted the day or it's the last day played, plus the days a live
   streak proves — review round 2 — drawn and read "played" like any other,
   one mark, no key (round 3); nothing else guessed — each day also `counted`
-  (on or after `countedSince`; before it "not recorded" and
-  `countedFromText`'s note, "Counted from Monday 19 October, the first day
-  noted." — said once on the page: under the week when it falls in it, else
-  under the XP chart, #170 / #89 review round 1), and its `xp` / `minutes`
-  only from a day whose play was noted (#169, #172)), `minutesWords` /
-  `minutesText` (the ⏱️ line), `xpWeeks` / `dayRange` / `bestXpDay` /
-  `xpBrief` (📊 XP: a row of columns per week, a grey dot for a day played
-  without its XP; each week's `xp` and `note` — "25 XP on 3 recorded days ·
-  2 days played weren't recorded", "40 XP from Friday" when counting began
-  mid-week — the number bold, absence plain; weeks wholly before counting
-  left out and the title says how many are shown ("XP, the last 2 weeks",
-  "XP this week"); fewer than two days of XP recorded is one line instead,
-  `xpBrief`; "Most on a recorded day" when some weren't; a folded table twin
-  in short forms at every width, the whole words read out — #89 review
-  round 1),
+  (on or after `countedSince`; before it "not recorded", not read out, and
+  `countedFromText`'s note, "Days played are recorded from Monday 19
+  October." — said once on the page: under the week when it falls in it,
+  else under the XP chart, #170 / #89 review rounds 1–2), and its `xp` /
+  `minutes` only from a day whose play was recorded (#169, #172); the days
+  end on the kid's today, `windowEnd` — the day after this device's when
+  anything was noted on it (their device a time zone ahead), so "the last
+  7 days" are the kid's 7, never their today and tomorrow added into one,
+  #89 review round 2 — `topicWeeks` takes the same end), `minutesWords` /
+  `minutesText` (the ⏱️ line; a day's minutes to the minute, the week's to
+  the nearest 5), `xpWeeks` / `dayRange` / `bestXpDay` / `xpBrief` (📊 XP: a
+  row of columns per week under the weekdays, a grey dot for a day played
+  without its XP; each week's `amount` and `note` — "430 XP" bold, "At
+  least 220 XP" plain with "XP not recorded on 4 days played" on a line of
+  its own, "100 XP since Tuesday" when recording began mid-week; a week
+  with no day played is its words alone, no plot; weeks wholly before
+  recording left out and the title says how many are shown ("XP, the last
+  2 weeks", "XP, the last 7 days"); fewer than two days of XP recorded is
+  one line instead, `xpBrief`, without minutes (⏱️ says them); "Most on a
+  recorded day" only with three or more days of XP; the dots' key hidden
+  from a screen reader (the rows say it); no section with their device's
+  date set ahead (the glance says "Not sure"); a folded table twin in short
+  forms at every width, the whole words read out — #89 review rounds 1–2),
   `topicLevels` / `topicMeaning` (each topic "Math: level 6 of 10" read
   against **where that topic really started** — the profile's
   `skill_starts` first, then the save's `topicStarts` (`topicStartsOf`,
@@ -315,11 +334,14 @@ measured ~106 KB gzipped for one bar chart.
   recorded.", and when one sits under today's start, that one first played
   younger may have started lower — so a bare 2 never reads as a step back
   from the box below, round 3); nothing in the level's own words claims it
-  went down; the days noted say "Last 7 days: 7 of 10 right · Up / Down 1
+  went down; the days recorded say "Last 7 days: 7 of 10 right · Up / Down 1
   since last week" or "Same as last week" (`topicWeeks`, `topicWeekParts` /
-  `topicWeekText`, #173 — against the latest level noted 8–14 days back;
-  "…right on recorded days" when some days played in the 7 weren't, and the
-  change never broken across lines, #89 review round 1) and a topic with `ENOUGH_ANSWERS` and under
+  `topicWeekText`, #173 — against the latest level noted 8–14 days back,
+  only for a topic answered this week; the change never broken across
+  lines; when some days played in the 7 had no answers recorded, it's said
+  once under the section's intro, `answersNote`: "Answers below are from 4
+  of the 5 days played in the last 7 — the other day's answers weren't
+  recorded." — #89 review rounds 1–2) and a topic with `ENOUGH_ANSWERS` and under
   half right joins 💡; topics no round has moved grouped in one "Not moved yet" box at
   the start for their age now, with no bar — a grey bar there outgrew the
   bars a long-time player earned; one answered in the last 7 days says so,
@@ -377,7 +399,8 @@ measured ~106 KB gzipped for one bar chart.
   replayed; a 🍂 Falling Leaves round with a leaf caught; a Scriptorium page —
   each calls `recordActivity`, review round 2) — that day
   (their device's own `YYYY-MM-DD`) is kept on the device as a record of the
-  day's play (`hazel-play-history-<kid>`, at most 8, a week back; in memory
+  day's play (`hazel-play-history-<kid>`, at most 8, a week back, never more
+  than a day ahead — a clock that was set ahead, #89 review round 2; in memory
   when storage can't be written — its own key since #89 review round 1, so a
   tab on an older build, which reads and writes `hazel-play-days-<kid>` as a
   list of days, can't write over the records; the days it leaves there are
@@ -385,20 +408,33 @@ measured ~106 KB gzipped for one bar chart.
   (#169, `addXp` → `addDayXp`, even while the row is unread), active minutes
   (#172, `lib/activeMinutes.ts`, wired in `App`: every 60 s a minute counts
   with the game on screen, the tab in view and a key, pointer or touch in
-  that minute — and no other window of the game on this device counted one
+  that minute, on a game screen, by the kid playing as it came (not the PIN
+  pad, the family screens or 👪, and never the last kid's before a Switch
+  player — #89 review round 2) — and no other window of the game on this device counted one
   for the kid in the last 55 s, `claimMinute` / `hazel-last-minute-<kid>`,
   so two windows used in turn don't count a minute twice) and per topic the answers asked / right and the level last
   saved (#173: `profileStore.noteAnswer` from `QuestionCard`'s final pick —
   a Forget-Me-Knot cross-out isn't one — `QuizRound` and a timed-out defend;
-  bank questions only; no level while the row is unread). **Only a played
-  day goes up** (`notePlayDay` ← `recordActivity`): minutes or answers on a
-  day nothing counted as played — a kid who only walks the world — wait on
-  the device unsent and go only if the day is played, so the week, the
-  streak and "last played" agree (the lead, 2026-10-21; #177). A day the
-  profile already counts as played — another device or browser played it
-  earlier — is this device's to send too (`markPlayDay`: a same-day
-  `recordActivity`, on the usual wait, and a profile read that says today,
-  at once — #89 review round 1: this device's play for it was never sent).
+  bank questions only, asked at most one level above the topic's saved
+  level — a spell or a Pair Attack (3 up), the Spire's top floors and a
+  speed boost's second step (+2) are hard on purpose and left out, a
+  boost's first step (+1) counts, #89 review round 2; no level while the row
+  is unread). **Only a played
+  day goes up** (`notePlayDay` ← `recordActivity`; a battle fled after
+  answering counts as one, #89 review round 2): minutes or answers on a day
+  nobody has played — a kid who only walks the world before anything else
+  that day — wait on the device unsent and go only if the day is played, so
+  the week, the streak and "last played" agree (the lead, 2026-10-21;
+  #177). A day the profile already counts as played — its last day played,
+  or a day its live streak proves (`provesPlayed`, `lib/streak.ts`), so
+  another device or browser played it — is this device's to send too: play
+  noted for it marks it played as it's noted (`Noting.played`, from
+  `profileStore.dayPlayed` — the minute watcher in `App`, `noteAnswer`,
+  `addXp`, `setSkillLevel`), on the usual wait, the hidden tab and the `now`
+  sends; a profile read (load or `retryRead`) and `recordActivity` mark
+  every kept day it proves (`markPlayDays`) — #89 review rounds 1–2: round 1
+  marked only today, and only what was kept as the profile loaded, so
+  minutes and wrong answers noted after never went.
   Played days
   are sent to `note_play_history(kid, days)` (migration 0026) — security
   definer, run in UTC whatever time zone a request asks for, the family's
@@ -416,12 +452,15 @@ measured ~106 KB gzipped for one bar chart.
   and opening 👪 Grown-ups (every kid's, #89 review round 1) go at once.
   Without 0026 the days alone go to `note_play_days(kid, days)` (0025's
   checks; 0026 redefines it with the same 35-day tidy-up, so an old tab
-  can't delete history at two weeks) and the rest waits on the device for a
-  session that has it. **The streak (#28) follows the same days:** `recordActivity`
+  can't delete history at two weeks) and the rest waits on the device until
+  0026 is found. **The streak (#28) follows the same days:** `recordActivity`
   is the one path, so a day spent only on typing, the Library or a shrine
   keeps the 🔥 streak going too — intended (the lead, 2026-10-21). A failed send
   backs off: no `note_play_history` → the days alone to `note_play_days`;
-  neither (0025 not applied) → nothing more this session;
+  neither (0025 not applied) → nothing more; either is asked for again
+  after `MISSING_RECHECK_MS` (10 min) and on the next profile load
+  (`recheckPlayFunctions`; #89 review round 2: remembered for the tab's
+  life, a tablet left open across the deploy dropped a week of play);
   offline → again on the `online` event or after `RETRY_OFFLINE_MS` (10 min);
   any other refusal → the next new day or profile load (`flushPlayDays(kid,
   { now })`). `play_days` (profile, day, and since 0026 the day's `xp`,
@@ -561,8 +600,9 @@ measured ~106 KB gzipped for one bar chart.
   played, 📈 Progress's week — #28, #29); `setSkillLevel` notes a topic's
   real start the first time its level is saved, on the profile
   (`skill_starts`, written with the level; a database without the column —
-  PostgREST 42703 / PGRST204 — is read and written without it for the
-  session) and in the save (`topicStarts`); on load, starts in the save the
+  PostgREST 42703 / PGRST204 — is read and written without it for
+  `STARTS_RECHECK_MS`, 10 min, and asked again on every load, #89 review
+  round 2) and in the save (`topicStarts`); on load, starts in the save the
   profile lacks are carried onto it (one write, once the save is loaded;
   `mergeProfiles` keeps the union, the server's on a clash); `noteAnswer`
   counts a bank question's final pick for today (#173).
@@ -1478,11 +1518,13 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   deploy. Before it, the new app notes days with note_play_days and keeps each day's XP / minutes /
 #   answers on the device (a week back; sent once 0026 is there), reads and writes profiles without
 #   skill_starts (topic starts stay in the save), and 📈 shows the week as before (one extra read per part,
-#   logged). After it, an old open tab's note_play_days keeps five weeks too (its days read "played, XP not
-#   recorded"). History fills from then on: 0025-era days have zeros (read the same way), and five weeks
-#   are there once five weeks have passed. The draft privacy notice already says "deleted after five
-#   weeks"; CONSENT_VERSION waits for the lawyer (#124). A stale PostgREST schema cache after it:
-#   `notify pgrst, 'reload schema'`.
+#   logged). Each side asks for 0026 again every 10 minutes and on a profile load (📈: its Try again), so
+#   tabs open across the deploy pick it up without a reload. After it, an old open tab's note_play_days
+#   keeps five weeks too (its days read "played, XP not recorded"). History fills from then on: 0025-era
+#   days have zeros (read the same way), and five weeks are there once five weeks have passed. The draft
+#   privacy notice says a day's note is kept five weeks, then the family can't see it and it's deleted as
+#   the game tidies up (inside the note functions — no scheduled job); CONSENT_VERSION waits for the
+#   lawyer (#124). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
@@ -1657,6 +1699,53 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Progress history review round 2: play on a day played elsewhere goes up whenever it's noted, a minute is the playing kid's, "0026 missing" is asked again, the kid's own 7 days, one pair of words, "At least …" (#169, #170, #172, #173, #174, #177)
+`/saas-code-review` (1 medium, 3 low + open questions) and `/saas-ux-review`
+(3 medium, 5 low + also noted) of PR #89, with the lead's calls, all fixed.
+**A day played elsewhere (code, medium):** round 1 marked only the records
+kept when a profile loaded, so minutes and wrong answers noted after it —
+on a day the tablet played — never went, and a past day the profile proved
+was never marked. Now `provesPlayed` (`lib/streak.ts`: the last day played,
+or a day the live streak counts) decides: play noted for such a day marks it
+played as it's noted (`Noting.played` ← `profileStore.dayPlayed`, from the
+minute watcher, `noteAnswer`, `addXp`, `setSkillLevel`), so it goes on the
+usual wait, the hidden tab and the `now` sends; a load, `retryRead` and
+`recordActivity` mark every kept day it proves (`markPlayDays`). A day
+nobody has played still stays unsent (the lead, #177 — its row and the
+Days played paragraph now say exactly this); a battle fled after answering
+now counts the day (the code review's also-noted). **Minutes (low):** input
+counts only on a game screen and only for the kid whose input it was, so
+Switch player no longer hands a part-minute (or a PIN) to the next kid.
+**"0026 missing" (low):** `playDays`, 📈 and `skill_starts` ask again after
+10 minutes and on a profile load (📈: its Try again) — never for the tab's
+life. **A day ahead (low):** "the last 7 days" are the kid's 7, ending on
+their today (`windowEnd`), never their today and tomorrow added into one; a
+record more than a day ahead leaves the device. **Answers (the lead):**
+only questions asked at most one level above the topic's saved level count
+— spells and Pair Attacks (3 up), the Spire's top floors and a speed
+boost's +2 are hard on purpose; +1 counts. **The page (UX):** a partial week
+is "At least 220 XP", plain, its gap on a line of its own (Tia's bold 220
+read as a drop); ⏱️ "Time recorded on 2 of the 6 days played: about 50
+minutes."; one pair of words — "Days played are recorded from Friday 9
+October.", "no play recorded", "not recorded", "XP not recorded on 8 other
+days played" — so launch week's lines agree; 💡 names every topic it flags
+("Also: Words & Stories, Science and Space."); "on recorded days" once above
+the topics (`answersNote`); no empty plot for a week without play; the
+weekdays over the first week; "100 XP since Tuesday", "XP, the last 7
+days"; no "Most" from two days; the brief without minutes; no XP section
+with the date set ahead; the dots' key hidden from screen readers; no
+"Same as last week" when nothing was answered; days before recording not
+read out; a day's minutes to the minute. **The notice (the lead, UX):**
+each day's note is kept five weeks, then the family can't see it and it's
+deleted as the game tidies up (as children play — no scheduled job, pinned
+by `family.test`); "What we collect" 108 → 95 words, the day note its own
+sentence. Tests 2427 → 2450, the full suite green; lint, `tsc -b`,
+`build:web` with the placeholders (`ProgressPage` 39.1 → 39.65 KB, 12.99 KB
+gz); 32 of 32 mutations caught; the stubbed app at 320×568, 375×667,
+740×360 touch and 1024×768 keyboard with the reviewers' twelve families. No
+SQL change, no deploy step beyond the PR's (re-run
+`apply_all_migrations.sql`).
 
 ### 2026-10-21 — Progress history review round 1: this device's play on a day played elsewhere, totals that say what they leave out, records under their own key, a read that backs off, a shorter 💡 (#169, #170, #172, #173, #176, #178)
 `/saas-code-review` (1 high, 1 medium, 3 low + open questions) and

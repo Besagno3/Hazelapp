@@ -1,11 +1,20 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
-import { nextStreak, todayIso } from '../lib/streak';
+import { nextStreak, provesPlayed, todayIso } from '../lib/streak';
 import { mergeProfiles, readLocalProfile, skillStartsFrom, writeLocalProfile } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
-import { addDayXp, flushPlayDays, markPlayDay, noteDayAnswer, noteDayLevel, notePlayDay } from '../lib/playDays';
+import {
+  addDayXp,
+  flushPlayDays,
+  markPlayDays,
+  MISSING_RECHECK_MS,
+  noteDayAnswer,
+  noteDayLevel,
+  notePlayDay,
+  recheckPlayFunctions,
+} from '../lib/playDays';
 import { ageToStartLevel, clampLevel, playerAge, skillLevelFor } from '../lib/age';
 import { withTopicStart } from '../lib/save';
 import { isStarterId } from '../content/starterQuestions';
@@ -123,11 +132,19 @@ const COLUMNS =
 
 /**
  * Whether the database has `profiles.skill_starts` (migration 0026, #174):
- * read and written while it does; the first read or write that finds it
- * missing leaves it out for the rest of the session (the save's
- * `topicStarts` still holds every start).
+ * read and written while it does; a read or write that finds it missing
+ * leaves it out for `MISSING_RECHECK_MS` (the save's `topicStarts` still
+ * holds every start) — then it's asked for again, and on every profile load
+ * (review round 2: remembered for the tab's whole life, a tab left open
+ * across the deploy never wrote a start to the profile).
  */
-let startsColumn = true;
+let startsGoneUntil = 0;
+/** How long `skill_starts` is left out after the database said it hasn't the column (the same while as a missing note function). */
+export const STARTS_RECHECK_MS = MISSING_RECHECK_MS;
+const startsColumn = () => Date.now() >= startsGoneUntil;
+const startsGone = () => {
+  startsGoneUntil = Date.now() + STARTS_RECHECK_MS;
+};
 
 /** PostgREST's word for a database without `skill_starts`: "column … does not exist" on a read, "Could not find the 'skill_starts' column" on a write. */
 function noStartsColumn(error: unknown): boolean {
@@ -140,7 +157,7 @@ interface Answer {
   error: unknown;
 }
 
-/** One read of a kid's row — with their topic starts while the database has them, else without (and not asked for again). */
+/** One read of a kid's row — with their topic starts while the database has them, else without (and not asked for again for a while). */
 async function readRow(userId: string): Promise<Answer> {
   const read = (starts: boolean): PromiseLike<Answer> =>
     supabase
@@ -148,10 +165,10 @@ async function readRow(userId: string): Promise<Answer> {
       .select(starts ? `${COLUMNS}, skill_starts` : COLUMNS)
       .eq('id', userId)
       .maybeSingle();
-  if (!startsColumn) return read(false);
+  if (!startsColumn()) return read(false);
   const got = await read(true);
   if (!noStartsColumn(got.error)) return got;
-  startsColumn = false;
+  startsGone();
   return read(false);
 }
 
@@ -170,10 +187,10 @@ async function writeRow(userId: string, fields: Partial<ProfileRow>, { insert = 
           .update({ ...f, updated_at: new Date().toISOString() })
           .eq('id', userId);
   const { skill_starts: starts, ...rest } = fields;
-  if (starts === undefined || !startsColumn) return (await send(rest)).error;
+  if (starts === undefined || !startsColumn()) return (await send(rest)).error;
   const { error } = await send(fields);
   if (!noStartsColumn(error)) return error;
-  startsColumn = false;
+  startsGone();
   return (await send(rest)).error;
 }
 
@@ -232,7 +249,7 @@ function inBank(id: string): boolean {
  * database has no column for them.
  */
 function startsToCarry(p: Profile): Starts | null {
-  if (!startsColumn) return null;
+  if (!startsColumn()) return null;
   const { userId, save, status } = useSaveStore.getState();
   if (userId !== p.id || !save || status !== 'ready') return null;
   const missing = (Object.keys(save.topicStarts) as Topic[]).filter((t) => !p.skillStarts?.[t]);
@@ -301,10 +318,11 @@ interface ProfileStore {
   recordActivity: () => Promise<void>;
   /**
    * A question answered — the final pick (#173): counted in today's tally
-   * for its topic, bank questions only (starters repeat), with the topic's
-   * level now once the row has been read.
+   * for its topic, bank questions only (starters repeat), asked at most one
+   * level above the topic's level (review round 2), with the topic's level
+   * now once the row has been read.
    */
-  noteAnswer: (question: Pick<Question, 'id' | 'topic'>, correct: boolean) => void;
+  noteAnswer: (question: Pick<Question, 'id' | 'topic' | 'level'>, correct: boolean) => void;
   clearProfile: () => void;
 }
 
@@ -318,6 +336,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
   loadProfile: async (userId, birth) => {
     const gen = ++readGen;
     stopWatchingUnread();
+    // A migration found missing a while ago may be there now (review round 2): asked for again.
+    startsGoneUntil = 0;
+    recheckPlayFunctions();
     set({ loading: true, error: null });
     const local = readLocalProfile(userId);
     const { data, error } = await readRow(userId);
@@ -335,9 +356,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       const carried = startsToCarry(merged);
       if (carried) merged = { ...merged, skillStarts: carried };
       set({ profile: merged, loading: false, remoteError: null, unread: null });
-      // Today already played, here or on another device: this device's play
-      // for it goes up too (review round 1).
-      if (merged.lastPlayedOn === todayIso()) markPlayDay(userId, todayIso());
+      // Days the profile proves played — its last day, and the days its live
+      // streak counts, here or on another device: this device's play for
+      // them goes up too (review rounds 1–2).
+      const today = todayIso();
+      markPlayDays(userId, (d) => provesPlayed(merged, d, today));
       // Days played while offline (or before migration 0025) go up now (#29),
       // even after a failed send this session (unless 0025 isn't there).
       void flushPlayDays(userId, { now: true });
@@ -459,15 +482,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     if (carried) merged = { ...merged, skillStarts: carried };
     set({ profile: merged, remoteError: null, unread: null });
     writeLocalProfile(merged);
-    // Today already played (on the row, maybe by another device): this device's play for it goes up too (review round 1).
-    if (merged.lastPlayedOn === today) {
-      markPlayDay(userId, today);
-      void flushPlayDays(userId, { now: true });
-    }
+    // Days the row proves played (maybe by another device): this device's play for them goes up too (review rounds 1–2).
+    markPlayDays(userId, (d) => provesPlayed(merged, d, today));
+    void flushPlayDays(userId, { now: true });
     // Each level moved since is the topic's level today now (#173).
     for (const topic of Object.keys(steps) as Topic[]) {
       const level = merged.skillLevels[topic];
-      if (level !== undefined) void noteDayLevel(userId, today, topic, level);
+      if (level !== undefined) void noteDayLevel(userId, today, topic, level, { played: provesPlayed(merged, today, today) });
     }
     const error = await writeRow(userId, toRow(merged), { insert: !got.data });
     if (error) set({ remoteError: errorMessage(error) });
@@ -516,7 +537,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     }
     set({ profile: updated }); // optimistic
     writeLocalProfile(updated); // durable locally even if the remote write fails
-    void noteDayLevel(profile.id, todayIso(), topic, level); // the topic's level today (#173)
+    const today = todayIso();
+    void noteDayLevel(profile.id, today, topic, level, { played: provesPlayed(updated, today, today) }); // the topic's level today (#173)
     const error = await writeRow(profile.id, { skill_levels: skillLevels, ...(starts ? { skill_starts: starts } : {}) });
     if (error) set({ remoteError: errorMessage(error) });
   },
@@ -528,7 +550,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ profile: updated, ...(unread ? { unread: { ...unread, xp: unread.xp + amount } } : {}) }); // optimistic
     if (held(unread)) writeLocalProfile(updated);
     // Today's XP for 📈 Progress (#169) — real even while the row is unread.
-    void addDayXp(profile.id, todayIso(), amount);
+    const today = todayIso();
+    void addDayXp(profile.id, today, amount, { played: provesPlayed(profile, today, today) });
     // Every XP the game pays — typing lessons, the Library, a shrine, the
     // Scriptorium, not only rounds and battles — is a day played (#29 review
     // round 1): the streak, "last played" and 📈 Progress's week agree.
@@ -562,11 +585,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const today = todayIso();
     // Same day — don't write or even nudge the streak. Today already counts
     // as played (maybe on another device or browser), so this device's play
-    // for it is sent too (review round 1: it never was), with what else is
-    // waiting — a couple of minutes after the last send at most, unless a
-    // send just failed (lib/playDays, #29).
+    // for it — and for any day the streak proves — is sent too (review
+    // rounds 1–2), with what else is waiting: a couple of minutes after the
+    // last send at most, unless a send just failed (lib/playDays, #29).
     if (profile.lastPlayedOn === today) {
-      markPlayDay(profile.id, today);
+      markPlayDays(profile.id, (d) => provesPlayed(profile, d, today));
       void flushPlayDays(profile.id);
       return;
     }
@@ -574,7 +597,9 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ profile: updated });
     if (held(unread)) writeLocalProfile(updated);
     // A new day played: kept for 👪 Grown-ups → 📈 Progress (#29, migration 0025)
-    // — the day itself, true whatever the profile holds.
+    // — the day itself, true whatever the profile holds — with any day the
+    // streak it continues proves.
+    markPlayDays(profile.id, (d) => provesPlayed(updated, d, today));
     void notePlayDay(profile.id, today);
     if (unread) {
       void get().retryRead(); // the row first: nothing is written over it unread
@@ -593,10 +618,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     try {
       const { profile, unread } = get();
       if (!profile || !inBank(question.id)) return;
+      const now = skillLevelFor(profile.skillLevels ?? {}, question.topic, playerAge(profile));
+      // Only questions asked at most one level above the topic's level count
+      // toward its "right" (review round 2): a spell or a Pair Attack asks
+      // three above on purpose (`SPELL_LEVEL_BONUS`), the Spire up to three,
+      // a speed boost +2 on its second step — hard on purpose, not a sign of
+      // a topic to practise. A boost's first step (+1) still counts.
+      if (!(question.level <= now + 1)) return;
       // The level it was answered at — only from a row that was read: a
       // made-up start's level isn't theirs (the answer itself still counts).
-      const level = unread ? undefined : skillLevelFor(profile.skillLevels ?? {}, question.topic, playerAge(profile));
-      void noteDayAnswer(profile.id, todayIso(), question.topic, correct, level);
+      const level = unread ? undefined : now;
+      const today = todayIso();
+      void noteDayAnswer(profile.id, today, question.topic, correct, level, { played: provesPlayed(profile, today, today) });
     } catch (err) {
       console.warn('Noting an answer failed:', errorMessage(err));
     }
@@ -610,6 +643,18 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
 }));
 
 /**
+ * Whether the profile in play proves `kidId` played on `day` — its last day
+ * played, or a day its live streak counts (#29 review round 2). Play noted
+ * for such a day goes up like any played day's (`lib/playDays`' `played`):
+ * the minute watcher asks (`App`), as `noteAnswer`, `addXp` and
+ * `setSkillLevel` do here. A day nobody has played yet proves nothing (#177).
+ */
+export function dayPlayed(kidId: string, day: string): boolean {
+  const { profile } = useProfileStore.getState();
+  return !!profile && profile.id === kidId && provesPlayed(profile, day, todayIso());
+}
+
+/**
  * Once the kid's save is here too, carry the starts it holds that the
  * profile lacks onto the row (#174) — one write. The save and the profile
  * load side by side, so on a load the save is often still on its way. Stops
@@ -617,7 +662,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
  */
 function carryWhenSaved(userId: string, gen: number): void {
   const now = useSaveStore.getState();
-  if (!startsColumn || (now.userId === userId && now.status === 'ready')) return; // nothing to wait for
+  if (!startsColumn() || (now.userId === userId && now.status === 'ready')) return; // nothing to wait for
   const unsubscribe = useSaveStore.subscribe((s) => {
     if (gen !== readGen) return unsubscribe();
     if (s.userId !== userId || s.status !== 'ready' || !s.save) return;

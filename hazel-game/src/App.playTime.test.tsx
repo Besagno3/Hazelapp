@@ -15,7 +15,7 @@ const { useSaveStore } = await import('./store/saveStore');
 const { useProfileStore } = await import('./store/profileStore');
 const { useSettingsStore } = await import('./store/settingsStore');
 const { defaultSave } = await import('./lib/save');
-const { notePlayDay, playDayRecords } = await import('./lib/playDays');
+const { forgetPlayDays, notePlayDay, pendingPlayDays, playDayRecords } = await import('./lib/playDays');
 const { MINUTE_MS } = await import('./lib/activeMinutes');
 const { todayIso } = await import('./lib/streak');
 
@@ -73,10 +73,31 @@ describe('App notes the minutes a kid really plays, and sends their day when the
     await notePlayDay('kid-1', todayIso()); // sent, so the next send waits a couple of minutes…
     rpc.mockClear();
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    useProfileStore.getState().noteAnswer({ id: 'bank-q', topic: 'math' }, true);
+    useProfileStore.getState().noteAnswer({ id: 'bank-q', topic: 'math', level: 4 }, true);
     expect(rpc).not.toHaveBeenCalled();
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
     document.dispatchEvent(new Event('visibilitychange')); // …unless the tab is hidden
     await vi.waitFor(() => expect(rpc).toHaveBeenCalledWith('note_play_history', expect.objectContaining({ p_kid: 'kid-1' })));
+  });
+
+  it('a day the profile already counts as played (the tablet, this morning): the minutes walked here go up on a hidden tab, with no round or XP (review round 2)', async () => {
+    localStorage.clear();
+    forgetPlayDays('kid-1');
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+    playingInTheWorld();
+    useProfileStore.setState({ profile: { ...useProfileStore.getState().profile!, lastPlayedOn: todayIso(), currentStreak: 1 } });
+    render(<App />);
+    await screen.findByText('Welcome to Lumina');
+    rpc.mockClear();
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    act(() => {
+      vi.advanceTimersByTime(MINUTE_MS);
+    });
+    expect(pendingPlayDays('kid-1')).toEqual([todayIso()]);
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() =>
+      expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ day: todayIso(), xp: 0, minutes: 1, topics: {} }] }),
+    );
   });
 });

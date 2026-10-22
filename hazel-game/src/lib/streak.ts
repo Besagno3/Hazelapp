@@ -31,3 +31,24 @@ export function nextStreak(prev: number, lastPlayed: string | null, today: strin
   if (lastPlayed === isoOffset(today, -1)) return prev + 1;
   return 1;
 }
+
+/**
+ * Whether a profile proves `day` was played (#29 review round 2): it's the
+ * last day played, or one of the days a live streak (last played today or
+ * yesterday) counts back from it — a streak of 3 ending today proves today,
+ * yesterday and the day before. Nothing else: a day after the last one
+ * played is never proved.
+ */
+export function provesPlayed(
+  p: { lastPlayedOn: string | null; currentStreak: number } | null | undefined,
+  day: string,
+  today: string,
+): boolean {
+  if (!p?.lastPlayedOn) return false;
+  const last = p.lastPlayedOn;
+  if (day > last) return false;
+  if (day === last) return true;
+  if (last < isoOffset(today, -1)) return false;
+  const n = Math.max(0, Math.floor(Number.isFinite(p.currentStreak) ? p.currentStreak : 0));
+  return day > isoOffset(last, -n);
+}
