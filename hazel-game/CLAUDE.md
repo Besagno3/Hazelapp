@@ -27,7 +27,8 @@ shared source of truth for how this project works.
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
-react-router-dom + recharts, vite-plugin-pwa (PWA, #5), zod, react-query.
+react-router-dom + recharts, vite-plugin-pwa (offline play, #5 — the
+home-screen app needs none: it is `public/manifest.webmanifest`), zod, react-query.
 Add the package in the same change that first uses it. The parent dashboard
 (#29) needed neither: it is a page inside 👪 Grown-ups (no router), and its
 bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
@@ -1534,6 +1535,71 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — The home-screen app review round 1: no white flash, the FAQ says how, the keyboard to check (#5)
+`/saas-code-review` (nothing found) and `/saas-ux-review` (3 medium) of
+PR #90; the owner said fix all.
+- **No white flash at launch:** the page had no background until the
+  game's script (1.37 MB, 398 KB gzipped) ran, so a launch went dark
+  splash → white → the game. `index.html` now has
+  `html:has(#root:empty) { background-color: #1e1b4b; }` — the splash's
+  colour, and only while `#root` is empty, so no screen's backdrop changes
+  (a browser without `:has` shows white, as before).
+- **The grown-ups FAQ says how:** "What does my child need?" gains a
+  paragraph: open the game (a `data-play` link), then Share → Add to Home
+  Screen (iPhone, iPad) or ⋮ → Add to Home screen (Android); iPhones and
+  iPads ask to sign in once more (their home-screen app keeps its own
+  storage). Adding the public page itself gives a plain shortcut to it: the
+  manifest is the game's.
+- **Kept full screen; the keyboard is TC-2114's to check:** Android may
+  not resize a `display: fullscreen` window for the on-screen keyboard, which
+  could hide a field low on the page. That can't be tried without a phone;
+  if it does, `standalone` (status bar shown, keyboard resizes) is the
+  fallback (ISSUES #5).
+
+Checked: `favicon.test` (+1), lint, `build:web`, and headless Chromium:
+with the script blocked the page is `rgb(30, 27, 75)` (was transparent),
+with it Sign in shows over the page as before; the FAQ at 320, 375 and
+1024 px, its link to `/play/`, no sideways scroll.
+
+### 2026-10-22 — The home-screen app: Add to Home Screen opens the game full screen (#5)
+The owner asked for it after asking whether the game plays on a tablet or
+phone (it does: the d-pad and ✋ on any touch screen, #37 / #127; only touch
+typing needs a keyboard, #165).
+- **`public/manifest.webmanifest`:** `id`, `start_url` and `scope` `/play/`
+  (the game never navigates out of it), `display: fullscreen` (Android hides
+  the status bar too; iOS takes it as `standalone`), `#1e1b4b` for the theme
+  and the splash, and three icons: Ember's egg at 192 and 512 px (`any`,
+  about 80%, like the 180 px one) and a 512 px `maskable` one whose egg fits
+  inside the middle circle (40% of the size from the centre) Android crops
+  to. Root paths, like the favicon: the game is built with base `/` and only
+  its page moves (`build:web`); Vite copies `public/` as it is.
+- **`index.html`:** `<link rel="manifest">`; `mobile-web-app-capable` and
+  `apple-mobile-web-app-capable` (iOS before 16.4 reads only the meta;
+  Chrome warns about the Apple one alone); `apple-mobile-web-app-title`
+  "Hazel Quest"; status bar `black`, not `black-translucent` — that draws the
+  page under the status bar, and nothing pads the top for it (the viewport
+  has no `viewport-fit=cover`).
+- **Icons:** `site/tools/prep-assets.py` draws them (`icon(…, fill=)`)
+  straight into `public/` — the public pages don't link the manifest. A
+  rerun rebuilt every other image byte for byte (TC-1259).
+- **No service worker** (`vite-plugin-pwa` stays unadopted): Chrome no
+  longer needs one to install, the game can't play offline anyway
+  (questions, saves and sign-in are online), and a cached old version is the
+  stale-tab trouble the save version guard exists for (#101i). Offline stays
+  open in #5.
+- **Worth knowing:** on iOS a home-screen app keeps its own storage, apart
+  from Safari's, so a family signs in once more inside it (saves come from
+  the server, `saveStore`); an email link (a reset, a confirmation) opens in
+  the browser, not the app. With no browser bars, the game's own 🔄 Refresh
+  and Reload (`OutdatedScreen`, `ErrorBoundary`) are the way back from an
+  update or a crash — they were already there.
+
+Checked: `favicon.test` (4 new tests), lint, `build:web` (the manifest and
+icons at `dist/`'s root, the tags in `dist/play/index.html`), and headless
+Chromium on `vite preview` at 375×667 touch: the manifest served as
+`application/manifest+json`, parsed with no errors, no installability
+errors. Not yet tried on a real phone or tablet (TC-2114).
 
 ### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
 CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.
