@@ -1536,6 +1536,32 @@ Doc-only and config-only commits are not blocked.
 
 Newest first. One entry per commit (or per logical change).
 
+### 2026-10-22 — The home-screen app review round 1: no white flash, the FAQ says how, the keyboard to check (#5)
+`/saas-code-review` (nothing found) and `/saas-ux-review` (3 medium) of
+PR #90; the owner said fix all.
+- **No white flash at launch:** the page had no background until the
+  game's script (1.37 MB, 398 KB gzipped) ran, so a launch went dark
+  splash → white → the game. `index.html` now has
+  `html:has(#root:empty) { background-color: #1e1b4b; }` — the splash's
+  colour, and only while `#root` is empty, so no screen's backdrop changes
+  (a browser without `:has` shows white, as before).
+- **The grown-ups FAQ says how:** "What does my child need?" gains a
+  paragraph: open the game (a `data-play` link), then Share → Add to Home
+  Screen (iPhone, iPad) or ⋮ → Add to Home screen (Android); iPhones and
+  iPads ask to sign in once more (their home-screen app keeps its own
+  storage). Adding the public page itself gives a plain shortcut to it: the
+  manifest is the game's.
+- **Kept full screen; the keyboard is TC-2114's to check:** Android may
+  not resize a `display: fullscreen` window for the on-screen keyboard, which
+  could hide a field low on the page. That can't be tried without a phone;
+  if it does, `standalone` (status bar shown, keyboard resizes) is the
+  fallback (ISSUES #5).
+
+Checked: `favicon.test` (+1), lint, `build:web`, and headless Chromium:
+with the script blocked the page is `rgb(30, 27, 75)` (was transparent),
+with it Sign in shows over the page as before; the FAQ at 320, 375 and
+1024 px, its link to `/play/`, no sideways scroll.
+
 ### 2026-10-22 — The home-screen app: Add to Home Screen opens the game full screen (#5)
 The owner asked for it after asking whether the game plays on a tablet or
 phone (it does: the d-pad and ✋ on any touch screen, #37 / #127; only touch

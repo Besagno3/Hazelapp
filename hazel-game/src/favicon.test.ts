@@ -122,6 +122,13 @@ describe('the home-screen app: Add to Home Screen opens the game full screen (#5
     expect(page).toContain('<meta name="apple-mobile-web-app-status-bar-style" content="black" />');
   });
 
+  it("is the splash's colour until the game draws, and only then (review round 1)", () => {
+    // A white page between the dark splash and the first screen while the script loads, before.
+    // While #root is empty only: the game's own screens keep the page behind them as it was.
+    expect(page).toContain('<style>html:has(#root:empty) { background-color: #1e1b4b; }</style>');
+    expect(manifest.background_color).toBe('#1e1b4b');
+  });
+
   it('opens the game at /play/, full screen, in its own colours', () => {
     expect(manifest).toMatchObject({
       id: '/play/',

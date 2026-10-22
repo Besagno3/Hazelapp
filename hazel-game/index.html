@@ -14,6 +14,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Hazel Quest" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <!-- The splash's colour until the game draws (#5 review): no white flash while its script loads. Only while #root is empty, so no screen's backdrop changes -->
+    <style>html:has(#root:empty) { background-color: #1e1b4b; }</style>
     <title>Hazel Quest</title>
   </head>
   <body>
