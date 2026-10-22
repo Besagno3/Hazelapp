@@ -18,7 +18,7 @@ import { lockGrownUps, noteDeviceSession, openForFirstRun } from '../lib/grownUp
 import { GrownUpsLockedError } from '../lib/grownUpsGate';
 import { asGrownUp, resetGrownUps } from './grownUpsStore';
 import { saveKey } from '../lib/save';
-import { profileKey } from '../lib/profile';
+import { forgetLocalProfile } from '../lib/profile';
 import { flushPlayDays, forgetPlayDays } from '../lib/playDays';
 import { CONSENT_VERSION } from '../content/family';
 import { sendFlow } from '../machines/gameFlow';
@@ -163,16 +163,14 @@ function writeActive(userId: string, kidId: string | null): void {
   }
 }
 
-/** This device's copies of the family's games (saves, profiles) and the tab's playing kid go. */
+/** This device's copies of the family's games (saves, profiles and the level steps kept with them) and the tab's playing kid go. */
 function forgetFamilyHere(userId: string | null, kids: Kid[]): void {
   try {
-    for (const k of kids) {
-      localStorage.removeItem(saveKey(k.id));
-      localStorage.removeItem(profileKey(k.id));
-    }
+    for (const k of kids) localStorage.removeItem(saveKey(k.id));
   } catch {
     // Storage unavailable — nothing was kept here.
   }
+  for (const k of kids) forgetLocalProfile(k.id);
   // Their unsent days too, from storage and memory (never throws).
   for (const k of kids) forgetPlayDays(k.id);
   if (userId) writeActive(userId, null);
@@ -438,10 +436,10 @@ export const useFamilyStore = create<FamilyStore>((set, get) => ({
     // …and so do the copies on this device.
     try {
       localStorage.removeItem(saveKey(id));
-      localStorage.removeItem(profileKey(id));
     } catch {
       // Storage unavailable — nothing was kept here.
     }
+    forgetLocalProfile(id);
     forgetPlayDays(id);
     // The kid this device was playing: their game goes too (#89 review round
     // 1 — a profile left in the store kept asking for a row that's gone, and

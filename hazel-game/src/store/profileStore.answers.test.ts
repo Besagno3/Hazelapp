@@ -5,7 +5,7 @@ import type { Profile } from '../types';
 vi.mock('../lib/supabase', () => {
   const ok = { data: null, error: null };
   const chain: Record<string, unknown> = {};
-  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle']) chain[m] = () => chain;
+  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle', 'abortSignal']) chain[m] = () => chain;
   chain.then = (res: (v: unknown) => unknown) => Promise.resolve(ok).then(res);
   return { supabase: { rpc: vi.fn(async () => ({ data: 1, error: null })), from: () => chain, functions: { invoke: vi.fn() } } };
 });

@@ -506,9 +506,10 @@ const XP_PLOT = 48;
  * XP over the last 4 weeks (#169; the dataviz method): columns, one per day —
  * many days have no play, and a line would draw through them as if there
  * were — a row for each week, oldest first, its dates and its XP in words
- * beside it, one scale for all four. A day without play has no mark; a day
- * played whose XP wasn't recorded (an older app, or one only the streak
- * proves) a grey dot, keyed below, and the week's words say what its number
+ * beside it, one scale for all four. A day without play has no mark, nor
+ * does a day recorded at 0 XP (#181 — its week counts it whole, and its
+ * `title` and the table say "0"); a day played whose XP wasn't recorded (an
+ * older app, or one only the streak proves) a grey dot, keyed below, and the week's words say what its number
  * leaves out: "At least 220 XP", plain (review rounds 1–2). A week with no
  * day played is its words alone (round 2: an empty plot). Weeks wholly
  * before recording began are left out (#170), and the title says how many
@@ -595,7 +596,7 @@ const shortDay = (d: RecentDay) => (d.today ? 'Today' : `${d.short} ${d.long.spl
 /** "about 1 hr 20 min" for "about 1 hour 20 minutes" — a day's, to the minute. */
 const shortMinutes = (m: number) => minutesWords(m, 1).replace(/ minutes?$/, ' min').replace(/ hours?/, ' hr');
 
-/** A day's XP in words: "120 XP", "played, XP not recorded", "no play recorded", "not recorded". */
+/** A day's XP in words: "120 XP" ("0 XP" for a day noted with its play and none, #181), "played, XP not recorded", "no play recorded", "not recorded". */
 function dayXp(d: RecentDay): string {
   if (d.xp !== null) return `${fmt(d.xp)} XP`;
   if (d.played) return 'played, XP not recorded';

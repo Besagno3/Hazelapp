@@ -549,6 +549,40 @@ describe('📈 Progress (#29)', () => {
     expect(table).toHaveTextContent(`${range(6)} · At least 180 XP · XP not recorded on 2 days played`);
   });
 
+  it('a day noted with its play but no XP reads "0 XP" — the week whole where it was the gap; one noted without its play stays "not recorded" (#181)', async () => {
+    family();
+    // Sam's family again, with 4 days back noted by this app (`noted_play`): a 30-second typing lesson, a real 0 —
+    // not an older app's note. 2 days back is still the streak's alone.
+    answers.play_days = ok([
+      played(sam.id, 1, 120, 25, { math: { a: 10, r: 7, l: 6 } }),
+      played(sam.id, 3, 60, 12, { science: { a: 4, r: 4, l: 8 } }),
+      { ...played(sam.id, 4, 0, 0), noted_play: true },
+      played(sam.id, 9, 200, 40),
+      played(sam.id, 20, 90, 15),
+    ]);
+    await open();
+    await hero(12);
+    const glanceList = screen.getByRole('list', { name: 'At a glance' });
+    expect(within(glanceList).getByText(/Time recorded/)).toHaveTextContent('Time recorded on 3 of the 4 days played: about 35 minutes.');
+    const week = (screen.getByRole('heading', { name: /Last 7 days/ }).nextElementSibling as HTMLElement).querySelectorAll('li .sr-only');
+    expect(week[2]).toHaveTextContent(`${longDay(isoOffset(today, -4))}: played · under a minute`);
+    const region = screen.getByRole('region', { name: 'XP, the last 4 weeks' });
+    // The week leaves out only the day 2 back now.
+    expect(within(region).getAllByRole('listitem').at(-1)).toHaveTextContent('At least 180 XP · XP not recorded on 1 day played');
+    // No column (0 is no height) and no grey dot for it: the dot is only for a day whose XP wasn't recorded.
+    const dots = Array.from(region.querySelectorAll('.grid .rounded-full')).map((d) => d.parentElement?.getAttribute('title'));
+    expect(dots).toEqual([`${longDay(isoOffset(today, -2))}: played, XP not recorded`]);
+    expect(region.querySelector(`[title^="${longDay(isoOffset(today, -4))}"]`)).toHaveAttribute('title', `${longDay(isoOffset(today, -4))}: 0 XP`);
+    fireEvent.click(within(region).getByText('Every day in a table'));
+    const rows = within(within(region).getByRole('table')).getAllByRole('row').map(heard);
+    expect(rows.find((t) => t.startsWith(longDay(isoOffset(today, -4))))).toBe(`${longDay(isoOffset(today, -4))}0under a minute`);
+    expect(rows.find((t) => t.startsWith(longDay(isoOffset(today, -2))))).toBe(`${longDay(isoOffset(today, -2))}played, XP not recorded`);
+    // 🎯: answers from 3 of the 4 days played — the 0 day's none were recorded as none.
+    expect(screen.getByRole('region', { name: 'Question level by topic' })).toHaveTextContent(
+      "Answers below are from 3 of the 4 days played in the last 7 — the other day's answers weren't recorded.",
+    );
+  });
+
   it('days played are recorded from the first day noted (#170): the days before are "not recorded" — never "no play recorded" — and a note says so once', async () => {
     answers.profiles = ok([{ ...midActTwoRow(sam.id, today), current_streak: 1, last_played_on: today }]);
     answers.saves = ok([{ profile_id: sam.id, data: midActTwoSave() }]);

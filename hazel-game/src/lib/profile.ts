@@ -1,5 +1,6 @@
 import { CRYSTAL_TOPIC_IDS, EXTRA_TOPIC_IDS, type PowerUps, type Profile, type SkillLevels, type Topic, type TopicStart } from '../types';
 import { furthestLevel, levelState } from './level';
+import { clampLevel } from './age';
 
 /**
  * Local durability for the player profile (XP / skill levels / power-ups /
@@ -35,6 +36,76 @@ export function writeLocalProfile(profile: Profile): void {
 }
 
 const TOPIC_IDS: readonly string[] = [...CRYSTAL_TOPIC_IDS, ...EXTRA_TOPIC_IDS];
+
+/**
+ * The level steps a kid played while their row couldn't be read (#176),
+ * kept beside the cached profile (#180): the copy holds the levels played
+ * to, and a load merges it with the row by the higher — so after a reload a
+ * step down was lost. With these, the copy's levels are taken back to where
+ * they stood before the steps, and the steps go on from the row's once it's
+ * read. `starts`: the topics first played meanwhile (not in the copy), each
+ * with the start it was played from. Cleared once the row is read, and with
+ * the cached profile (`forgetLocalProfile`).
+ */
+export interface UnreadSteps {
+  steps: Partial<Record<Topic, number>>;
+  starts: Partial<Record<Topic, TopicStart>>;
+}
+
+const stepsKey = (userId: string) => `hazel-profile-steps-${userId}`;
+
+/** A kid's kept steps (known topics, whole steps of at most 9), or null when there are none. */
+export function readUnreadSteps(userId: string): UnreadSteps | null {
+  try {
+    const kept: unknown = JSON.parse(localStorage.getItem(stepsKey(userId)) ?? 'null');
+    if (typeof kept !== 'object' || kept === null) return null;
+    const { steps, starts } = kept as Record<string, unknown>;
+    const out: UnreadSteps = { steps: {}, starts: skillStartsFrom(starts) };
+    for (const [topic, n] of Object.entries(typeof steps === 'object' && steps !== null ? steps : {})) {
+      if (TOPIC_IDS.includes(topic) && Number.isInteger(n) && Math.abs(n as number) <= 9) out.steps[topic as Topic] = n as number;
+    }
+    return Object.keys(out.steps).length > 0 ? out : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeUnreadSteps(userId: string, kept: UnreadSteps): void {
+  try {
+    localStorage.setItem(stepsKey(userId), JSON.stringify(kept));
+  } catch {
+    // Private mode / quota — the steps still go on this session.
+  }
+}
+
+export function forgetUnreadSteps(userId: string): void {
+  try {
+    localStorage.removeItem(stepsKey(userId));
+  } catch {
+    // Storage unavailable — nothing was kept.
+  }
+}
+
+/** This device's copy of a kid's profile, and the steps kept with it, leave the device (removed, signed out). */
+export function forgetLocalProfile(userId: string): void {
+  try {
+    localStorage.removeItem(profileKey(userId));
+  } catch {
+    // Storage unavailable — nothing was kept.
+  }
+  forgetUnreadSteps(userId);
+}
+
+/** The copy as it was before the steps (#180): each stepped topic back where it stood, one first played meanwhile left out. */
+export function withoutSteps(copy: Profile, { steps, starts }: UnreadSteps): Profile {
+  const skillLevels: SkillLevels = { ...copy.skillLevels };
+  for (const topic of Object.keys(steps) as Topic[]) {
+    const here = skillLevels[topic];
+    if (starts[topic] || here === undefined) delete skillLevels[topic];
+    else skillLevels[topic] = clampLevel(here - (steps[topic] ?? 0));
+  }
+  return { ...copy, skillLevels };
+}
 
 /**
  * A kid's topic starts as read from `profiles.skill_starts` (migration 0026,

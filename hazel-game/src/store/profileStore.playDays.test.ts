@@ -6,7 +6,7 @@ const rpc = vi.hoisted(() => vi.fn());
 vi.mock('../lib/supabase', () => {
   const ok = { data: null, error: null };
   const chain: Record<string, unknown> = {};
-  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle']) chain[m] = () => chain;
+  for (const m of ['update', 'eq', 'select', 'upsert', 'maybeSingle', 'abortSignal']) chain[m] = () => chain;
   chain.then = (res: (v: unknown) => unknown) => Promise.resolve(ok).then(res);
   return { supabase: { rpc, from: () => chain } };
 });

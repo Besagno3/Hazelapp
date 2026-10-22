@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { mergeProfiles, readLocalProfile, writeLocalProfile, profileKey, skillStartsFrom } from './profile';
+import {
+  forgetLocalProfile,
+  mergeProfiles,
+  readLocalProfile,
+  readUnreadSteps,
+  writeLocalProfile,
+  writeUnreadSteps,
+  withoutSteps,
+  profileKey,
+  skillStartsFrom,
+} from './profile';
 import type { Profile } from '../types';
 
 function makeProfile(over: Partial<Profile> = {}): Profile {
@@ -126,5 +136,38 @@ describe("topic starts on the profile (#174)", () => {
     expect(mergeProfiles(makeProfile(), local).skillStarts).toEqual({ math: { level: 4, age: 9 }, science: { level: 3, age: 8 } });
     // Neither copy has any: none (a profile from a database without the column stays as it was).
     expect(mergeProfiles(makeProfile(), makeProfile())).not.toHaveProperty('skillStarts');
+  });
+});
+
+describe('level steps played while the row was unread, kept beside the copy (#180)', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('kept and read back; junk left out; none kept reads as none', () => {
+    writeUnreadSteps('u1', { steps: { math: -1, science: 2 }, starts: { science: { level: 4, age: 9 } } });
+    expect(readUnreadSteps('u1')).toEqual({ steps: { math: -1, science: 2 }, starts: { science: { level: 4, age: 9 } } });
+    localStorage.setItem('hazel-profile-steps-u1', JSON.stringify({ steps: { math: 1.5, words: -10, cooking: 1, constructor: 1, history: 0 }, starts: { music: { level: 0, age: 9 } } }));
+    expect(readUnreadSteps('u1')).toEqual({ steps: { history: 0 }, starts: {} });
+    for (const raw of ['not json', 'null', '[]', '{"steps": {"math": "1"}}', '{"starts": {}}']) {
+      localStorage.setItem('hazel-profile-steps-u1', raw);
+      expect(readUnreadSteps('u1')).toBeNull();
+    }
+    expect(readUnreadSteps('nobody')).toBeNull();
+  });
+
+  it('the copy before the steps: each stepped topic back where it stood, one first played meanwhile left out', () => {
+    const copy = makeProfile({ skillLevels: { math: 6, science: 8, words: 4, history: 5 } });
+    expect(withoutSteps(copy, { steps: { math: -1, science: 2, history: 1 }, starts: { history: { level: 4, age: 9 } } }).skillLevels).toEqual({
+      math: 7,
+      science: 6,
+      words: 4,
+    });
+  });
+
+  it('they go with the copy', () => {
+    writeLocalProfile(makeProfile());
+    writeUnreadSteps('u1', { steps: { math: -1 }, starts: {} });
+    forgetLocalProfile('u1');
+    expect(localStorage.getItem(profileKey('u1'))).toBeNull();
+    expect(readUnreadSteps('u1')).toBeNull();
   });
 });

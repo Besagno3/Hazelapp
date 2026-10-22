@@ -17,6 +17,7 @@ vi.mock('../lib/supabase', () => {
       return chain;
     };
     chain.eq = () => chain;
+    chain.abortSignal = () => chain;
     chain.maybeSingle = () => {
       answer = reads.shift() ?? { data: null, error: { message: 'no answer queued' } };
       return chain;

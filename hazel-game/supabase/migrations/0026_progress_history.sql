@@ -11,7 +11,10 @@
 --                 minute (#172, "how long they played");
 --   * `topics`  — per topic id, answers asked (`a`) and right (`r`), bank
 --                 questions only, and the topic's level at the day's end
---                 (`l`) (#173, "7 of 10 right", "up 1 since last week").
+--                 (`l`) (#173, "7 of 10 right", "up 1 since last week");
+--   * `noted_play` — the day was noted with its play (#181), so a day
+--                 really played for 0 XP, under a minute and no bank answer
+--                 reads "0 XP", not "not recorded".
 -- No times of day, no questions, no answers' text.
 --
 -- Who may do what (as 0025, with the new columns):
@@ -46,7 +49,14 @@
 -- topic's level is saved (it lived only in the save's `topicStarts`, which
 -- a losing copy of the save could drop). The kid's play: written with their
 -- other play columns, no 👪 window. A trigger keeps the FIRST start for a
--- topic (a later write never moves it or removes it) and drops junk.
+-- topic (a later write never moves it or removes it) and drops junk. The
+-- one change it makes itself (#183): when a grown-up corrects the kid's
+-- birth date (a grown-up's column, so the 👪 gate has allowed it), each
+-- start's age moves by the change in the kid's age today; its level stays —
+-- the level they really started at is still true. Levels aren't reset: the
+-- family's devices keep cached copies that merge levels by the higher and
+-- starts by union, so a reset on the server would be undone by the next
+-- device that loads.
 --
 -- Backward compatible: an app from before this never reads the new columns
 -- (its note_play_days still works, with the five-week tidy-up); this app
@@ -54,7 +64,9 @@
 -- note_play_days, keeping the rest on the device.
 
 -- 1) The day's play, on 0025's rows. A row noted by note_play_days (or
---    before this) has zeros and no topics.
+--    before this) has zeros, no topics, and `noted_play` false: that it was
+--    played is known, its play isn't. note_play_history sets `noted_play`
+--    whenever it writes the day (#181); note_play_days never does.
 alter table public.play_days
   add column if not exists xp integer not null default 0
     constraint play_days_xp_range check (xp between 0 and 100000);
@@ -64,6 +76,8 @@ alter table public.play_days
 alter table public.play_days
   add column if not exists topics jsonb not null default '{}'::jsonb
     constraint play_days_topics_object check (jsonb_typeof(topics) = 'object');
+alter table public.play_days
+  add column if not exists noted_play boolean not null default false;
 
 -- 2) Read for five weeks (was two).
 drop policy if exists "Grown-ups read their kids' play days" on public.play_days;
@@ -254,7 +268,8 @@ grant execute on function public.note_play_days(uuid, date[]) to authenticated;
 --    an object with such a day, is skipped — never an error, so a device's
 --    old backlog clears itself. A value out of range is clamped, a field
 --    that isn't a number counts as 0 (it can't lower a day), and the topics
---    are cleaned (play_topics_clean).
+--    are cleaned (play_topics_clean). Every day it writes is `noted_play`
+--    (#181): its play was noted, zeros included.
 --    Refusals: 42501 "not signed in" / "not your player"; 22023 "too many
 --    days" (over 31) / "days must be an array".
 create or replace function public.note_play_history(p_kid uuid, p_days jsonb)
@@ -298,7 +313,7 @@ begin
                where to_char(current_date + g, 'YYYY-MM-DD') = v_el ->> 'day');
     continue when v_day is null;
 
-    insert into public.play_days as p (profile_id, day, xp, minutes, topics)
+    insert into public.play_days as p (profile_id, day, xp, minutes, topics, noted_play)
     values (
       p_kid,
       v_day,
@@ -306,12 +321,14 @@ begin
            then least(greatest(trunc((v_el ->> 'xp')::numeric), 0), 100000)::integer else 0 end,
       case when jsonb_typeof(v_el -> 'minutes') = 'number'
            then least(greatest(trunc((v_el ->> 'minutes')::numeric), 0), 1440)::integer else 0 end,
-      public.play_topics_clean(v_el -> 'topics')
+      public.play_topics_clean(v_el -> 'topics'),
+      true
     )
     on conflict (profile_id, day) do update
-      set xp      = greatest(p.xp, excluded.xp),
-          minutes = greatest(p.minutes, excluded.minutes),
-          topics  = public.play_topics_merge(p.topics, excluded.topics);
+      set xp         = greatest(p.xp, excluded.xp),
+          minutes    = greatest(p.minutes, excluded.minutes),
+          topics     = public.play_topics_merge(p.topics, excluded.topics),
+          noted_play = true;
 
     v_noted := v_noted || v_day;
   end loop;
@@ -344,12 +361,33 @@ as $$
                'current_streak', 'longest_streak', 'last_played_on', 'updated_at'];
 $$;
 
+-- A kid's age in whole years on `p_on`, from their birth year and month —
+-- as the app works it out (`calcAge`, src/lib/age.ts; `age.test` checks
+-- both against the cases progress_history.test.sql checks this one with):
+-- the years since, less one before this year's birth month; never below 0.
+-- Callable by anyone (plain arithmetic): the trigger below runs as the caller.
+create or replace function public.kid_age_on(p_birth_year integer, p_birth_month integer, p_on date)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select greatest(0, extract(year from p_on)::integer - p_birth_year
+                     - case when extract(month from p_on)::integer < p_birth_month then 1 else 0 end);
+$$;
+
 -- Keep the first start and drop junk, on every write (whoever writes): an
 -- entry that isn't {level: whole 1–10, age: whole 3–18} under a topic id
 -- (1–24 lowercase letters) is dropped, and on an update the starts already
 -- there win — a write never moves a start, and one that leaves a topic out
--- never removes it. At most 16 topics (those already there first). Runs as
--- the caller, so it calls nothing an API role can't (no helpers).
+-- never removes it. At most 16 topics (those already there first).
+-- A birth date corrected (#183) — an update that changes `birth_year` or
+-- `birth_month`, which only a grown-up with 👪 open may make (0024's gate
+-- runs first) — moves the age of every start already there by the change
+-- in the kid's age today (the server's date, UTC): the old birth date's age
+-- less the new one's, each start's age kept within 3–18, its level kept.
+-- Nothing else moves an age. Runs as the caller, so it calls nothing an API
+-- role can't (only kid_age_on, callable by anyone).
 -- To correct a start by hand (the SQL editor, as the owner): disable this
 -- trigger for that one update.
 create or replace function public.profiles_keep_skill_starts()
@@ -359,8 +397,14 @@ set search_path = ''
 as $$
 declare
   v_old jsonb := case when tg_op = 'UPDATE' then old.skill_starts end;
+  v_today date := (now() at time zone 'UTC')::date;
+  v_shift integer := 0;
   v_kept jsonb;
 begin
+  if tg_op = 'UPDATE' and (new.birth_year, new.birth_month) is distinct from (old.birth_year, old.birth_month) then
+    v_shift := public.kid_age_on(old.birth_year, old.birth_month, v_today)
+             - public.kid_age_on(new.birth_year, new.birth_month, v_today);
+  end if;
   with entries as (
     select src.had, e.key, e.value
       from (values (true, v_old), (false, new.skill_starts)) as src (had, starts)
@@ -368,7 +412,9 @@ begin
        case when jsonb_typeof(src.starts) = 'object' then src.starts else '{}'::jsonb end) as e
   ), clean as (
     select had, key,
-           jsonb_build_object('level', (value ->> 'level')::integer, 'age', (value ->> 'age')::integer) as start
+           jsonb_build_object('level', (value ->> 'level')::integer,
+                              'age', case when had then least(18, greatest(3, (value ->> 'age')::integer - v_shift))
+                                          else (value ->> 'age')::integer end) as start
       from entries
      where key ~ '^[a-z]{1,24}$'
        and case when jsonb_typeof(value) = 'object'
@@ -389,5 +435,5 @@ $$;
 
 drop trigger if exists profiles_keep_skill_starts on public.profiles;
 create trigger profiles_keep_skill_starts
-  before insert or update of skill_starts on public.profiles
+  before insert or update of skill_starts, birth_year, birth_month on public.profiles
   for each row execute function public.profiles_keep_skill_starts();

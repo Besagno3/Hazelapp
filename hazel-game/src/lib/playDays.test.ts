@@ -137,6 +137,15 @@ describe('noting the days a kid played (#29, migration 0025)', () => {
     expect(mod.pendingPlayDays('kid-1').at(-1)).toBe(TODAY);
   });
 
+  it('kept for sending: from DAYS_BACK before today to DAYS_AHEAD after, the window 0026 takes (#182)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: '503', message: 'down' } });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { isoOffset } = await import('./streak');
+    const [back, ahead] = [mod.DAYS_BACK, mod.DAYS_AHEAD];
+    for (const n of [-(back + 1), -back, ahead, ahead + 1]) await mod.notePlayDay('kid-1', isoOffset(TODAY, n));
+    expect(mod.pendingPlayDays('kid-1')).toEqual([isoOffset(TODAY, -back), isoOffset(TODAY, ahead)]);
+  });
+
   it('one send at a time per kid; a day noted mid-send waits for the next', async () => {
     let finish: (v: unknown) => void = () => {};
     rpc.mockImplementationOnce(() => new Promise((r) => (finish = r))).mockResolvedValue(ok);

@@ -92,9 +92,9 @@ describe('reading a family (#29)', () => {
     answers.saves = { data: [{ profile_id: 'k1', data: midActTwoSave() }], error: null };
     answers.play_days = {
       data: [
-        { profile_id: 'k1', day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } } },
-        { profile_id: 'k1', day: '2026-10-01', xp: 40, minutes: 5, topics: {} },
-        { profile_id: 'k1', day: '2026-10-18', xp: 0, minutes: 0, topics: {} },
+        { profile_id: 'k1', day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } }, noted_play: true },
+        { profile_id: 'k1', day: '2026-10-01', xp: 40, minutes: 5, topics: {}, noted_play: true },
+        { profile_id: 'k1', day: '2026-10-18', xp: 0, minutes: 0, topics: {}, noted_play: false },
       ],
       error: null,
     };
@@ -106,6 +106,7 @@ describe('reading a family (#29)', () => {
     expect(calls[0].filters).toEqual([['in', 'id', ['k1', 'k2', 'k3']]]);
     // Five weeks (what migration 0026 keeps), with the day's play.
     expect(calls[2].select).toBe(HISTORY_COLUMNS);
+    expect(HISTORY_COLUMNS.split(', ')).toContain('noted_play'); // #181
     expect(calls[2].filters).toContainEqual(['gte', 'day', '2026-09-17']);
     expect(HISTORY_DAYS).toBe(35);
     expect(got.k1.stats?.xp).toBe(2340);
@@ -114,7 +115,9 @@ describe('reading a family (#29)', () => {
     // The week's days from it, as before; the history oldest first.
     expect(got.k1.playDays).toEqual(['2026-10-20', '2026-10-18']);
     expect(got.k1.history?.map((d) => d.day)).toEqual(['2026-10-01', '2026-10-18', '2026-10-20']);
-    expect(got.k1.history?.at(-1)).toEqual({ day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } } });
+    expect(got.k1.history?.at(-1)).toEqual({ day: '2026-10-20', xp: 120, minutes: 25, topics: { math: { a: 10, r: 7, l: 6 } }, notedPlay: true });
+    // A day noted without its play (an older app's note): no `notedPlay` (#181).
+    expect(got.k1.history?.[1]).toEqual({ day: '2026-10-18', xp: 0, minutes: 0, topics: {} });
     expect(got.k1.countedSince).toBe('2026-09-30');
     // Not a date: no "counted from".
     expect(got.k2).toEqual({ stats: expect.objectContaining({ xp: 0 }), save: null, playDays: [], history: [], countedSince: null });
@@ -287,6 +290,12 @@ describe('reading a family (#29)', () => {
     for (const row of [null, { day: 'today' }, { day: 20261020 }, { xp: 4 }]) expect(playDayFromRow(row)).toBeNull();
   });
 
+  it('a day noted with its play says so only when the database says `true` (#181)', () => {
+    const row = { day: '2026-10-20', xp: 0, minutes: 0, topics: {} };
+    expect(playDayFromRow({ ...row, noted_play: true })).toEqual({ ...row, notedPlay: true });
+    for (const noted of [false, 'true', 1, null, undefined]) expect(playDayFromRow({ ...row, noted_play: noted })).toEqual(row);
+  });
+
   it('a topic starts where the profile says first, then where the save noted it (#174)', () => {
     const save = { ...defaultSave(), topicStarts: { math: { level: 4, age: 9 }, words: { level: 2, age: 7 } } };
     const stats = { ...statsFromRow(newKidRow('k')), skillStarts: { math: { level: 3, age: 8 } } };
@@ -428,6 +437,29 @@ describe('each day\'s play: XP, minutes, counted from (#169, #170, #172)', () =>
     expect(week.every((d) => d.counted)).toBe(true);
     // No history (a database without 0026): nothing about XP or minutes.
     expect(recentDays(TODAY, ['2026-10-15'], null).every((d) => d.xp === null && d.minutes === null)).toBe(true);
+  });
+
+  it('a day the database says was noted with its play is a real 0 XP day, whatever its numbers — and every total counts it as recorded (#181)', () => {
+    // A 30-second typing day: noted with its play, nothing to count.
+    const zero = { ...rec('2026-10-20', 0, 0), notedPlay: true as const };
+    const week = recentDays(TODAY, ['2026-10-17', '2026-10-20'], '2026-10-20', 1, { history: [rec('2026-10-17', 0, 0), zero] });
+    expect(week.filter((d) => d.played).map((d) => [d.iso, d.xp, d.minutes])).toEqual([
+      // Noted without it (an older app): how much is unknown, as before.
+      ['2026-10-17', null, null],
+      ['2026-10-20', 0, 0],
+    ]);
+    // Alone, it reads "0 XP", "under a minute" — never "not recorded".
+    const only = recentDays(TODAY, ['2026-10-20'], '2026-10-20', 1, { history: [zero] });
+    expect(xpBrief(only, 'in the last 7 days')).toBe('0 XP on Tuesday 20 October.');
+    expect(minutesText(only)).toBe('Under a minute of play in the last 7 days.');
+    expect(answersNote(only, false)).toBeNull();
+    // With XP on other days, the week is whole (bold), not "At least …".
+    const days = recentDays(TODAY, [], '2026-10-20', 1, { history: [rec('2026-10-16', 50, 10), rec('2026-10-18', 30, 5), zero] });
+    expect(xpWeeks(days).at(-1)).toMatchObject({ xp: 80, partial: false, amount: '80 XP', note: '' });
+    expect(minutesText(days)).toBe('About 15 minutes of play in the last 7 days.');
+    // The same day without the database's word for it: played, XP not recorded.
+    const unsure = recentDays(TODAY, [], '2026-10-20', 1, { history: [rec('2026-10-16', 50, 10), rec('2026-10-18', 30, 5), rec('2026-10-20', 0, 0)] });
+    expect(xpWeeks(unsure).at(-1)).toMatchObject({ xp: 80, partial: true, amount: 'At least 80 XP', note: 'XP not recorded on 1 day played' });
   });
 
   it("a day ahead (the kid's device a time zone ahead): the last 7 days are the kid's 7, ending on it — never 8 of theirs (review round 2)", () => {

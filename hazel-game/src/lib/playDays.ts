@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { errorMessage, friendlyMessage, NETWORK_MESSAGE, OFFLINE_MESSAGE } from './errors';
 import { isoOffset, todayIso } from './streak';
+import { MAX_SKILL_LEVEL, MIN_SKILL_LEVEL } from './age';
 import type { PlayDayRecord, TopicTally } from '../types';
 
 /**
@@ -71,12 +72,23 @@ export const SEND_EVERY_MS = 2 * 60_000;
 /** A note function the database didn't have (a migration not applied yet) is asked for again after this long (review round 2). */
 export const MISSING_RECHECK_MS = 10 * 60_000;
 
-/** The database's limits on a day (migration 0026): what a record is clamped to here too. */
-const MAX_XP = 100_000;
-const MAX_MINUTES = 1_440;
-const MAX_ANSWERS = 10_000;
-const MAX_TOPICS = 16;
-const TOPIC_KEY = /^[a-z]{1,24}$/;
+/*
+ * The database's limits on a day (migration 0026, `note_play_history`): what
+ * a record is clamped to here too, and the days kept for sending. Repeated
+ * from 0026 — `playDays.limits.test` reads the migration and holds the two
+ * together (#182): drifted apart, the server would skip or clamp quietly.
+ * A level is 1–10 (`MIN_SKILL_LEVEL` / `MAX_SKILL_LEVEL`), and a send of at
+ * most `PENDING_MAX` days stays under 0026's 31 a call.
+ */
+export const MAX_XP = 100_000;
+export const MAX_MINUTES = 1_440;
+export const MAX_ANSWERS = 10_000;
+export const MAX_TOPICS = 16;
+export const TOPIC_KEY = /^[a-z]{1,24}$/;
+/** The days the database takes: from this many before its date… */
+export const DAYS_BACK = 7;
+/** …to this many after it. */
+export const DAYS_AHEAD = 1;
 
 /** The localStorage key for a kid's kept days. */
 export function playDaysKey(kidId: string): string {
@@ -105,7 +117,7 @@ const unstored = new Map<string, Kept[]>();
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const count = (v: unknown, max: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : 0);
-const isLevel = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 10;
+const isLevel = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= MIN_SKILL_LEVEL && (v as number) <= MAX_SKILL_LEVEL;
 
 /** A topic's tally as stored, or null when it's junk. */
 function tallyFrom(v: unknown): TopicTally | null {
@@ -176,8 +188,8 @@ function readKept(kidId: string): Kept[] {
  */
 function writeKept(kidId: string, list: Kept[]): void {
   const today = todayIso();
-  const oldest = isoOffset(today, -7);
-  const newest = isoOffset(today, 1);
+  const oldest = isoOffset(today, -DAYS_BACK);
+  const newest = isoOffset(today, DAYS_AHEAD);
   const days = list
     .filter((r) => r.day >= oldest && r.day <= newest && !(r.sent === 'all' && r.day < today))
     .sort((a, b) => (a.day < b.day ? -1 : 1))

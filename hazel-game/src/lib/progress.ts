@@ -31,8 +31,18 @@ export const PROGRESS_COLUMNS = 'id, skill_levels, xp, level, level_xp, current_
 /** Where each topic started (#174, migration 0026) — read with the progress columns when the database has it. */
 export const STARTS_COLUMN = 'skill_starts';
 
-/** The `play_days` columns of a day's play (#169, #172, #173; migration 0026). */
-export const HISTORY_COLUMNS = 'profile_id, day, xp, minutes, topics';
+/** The `play_days` columns of a day's play (#169, #172, #173, #181; migration 0026). */
+export const HISTORY_COLUMNS = 'profile_id, day, xp, minutes, topics, noted_play';
+
+/**
+ * A day's play as the page reads it (#169, #172, #173): the record, and
+ * whether the database says it was noted with its play (`noted_play`, #181 —
+ * set by `note_play_history` whenever it writes the day, zeros included;
+ * never by an older app's `note_play_days`).
+ */
+export interface HistoryDay extends PlayDayRecord {
+  notedPlay?: true;
+}
 
 /** A kid's progress numbers from their `profiles` row. */
 export type KidStats = Pick<Profile, 'skillLevels' | 'xp' | 'level' | 'levelXp' | 'currentStreak' | 'longestStreak' | 'lastPlayedOn' | 'skillStarts'>;
@@ -49,7 +59,7 @@ export interface KidProgressData {
    * answers per topic (#169, #172, #173); null when the database can't say
    * (no migration 0026, or the read failed).
    */
-  history: PlayDayRecord[] | null;
+  history: HistoryDay[] | null;
   /** The first day ever noted for them (`play_history_since`, #170); null when not known. */
   countedSince: string | null;
 }
@@ -124,9 +134,10 @@ export function statsFromRow(r: ProgressRow): KidStats {
  * a real day; XP 0–100,000 and minutes 0–1,440 (else 0 — never more than was
  * noted); per known topic a whole `a` asked 0–10,000 and `r` right 0–`a`
  * (else the topic is left out) and `l`, the level at the day's end, 1–10
- * (else dropped). Unknown keys are left out.
+ * (else dropped); `notedPlay` only when `noted_play` is `true` (#181).
+ * Unknown keys are left out.
  */
-export function playDayFromRow(row: unknown): PlayDayRecord | null {
+export function playDayFromRow(row: unknown): HistoryDay | null {
   if (!isObject(row) || typeof row.day !== 'string' || !ISO_DAY.test(row.day)) return null;
   const topics: Record<string, TopicTally> = {};
   if (isObject(row.topics)) {
@@ -139,7 +150,9 @@ export function playDayFromRow(row: unknown): PlayDayRecord | null {
       topics[topic] = l === null ? { a, r } : { a, r, l };
     }
   }
-  return { day: row.day, xp: whole(row.xp, 0, 100_000) ?? 0, minutes: whole(row.minutes, 0, 1440) ?? 0, topics };
+  const day: HistoryDay = { day: row.day, xp: whole(row.xp, 0, 100_000) ?? 0, minutes: whole(row.minutes, 0, 1440) ?? 0, topics };
+  if (row.noted_play === true) day.notedPlay = true;
+  return day;
 }
 
 /** A Supabase error as a thrown `Error` that keeps its code (the page words it, the console gets it whole). */
@@ -389,7 +402,7 @@ export interface RecentDay {
 /** What else a day can say, when the database has it (migration 0026). */
 export interface DayHistory {
   /** Each day's play, as read (`KidProgressData.history`). */
-  history?: readonly PlayDayRecord[] | null;
+  history?: readonly HistoryDay[] | null;
   /** The first day ever noted for them (#170). */
   countedSince?: string | null;
   /** How many days, ending today (default: the last week). */
@@ -397,12 +410,14 @@ export interface DayHistory {
 }
 
 /**
- * A day noted by an app that counts its play (migration 0026): any XP,
- * minute or answer at all. A day with none was noted by an older app (or
- * before 0026: the column defaults) — that it was played is known, how much
- * isn't.
+ * A day noted with its play (migration 0026): the database says so
+ * (`notedPlay`, #181) — then 0 XP, 0 minutes and no answers is a real day
+ * of nothing much (a 30-second typing lesson), "0 XP" — or, read without
+ * that, any XP, minute or answer at all. A day with neither was noted by an
+ * older app (or before 0026: the column defaults) — that it was played is
+ * known, how much isn't: "XP not recorded", never a 0.
  */
-const playNoted = (d: PlayDayRecord) => d.xp > 0 || d.minutes > 0 || Object.keys(d.topics).length > 0;
+const playNoted = (d: HistoryDay) => d.notedPlay === true || d.xp > 0 || d.minutes > 0 || Object.keys(d.topics).length > 0;
 
 /** What says where the kid's calendar is: the days noted, and the profile's last day played. */
 export interface KidDays {

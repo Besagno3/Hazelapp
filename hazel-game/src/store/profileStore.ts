@@ -2,7 +2,16 @@ import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import { errorMessage } from '../lib/errors';
 import { nextStreak, provesPlayed, todayIso } from '../lib/streak';
-import { mergeProfiles, readLocalProfile, skillStartsFrom, writeLocalProfile } from '../lib/profile';
+import {
+  forgetUnreadSteps,
+  mergeProfiles,
+  readLocalProfile,
+  readUnreadSteps,
+  skillStartsFrom,
+  withoutSteps,
+  writeLocalProfile,
+  writeUnreadSteps,
+} from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
 import {
@@ -157,14 +166,30 @@ interface Answer {
   error: unknown;
 }
 
+/**
+ * How long one read of the kid's row may take (#184): one still unanswered
+ * by then — a captive portal, a half-open connection, where the browser
+ * would wait minutes — is called off and ends as a failed read, so the
+ * retry and its back-off carry on.
+ */
+export const READ_TIMEOUT_MS = 10_000;
+
 /** One read of a kid's row — with their topic starts while the database has them, else without (and not asked for again for a while). */
 async function readRow(userId: string): Promise<Answer> {
-  const read = (starts: boolean): PromiseLike<Answer> =>
-    supabase
-      .from('profiles')
-      .select(starts ? `${COLUMNS}, skill_starts` : COLUMNS)
-      .eq('id', userId)
-      .maybeSingle();
+  const read = async (starts: boolean): Promise<Answer> => {
+    const stop = new AbortController();
+    const timer = setTimeout(() => stop.abort(), READ_TIMEOUT_MS);
+    try {
+      return await supabase
+        .from('profiles')
+        .select(starts ? `${COLUMNS}, skill_starts` : COLUMNS)
+        .eq('id', userId)
+        .abortSignal(stop.signal)
+        .maybeSingle();
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   if (!startsColumn()) return read(false);
   const got = await read(true);
   if (!noStartsColumn(got.error)) return got;
@@ -341,8 +366,19 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     recheckPlayFunctions();
     set({ loading: true, error: null });
     const local = readLocalProfile(userId);
+    // Level steps played on the copy while the row was unread, before a
+    // reload (#180): they come off the copy for the profile the row is
+    // merged with, and go on again from the row's levels once it's read.
+    const kept = local ? readUnreadSteps(userId) : null;
+    const base = local && kept ? withoutSteps(local, kept) : local;
     const { data, error } = await readRow(userId);
     if (gen !== readGen) return; // another kid was picked (or the game put away) meanwhile
+
+    if (data && local && kept) {
+      set({ profile: local, loading: false, unread: { base, xp: 0, triedAt: Date.now(), steps: kept.steps, starts: kept.starts } });
+      await takeUp(userId, gen, data);
+      return;
+    }
 
     if (data) {
       // Reconcile the remote row with any local progress, keeping the higher of
@@ -365,6 +401,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // even after a failed send this session (unless 0025 isn't there).
       void flushPlayDays(userId, { now: true });
       writeLocalProfile(merged);
+      forgetUnreadSteps(userId);
       // If the local cache was ahead, best-effort push the merge back up.
       const remoteLevel = levelState(remote);
       const mergedLevel = levelState(merged);
@@ -394,7 +431,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         profile,
         loading: false,
         remoteError: errorMessage(error),
-        unread: { base: local, xp: 0, triedAt: Date.now(), steps: {}, starts: {} },
+        unread: { base, xp: 0, triedAt: Date.now(), steps: kept?.steps ?? {}, starts: kept?.starts ?? {} },
       });
       watchUnread();
       return;
@@ -405,6 +442,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     const seed = local ?? defaultProfile(userId, birth);
     set({ profile: seed, loading: false, remoteError: null, unread: null });
     writeLocalProfile(seed);
+    forgetUnreadSteps(userId);
     void writeRow(userId, toRow(seed), { insert: true }).then((e) => {
       if (e) set({ remoteError: errorMessage(e) });
     });
@@ -435,64 +473,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       watchUnread(); // again in a while (longer each time), or once back online
       return;
     }
-    stopWatchingUnread();
-    const today = todayIso();
-    const played = now.profile.lastPlayedOn === today;
-    const { steps, starts: firstPlayed } = now.unread;
-    let merged: Profile;
-    /** The topics the row (with this device's copy) has a level for — before the steps go on. */
-    let rowLevels: SkillLevels = {};
-    if (got.data) {
-      // As if the page had loaded with the copy this device had — then what
-      // was played since: its XP added, today counted on the real streak.
-      // Power-ups chosen since count (the higher wins, as always) only from
-      // a real copy, never from a made-up start.
-      merged = mergeProfiles(fromRow(got.data as ProfileRow), now.unread.base);
-      if (now.unread.base) merged = mergeProfiles(merged, { ...merged, powerUps: now.profile.powerUps });
-      if (now.unread.xp > 0) merged = withXp(merged, now.unread.xp);
-      if (played && merged.lastPlayedOn !== today) merged = withDayPlayed(merged, today);
-      // Levels moved since go on as steps (#176): a topic the row has a level
-      // for moves from it by as much as it moved here; one it hasn't keeps
-      // the level played to — its start for the kid's age was the real one.
-      rowLevels = merged.skillLevels;
-      const skillLevels = { ...rowLevels };
-      for (const topic of Object.keys(steps) as Topic[]) {
-        const from = rowLevels[topic];
-        const here = now.profile.skillLevels[topic];
-        if (from !== undefined) skillLevels[topic] = clampLevel(from + (steps[topic] ?? 0));
-        else if (here !== undefined) skillLevels[topic] = here;
-      }
-      merged = { ...merged, skillLevels };
-    } else {
-      // No row after all (a new kid): what's in memory is all there is.
-      merged = now.profile;
-    }
-    // A topic first played since that the row has no level for: the start it
-    // was played from is its real start, noted now — on the profile and in
-    // the save (the first one noted stays).
-    const noted = (Object.keys(firstPlayed) as Topic[]).filter((t) => rowLevels[t] === undefined && merged.skillLevels[t] !== undefined);
-    if (noted.length > 0) {
-      merged = { ...merged, skillStarts: { ...Object.fromEntries(noted.map((t) => [t, firstPlayed[t]])), ...merged.skillStarts } };
-      const saves = useSaveStore.getState();
-      if (saves.userId === userId) {
-        saves.update((s) => noted.reduce((acc, t) => withTopicStart(acc, t, merged.skillStarts?.[t] as TopicStart), s));
-      }
-    }
-    const carried = startsToCarry(merged);
-    if (carried) merged = { ...merged, skillStarts: carried };
-    set({ profile: merged, remoteError: null, unread: null });
-    writeLocalProfile(merged);
-    // Days the row proves played (maybe by another device): this device's play for them goes up too (review rounds 1–2).
-    markPlayDays(userId, (d) => provesPlayed(merged, d, today));
-    void flushPlayDays(userId, { now: true });
-    // Each level moved since is the topic's level today now (#173).
-    for (const topic of Object.keys(steps) as Topic[]) {
-      const level = merged.skillLevels[topic];
-      if (level !== undefined) void noteDayLevel(userId, today, topic, level, { played: provesPlayed(merged, today, today) });
-    }
-    const error = await writeRow(userId, toRow(merged), { insert: !got.data });
-    if (error) set({ remoteError: errorMessage(error) });
-    if (!carried) carryWhenSaved(userId, gen);
+    await takeUp(userId, gen, got.data);
   },
 
   setSkillLevel: async (topic, level) => {
@@ -511,15 +492,14 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       // was is kept for when the row is read (#176), and the start it was
       // played from, in case the row has no level for it either.
       const step = level - (was ?? (start as TopicStart).level);
-      set({
-        profile: updated, // optimistic
-        unread: {
-          ...unread,
-          steps: { ...unread.steps, [topic]: (unread.steps[topic] ?? 0) + step },
-          starts: start && !unread.starts[topic] ? { ...unread.starts, [topic]: start } : unread.starts,
-        },
-      });
-      if (held(unread)) writeLocalProfile(updated); // durable locally even if the remote write fails
+      const steps = { ...unread.steps, [topic]: (unread.steps[topic] ?? 0) + step };
+      const starts = start && !unread.starts[topic] ? { ...unread.starts, [topic]: start } : unread.starts;
+      set({ profile: updated, unread: { ...unread, steps, starts } }); // optimistic
+      if (held(unread)) {
+        // Durable locally even if the remote write fails — and the steps beside it, so a reload keeps a step down (#180).
+        writeLocalProfile(updated);
+        writeUnreadSteps(profile.id, { steps, starts });
+      }
       void get().retryRead(); // the row first: nothing is written over it unread
       return;
     }
@@ -641,6 +621,77 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ profile: null, loading: false, error: null, remoteError: null, unread: null });
   },
 }));
+
+/**
+ * The unread row was read (#176): taken up as if the page had loaded with
+ * the copy this device had (`unread.base`), then what was played since — the
+ * XP earned, today played, each level step from the row's level — and the
+ * result written. From `retryRead`, and from a load that finds steps kept
+ * from before a reload (#180).
+ */
+async function takeUp(userId: string, gen: number, data: unknown): Promise<void> {
+  const { profile, unread } = useProfileStore.getState();
+  if (!profile || !unread) return;
+  stopWatchingUnread();
+  const today = todayIso();
+  const played = profile.lastPlayedOn === today;
+  const { steps, starts: firstPlayed } = unread;
+  let merged: Profile;
+  /** The topics the row (with this device's copy) has a level for — before the steps go on. */
+  let rowLevels: SkillLevels = {};
+  if (data) {
+    // As if the page had loaded with the copy this device had — then what
+    // was played since: its XP added, today counted on the real streak.
+    // Power-ups chosen since count (the higher wins, as always) only from
+    // a real copy, never from a made-up start.
+    merged = mergeProfiles(fromRow(data as ProfileRow), unread.base);
+    if (unread.base) merged = mergeProfiles(merged, { ...merged, powerUps: profile.powerUps });
+    if (unread.xp > 0) merged = withXp(merged, unread.xp);
+    if (played && merged.lastPlayedOn !== today) merged = withDayPlayed(merged, today);
+    // Levels moved since go on as steps (#176): a topic the row has a level
+    // for moves from it by as much as it moved here; one it hasn't keeps
+    // the level played to — its start for the kid's age was the real one.
+    rowLevels = merged.skillLevels;
+    const skillLevels = { ...rowLevels };
+    for (const topic of Object.keys(steps) as Topic[]) {
+      const from = rowLevels[topic];
+      const here = profile.skillLevels[topic];
+      if (from !== undefined) skillLevels[topic] = clampLevel(from + (steps[topic] ?? 0));
+      else if (here !== undefined) skillLevels[topic] = here;
+    }
+    merged = { ...merged, skillLevels };
+  } else {
+    // No row after all (a new kid): what's in memory is all there is.
+    merged = profile;
+  }
+  // A topic first played since that the row has no level for: the start it
+  // was played from is its real start, noted now — on the profile and in
+  // the save (the first one noted stays).
+  const noted = (Object.keys(firstPlayed) as Topic[]).filter((t) => rowLevels[t] === undefined && merged.skillLevels[t] !== undefined);
+  if (noted.length > 0) {
+    merged = { ...merged, skillStarts: { ...Object.fromEntries(noted.map((t) => [t, firstPlayed[t]])), ...merged.skillStarts } };
+    const saves = useSaveStore.getState();
+    if (saves.userId === userId) {
+      saves.update((s) => noted.reduce((acc, t) => withTopicStart(acc, t, merged.skillStarts?.[t] as TopicStart), s));
+    }
+  }
+  const carried = startsToCarry(merged);
+  if (carried) merged = { ...merged, skillStarts: carried };
+  useProfileStore.setState({ profile: merged, remoteError: null, unread: null });
+  writeLocalProfile(merged);
+  forgetUnreadSteps(userId);
+  // Days the row proves played (maybe by another device): this device's play for them goes up too (review rounds 1–2).
+  markPlayDays(userId, (d) => provesPlayed(merged, d, today));
+  void flushPlayDays(userId, { now: true });
+  // Each level moved since is the topic's level today now (#173).
+  for (const topic of Object.keys(steps) as Topic[]) {
+    const level = merged.skillLevels[topic];
+    if (level !== undefined) void noteDayLevel(userId, today, topic, level, { played: provesPlayed(merged, today, today) });
+  }
+  const error = await writeRow(userId, toRow(merged), { insert: !data });
+  if (error) useProfileStore.setState({ remoteError: errorMessage(error) });
+  if (!carried) carryWhenSaved(userId, gen);
+}
 
 /**
  * Whether the profile in play proves `kidId` played on `day` — its last day

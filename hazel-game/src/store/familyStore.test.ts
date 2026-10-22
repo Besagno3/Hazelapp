@@ -11,7 +11,7 @@ const db = vi.hoisted(() => {
     const chain = { table, ops: [] as Op[] };
     chains.push(chain);
     const b: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle']) {
+    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle', 'abortSignal']) {
       b[m] = (...args: unknown[]) => {
         chain.ops.push([m, args]);
         return b;
@@ -366,6 +366,7 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().load('grown-up-1');
     localStorage.setItem('hazel-save-kid-sam', '{}');
     localStorage.setItem('hazel-profile-kid-kit', '{}');
+    localStorage.setItem('hazel-profile-steps-kid-kit', '{"steps": {"math": -1}, "starts": {}}');
     sessionStorage.setItem('hazel-active-kid-grown-up-1', 'kid-sam');
     useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
     functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
@@ -375,6 +376,8 @@ describe('useFamilyStore', () => {
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE', session: DEVICE_SESSION }, headers: { Authorization: 'Bearer fresh-token' } });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
+    // The level steps kept with the copy go with it (#180).
+    expect(localStorage.getItem('hazel-profile-steps-kid-kit')).toBeNull();
     expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(takeAccountClosedNotice()).toBe('Your account and all its data are gone.');
@@ -516,6 +519,7 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().load('grown-up-1');
     localStorage.setItem('hazel-save-kid-sam', '{}');
     localStorage.setItem('hazel-profile-kid-sam', '{}');
+    localStorage.setItem('hazel-profile-steps-kid-sam', '{"steps": {"math": -1}, "starts": {}}');
     localStorage.setItem('hazel-save-kid-kit', '{}');
     db.answer.mockImplementation(() => ({ data: null, error: null }));
     await useFamilyStore.getState().removeKid('kid-sam');
@@ -526,6 +530,7 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids.map((k) => k.id)).toEqual(['kid-kit']);
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-sam')).toBeNull();
+    expect(localStorage.getItem('hazel-profile-steps-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-save-kid-kit')).toBe('{}');
   });
 
