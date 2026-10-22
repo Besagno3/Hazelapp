@@ -46,8 +46,9 @@ git config core.hooksPath .githooks
 ```
 
 The pre-commit hook blocks commits that change `hazel-game/src/` without also
-updating `CLAUDE.md`, `docs/ISSUES.md`, and `docs/TEST-CASES.md` (see
-`CLAUDE.md` → *Pre-commit ritual*).
+updating this month's Feature Log (`docs/feature-log/<YYYY-MM>.md`),
+`docs/ISSUES.md`, and `docs/TEST-CASES.md` (see `CLAUDE.md` → *Workflow*). It
+also keeps `CLAUDE.md` under its line budget.
 
 ## Scripts
 
@@ -74,7 +75,7 @@ locally before pushing.
 2. **Apply the migrations.** Easiest: paste `supabase/apply_all_migrations.sql`
    into the SQL Editor and Run. It applies and records every migration, and is
    safe to re-run on a project that already has some or all of them. Or apply
-   the files in `supabase/migrations/` in order (0001 → 0009)
+   the files in `supabase/migrations/` in order (0001 → 0025)
    either with `supabase db push` or by pasting each one into the SQL Editor.
    If players' XP resets on refresh, the production DB is missing migrations;
    see `docs/PRODUCTION-DB-SETUP.md`.
@@ -86,7 +87,7 @@ locally before pushing.
    ```
 
    The function is one self-contained file on purpose, so it also deploys from
-   the dashboard (see `CLAUDE.md` → Conventions). Redeploy it whenever a topic
+   the dashboard (see `CLAUDE.md` → Rules that apply everywhere). Redeploy it whenever a topic
    is added.
 
    It only answers signed-in players, and migration 0009 adds a per-player
@@ -125,14 +126,17 @@ hazel-game/
 │   └── functions/generate-questions/   # Deno Edge Function → Claude API
 ├── tools/assets/              # deterministic Python generator for sprites, tiles, and audio
 ├── public/                    # generated art + audio
-└── docs/                      # design docs, story bible, roadmap, issues, test cases
+└── docs/                      # design docs, story bible, roadmap, issues, test cases, architecture/, feature-log/
 ```
 
 ## Documentation
 
 | Doc | Purpose |
 |---|---|
-| `CLAUDE.md` | Architecture, decisions, conventions, and the feature log. Start here. |
+| `CLAUDE.md` | The entry point Claude Code loads every session: stack, commands, the decisions and rules that apply everywhere, and a map of the docs. Start here. |
+| `docs/architecture/` | How each system works, one file per area (auth and family, state and saves, content, world, battle, typing, questions, backend and CI, errors, conventions) |
+| `docs/OPERATIONS.md` | Benches, Tiled maps, asset generation, the question-bank recheck, deploy order and Supabase settings |
+| `docs/feature-log/` | What changed, newest first, one file per month |
 | `docs/DESIGN-JRPG.md` | The JRPG design and target architecture |
 | `docs/ROADMAP-4X.md` | The expansion plan (Acts II–IV, companions, parent dashboard) |
 | `docs/STORY.md`, `docs/STORY-4X.md` | Story bible: cast, tone rules, story flags |
