@@ -3,7 +3,7 @@ import type { MiniGameId } from '../../content/minigames';
 import { retryableLazy, type RetryableLazy } from '../../lib/lazyRetry';
 import { PotionLabLogo, StepGuess, StepPour, StepStir } from './potionLab/art';
 import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
-import { GearsLogo, StepCrank, StepPeg, StepPick } from './gears/art';
+import { GearsLogo, StepCrank, StepJoin, StepPeg } from './gears/art';
 import type { PlayProps } from './types';
 
 /**
@@ -31,6 +31,6 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
   'clocktower-gears': {
     Play: retryableLazy(() => import('./gears/ClocktowerGears')),
     Logo: GearsLogo,
-    steps: [StepPick, StepPeg, StepCrank],
+    steps: [StepPeg, StepJoin, StepCrank],
   },
 };

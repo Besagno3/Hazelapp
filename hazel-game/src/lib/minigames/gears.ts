@@ -88,9 +88,12 @@ export type Run =
   | { kind: 'turns'; turn: Turn; between: number; speed: number; turning: ReadonlyMap<number, Turn> }
   /** The gears touching the crank turn, but they don't reach the machine. */
   | { kind: 'not-joined'; turning: ReadonlyMap<number, Turn> }
-  /** Two touching gears are pushed the same way: nothing can turn. */
-  | { kind: 'jammed'; stuck: readonly [number, number] }
-  /** No gear touches the crank. */
+  /**
+   * Two touching gears are pushed the same way: nothing can turn. `stuck` is
+   * them and any gear touching both — the three that all touch (review round 1).
+   */
+  | { kind: 'jammed'; stuck: readonly number[] }
+  /** No gear touches the crank: it turns on its own. */
   | { kind: 'empty' };
 
 const flip = (t: Turn): Turn => (t === 'cw' ? 'ccw' : 'cw');
@@ -116,7 +119,10 @@ export function run(b: Board, placed: ReadonlySet<number>, crank: number, machin
         turning.set(next, flip(way));
         depth.set(next, depth.get(at)! + 1);
         queue.push(next);
-      } else if (seen === way) return { kind: 'jammed', stuck: [at, next] };
+      } else if (seen === way) {
+        const third = [...placed].filter((k) => k !== at && k !== next && touching(b.pegs[k], b.pegs[at]) && touching(b.pegs[k], b.pegs[next]));
+        return { kind: 'jammed', stuck: [at, next, ...third] };
+      }
     }
   }
   const last = turning.get(b.exit);
@@ -164,23 +170,27 @@ export interface Job {
   speed?: number;
 }
 
-/** The boards, by band. Gentle's never make a ring (nothing can jam); the others offer routes of both lengths. */
+/**
+ * The boards, by band. Gentle's never make a ring (nothing can jam); the
+ * others offer routes of both lengths. More boards than jobs in a round, so
+ * a round's three aren't the same three every time (review round 1).
+ */
+const RINGS: readonly Board[] = [
+  board(['.ooo', 'EooX', '....']),
+  board(['....', 'EooX', '.ooo']),
+  board(['.oo.', 'EooX', '.oo.']),
+  board(['.ooo', 'EooX', '.ooo']),
+];
 const BOARDS: Record<Band, readonly Board[]> = {
   gentle: [
     board(['....', 'EooX', '....']),
     board(['.ooo', 'E..X', '....']),
     board(['....', 'Eo.X', '..oo']),
+    board(['.oo.', 'E.oX', '....']),
+    board(['....', 'E.oX', '.oo.']),
   ],
-  medium: [
-    board(['.ooo', 'EooX', '....']),
-    board(['....', 'EooX', '.ooo']),
-    board(['.oo.', 'EooX', '.oo.']),
-  ],
-  tricky: [
-    board(['.ooo', 'EooX', '....']),
-    board(['.oo.', 'EooX', '.oo.']),
-    board(['....', 'EooX', '.ooo']),
-  ],
+  medium: RINGS,
+  tricky: RINGS,
 };
 
 /** What each band asks for, in turn. */
@@ -193,8 +203,9 @@ const ASKS: Record<Band, readonly Ask[]> = {
     { turn: 'ccw', teeth: 16, speed: 1 / 2 },
     { turn: 'cw', teeth: 8, speed: 3 },
     { turn: 'ccw', teeth: 24, speed: 1 / 3 },
-    { turn: 'ccw', teeth: 8, speed: 2 },
+    { turn: 'ccw', teeth: 24, speed: 1 },
     { turn: 'cw', teeth: 16, speed: 1 / 2 },
+    { turn: 'ccw', teeth: 8, speed: 2 },
   ],
 };
 
@@ -229,7 +240,7 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Ma
   };
 }
 
-/** The crank's gear sizes a band offers (only Tricky changes it). */
+/** The crank's gear sizes a band offers (only Tricky changes it, and starts with none picked). */
 export const CRANK_TEETH: Record<Band, readonly Teeth[]> = { gentle: [16], medium: [16], tricky: TEETH };
 
 /** What a run did, against the job. */
@@ -247,7 +258,7 @@ export const turnWords = (t: Turn) => (t === 'cw' ? 'clockwise ↻' : 'anticlock
 /** "twice as fast", "half as fast", "the same speed". */
 export function speedWords(speed: number): string {
   const s = Math.round(speed * 1000) / 1000;
-  if (s === 1) return 'the same speed as the crank';
+  if (s === 1) return 'at the same speed as the crank';
   if (s === 2) return 'twice as fast as the crank';
   if (s === 3) return 'three times as fast as the crank';
   if (s === 1.5) return 'one and a half times as fast as the crank';
@@ -259,12 +270,17 @@ export function speedWords(speed: number): string {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** The job, as its ticket says it: "Make the Hour Bell turn clockwise ↻, twice as fast as the crank." */
+/**
+ * The job, as its ticket says it: "Make the Hour Bell turn clockwise ↻, twice
+ * as fast as the crank. Its gear has 8 teeth." — on Tricky the machine's
+ * teeth in words, as the speed is worked out from them (review round 1: only
+ * drawn, too small to count on a phone).
+ */
 export function jobWords(job: Job): string {
   const m = MACHINE_BY_ID[job.machine];
   if (!job.turn) return `Join the crank to ${m.name} so it turns.`;
   const way = `Make ${m.name} turn ${turnWords(job.turn)}`;
-  return job.speed === undefined ? `${way}.` : `${way}, ${speedWords(job.speed)}.`;
+  return job.speed === undefined ? `${way}.` : `${way}, ${speedWords(job.speed)}. Its gear has ${job.teeth} teeth.`;
 }
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
@@ -276,11 +292,11 @@ export function verdictWords(job: Job, r: Run, v: Verdict): string {
   const m = MACHINE_BY_ID[job.machine];
   switch (v) {
     case 'empty':
-      return 'Nothing turned — put a gear on the peg next to the crank first.';
+      return 'Only the crank turned — no gear touches it yet. Put a gear on the peg next to the crank.';
     case 'not-joined':
       return `The gears turned, but they don’t reach ${m.name} yet. Gears only turn each other when they touch.`;
     case 'jammed':
-      return 'Clunk — jammed! Three gears that all touch push each other both ways at once. Take one of the shaking gears out.';
+      return 'Clunk — jammed! Three gears that all touch push each other both ways at once. Take out one of the gears marked !';
     case 'wrong-way':
       return r.kind === 'turns'
         ? `${cap(m.name)} turned ${turnWords(r.turn)} — ${gears(r.between)} between. Try one gear more, or one fewer, on the way.`

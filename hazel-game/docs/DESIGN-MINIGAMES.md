@@ -211,13 +211,15 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Medium:** the machine must turn the right way (an odd or even chain).
 - **Tricky:** speed too: big and small gears (8, 16 and 24 teeth) to make it
   turn twice as fast or half as fast.
-- **Collection:** the Clocktower's machines brought back to life, nine of them.
+- **Collection:** the Clocktower's machines brought back to life, nine of them
+  (the Machine Book).
 - **Built (PR 3):** the pegs sit on a hex grid, so a gear touches up to six
   others and three that all touch jam (Medium and Tricky boards can; Gentle's
   can't). The tray is the crank's gear on Tricky (8, 16 or 24 teeth against
   the machine's): gears between change only the way round, never the speed.
-  Tock also gives a quest, so ⚙️ shows quietly over its offer; the first round
-  gives a Spark Cell.
+  Tricky's crank starts with no gear picked, and its ticket says the
+  machine's teeth. Tock also gives a quest, so ⚙️ shows quietly over its
+  offer; the first round gives a Spark Cell.
 
 ### 5.4 🪞 Mirror Mural — Creativity · Madame Hue, the Grand Gallery, Chromaria
 

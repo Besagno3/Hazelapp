@@ -1,6 +1,7 @@
 /**
  * Clocktower Gears' pictures (docs/DESIGN-MINIGAMES.md §2.1): a gear of any
- * size (`GearShape`), the title card's logo and its three "how to play" steps.
+ * size (`GearShape`), the title card's logo and its three "how to play" steps
+ * (tap a peg, join them up, turn the crank).
  * Loaded with the stage; the game itself loads when it's played
  * (`ClocktowerGears`).
  */
@@ -71,25 +72,7 @@ export function GearsLogo({ size = 104 }: { size?: number }) {
   );
 }
 
-/** Step 1: a tray of three gears, small to big. */
-export function StepPick() {
-  return (
-    <svg width="60" height="52" viewBox="0 0 240 200" aria-hidden="true">
-      <path d="M10 150 H230 L214 190 H26 Z" fill="#8a5a3b" stroke={INK} strokeWidth="9" strokeLinejoin="round" />
-      <g transform="translate(46 128)">
-        <GearShape teeth={8} r={24} spokes={false} />
-      </g>
-      <g transform="translate(108 112)">
-        <GearShape teeth={12} r={38} spokes={false} />
-      </g>
-      <g transform="translate(184 100)">
-        <GearShape teeth={16} r={48} spokes={false} />
-      </g>
-    </svg>
-  );
-}
-
-/** Step 2: a gear going onto a peg, beside one already there. */
+/** Step 1: a gear going onto a peg, beside one already there. */
 export function StepPeg() {
   return (
     <svg width="60" height="52" viewBox="0 0 240 200" aria-hidden="true">
@@ -99,6 +82,28 @@ export function StepPeg() {
       </g>
       <circle cx="170" cy="112" r="12" fill={STEEL} stroke={INK} strokeWidth="6" />
       <path d="M170 34 V72 M154 58 L170 74 L186 58" fill="none" stroke="#fcd34d" strokeWidth="12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Step 2: three gears in a chain, each turning the other way from the one before. */
+export function StepJoin() {
+  return (
+    <svg width="60" height="52" viewBox="0 0 240 200" aria-hidden="true">
+      {[48, 120, 192].map((x, i) => (
+        <g key={x}>
+          <g transform={`translate(${x} 110)`}>
+            <GearShape teeth={8} r={34} spokes={false} />
+          </g>
+          <path
+            d={i % 2 ? `M${x + 22} 52 A 26 26 0 0 0 ${x - 22} 52` : `M${x - 22} 52 A 26 26 0 0 1 ${x + 22} 52`}
+            fill="none"
+            stroke="#fcd34d"
+            strokeWidth="10"
+            strokeLinecap="round"
+          />
+        </g>
+      ))}
     </svg>
   );
 }

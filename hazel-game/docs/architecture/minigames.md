@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktower Gears.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -104,17 +104,26 @@ and each game — so far 🧪 Potion Lab.
   their own peg's gear at any size (`ends`, `radius`: teeth ÷ 32 pegs).
   `run` turns the crank clockwise: every gear it reaches turns the other way
   from the one turning it (a breadth-first walk), a gear pushed both ways is
-  `jammed` (its two gears marked), a train that stops short is
+  `jammed` (the two pushed the same way and any gear touching both — on
+  these boards always three that all touch — marked and shaken), a train
+  that stops short is
   `not-joined`, and the machine's speed is crank teeth ÷ machine teeth;
   `check` against the job (Gentle: just turn; Medium: `turn`; Tricky: `turn`
   and `speed`, the crank's gear picked from `CRANK_TEETH`), said back by
   `verdictWords` and taught by `learnedLine` ("Five gears between…: an odd
   number, so it turns the same way as the crank"). Gentle's boards can't
   jam; Medium's and Tricky's offer both ways round (tested by trying every
-  filling, `solve`). Each peg is an SVG `role="button"` (Enter / Space; a
-  drawn focus ring) named by row and place ("Middle row, peg 2: empty. Put a
-  gear on. It touches the crank."); a run spins what turned (`animate-spin`,
-  each gear's period from its teeth; reduced motion: still, with the arrows).
+  filling, `solve`); four or five boards a band, so a round's three change.
+  Tricky's crank starts with no gear (`Pick the crank's gear first`) and its
+  ticket says the machine's teeth. Each peg is an SVG `role="button"` (Enter /
+  Space, a held key once; a drawn focus ring) named by row and place, what it
+  touches and, after a run, what its gear did ("Middle row, peg 1: a gear,
+  turning anticlockwise ↺. Take it off. Touches the crank, top row peg 1 and
+  middle row peg 2."); focus starts on the crank's peg (the pegs come first
+  on the page) and a peg tapped keeps it. A run spins what turned for three
+  turns of the crank (`animate-spin`, each gear's period from its teeth;
+  reduced motion: still) with a bold arrow on each hub; before a run a dashed
+  arrow on the machine shows which way it must turn.
   On a phone the board stays at the top while the steps scroll; from `sm` up
   the Clocktower's room (the great clock, today's machine on its plate,
   stopped or running) is above it, and a short screen keeps just the board.

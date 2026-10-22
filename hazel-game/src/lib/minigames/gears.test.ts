@@ -68,11 +68,28 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
     expect(run(line, set(1, 2, 3), 16, 16)).toEqual({ kind: 'empty' });
   });
 
-  it('three gears that all touch jam', () => {
+  it('three gears that all touch jam, and all three are the stuck ones (review round 1)', () => {
     const b = board(['.oo.', 'EooX', '....']);
-    // Entry, the peg above-right of it and the one right of it all touch.
-    const ring = set(0, 1, 2, 3, 4, 5);
-    expect(run(b, ring, 16, 16).kind).toBe('jammed');
+    // Entry (2), the peg above-right of it (0) and the one right of it (3) all touch.
+    const r = run(b, set(0, 2, 3), 16, 16);
+    expect(r.kind).toBe('jammed');
+    if (r.kind !== 'jammed') return;
+    expect([...r.stuck].sort()).toEqual([0, 2, 3]);
+    for (const i of r.stuck) for (const k of r.stuck) if (i !== k) expect(touching(b.pegs[i], b.pegs[k])).toBe(true);
+  });
+
+  it('on every board, every jam has three stuck gears that all touch — so the words are true', () => {
+    for (const band of BANDS) {
+      for (const job of jobs(band)) {
+        for (const p of fillings(job.board)) {
+          const r = run(job.board, p, 16, 16);
+          if (r.kind !== 'jammed') continue;
+          expect(r.stuck.length, `${band}`).toBeGreaterThanOrEqual(3);
+          expect(new Set(r.stuck).size).toBe(r.stuck.length);
+          for (const i of r.stuck) expect(p.has(i)).toBe(true);
+        }
+      }
+    }
   });
 
   it('only the crank’s gear and the machine’s change the speed', () => {
@@ -133,6 +150,17 @@ describe('the jobs', () => {
     }
   });
 
+  it('a round’s boards change from round to round, and only Tricky changes the machine’s gear (review round 1)', () => {
+    for (const band of BANDS) {
+      const boards = (round: number) => [0, 1, 2].map((i) => jobFor(band, round, i).board);
+      expect(boards(1), band).not.toEqual(boards(0));
+    }
+    for (const band of ['gentle', 'medium'] as const) expect(jobs(band).every((j) => j.teeth === 16)).toBe(true);
+    // Every crank gear is the answer somewhere on Tricky.
+    const cranks = new Set(jobs('tricky').map((j) => solve(j)!.crank));
+    expect([...cranks].sort((a, b) => a - b)).toEqual([8, 16, 24]);
+  });
+
   it('Medium asks for both ways; Tricky for faster and slower', () => {
     const medium = jobs('medium');
     expect(new Set(medium.map((j) => j.turn))).toEqual(new Set(['cw', 'ccw']));
@@ -153,6 +181,7 @@ describe('the jobs', () => {
 
   it('a round brings machines not in the book first, so one round a visit still fills it', () => {
     expect(roundQueue(() => false, 0).slice(0, 3)).toEqual(['hands', 'bell', 'cuckoo']);
+    expect(roundQueue(() => false, 1).slice(0, 3)).toEqual(['vane', 'moon', 'drum']);
     const fixed = new Set<string>(['hands', 'bell', 'cuckoo']);
     expect(roundQueue((id) => fixed.has(id), 0).slice(0, 3)).toEqual(['vane', 'moon', 'drum']);
     for (let visit = 0; visit < 3; visit++) for (const id of roundQueue((id) => fixed.has(id), 0).slice(0, 3)) fixed.add(id);
@@ -174,8 +203,11 @@ describe('the words', () => {
   it('the ticket', () => {
     expect(jobWords(gentle)).toBe('Join the crank to the Great Hands so it turns.');
     expect(jobWords(medium)).toBe('Make the Great Hands turn clockwise ↻.');
-    expect(jobWords(tricky)).toBe('Make the Great Hands turn clockwise ↻, twice as fast as the crank.');
+    expect(jobWords(tricky)).toBe('Make the Great Hands turn clockwise ↻, twice as fast as the crank. Its gear has 8 teeth.');
     expect(speedWords(1 / 3)).toBe('a third as fast as the crank');
+    expect(speedWords(1 / 2)).toBe('half as fast as the crank');
+    // "turned at the same speed", never "turned the same speed" (review round 1).
+    expect(speedWords(1)).toBe('at the same speed as the crank');
   });
 
   it('a run that isn’t right says what happened, kindly', () => {
