@@ -226,18 +226,31 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   note, and one star's light-travel time — rounded, or "at least"); Gentle's
   four with a dotted outline, Medium's five with only the card, Tricky all
   nine on a sky turned (`TURNS`), the years on the card (`learnedLine`).
-  Each job (`jobFor`) adds faint extras, seeded, never near a picture star.
+  Every picture is the real sky's way round — turned, never mirrored
+  (`stars.test` checks three stars of each against their J2000 positions);
+  a turned one is said without "up" (`turnedLooks`, `looksWords`, and
+  `turnWords` for how far). Each job (`jobFor`) adds tiny extras, seeded,
+  clear of every star and every line drawn (`EXTRA_GAP`, `segmentGap`).
   Joining: tap a star, then one it's joined to (`isLine`, `lineKey`,
-  `joinWords`, kind either way); the last tapped stays picked; "Show me a
-  line" makes two glow. Medium's Little Dipper first finds the North Star:
-  the Big Dipper drawn below (`POINTER_GUIDE`), Merak then Dubhe
-  (`POINTERS`), then the arrow to Polaris. The sky is one pointer target:
-  a tap picks the nearest star within reach (`TAP_REACH`, 7% of the sky
-  but at least `TAP_REACH_PX` on a small one), so small stars
-  are easy to hit; from the keyboard one star is in the tab order and the
-  arrow keys move to the nearest that way; each star is said by where it is
-  (`placeWords`) and, once joined, its name. The sky's square is fitted to
-  its space (`useFitWidth`), the whole column up to 700 px high; what Vela
-  says is under it too (not live — her bubble is). The
+  `joinWords`, kind either way); the last tapped stays picked, and tapped
+  again stays picked; with every line from it joined, a tap on another
+  starts the next stroke; "Show me a line" makes two glow and picks the
+  first, from the star picked if it can. Medium's Little Dipper first finds
+  the North Star: the Big Dipper's bowl drawn top right (`POINTER_GUIDE`,
+  `GUIDE_BOWL`), Merak then Dubhe (`POINTERS`), then the arrow to Polaris
+  (`pointerArrow`). The sky is one pointer target, acting as the finger
+  lifts (a press that moves `SWIPE_PX` or is cancelled is the page
+  scrolling): a tap picks the nearest star within reach (`TAP_REACH`, 7% of
+  the sky but at least `TAP_REACH_PX` on a small one), so small stars are
+  easy to hit; from the keyboard one star is in the tab order (a picture's,
+  never one of the others) and the arrow keys move to the nearest that way;
+  each star is said by where it is (`placeWords`; alike ones numbered) and,
+  picked or joined, its name, written over the star where under it would
+  cover another. The step's card — the picture card, the lines joined, the
+  hint, what Vela said (not live — her bubble is) — is beside the sky on a
+  board held sideways (from 560 px, wider than 6∶5), under it upright; the
+  sky is sized to fit beside or over it (`useSkySize`: on a phone, the
+  screen's height under the header, the card's top kept in sight), the whole
+  column up to 700 px high. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

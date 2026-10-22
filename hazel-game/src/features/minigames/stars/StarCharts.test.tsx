@@ -80,6 +80,8 @@ describe('✨ the title card', () => {
 });
 
 describe('✨ Vela’s Star Charts, a round (docs/DESIGN-MINIGAMES.md §5.6)', () => {
+  const said = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
+
   it('Gentle: the outline shown; focus on the sky; joins said kindly; the picture whole → its card, the page; three, then the round', () => {
     const { onPage, onFinish } = play('gentle');
     const queue = roundQueue('gentle', () => false, 0);
@@ -87,75 +89,155 @@ describe('✨ Vela’s Star Charts, a round (docs/DESIGN-MINIGAMES.md §5.6)', (
     expect(job.picture).toBe('belt');
     const sky = screen.getByRole('group', { name: 'The sky' });
     expect(sky).toHaveAccessibleDescription('Join the three stars of Orion’s Belt along the dotted lines.');
-    expect(within(sky).getAllByRole('button').find((b) => b.tabIndex === 0)).toHaveFocus();
-    // The dotted outline is drawn.
+    // Focus on the sky itself; its star in the tab order is one of the picture's, never one of the others (UX review round 1).
+    expect(sky).toHaveFocus();
+    expect(within(sky).getAllByRole('button').find((b) => b.tabIndex === 0)).toHaveAttribute('data-star', 'alnitak');
+    // The dotted outline is drawn; what to do is in the card till Vela says something.
     expect(sky.querySelectorAll('line[stroke-dasharray]').length).toBe(2);
+    expect(screen.getByText('Tap a star, then the next along a dotted line — a line appears.')).toBeInTheDocument();
+    // No names till a star's picked or joined; stars said alike are numbered.
+    expect(star('alnitak')).toHaveAccessibleName('A star near the middle (1 of 3)');
 
-    // A star of the sky's others: not part of it — said by Vela, and under the sky.
+    // A star of the sky's others: not part of it — said by Vela, and in the card.
     press('extra-1');
-    expect(screen.getAllByText('That star isn’t part of Orion’s Belt — look for its brighter stars.')).toHaveLength(2);
-    // Two of its stars that aren't joined.
+    expect(screen.getAllByText('That tiny star isn’t part of Orion’s Belt — its stars are bigger. Look at the card!')).toHaveLength(2);
+    // A star picked: named, and what to tap next said (not Vela's opening again).
     press('alnitak');
     expect(star('alnitak')).toHaveAttribute('aria-pressed', 'true');
+    expect(star('alnitak')).toHaveAccessibleName('A star near the middle (1 of 3): Alnitak, picked');
+    expect(said()).toContain('Alnitak! Now tap the next star along a dotted line.');
+    // Two of its stars that aren't joined.
     press('mintaka');
     expect(screen.getAllByText('Alnitak and Mintaka are both in Orion’s Belt, but they aren’t joined. Look at the card again!')).toHaveLength(2);
     // The last star tapped stays picked: on to one it's joined to.
     expect(star('mintaka')).toHaveAttribute('aria-pressed', 'true');
     press('alnilam');
     expect(screen.getAllByText('Mintaka to Alnilam — joined!')).toHaveLength(2);
-    expect(star('alnilam')).toHaveAccessibleName(/^A star near the middle: Alnilam, picked, joined to one star$/);
+    expect(star('alnilam')).toHaveAccessibleName('A star near the middle (2 of 3): Alnilam, picked, joined to one star');
     expect(screen.getByText('1 of 2 lines joined')).toBeInTheDocument();
+    // A line joined again: said so, kindly.
+    press('mintaka');
+    expect(said()).toContain('Alnilam and Mintaka are joined already.');
+    press('alnilam');
     press('alnitak');
     const fact = screen.getByRole('heading', { name: 'Orion’s Belt!' });
     expect(fact).toHaveFocus();
     expect(fact).toHaveAccessibleDescription(`${learnedLine(job, 'gentle')} Orion’s Belt is on Vela’s chart!`);
     expect(onPage).toHaveBeenCalledWith('belt', 'Orion’s Belt');
-    // Vela cheers (the last join's words don't cover it), and under the sky is quiet.
-    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('There it is — just like the old star-watchers saw it! Ready for the next?');
+    // Vela cheers (the last join's words don't cover it), and the card says what she does.
+    expect(said()).toContain('There it is — just like the old star-watchers saw it! Ready for the next?');
     expect(screen.queryByText('Alnilam to Alnitak — joined!')).toBeNull();
+    // Done: the stars can't be pressed, and a press does nothing.
+    expect(star('alnitak')).toHaveAttribute('aria-disabled', 'true');
+    press('alnitak');
+    expect(screen.getByRole('heading', { name: 'Orion’s Belt!' })).toBeInTheDocument();
 
-    for (const i of [1, 2]) {
-      fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
-      joinAll(jobFor('gentle', 0, i, queue));
-    }
+    // The next picture starts afresh: Vela's opening, not the last join; its page said by its name.
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    expect(said()).toMatch(/^Vela.*Here’s the Summer Triangle: three bright stars making a big triangle, its point at the bottom\./);
+    joinAll(jobFor('gentle', 0, 1, queue));
+    expect(onPage).toHaveBeenLastCalledWith('triangle', 'Summer Triangle');
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    joinAll(jobFor('gentle', 0, 2, queue));
     fireEvent.click(screen.getByRole('button', { name: 'Finish the night' }));
     expect(onFinish).toHaveBeenCalledWith({ title: 'Three star pictures!', learned: learnedLine(jobFor('gentle', 0, 2, queue), 'gentle') });
   });
 
-  it('“Show me a line” makes two stars glow and names them', () => {
-    play('gentle');
-    fireEvent.click(screen.getByRole('button', { name: '💡 Show me a line' }));
-    expect(screen.getAllByText('Try Alnitak and Alnilam — they’re glowing.')).toHaveLength(2);
-    expect(star('alnitak')).toHaveAccessibleName(/, glowing$/);
-    expect(star('alnilam')).toHaveAccessibleName(/, glowing$/);
-    press('alnitak');
-    press('alnilam');
-    expect(star('alnitak')).not.toHaveAccessibleName(/glowing/);
+  it('a picture joined again (its page on the chart already) says its fact, not “on Vela’s chart”', () => {
+    const onPage = vi.fn(() => false);
+    render(<StarCharts def={MINIGAMES['star-charts']} band="gentle" round={0} onPage={onPage} onFinish={vi.fn()} />);
+    joinAll(jobFor('gentle', 0, 0));
+    expect(screen.getByRole('heading', { name: 'Orion’s Belt!' })).toHaveAccessibleDescription(learnedLine(jobFor('gentle', 0, 0), 'gentle'));
   });
 
-  it('a tap anywhere near a star picks it (they’re small to see, easy to hit); the arrow keys move between stars', () => {
+  it('“Show me a line” makes two stars glow, picks one and says which to tap; after a join, from the star picked', () => {
+    play('gentle');
+    fireEvent.click(screen.getByRole('button', { name: '💡 Show me a line' }));
+    expect(screen.getAllByText('Here’s one: Alnitak to Alnilam — they’re glowing. I’ve picked Alnitak: tap Alnilam!')).toHaveLength(2);
+    expect(star('alnitak')).toHaveAccessibleName(/: Alnitak, picked, glowing$/);
+    expect(star('alnilam')).toHaveAccessibleName(/, glowing$/);
+    press('alnilam');
+    expect(star('alnitak')).not.toHaveAccessibleName(/glowing/);
+    expect(screen.getByText('1 of 2 lines joined')).toBeInTheDocument();
+    // Alnilam picked: the next line shown is from it — and tapping it again keeps it picked (UX review round 1: it let go).
+    fireEvent.click(screen.getByRole('button', { name: '💡 Show me a line' }));
+    expect(said()).toContain('Here’s one: Alnilam to Mintaka — they’re glowing. Now tap Mintaka!');
+    press('alnilam');
+    expect(star('alnilam')).toHaveAttribute('aria-pressed', 'true');
+    expect(said()).toContain('You’ve picked Alnilam. Now tap Mintaka — it’s glowing.');
+    press('mintaka');
+    expect(screen.getByRole('heading', { name: 'Orion’s Belt!' })).toBeInTheDocument();
+  });
+
+  it('a picture of two strokes: every line from the star picked joined, a tap on another starts the next (not “aren’t joined”)', () => {
+    play('gentle');
+    for (const i of [0, 1]) {
+      joinAll(jobFor('gentle', 0, i));
+      fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    }
+    expect(jobFor('gentle', 0, 2).picture).toBe('crux');
+    press('gacrux');
+    press('acrux');
+    expect(said()).toContain('Gacrux to Acrux — joined!');
+    press('mimosa');
+    expect(star('mimosa')).toHaveAttribute('aria-pressed', 'true');
+    expect(said()).toContain('Mimosa! Now tap the next star along a dotted line.');
+    press('imai');
+    expect(screen.getByRole('heading', { name: 'Southern Cross!' })).toBeInTheDocument();
+  });
+
+  it('a tap picks the nearest star as the finger lifts — a swipe (scrolling) or a cancelled one taps nothing; the arrow keys move between stars', () => {
     play('gentle');
     const sky = screen.getByRole('group', { name: 'The sky' });
     const size = (px: number) => (sky.getBoundingClientRect = () => ({ left: 0, top: 0, width: px, height: px, right: px, bottom: px, x: 0, y: 0, toJSON() {} }) as DOMRect);
+    const tapAt = (x: number, y: number, button = 0) => {
+      fireEvent.pointerDown(sky, { clientX: x, clientY: y, button });
+      fireEvent.pointerUp(sky, { clientX: x, clientY: y, button });
+    };
     size(400);
     const { x, y } = PICTURE_BY_ID.belt.stars.find((s) => s.id === 'alnilam')!;
+    // Pressed, not yet lifted: nothing yet.
     fireEvent.pointerDown(sky, { clientX: (x + 4) * 4, clientY: (y - 3) * 4, button: 0 });
-    expect(star('alnilam')).toHaveAttribute('aria-pressed', 'true');
-    // Far from any star: nothing.
-    fireEvent.pointerDown(sky, { clientX: 2 * 4, clientY: 98 * 4, button: 0 });
-    expect(star('alnilam')).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.pointerDown(sky, { clientX: x * 4, clientY: y * 4, button: 0 });
     expect(star('alnilam')).toHaveAttribute('aria-pressed', 'false');
-    // On a small sky a tap reaches a little further (22 px, more than 7% of 150): Mintaka, 18 px off.
-    size(150);
+    fireEvent.pointerUp(sky, { clientX: (x + 4) * 4, clientY: (y - 3) * 4, button: 0 });
+    expect(star('alnilam')).toHaveAttribute('aria-pressed', 'true');
+    // The click a tap brings on the star under it (detail 1) is the sky's tap already: not a second.
+    fireEvent.click(star('alnilam'), { detail: 1 });
+    expect(said()).toContain('Alnilam! Now tap');
+    // Far from any star, or a right button: nothing.
+    tapAt(2 * 4, 98 * 4);
+    tapAt(x * 4, y * 4, 2);
+    expect(said()).toContain('Alnilam! Now tap');
+    // Tapped again, it stays picked (UX review round 1).
+    tapAt(x * 4, y * 4);
+    expect(star('alnilam')).toHaveAttribute('aria-pressed', 'true');
+    expect(said()).toContain('You’ve picked Alnilam. Now tap the next star along a dotted line.');
+    // A swipe that starts on a star scrolls the page: no tap (UX review round 1, code review round 1).
     const m = PICTURE_BY_ID.belt.stars.find((s) => s.id === 'mintaka')!;
-    fireEvent.pointerDown(sky, { clientX: m.x * 1.5 + 18, clientY: m.y * 1.5, button: 0 });
+    fireEvent.pointerDown(sky, { clientX: m.x * 4, clientY: m.y * 4, button: 0 });
+    fireEvent.pointerMove(sky, { clientX: m.x * 4, clientY: m.y * 4 - 30, button: 0 });
+    fireEvent.pointerUp(sky, { clientX: m.x * 4, clientY: m.y * 4 - 30, button: 0 });
+    fireEvent.pointerDown(sky, { clientX: m.x * 4, clientY: m.y * 4, button: 0 });
+    fireEvent.pointerCancel(sky, { clientX: m.x * 4, clientY: m.y * 4 });
+    fireEvent.pointerUp(sky, { clientX: m.x * 4, clientY: m.y * 4, button: 0 });
+    expect(screen.getByText('0 of 2 lines joined')).toBeInTheDocument();
+    // A tap's reach: 7% of the sky, and on a small one at least 22 px (Mintaka, 18 px off on 150).
+    tapAt(m.x * 4 + 30, m.y * 4);
+    expect(star('mintaka')).toHaveAttribute('aria-pressed', 'false');
+    size(150);
+    tapAt(m.x * 1.5 + 18, m.y * 1.5);
     expect(star('mintaka')).toHaveAttribute('aria-pressed', 'true');
-    // The keyboard: right from Alnitak goes to Alnilam.
+    // The keyboard: right from Alnitak goes to Alnilam; up goes to a star higher, down to one lower.
     star('alnitak').focus();
     fireEvent.keyDown(star('alnitak'), { key: 'ArrowRight' });
     expect(star('alnilam')).toHaveFocus();
     expect(star('alnilam')).toHaveAttribute('tabindex', '0');
+    const top = (el: Element | null) => parseFloat((el as HTMLElement).style.top);
+    fireEvent.keyDown(star('alnilam'), { key: 'ArrowUp' });
+    const up = document.activeElement;
+    expect(top(up)).toBeLessThan(top(star('alnilam')));
+    fireEvent.keyDown(up!, { key: 'ArrowDown' });
+    expect(top(document.activeElement)).toBeGreaterThan(top(up));
   });
 
   it('Medium: no outline; the Little Dipper starts with the North Star, found from the Big Dipper’s pointers', async () => {
@@ -167,13 +249,22 @@ describe('✨ Vela’s Star Charts, a round (docs/DESIGN-MINIGAMES.md §5.6)', (
     joinAll(first);
     fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
     expect(jobFor('medium', 0, 1, queue).picture).toBe('little-dipper');
-    expect(screen.getAllByRole('heading', { name: 'Find the North Star' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Find the North Star' })).toBeInTheDocument();
+    // What to tap, in Vela's opening (UX review round 1: only in the card, far down on a phone).
+    expect(said()).toContain('tap Merak, then Dubhe');
     expect(star('merak-g')).toHaveAccessibleName(/: Merak$/);
     press('dubhe-g');
     expect(screen.getAllByText(/^Not that one: Merak is the bottom star/)).toHaveLength(2);
+    // The North Star tapped before the pointers: it is that — find it their way.
+    press('polaris');
+    expect(said()).toContain('That’s the North Star! Now find it the star-watchers’ way');
+    expect(screen.getByText('Pointer stars: 0 of 2')).toBeInTheDocument();
     press('merak-g');
+    // No arrow till both pointers are tapped.
+    expect(document.querySelector('polygon')).toBeNull();
     press('dubhe-g');
     expect(screen.getAllByText(/^Dubhe! The two of them point the way/)).toHaveLength(2);
+    expect(document.querySelector('polygon')).not.toBeNull();
     press('kochab');
     expect(screen.getAllByText(/^Follow the arrow from Merak through Dubhe/)).toHaveLength(2);
     press('polaris');
@@ -185,13 +276,22 @@ describe('✨ Vela’s Star Charts, a round (docs/DESIGN-MINIGAMES.md §5.6)', (
     expect(screen.getByRole('heading', { name: 'Little Dipper!' })).toBeInTheDocument();
   });
 
+  it('Medium: a round that starts with the Little Dipper starts with the hunt', () => {
+    setUp(5, { [pageFlag('star-charts', 'big-dipper')]: true });
+    play('medium');
+    expect(screen.getByRole('heading', { name: 'Find the North Star' })).toBeInTheDocument();
+    expect(screen.getByText('Pointer stars: 0 of 2')).toBeInTheDocument();
+  });
+
   it('Tricky: the sky turned, and the card says how long the light took', () => {
     setUp(9);
     play('tricky');
     const queue = roundQueue('tricky', () => false, 0);
     const job = jobFor('tricky', 0, 0, queue);
     expect(job.turn).not.toBe(0);
-    expect(screen.getByRole('group', { name: 'The sky' })).toHaveAccessibleDescription(/the sky has turned/);
+    expect(screen.getByRole('group', { name: 'The sky' })).toHaveAccessibleDescription(/the sky has turned, so it’s on its side\./);
+    // What it looks like, said without "up" (code review round 1: "slanting up to the right", on its side).
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Find Orion’s Belt — three stars in a short straight line. Tap a star');
     joinAll(job);
     expect(screen.getByRole('heading', { name: 'Orion’s Belt!' })).toHaveAccessibleDescription(/The light you see from Alnilam left it at least 1,000 years ago\./);
   });

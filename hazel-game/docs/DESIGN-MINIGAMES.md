@@ -291,7 +291,10 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   pages are those pictures (the Summer Triangle and Orion's Belt are
   asterisms, not constellations — the card says so for the Triangle). Vela
   has no quest, so ✨ is her gold offer; the first round gives a Glimmer
-  Candle.
+  Candle. Review round 1: every picture is drawn the real sky's way round
+  (turned, never mirrored — Cassiopeia, Leo and the hunt's Big Dipper were
+  mirrored); Tricky says how far the sky has turned; the picture's stars are
+  bigger than the sky's others; the step's card sits by the sky.
 
 ### 5.7 🌳 Ringwood's Rings — Nature · Old Ringwood, Eldergrove
 
