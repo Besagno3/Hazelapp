@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears and 🪞 Mirror Mural.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural and 🎵 Echo's Call.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -185,6 +185,28 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   in it; the focus ring is drawn over it. On a tall enough screen Madame
   Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
   Clocktower Gears' board). The room above (this round's three frames) from
-  `sm` up. The
+  `sm` up. **🎵 Echo's Call** (`chromaria-musician`, Bard Lyra, Chromaria —
+  she gives a quest too; `lib/minigames/echo.ts`, `features/minigames/echo/`):
+  pitch, melody and reading notes — five chimes, C D E F G low to high, each
+  its colour, letter and name (`CHIME`), long to short. Three tunes a round,
+  each a note longer (`echoFor`, `roundQueue`: those not in the Songbook
+  first, only those the band can play): the openings of eight old tunes
+  (`TUNES`, all public domain). Gentle has three chimes (C D E, five tunes)
+  and 2–4 notes; Medium all five and 4–6; Tricky 5–7, read from a staff
+  (`staff`) or listened to with one note Lyra plays wrong (`wrong`, a step
+  off) and found on the staff. Each echo: Lyra plays it — each chime lights
+  as it rings, and once she's done what she played is said for a reader —
+  then "did it end higher, lower or the same?" (`shape`, said kindly either
+  way), then the kid plays it back: a wrong chime says where the right one
+  is (`judge`, `tapWords`) and nothing's lost; the last note pays the page.
+  The staff's notes are said by their place, not their name (reading is the
+  job). The chimes ring through `lib/tones.ts` (`playTone`: a Web Audio bell
+  at any pitch, following the sound-effects setting — off by default — so
+  the game works silent, and has a "Chime sounds" switch for that setting);
+  the stage plays no music for it (`music: null`). Two columns only on the
+  `split` screen (`tailwind.config.js`: 768 px wide, or a phone on its side
+  from 640) — narrower tall windows stack like a phone, the step card under
+  the chimes so it growing never moves one. A step's buttons wait as it
+  starts (`useSettled`); a held Enter rings a chime once. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

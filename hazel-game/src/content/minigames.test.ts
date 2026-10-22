@@ -29,7 +29,7 @@ describe('the mini-games registry (docs/DESIGN-MINIGAMES.md §4)', () => {
     for (const id of MINIGAME_IDS) {
       const g = MINIGAMES[id];
       expect(topicInfo(g.topic)).toBeDefined();
-      expect(MUSIC_SOURCES[g.music]).toBeDefined();
+      if (g.music) expect(MUSIC_SOURCES[g.music]).toBeDefined();
       if (g.firstItem) expect(CONSUMABLE_IDS).toContain(g.firstItem);
       expect(g.backdrop).toMatch(/^\/backgrounds\/[a-z-]+\.png$/);
       expect(g.steps).toHaveLength(3);
