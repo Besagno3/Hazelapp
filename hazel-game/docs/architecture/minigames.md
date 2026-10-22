@@ -28,7 +28,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   the map's toasts, sets `openedFlag` (📜
   Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
   `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
-  when a round is done; `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
+  when a round is done (a game with something just for fun before the reward
+  — Mirror Mural's free canvas — calls `onClaim()` as the round is earned: it
+  pays then, once, so leaving by 🗺️ Map keeps it, and `onFinish` only shows
+  the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
   saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
   `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
@@ -141,23 +144,36 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   `lib/minigames/mural.ts`, `features/minigames/mural/`): symmetry and colour
   mixing — three pictures a round (`jobFor`, `roundQueue`: those not in the
   Gallery first). Nine 6×6 patterns (`PATTERNS`, each the same across and
-  down so every mirror fits, drawn in two colour slots); a job's `kind` says
-  how the given part makes the rest (`source`, `given`): `across` (Gentle,
-  Medium), `down` (Medium), `four`, `turn` (rotational) and `opposite` (each
-  colour's opposite, `OPPOSITE`; Tricky). The kid mixes the paint first from
-  two pots (`mix`, `recipe`; Tricky has white for tints — paint, not light),
-  a wrong pair said kindly (`mixWords`); then paints (tap, a drag across the
-  squares — pointer events with `elementFromPoint`, `touch-none` on the canvas
-  — or the arrow keys between the kid's squares, one in the tab order, and
-  Enter), each square named by place, colour and the square it copies; the
-  mirror (`mismatches`, `checkWords`) marks what doesn't match yet, cleared as
-  it's repainted. After the third picture, a free canvas: the left half
-  painted, the right mirrored live (`mirrored`); "Hang it in the Gallery"
-  keeps it in the save as one flag whose name holds its code
-  (`mineFlag(id, encodeMine(grid))`, the old one dropped — §3.5; the whole
-  copy wins between devices, so flags aren't merged), shown under the
-  Gallery. The canvas and its paints and mirror button sit together (beside
-  it on a short screen, `useCanvasSize`); the room above (this round's three
-  frames) from `sm` up. The
+  down so every mirror fits, drawn in two colour slots — never two a
+  colour-blind eye mixes up, but opposites); a job's `kind` says how the
+  given part makes the rest (`source`, `given`): `across` (Gentle, Medium),
+  `down` (Medium), `four`, `turn` (rotational: its top-right quarter's
+  colours swap, a pinwheel, or the top half flipped down would match too)
+  and `opposite` (each colour's opposite, `OPPOSITE`; Tricky — its paints
+  come in their pairs, side by side). Every painted square and paint shows
+  its colour's letter (`GLYPH`), the kid's bare squares are outlined. The
+  kid mixes the paint first from two pots (`mix`, `recipe`; Tricky has white
+  for tints — paint, not light), a wrong pair said kindly (`mixWords`, in
+  the step's status; Madame Hue's line stays put); then paints (tap, a drag
+  across the squares — pointer events with `elementFromPoint`, the main
+  button and one pointer by id, `touch-none` on the canvas — or the arrow
+  keys between the kid's squares, one in the tab order, and Enter), each
+  square named by place, colour and the square it copies; the mirror
+  (`mismatches`, `checkWords`) marks on the canvas what doesn't match yet,
+  focus on the first marked, and painting goes on — each mark cleared as
+  it's repainted; a perfect match pays the page and, the third, the round
+  (`onClaim`). Then a free canvas: the left half painted, the right
+  mirrored live and hatched (`mirrored`); "Hang it in the Gallery" keeps it
+  in the save as one flag whose name holds its code (`mineFlag(id,
+  encodeMine(grid))`, the old one dropped — §3.5; the whole copy wins
+  between devices, so flags aren't merged), shown under the Gallery; this
+  round's pictures show there, and on the wall, in the kid's colours. From
+  `sm` up `useCanvasSize` sizes the canvas with its paints and the mirror
+  measured: beside it (a column at least `BESIDE_PX` wide, compact paints on
+  a short screen) on a short screen or wherever the canvas stays nearly as
+  tall as its space, else under it at their real height — kept in place,
+  unseen, while mixing and after a match so the canvas never changes size;
+  on a phone the mirror's rule sits over the canvas. The room above (this
+  round's three frames) from `sm` up. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

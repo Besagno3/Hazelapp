@@ -215,7 +215,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
           <div className={cn('grid gap-2', counterCols)}>{jarButtons(false)}</div>
         </div>
 
-        <aside className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
+        <aside aria-label={`The job and the ${def.collection}`} className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
           <HostBubble npcId={def.host} line={line} phoneStrip />
           {/* On a phone the ticket follows the step card (Tadpole's line says the order too), so the jars come up sooner. */}
           <div className="order-1 sm:order-none">

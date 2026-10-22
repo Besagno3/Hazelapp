@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  COLOURS,
   FREE_PALETTE,
+  GLYPH,
   HEX,
   JOBS_PER_ROUND,
   NAME,
@@ -16,6 +18,7 @@ import {
   jobFor,
   jobWords,
   learnedLine,
+  mirrorWords,
   mirrored,
   mismatches,
   mix,
@@ -52,9 +55,11 @@ describe('paint (docs/DESIGN-MINIGAMES.md §5.4)', () => {
     for (const [a, b] of Object.entries(OPPOSITE)) expect(OPPOSITE[b!]).toBe(a);
   });
 
-  it('every colour has a name and a paint', () => {
+  it('every colour has a name, a paint and its own letter', () => {
     for (const c of Object.keys(HEX)) expect(NAME[c as keyof typeof NAME]).toBeTruthy();
     expect(NAME.sky).toBe('sky blue');
+    expect(new Set(COLOURS.map((c) => GLYPH[c])).size).toBe(COLOURS.length);
+    expect(GLYPH.purple).toBe('P');
   });
 });
 
@@ -62,6 +67,9 @@ describe('mirrors', () => {
   it('each kind copies the right square', () => {
     expect(source('across', 2, 4)).toEqual([2, 1]);
     expect(source('down', 4, 2)).toEqual([1, 2]);
+    expect(source('down', 3, 2)).toEqual([2, 2]);
+    expect(source('down', 5, 0)).toEqual([0, 0]);
+    expect(source('down', 1, 4)).toEqual([1, 4]);
     expect(source('four', 5, 5)).toEqual([0, 0]);
     expect(source('four', 4, 1)).toEqual([1, 1]);
     expect(source('turn', 5, 5)).toEqual([0, 0]);
@@ -125,6 +133,43 @@ describe('the jobs', () => {
     }
   });
 
+  it('a mirror down: the bottom row is the top one, the row under the line the one over it', () => {
+    const down = jobs('medium').find((j) => j.kind === 'down')!;
+    expect(down.goal[5]).toEqual(down.goal[0]);
+    expect(down.goal[3]).toEqual(down.goal[2]);
+    expect(down.goal[4]).toEqual(down.goal[1]);
+  });
+
+  it('a half turn isn’t the top half flipped down: a pinwheel, the same after half a turn only', () => {
+    const turns = BANDS.flatMap((b) => jobs(b)).filter((j) => j.kind === 'turn');
+    expect(turns.length).toBeGreaterThan(0);
+    for (const job of turns) {
+      const flipped = toPaint('turn').some(([r, c]) => job.goal[r][c] !== job.goal[SIZE - 1 - r][c]);
+      expect(flipped, job.pattern).toBe(true);
+      for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) expect(job.goal[r][c]).toBe(job.goal[SIZE - 1 - r][SIZE - 1 - c]);
+    }
+  });
+
+  it('a picture’s two colours are never a pair a colour-blind eye mixes up (but opposites, where that’s the lesson)', () => {
+    const muddled = [new Set(['purple', 'blue']), new Set(['red', 'green'])];
+    for (const band of BANDS) {
+      for (const job of jobs(band)) {
+        if (job.kind === 'opposite') continue;
+        const two = new Set(job.goal.flat().filter(Boolean));
+        expect(two.size).toBe(2);
+        for (const m of muddled) expect([...two].every((c) => m.has(c!)), `${band} ${job.pattern}`).toBe(false);
+      }
+    }
+  });
+
+  it('each band asks in turn: Medium across then down; Tricky four ways, a half turn, opposites', () => {
+    expect([0, 1, 2, 3, 4].map((k) => jobFor('medium', 0, k).kind)).toEqual(['across', 'down', 'across', 'down', 'across']);
+    expect([0, 1, 2].map((k) => jobFor('tricky', 0, k).kind)).toEqual(['four', 'turn', 'opposite']);
+    expect(jobFor('tricky', 1, 0).kind).toBe('four');
+    expect(new Set(jobs('gentle').map((j) => j.palette[1])).size).toBeGreaterThan(1);
+    expect(new Set(jobs('tricky').map((j) => j.mixColour)).size).toBeGreaterThan(2);
+  });
+
   it('an opposite mirror’s palette is the whole colour wheel', () => {
     const opp = jobs('tricky').find((j) => j.kind === 'opposite')!;
     expect([...opp.palette].sort()).toEqual(['blue', 'green', 'orange', 'purple', 'red', 'yellow']);
@@ -151,6 +196,11 @@ describe('the check and the words', () => {
     const s = start(job);
     expect(mismatches(job, s).length).toBeGreaterThan(0);
     expect(mismatches(job, job.goal)).toEqual([]);
+    // A wrong paint doesn't match either.
+    const wrong = job.goal.map((row) => [...row]);
+    const [wr, wc] = toPaint(job.kind).find(([rr, cc]) => job.goal[rr][cc] === 'purple')!;
+    wrong[wr][wc] = 'red';
+    expect(mismatches(job, wrong)).toEqual([[wr, wc]]);
     expect(checkWords(job, job.goal)).toBe('A perfect match!');
     const one = job.goal.map((row) => [...row]);
     const [r, c] = toPaint(job.kind).find(([rr, cc]) => job.goal[rr][cc])!;
@@ -169,6 +219,9 @@ describe('the check and the words', () => {
     expect(mixWords('blue', 'white', 'sky')).toBe('Blue and white make sky blue!');
     expect(learnedLine(job)).toBe('Red and blue make purple; a mirror line down the middle makes the right half the left half flipped.');
     expect(learnedLine(jobs('tricky').find((j) => j.kind === 'turn')!)).toMatch(/rotational symmetry\.$/);
+    const opp = jobs('tricky').find((j) => j.kind === 'opposite')!;
+    expect(learnedLine(opp)).toMatch(/; opposite colours sit across the colour wheel: red and green, yellow and purple, blue and orange\.$/);
+    expect(mirrorWords('down')).toBe('Paint the bottom half as the top half’s mirror.');
   });
 });
 
@@ -180,6 +233,8 @@ describe('the kid’s own picture', () => {
     expect(decodeMine(code)).toEqual(mirrored(pic));
     expect(decodeMine('nope')).toBeNull();
     expect(decodeMine('x'.repeat(18))).toBeNull();
+    expect(decodeMine('r'.repeat(17))).toBeNull();
+    expect(decodeMine('r'.repeat(19))).toBeNull();
     expect(decodeMine('-'.repeat(18))!.flat().every((v) => v === null)).toBe(true);
   });
 

@@ -39,6 +39,13 @@ export const HEX: Record<Colour, string> = {
 /** How a colour is said: "sky blue", "purple". */
 export const NAME: Record<Colour, string> = { ...(Object.fromEntries(COLOURS.map((c) => [c, c])) as Record<Colour, string>), sky: 'sky blue' };
 
+/**
+ * A colour's letter, drawn on every square painted with it and on its paint
+ * (review round 1): the picture reads without telling colours apart — purple
+ * from blue, red from green, cream from bare wall.
+ */
+export const GLYPH: Record<Colour, string> = { red: 'R', yellow: 'Y', blue: 'B', white: 'W', orange: 'O', green: 'G', purple: 'P', pink: 'Pk', sky: 'Sk', cream: 'Cr', brown: 'Br' };
+
 /** The pots a kid mixes from, by band. */
 export type Pot = 'red' | 'yellow' | 'blue' | 'white';
 export const POTS: Record<Band, readonly Pot[]> = {
@@ -162,19 +169,23 @@ export interface Job {
 }
 
 type Ask = { kind: Kind; a: Colour; b: Colour };
-/** What each band asks for, in turn: the kind of mirror and the picture's two colours. */
+/**
+ * What each band asks for, in turn: the kind of mirror and the picture's two
+ * colours — never two a colour-blind eye mixes up (purple and blue, red and
+ * green: review round 1), except where opposites are the lesson.
+ */
 const ASKS: Record<Band, readonly Ask[]> = {
   gentle: [
     { kind: 'across', a: 'purple', b: 'red' },
-    { kind: 'across', a: 'purple', b: 'blue' },
+    { kind: 'across', a: 'purple', b: 'orange' },
     { kind: 'across', a: 'purple', b: 'yellow' },
     { kind: 'across', a: 'purple', b: 'red' },
   ],
   medium: [
     { kind: 'across', a: 'orange', b: 'blue' },
-    { kind: 'down', a: 'green', b: 'red' },
+    { kind: 'down', a: 'green', b: 'yellow' },
     { kind: 'across', a: 'purple', b: 'yellow' },
-    { kind: 'down', a: 'orange', b: 'red' },
+    { kind: 'down', a: 'orange', b: 'purple' },
     { kind: 'across', a: 'green', b: 'blue' },
   ],
   tricky: [
@@ -209,7 +220,11 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Pa
   const slot = round * JOBS_PER_ROUND + i;
   const ask = ASKS[band][slot % ASKS[band].length];
   const pattern = queue?.[i] ?? PATTERN_IDS[slot % PATTERN_IDS.length];
-  const base = paint(PATTERN_BY_ID[pattern], ask.a, ask.b);
+  // Every pattern is its own mirror, so a half turn of one is the top half flipped down too (review round 1): for a
+  // turn, the top-right quarter's two colours swap — a pinwheel, the same after half a turn but not in a mirror.
+  const base = paint(PATTERN_BY_ID[pattern], ask.a, ask.b).map((row, r) =>
+    row.map((v, c) => (ask.kind === 'turn' && r < HALF && c >= HALF && v ? (v === ask.a ? ask.b : ask.a) : v)),
+  );
   const goal = base.map((row, r) =>
     row.map((_, c) => {
       const [sr, sc] = source(ask.kind, r, c);
@@ -253,6 +268,11 @@ const MIRROR_WORDS: Record<Kind, string> = {
   turn: 'Turn it half round: paint the bottom half as the top half upside down.',
   opposite: 'Paint the right half as the left half’s mirror — in each colour’s opposite.',
 };
+
+/** How a kind of mirror is said: "Paint the right half as the left half’s mirror." */
+export function mirrorWords(kind: Kind): string {
+  return MIRROR_WORDS[kind];
+}
 
 /** The job, as its ticket says it. */
 export function jobWords(job: Job): string {

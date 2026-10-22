@@ -238,6 +238,13 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   them or the arrow keys and Enter. The kid's picture is kept as the name of
   one save flag (its code), so no save bump. Madame Hue also gives a quest,
   so 🪞 shows quietly over its offer; the first round gives a Mirror Charm.
+  After review round 1: a half turn's picture is a pinwheel (the top-right
+  quarter's colours swap), so the top half flipped down doesn't match it;
+  every painted square and paint shows its colour's letter, and a picture's
+  two colours are never a pair a colour-blind eye mixes up (but opposites);
+  the mirror's marks stay on the canvas to fix there and then; an opposite
+  mirror's paints come in their pairs, side by side; the round is paid as the
+  third picture matches, so the free canvas is just for fun.
 
 ### 5.5 🎵 Echo's Call — Music · Bard Lyra, the Music House, Chromaria
 

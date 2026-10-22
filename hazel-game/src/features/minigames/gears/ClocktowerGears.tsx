@@ -252,7 +252,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
           </div>
         </section>
 
-        <aside className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
+        <aside aria-label={`The job and the ${def.collection}`} className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
           <HostBubble npcId={def.host} line={line} phoneStrip />
           <div className="order-1 sm:order-none">
             <Ticket heading={`FIX ${machine.short.toUpperCase()}`} ready={right} icon={<MachineBadge id={job.machine} />} id="cg-job">
