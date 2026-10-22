@@ -98,6 +98,11 @@ export function playerTwoSeat(two: PlayerTwo, one: Seat, topic: Topic): Seat {
   return { name: two.name, icon: kidIcon(two.icon), kid: two.id, age, skillLevel: skillLevelFor(two.skillLevels, topic, age) };
 }
 
+/** Player 2's name and emoji, for the screen. */
+export function playerTwoLook(two: PlayerTwo): { name: string; icon: string } {
+  return two.kind === 'guest' ? { name: guestName(two.name), icon: GUEST_ICON } : { name: two.name, icon: kidIcon(two.icon) };
+}
+
 /** The family's kids who can be Player 2: everyone but the kid playing. */
 export function playerTwoChoices(kids: Kid[], activeKidId: string | null): Kid[] {
   return kids.filter((k) => k.id !== activeKidId);

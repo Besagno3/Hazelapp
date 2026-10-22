@@ -32,6 +32,7 @@ export function BattleResult({
   boatLine = null,
   bonus = null,
   holdRule = true,
+  team = null,
   onClaimBonus,
   onLeave,
 }: {
@@ -71,6 +72,8 @@ export function BattleResult({
   bonus?: Bonus | null;
   /** The home-row hold, as the player has it set. */
   holdRule?: boolean;
+  /** A co-op battle (#178): each player's right answers, the kid playing first (`correctCount` is theirs alone). */
+  team?: { name: string; icon: string; right: number }[] | null;
   onClaimBonus?: (bonus: Bonus) => void;
   onLeave: () => void;
 }) {
@@ -140,6 +143,12 @@ export function BattleResult({
               a critter that eases off says so in the battle itself (#114). */}
           {tip && !boatLine && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
+      )}
+      {team && (
+        <p className="text-sm text-sky-100 font-semibold mt-2" data-testid="team-line">
+          <span aria-hidden>🤝 </span>
+          {team.map((p) => `${p.icon} ${p.name} ${p.right} right`).join(' · ')}
+        </p>
       )}
       <button
         onClick={onLeave}

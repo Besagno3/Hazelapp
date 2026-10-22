@@ -17,6 +17,9 @@ import { useProfileStore } from '../store/profileStore';
 import type { Question, QuestionSeat, Topic } from '../types';
 import type { FlavorId } from '../../supabase/functions/_shared/flavors';
 
+/** An `off` pool's questions: always the same empty list. */
+const NO_QUESTIONS: Question[] = [];
+
 /** A battle's pool, tagged with the request it belongs to. */
 interface Pool {
   key: string;
@@ -42,14 +45,15 @@ interface Pool {
  * the round (`covered`), so nothing was written for it — the round's end then
  * asks for the next one's the normal way, ~1 fresh (`warmNextRound`, #30).
  * With `seat` the pool is for someone else (`QuestionSeat`, #177): a duel's
- * Player 2.
+ * or a co-op battle's Player 2. `off`: no pool at all, nothing asked for (a
+ * battle's Player 2 pools when nobody plays beside the hero, #178).
  */
 export function useBattleQuestions(
   topic: Topic,
   count: number,
   levelOverride?: number,
   flavor?: FlavorId,
-  { carry = false, seat }: { carry?: boolean; seat?: QuestionSeat } = {},
+  { carry = false, seat, off = false }: { carry?: boolean; seat?: QuestionSeat; off?: boolean } = {},
 ) {
   const profile = useProfileStore((s) => s.profile);
   const age = seat?.age ?? playerAge(profile);
@@ -57,12 +61,13 @@ export function useBattleQuestions(
   const seatKid = seat?.kid ?? null;
 
   const [attempt, setAttempt] = useState(0);
-  const requestKey = `${seatKid ?? ''}|${topic}|${age}|${skillLevel}|${count}|${attempt}`;
+  const requestKey = off ? 'off' : `${seatKid ?? ''}|${topic}|${age}|${skillLevel}|${count}|${attempt}`;
 
   const [pool, setPool] = useState<Pool>({ key: '', questions: [] });
-  const loading = pool.key !== requestKey;
+  const loading = !off && pool.key !== requestKey;
 
   useEffect(() => {
+    if (off) return;
     let active = true;
     // The kid this pool is for: what lands after a switch of player is theirs.
     const kid = seatKid ?? useFamilyStore.getState().activeKidId;
@@ -113,9 +118,9 @@ export function useBattleQuestions(
     return () => {
       active = false;
     };
-  }, [requestKey, topic, age, skillLevel, count, flavor, carry, seatKid]);
+  }, [requestKey, topic, age, skillLevel, count, flavor, carry, seatKid, off]);
 
   const reload = useCallback(() => setAttempt((a) => a + 1), []);
 
-  return { questions: pool.questions, loading, covered: !loading && pool.covered === true, error: null as string | null, age, skillLevel, reload };
+  return { questions: off ? NO_QUESTIONS : pool.questions, loading, covered: !loading && pool.covered === true, error: null as string | null, age, skillLevel, reload };
 }

@@ -44,9 +44,23 @@ describe('playerTwoStore (#177)', () => {
     expect(usePlayerTwoStore.getState().playerTwo).toMatchObject({ name: 'Player 2' });
   });
 
-  it('is put away with the game (Switch player, sign-out)', () => {
+  it('is put away with the game (Switch player, sign-out) — co-op too', () => {
     usePlayerTwoStore.getState().chooseGuest('Dad', 'same');
+    usePlayerTwoStore.getState().setCoop(true);
     putAwayGame();
-    expect(usePlayerTwoStore.getState().playerTwo).toBeNull();
+    expect(usePlayerTwoStore.getState()).toMatchObject({ playerTwo: null, coop: false });
+  });
+
+  it('co-op battles only turn on with a Player 2 picked (#178)', () => {
+    usePlayerTwoStore.getState().setCoop(true);
+    expect(usePlayerTwoStore.getState().coop).toBe(false);
+    usePlayerTwoStore.getState().chooseGuest('Dad', 'same');
+    usePlayerTwoStore.getState().setCoop(true);
+    expect(usePlayerTwoStore.getState().coop).toBe(true);
+    // Picking someone else keeps it on, with them.
+    usePlayerTwoStore.getState().chooseGuest('Mum', 'easier');
+    expect(usePlayerTwoStore.getState().coop).toBe(true);
+    usePlayerTwoStore.getState().setCoop(false);
+    expect(usePlayerTwoStore.getState().coop).toBe(false);
   });
 });

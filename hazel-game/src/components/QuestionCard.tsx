@@ -31,6 +31,7 @@ export default function QuestionCard({
   focusContinue = false,
   focusContinueKey,
   afterAnswer,
+  seenBy,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -66,6 +67,8 @@ export default function QuestionCard({
   onSecondChance?: () => void;
   /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #165). */
   afterAnswer?: ReactNode;
+  /** Whose question it is, when it isn't the kid playing's: a co-op battle's Player 2 (#178) — it's seen by them. */
+  seenBy?: string;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -75,7 +78,7 @@ export default function QuestionCard({
   const continueRef = useRef<HTMLButtonElement>(null);
 
   // On screen = seen, so the next batches leave it out for this kid (#134).
-  useEffect(() => markSeen(question.id), [question.id]);
+  useEffect(() => markSeen(question.id, seenBy), [question.id, seenBy]);
 
   // On a phone the explanation can push Continue below the fold — bring it
   // into view once an answer is picked ('nearest' = no scroll if it fits).

@@ -7,7 +7,7 @@ vi.mock('./supabase', () => ({
   supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: read }) }) }) },
 }));
 
-const { guestName, kidName, playerOneSeat, playerTwoChoices, playerTwoSeat, readKidLevels, GUEST_NAME, LEVELS_WAIT_MS } = await import('./playerTwo');
+const { guestName, kidName, playerOneSeat, playerTwoChoices, playerTwoLook, playerTwoSeat, readKidLevels, GUEST_NAME, LEVELS_WAIT_MS } = await import('./playerTwo');
 const { profileKey } = await import('./profile');
 
 const kid = (id: string, name: string | null, birthYear = 2014): Kid => ({ id, name, icon: 'fox', hasPin: true, birthYear, birthMonth: 1 });
@@ -57,6 +57,11 @@ describe('Player 2 (#177)', () => {
     expect(guestName('A very long name indeed for a guest')).toHaveLength(20);
     expect(kidName({ name: '  ' }, 'Player 1')).toBe('Player 1');
     expect(kidName({ name: 'Sam' }, 'Player 1')).toBe('Sam');
+  });
+
+  it("Player 2's name and emoji for the screen (#178)", () => {
+    expect(playerTwoLook({ kind: 'guest', name: '  ', pace: 'same' })).toEqual({ name: 'Guest', icon: '🙂' });
+    expect(playerTwoLook({ kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 1, skillLevels: {} })).toEqual({ name: 'Mia', icon: '🦊' });
   });
 
   it('Player 2 can be any kid of the family but the one playing', () => {

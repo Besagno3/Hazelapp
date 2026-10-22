@@ -399,6 +399,46 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   both scores, "What <name> missed (n)" folded per player, a fun fact,
   🔁 Rematch (same players and topic, fresh questions), "New players or
   topic", "Back to the Training Grounds". Music: the Training Grounds'.
+  **👥 Co-op battles (#178, `lib/coop.ts`, `features/world/CoopPanel.tsx`):**
+  📜 Menu → "👥 Play together": "Two players" (off) opens the same
+  `PlayerTwoPicker`, "👥 Play together!" (`aria-disabled` until Player 2 is
+  picked and their levels read) sets `playerTwoStore.coop` (only ever with a
+  Player 2; `putAwayGame` clears it); on, it says who plays the companion,
+  and "Stop playing together" turns it off (Player 2 kept). In a battle
+  (`BattleArena`, `coop` = `two !== null`): `one` / `two` seats — Player 2 at
+  their own level for the enemy's topic (a guest's pace counted from the
+  fight's level, `enemy.level`), eased by mercy (`partnerLevel`) — with their
+  own pools, asked for as them (`useBattleQuestions(…, { seat, off })`:
+  regular and super-hard; `off` asks nothing in a fight alone; the battle
+  waits for Player 2's first questions too). Player 2's seat is **locked for
+  the fight** with Ember's stage and mercy (`locked.two`): a new pick, or a
+  kid's levels read late, would re-key their pools and bring the intro back
+  over the fight. Player 2 never draws a question the hero's pool holds
+  (`partnerPick`: round and round the rest; when all are shared — offline
+  starters, or a guest at the kid's own level asking the hero's exact
+  request — half a round out of step), regular and super-hard alike. Each round: the kid playing's
+  command (the menu says "<name>'s move!", and the companion button is
+  greyed "🦊 <name> plays next"), then **Player 2's turn** (`turn.kind
+  'partner'`, `PartnerMenu`, no ← Back): the companion's strike or a Pair
+  Attack on a question of theirs, or — while the companion can't fight yet
+  (Ember an egg) — 📣 a cheer (`mode 'cheer'`: right, `CHEER_CHARGE` ◆ on
+  top of the answer's own). Every hero move's hand-over is `endHeroTurn`
+  (Player 2's turn in co-op, else the enemy's); Player 2's is `afterPartner`
+  (the enemy's turn — or, after a Time Ripple, `skipEnemy`, the hero's
+  again). A co-op Pair Attack is two answers (`pairStep`): Player 2's
+  super-hard first, then the kid playing's (`resolvePairStep`); a miss from
+  either fizzles it, the charge safe, and nobody is asked after a miss. The
+  enemy's blows are blocked in turn (`defenderFor`: the kid playing first),
+  each with the blocker's own question and countdown (`defendTimeMs` of
+  their age). A chip above each question says whose it is ("🐼 Ada's
+  question" sky / "🦊 Mia's question" amber, smaller on a short screen);
+  the battle's top bar shows "👥 🐼 Ada + 🦊 Mia". `recordAnswer(…, who)`:
+  every answer fills the team's ◆ and streak (and Keen Eye); only the kid
+  playing's move their answers, battle ramp, speed trigger, Library and XP;
+  no ✍️ scribe burst on Player 2's; `defendTimedOut(…, who)` likewise.
+  Player 2's questions are marked seen by them (`QuestionCard`'s `seenBy`).
+  The result adds a team line (`BattleResult`'s `team`: "🤝 🐼 Ada 3 right ·
+  🦊 Mia 2 right"; `correctCount` stays the kid playing's).
 - **Content layer** (`src/content/`): `topics.ts` (the topic registries —
   `TOPIC_REGISTRY` = the **crystal** topics with crystal/Fiend/zone, each in
   an act (`act`; `actCrystals` / `actRestored` / `actComplete` — the Spire,
@@ -1588,6 +1628,9 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — 👥 Co-op battles: Player 2 plays the companion (#178)
+The second half of the two-player ask (#177). 📜 Menu → 👥 Play together picks Player 2 (the duel's picker: a sibling or a guest) and turns co-op on for the session. In battle, after the kid playing's command, Player 2 takes the companion's turn — its strike or a Pair Attack, each on a question at Player 2's own level, asked for as them — or, while Ember is still an egg, a 📣 cheer (+1 ◆ when right). A Pair Attack takes both: Player 2's super-hard answer, then the kid playing's; a miss from either fizzles it, the charge safe. The players block the enemy's blows in turn, each with their own question and countdown. A chip says whose question it is; the top bar says who's playing; the result adds each player's right answers. Only the kid playing's answers move their level, speed trigger, Library and XP; nothing of Player 2's is saved. New: `lib/coop.ts` (`defenderFor`, `partnerLevel`, `CHEER_CHARGE`), `features/world/CoopPanel.tsx` (in `MenuOverlay`), `PartnerMenu` (sharing `CompanionMoves` with `CompanionMenu`), `CommandMenu`'s `mover`, `BattleResult`'s `team`, `QuestionCard`'s `seenBy`, `useBattleQuestions`' `off`, `playerTwoStore.coop` / `setCoop`, `playerTwoLook`. `BattleArena`: `endHeroTurn` / `afterPartner` in place of the hero moves' `enemyTurn`, `who` on question turns, Player 2's two pools. Tests: `BattleArena.coop.test` (alone nothing changes and Player 2's pools are off; Player 2's pools asked as them at their level, a guest's at the fight's level + pace; the round order with the chip, the greyed companion and alternating blocks; only Ada's answers count — XP exactly the win's, Library, no level move — and the team line; a Pair Attack both right fires, Player 2's miss fizzles with no second question; the egg's cheer), `CoopPanel.test`, `coop.test`, `playerTwoStore` (co-op only with Player 2; cleared with the game), `playerTwo` (`playerTwoLook`), `QuestionCard` (`seenBy`). Rendered on the real app with Supabase stubbed at 375×667, 320×568 (touch) and 1024×768: the menu panel off / picked / on, then the Ringkeeper — Ada's moves, Mia's turn and questions (asked as kid-2 at her level 7, super-hard at 10), a Pair Attack Mia then Ada, blocks in turn; A review pass (no high findings) led to two fixes: Player 2's seat is locked for the fight (a pick or a late level read mid-fight re-keyed their pools and flashed the intro back), and Player 2 never draws a question the hero's pool holds (`partnerPick`) — a guest at the kid's own level, or offline starters, gave both the same questions on one screen. At 320 the chip pushed the last answer 5 px under the fold, so it is smaller on short screens, and the co-op Pair Attack lines are short enough for one line ("⚔️ Twin Strike — Mia first!", "⚔️ Now finish Twin Strike!"); every answer then fits 320×568 (the 🪶 Hint Feather button is under the fold there, as in a fight alone).
 
 ### 2026-10-22 — 🆚 Quiz Duel: two players on one screen, each at their own level (#177)
 A kid asked to play with a sibling or a friend. The Training Grounds get a "🆚 Quiz Duel · 2 players" button above the topics (any time — before the world opens too). Player 2 is another kid of the family (no PIN: their levels are only read, and their questions are asked for as them, so the server pitches them to their own age and keeps their seen questions their own) or a guest — a friend or grown-up with an optional name and 🌱 Easier / ⚖️ Same as <kid> / 🔥 Harder, two levels either side of the kid playing's own, written for the kid playing's age (the server never takes an age from the app, B8). Then a topic, and turns: the kid playing, then Player 2, five questions each; the most right answers wins (or a tie). Just for fun — no XP, no level moves, nothing to the Library, for either. New: `lib/playerTwo.ts`, `store/playerTwoStore.ts` (session only, cleared by `putAwayGame`), `lib/duel.ts`, `features/duel/` (`QuizDuel`, `PlayerTwoPicker`, `useDuelRound`), the flow's `duel` state (`START_DUEL` / `EXIT_DUEL`), `QuestionSeat` in `types`, the music's `duel` screen. Changed: the question plumbing takes a kid (`invokeGenerate`'s `profileId`, the look-ahead key, `quickQuestions` / `moreQuestions` / `takeCarried`, `useBattleQuestions`' `seat`), and `markSeen` keeps its batches and resend times per kid (a switch of player no longer sends at once — each kid's batch still goes as theirs, on the timer). The Decisions list notes same-screen play is in scope now (`DESIGN-JRPG.md` §6 Q4 updated). Tests: `duel.test`, `playerTwo.test`, `playerTwoStore.test`, `QuizDuel.test` (a whole duel against the question service stood in for at the wire: who each request is for and at what level, turn order, focus, no repeats for a guest at the same level, End duel, the results, no XP or level writes), `useBattleQuestions` (a seat), `seen` (two kids in turn), `gameFlow`, `audio`, `TopicSelect`; the existing argument checks now see the kid. Rendered on the real app with Supabase stubbed at 375×667, 320×568, 740×360 (touch) and 1024×768: every step fits, no sideways scroll, focus on the new turn; at 320 the chip's "their turn" moved to screen readers only (it wrapped to three lines). Co-op battles (Player 2 as the companion) come next.
