@@ -202,7 +202,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     where: 'Old Ringwood, Eldergrove',
     playLabel: 'Let’s count!',
     againLabel: 'More rings',
-    hello: 'Hrrrm. I keep losing count of my rings. Will you read these trees’ for me? Every ring is a year.',
+    hello: 'Hrrrm. I keep losing count of my rings. Will you read these trees’ rings for me? Every ring is a year.',
     steps: [
       { title: 'Count the rings', text: 'A tree grows one ring a year. Tap them from the middle out.' },
       { title: 'Read them', text: 'A wide ring was a wet year; a thin one, a dry year.' },

@@ -317,7 +317,12 @@ Old Ringwood is the tree who loses count of his rings.
   along a living tree's till the thin rings line up. The grove book's eight:
   Silver Birch, Weeping Willow, Beech, Rowan, Old Oak, Lodgepole Pine, Yew,
   Giant Sequoia. Ringwood has no quest, so 🌳 is his gold offer; the first
-  round gives a Lucky Clover.
+  round gives a Lucky Clover. Review round 1: a tap acts as the finger lifts
+  (a swipe to scroll counted rings), and a thin ring the step wants is as
+  easy to hit as a wide one; a young tree's slice is its age, the same every
+  round, and an event's year the same in every tree; Tricky's living tree is
+  living, its hint says thin under thin and wide under wide, and a tap along
+  its core moves the beam there.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 

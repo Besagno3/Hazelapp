@@ -51,6 +51,8 @@ export interface Tree {
   note: string;
   /** The year it fell (a slice) or was cored (a living tree, `LAST_YEAR`). */
   cut: number;
+  /** Gentle's young trees: how many rings their slice has — the tree's age, the same every round. */
+  age?: number;
   /** A fire it lived through: a dark scar on that year's ring. */
   scar?: number;
 }
@@ -62,13 +64,15 @@ export const TREES: readonly Tree[] = [
     from: 'a young birch the wind blew down by the brook',
     note: 'One of the first trees to grow on bare ground — its tiny seeds fly far on the wind.',
     cut: 2019,
+    age: 4,
   },
   {
     id: 'willow',
     name: 'Weeping Willow',
-    from: 'a willow branch that fell into the pond',
+    from: 'a young willow that fell into the pond',
     note: 'Willow bark has a medicine in it: people chewed it for aches long ago, and it led to aspirin.',
     cut: 2016,
+    age: 6,
   },
   {
     id: 'beech',
@@ -76,6 +80,7 @@ export const TREES: readonly Tree[] = [
     from: 'a beech the woodcutter felled to make room',
     note: 'People once wrote on thin beech boards: the words "book" and "beech" grew from the same old word.',
     cut: 2011,
+    age: 8,
   },
   {
     id: 'rowan',
@@ -83,6 +88,7 @@ export const TREES: readonly Tree[] = [
     from: 'a rowan that grew too close to the path',
     note: 'Its red berries feed thrushes all winter, and the birds carry its seeds far away.',
     cut: 2004,
+    age: 5,
   },
   {
     id: 'oak',
@@ -112,7 +118,7 @@ export const TREES: readonly Tree[] = [
     from: 'the great sequoia on the hill',
     note: 'Its bark can be half a metre thick and keeps out fire: many old sequoias carry fire scars and grow on.',
     cut: 2024,
-    scar: 2008,
+    scar: 2017,
   },
 ];
 
@@ -127,9 +133,8 @@ export const BAND_TREES: Record<Band, readonly TreeId[]> = {
 
 export const JOBS_PER_ROUND = 3;
 
-/** How many rings each job of a round has: Gentle's slices, Medium's cores, Tricky's beam. */
-const RINGS: Record<Band, readonly [number, number, number]> = {
-  gentle: [4, 6, 8],
+/** How many rings each job of a round has: Medium's cores, Tricky's beam (Gentle's slices are their tree's `age`). */
+const RINGS: Record<Exclude<Band, 'gentle'>, readonly [number, number, number]> = {
   medium: [10, 12, 14],
   tricky: [8, 9, 10],
 };
@@ -137,11 +142,11 @@ const RINGS: Record<Band, readonly [number, number, number]> = {
 /** A living tree's core on Tricky: this many rings, to slide the beam along. */
 export const TREE_CORE = 30;
 
-/** Medium's "the year it happened": something in the grove, by how many rings back from the bark. */
-const EVENTS = [
-  { what: 'the bridge over Dawdle Brook was built', back: 4 },
-  { what: 'the first Lantern Fair came to the grove', back: 6 },
-  { what: 'Fen planted the hedge by the pond', back: 9 },
+/** Medium's "the year it happened": something in the grove, the same year in every tree's rings. */
+export const EVENTS = [
+  { what: 'the bridge over Dawdle Brook was built', year: 2016 },
+  { what: 'the first Lantern Fair came to the grove', year: 2018 },
+  { what: 'Fen planted the hedge by the pond', year: 2014 },
 ] as const;
 
 /** The old buildings a Tricky beam comes from. */
@@ -194,11 +199,14 @@ export function roundQueue(band: Band, known: (id: TreeId) => boolean, round: nu
 export function jobFor(band: Band, round: number, i: number, queue?: readonly TreeId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
   const tree = TREE_BY_ID[q[i % q.length]];
+  if (band === 'gentle') return { kind: 'count', tree: tree.id, rings: years(tree.cut - (tree.age ?? 4) + 1, tree.cut) };
   const n = RINGS[band][i];
-  if (band === 'gentle') return { kind: 'count', tree: tree.id, rings: years(tree.cut - n + 1, tree.cut) };
   if (band === 'medium') {
-    const e = EVENTS[(round + i) % EVENTS.length];
-    return { kind: 'date', tree: tree.id, rings: years(tree.cut - n + 1, tree.cut), event: { what: e.what, year: tree.cut - Math.min(e.back, n - 2) } };
+    const rings = years(tree.cut - n + 1, tree.cut);
+    // An event inside the core — never its first ring or the bark's — in turn by round and place.
+    const can = EVENTS.filter((e) => e.year > rings[0] && e.year < tree.cut);
+    const e = can[(round + i) % can.length];
+    return { kind: 'date', tree: tree.id, rings, event: { what: e.what, year: e.year } };
   }
   // The beam's last ring: somewhere in the tree's core, never at either end, by round and place.
   const core = years(LAST_YEAR - TREE_CORE + 1, LAST_YEAR);
@@ -227,35 +235,47 @@ export const maxOffset = (job: MatchJob) => job.rings.length - job.beam.length;
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen'];
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth'];
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+/** A number in words (as figures past fourteen). */
+export const numberWord = (n: number) => NUM[n] ?? String(n);
+/** The `k`th (from 0), in words (as figures past the fourteenth). */
+export const ordinal = (k: number) => ORDINAL[k] ?? `${k + 1}th`;
+/** How a ring looks, by its weather. */
+export const growthWord = (year: number) => ({ wet: 'wide', fair: 'medium', dry: 'thin' })[weather(year)];
 
 /** A ring, said: which from the middle, and how it grew. */
 export function ringWords(k: number, year: number, said = true): string {
-  const g = weather(year);
-  return `The ${ORDINAL[k]} ring from the middle${said ? `, ${g === 'wet' ? 'wide' : g === 'dry' ? 'thin' : 'middling'}` : ''}`;
+  return `The ${ordinal(k)} ring from the middle${said ? `, ${growthWord(year)}` : ''}`;
 }
+
+/** A core's ring, said from the bark (`back` rings in), as the year's found by counting. */
+export const backWords = (back: number) => (back === 0 ? 'The bark ring' : `${cap(numberWord(back))} ${back === 1 ? 'ring' : 'rings'} in from the bark`);
 
 /** The job, as its ticket says it. */
 export function jobWords(job: Job): string {
   const t = TREE_BY_ID[job.tree];
   if (job.kind === 'count') return `A slice from ${t.from}. Count its rings from the middle out — one ring, one year — then find its wettest year.`;
-  if (job.kind === 'date') return `A core from ${t.from}, cut in ${t.cut}. Find the ring from ${job.event.year}, when ${job.event.what} — then every dry year.`;
-  return `A beam from ${job.building}, and a core from ${t.from}, living today. Slide the beam till its rings match the tree’s: when was the beam’s tree cut?`;
+  if (job.kind === 'date') return `A core from ${t.from}, ${t.cut === LAST_YEAR ? 'taken' : 'cut'} in ${t.cut}. Find the ring from ${job.event.year}, when ${job.event.what} — then every dry year.`;
+  return `A beam from ${job.building}, and a core from a living ${t.name.toLowerCase()} in the grove. Slide the beam till its rings match the tree’s: when was the beam’s tree cut?`;
 }
 
 /** After a ring is tapped while counting (`next` is the one to count, from the middle). Never scolded. */
 export function countWords(next: number, tapped: number, total: number): string {
-  if (tapped === next) return next + 1 === total ? `${cap(NUM[total])}! That’s the bark — ${NUM[total]} rings, so the tree was ${NUM[total]} years old.` : `${cap(NUM[next + 1])}!`;
-  if (tapped < next) return `That one’s counted already — the next is just outside it.`;
-  return `Count from the middle out: the next ring is the ${ORDINAL[next]}, just outside the last one counted.`;
+  const n = numberWord(total);
+  if (tapped === next) return next + 1 === total ? `${cap(n)}! That’s the bark — ${n} rings, so the tree was ${n} years old.` : `${cap(numberWord(next + 1))}!`;
+  if (tapped === next - 1) return 'That one’s counted already — the next is just outside it.';
+  if (tapped < next) return `That one’s counted already — count on from ${numberWord(next)}: the ${ordinal(next)} ring.`;
+  if (next === 0) return 'Count from the middle out: start with the first ring, right by the middle.';
+  return `Count from the middle out: the next ring is the ${ordinal(next)}, just outside the last one counted.`;
 }
 
 /** After a ring is picked as the wettest year (Gentle). */
 export function wetWords(job: CountJob, k: number): string {
   const y = job.rings[k];
-  if (weather(y) === 'wet') return `Yes — the widest ring: ${y} was a wet year, so the tree grew a lot.`;
+  const two = ringsOf(job.rings, 'wet').length > 1;
+  if (weather(y) === 'wet') return `Yes — ${two ? 'one of the widest rings' : 'the widest ring'}: ${y} was a wet year, so the tree grew a lot.`;
   return weather(y) === 'dry'
     ? `That ring is thin — a dry year, when the tree hardly grew. The wet year’s ring is the widest.`
-    : `That one’s middling. The wet year’s ring is the widest of all.`;
+    : `That one’s medium — not the widest. The wet year’s ring is the widest of all.`;
 }
 
 /** After a ring is picked as the event's year (Medium): counted back from the bark. */
@@ -263,7 +283,7 @@ export function dateWords(job: DateJob, k: number): string {
   const y = job.rings[k];
   const want = job.event.year;
   const last = job.rings[job.rings.length - 1];
-  if (y === want) return `Yes — ${want}: ${last - want} rings in from the bark, the year ${job.event.what}.`;
+  if (y === want) return `Yes — ${want}: ${backWords(last - want).toLowerCase()}, the year ${job.event.what}.`;
   return `That ring is ${y}: the bark ring is ${last}, and each ring in is a year earlier. ${want} is ${y > want ? 'further in' : 'further out'}.`;
 }
 
@@ -271,16 +291,22 @@ export function dateWords(job: DateJob, k: number): string {
 export function dryWords(job: DateJob, k: number, left: number): string {
   const y = job.rings[k];
   if (weather(y) !== 'dry') return `${y}’s ring isn’t thin — not a dry year. Look for the narrowest rings.`;
-  return left ? `${y} — a dry year! ${cap(NUM[left])} more to find.` : `${y} — and that’s every dry year!`;
+  return left ? `${y} — a dry year! ${cap(numberWord(left))} more to find.` : `${y} — and that’s every dry year!`;
 }
 
-/** After "Check" on Tricky's slide. */
+/** With the beam at `offset`, does every thin ring of the beam sit under a thin ring of the tree, and none under a wider one? */
+export function thinLinedUp(job: MatchJob, offset: number): boolean {
+  return job.beam.every((y, k) => (weather(y) === 'dry') === (weather(job.rings[offset + k]) === 'dry'));
+}
+
+/** After "Do they match?" on Tricky's slide: thin under thin and wide under wide, every ring — or what to look at. */
 export function matchWords(job: MatchJob, offset: number): string {
   if (offset === fitOffset(job)) {
     const end = job.beam[job.beam.length - 1];
     return `They match! The beam’s rings run from ${job.beam[0]} to ${end}, so its tree was cut in ${end} — and ${job.building} was built soon after.`;
   }
-  return `Not yet — look at the thin dark rings: do the beam’s sit right under the tree’s?`;
+  if (thinLinedUp(job, offset)) return 'The thin rings line up here — but not the wide ones. Slide on: thin under thin, wide under wide!';
+  return 'Not yet — find the thin dark rings first: slide till the beam’s sit right under the tree’s.';
 }
 
 /** What a job teaches, for the reward. */
@@ -288,7 +314,9 @@ export function learnedLine(job: Job): string {
   const t = TREE_BY_ID[job.tree];
   if (job.kind === 'count') {
     const wet = ringsOf(job.rings, 'wet');
-    return `${t.name}: ${NUM[job.rings.length]} rings, ${NUM[job.rings.length]} years. ${wet.length ? `Its widest ring is ${wet[0]}, a wet year.` : ''} ${t.note}`.replace(/\s+/g, ' ');
+    const n = numberWord(job.rings.length);
+    const widest = wet.length > 1 ? `Its widest rings, ${wet.slice(0, -1).join(', ')} and ${wet[wet.length - 1]}, were wet years.` : `Its widest ring is ${wet[0]}, a wet year.`;
+    return `${t.name}: ${n} rings, ${n} years. ${widest} ${t.note}`;
   }
   if (job.kind === 'date') {
     const scar = t.scar && job.rings.includes(t.scar) ? ` The dark scar on ${t.scar}’s ring is a fire it lived through.` : '';
@@ -296,5 +324,6 @@ export function learnedLine(job: Job): string {
     const list = dry.length > 1 ? `${dry.slice(0, -1).join(', ')} and ${dry[dry.length - 1]}` : `${dry[0]}`;
     return `${t.name}: its thin rings were dry years — ${list}.${scar} ${t.note}`;
   }
-  return `Matching rings dates wood: the beam from ${job.building} was cut in ${job.beam[job.beam.length - 1]}. ${t.note}`;
+  const end = job.beam[job.beam.length - 1];
+  return `Matching rings dates wood: the beam’s rings matched the living ${t.name.toLowerCase()}’s from ${job.beam[0]} to ${end}, so its tree was cut in ${end}. ${t.note}`;
 }

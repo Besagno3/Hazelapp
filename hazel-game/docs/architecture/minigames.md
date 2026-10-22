@@ -262,16 +262,27 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   its dry years unevenly spaced, so a run of rings fits one place only; a
   ring's width is its weather's (`RING_WIDTH`). Eight trees (`TREES`, the
   year each fell or was cored, a fire's scar on some); Gentle counts a
-  slice (`count`: 4, 6, 8 rings, then the widest), Medium reads a core
-  (`date`: 10–14 rings — the year counted back from the bark, then every
-  thin ring), Tricky cross-dates (`match`: a beam of 8–10 rings slid along a
-  living tree's 30-ring core, `matchesAt` / `fitOffset`, till it fits). The
-  slice and the core are each one pointer target — the nearest ring within
-  reach, however thin (`TAP_REACH_PX`) — with a button per ring for the
-  keyboard (one in the tab order, the arrow keys in and out) and a reader
-  (where it is, how it grew); the slice's rings are drawn to their widths
-  (`data-band`), the core's as bands; the beam slides by its ◀ ▶ buttons,
-  both cores' rings said under them (`rr-under`). What Ringwood said is in
-  the step's card by the wood. The
+  slice (`count`: the young tree's `age` in rings, 4–8, then the widest),
+  Medium reads a core (`date`: 10–14 rings — an event's year, the same in
+  every tree (`EVENTS`), counted back from the bark, then every thin ring),
+  Tricky cross-dates (`match`: a beam of 8–10 rings slid along a living
+  tree's 30-ring core, `matchesAt` / `fitOffset`, till it fits; "Not yet"
+  says whether the thin rings line up, `thinLinedUp`). The slice and the
+  core are each one pointer target, acting as the finger lifts (the shared
+  `useLiftTap`: a press that moves `SWIPE_PX` or is cancelled is the page
+  scrolling) — the ring under the tap, a ring the step wants `WANT_PX` wide
+  to hit and any ring `RING_MIN_PX`, the thinner winning, but never past a
+  neighbour's middle third (`ringAt`) — with
+  a button per ring for the keyboard (one in the tab order, the arrow keys
+  in and out) and a reader (where it is, how it grew; the slice's each over
+  its ring, so a reader's press lands on it; a pointer's click after its
+  tap isn't a second, `pointerClick`); the slice's rings are drawn to their
+  widths (`data-band`), the core's as bands; the two Tricky cores are one
+  picture, the beam slid by ◀ ▶ or a tap along the tree's core (a slice's
+  card is beside it held sideways, a core's always under it, Tricky's beside
+  only on a short screen), both cores'
+  rings said under them for a reader, live (`rr-under`). What Ringwood said
+  is in the step's card by the wood, and till he's said something, what he
+  asked. The shared `Ticket` puts its chip by its heading. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

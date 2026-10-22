@@ -8,6 +8,7 @@ import {
   TREE_BY_ID,
   TREE_CORE,
   TREE_IDS,
+  EVENTS,
   countWords,
   dateWords,
   dryWords,
@@ -21,6 +22,7 @@ import {
   ringWords,
   ringsOf,
   roundQueue,
+  thinLinedUp,
   weather,
   wetWords,
   years,
@@ -74,38 +76,52 @@ describe('the trees', () => {
 });
 
 describe('the jobs', () => {
-  it('Gentle counts slices of 4, 6 and 8 rings, each with a wet year to find; years end the year the tree fell', () => {
+  it('Gentle: a young tree’s slice, its rings its age (4–8) every round — code review round 1; a wet year to find', () => {
     for (const j of jobs('gentle')) {
       const job = as(j, 'count');
-      expect([4, 6, 8]).toContain(job.rings.length);
-      expect(job.rings[job.rings.length - 1]).toBe(TREE_BY_ID[job.tree].cut);
+      const tree = TREE_BY_ID[job.tree];
+      expect(job.rings).toHaveLength(tree.age!);
+      expect(job.rings[job.rings.length - 1]).toBe(tree.cut);
       expect(ringsOf(job.rings, 'wet').length).toBeGreaterThan(0);
     }
-    expect([0, 1, 2].map((i) => jobFor('gentle', 0, i).rings.length)).toEqual([4, 6, 8]);
+    expect(BAND_TREES.gentle.map((id) => TREE_BY_ID[id].age)).toEqual([4, 6, 8, 5]);
+    // Rowan's two wet years are as wide as each other: either is the widest.
+    expect(ringsOf(jobs('gentle').find((j) => j.tree === 'rowan')!.rings, 'wet')).toEqual([2001, 2003]);
   });
 
-  it('Medium dates cores of 10–14 rings: the year to find is inside, not the bark; at least one dry year', () => {
-    for (const j of jobs('medium')) {
-      const job = as(j, 'date');
+  it('Medium dates cores of 10–14 rings: the year to find is inside, the same year for an event in every tree; dry years; the fires show', () => {
+    const all = jobs('medium', 12).map((j) => as(j, 'date'));
+    for (const job of all) {
       expect([10, 12, 14]).toContain(job.rings.length);
       const k = job.rings.indexOf(job.event.year);
       expect(k).toBeGreaterThan(0);
       expect(k).toBeLessThan(job.rings.length - 1);
-      expect(ringsOf(job.rings, 'dry').length).toBeGreaterThan(0);
+      expect(ringsOf(job.rings, 'dry').length).toBeGreaterThan(1);
+      expect(EVENTS.find((e) => e.what === job.event.what)?.year).toBe(job.event.year);
     }
+    // Every event comes up, and every fire's scar is in a core.
+    expect(new Set(all.map((j) => j.event.what)).size).toBe(EVENTS.length);
+    for (const t of TREES.filter((x) => x.scar && BAND_TREES.medium.includes(x.id))) expect(all.some((j) => j.tree === t.id && j.rings.includes(t.scar!)), t.id).toBe(true);
   });
 
-  it('Tricky: the beam fits in one place only, inside the tree’s core, never at an end', () => {
+  it('Tricky: wherever a beam can come from, it fits in one place only, inside the tree’s core, never at an end', () => {
+    const core = years(LAST_YEAR - TREE_CORE + 1, LAST_YEAR);
+    for (const n of [8, 9, 10]) {
+      // Every start `jobFor` can give (code review round 1: twelve rounds missed some).
+      for (let s = 1; s <= TREE_CORE - n - 2; s++) {
+        const job: MatchJob = { kind: 'match', tree: 'oak', rings: core, beam: years(core[s], core[s] + n - 1), building: 'the barn' };
+        const fit = fitOffset(job);
+        expect(fit).toBeGreaterThan(0);
+        expect(fit).toBeLessThan(maxOffset(job));
+        const fits = Array.from({ length: maxOffset(job) + 1 }, (_, o) => o).filter((o) => matchesAt(job, o));
+        expect(fits, `${n} from ${core[s]}`).toEqual([fit]);
+        expect(ringsOf(job.beam, 'dry').length).toBeGreaterThan(0);
+      }
+    }
     for (const j of jobs('tricky', 12)) {
       const job = as(j, 'match');
-      expect(job.rings).toHaveLength(TREE_CORE);
-      expect(job.rings[job.rings.length - 1]).toBe(LAST_YEAR);
-      const fit = fitOffset(job);
-      expect(fit).toBeGreaterThan(0);
-      expect(fit).toBeLessThan(maxOffset(job));
-      const fits = Array.from({ length: maxOffset(job) + 1 }, (_, o) => o).filter((o) => matchesAt(job, o));
-      expect(fits).toEqual([fit]);
-      expect(ringsOf(job.beam, 'dry').length).toBeGreaterThan(0);
+      expect(job.rings).toEqual(core);
+      expect(matchesAt(job, fitOffset(job))).toBe(true);
     }
   });
 });
@@ -121,8 +137,9 @@ describe('the words', () => {
     expect(ringWords(3, 2019)).toBe('The fourth ring from the middle, wide');
     expect(ringWords(0, 2016, false)).toBe('The first ring from the middle');
     expect(jobWords(g)).toBe('A slice from a young birch the wind blew down by the brook. Count its rings from the middle out — one ring, one year — then find its wettest year.');
-    expect(jobWords(m)).toMatch(/^A core from .+, cut in \d{4}\. Find the ring from \d{4}, when .+ — then every dry year\.$/);
-    expect(jobWords(t)).toMatch(/^A beam from .+, and a core from .+, living today\. Slide the beam/);
+    expect(jobWords(m)).toMatch(/^A core from .+, (cut|taken) in \d{4}\. Find the ring from \d{4}, when .+ — then every dry year\.$/);
+    // A living tree's core — not the fallen one's (code review round 1).
+    expect(jobWords(t)).toBe(`A beam from ${t.building}, and a core from a living silver birch in the grove. Slide the beam till its rings match the tree’s: when was the beam’s tree cut?`);
   });
 
   it('counting from the middle out, kindly', () => {
@@ -130,16 +147,20 @@ describe('the words', () => {
     expect(countWords(2, 2, 4)).toBe('Three!');
     expect(countWords(3, 3, 4)).toBe('Four! That’s the bark — four rings, so the tree was four years old.');
     expect(countWords(2, 1, 4)).toBe('That one’s counted already — the next is just outside it.');
+    expect(countWords(3, 0, 4)).toBe('That one’s counted already — count on from three: the fourth ring.');
     expect(countWords(1, 3, 4)).toBe('Count from the middle out: the next ring is the second, just outside the last one counted.');
+    expect(countWords(0, 2, 4)).toBe('Count from the middle out: start with the first ring, right by the middle.');
   });
 
   it('the wet year, a date, the dry years, the match', () => {
     expect(wetWords(g as CountJob, 3)).toBe('Yes — the widest ring: 2019 was a wet year, so the tree grew a lot.');
     expect(wetWords(g as CountJob, 1)).toBe('That ring is thin — a dry year, when the tree hardly grew. The wet year’s ring is the widest.');
-    expect(wetWords(g as CountJob, 0)).toBe('That one’s middling. The wet year’s ring is the widest of all.');
+    expect(wetWords(g as CountJob, 0)).toBe('That one’s medium — not the widest. The wet year’s ring is the widest of all.');
+    const rowan = as(jobs('gentle').find((j) => j.tree === 'rowan')!, 'count');
+    expect(wetWords(rowan, rowan.rings.indexOf(2003))).toBe('Yes — one of the widest rings: 2003 was a wet year, so the tree grew a lot.');
     const k = m.rings.indexOf(m.event.year);
     const bark = m.rings[m.rings.length - 1];
-    expect(dateWords(m, k)).toBe(`Yes — ${m.event.year}: ${bark - m.event.year} rings in from the bark, the year ${m.event.what}.`);
+    expect(dateWords(m, k)).toMatch(new RegExp(`^Yes — ${m.event.year}: [a-z]+ rings in from the bark, the year ${m.event.what}\\.$`));
     expect(dateWords(m, k + 1)).toBe(`That ring is ${m.event.year + 1}: the bark ring is ${bark}, and each ring in is a year earlier. ${m.event.year} is further in.`);
     expect(dateWords(m, k - 1)).toMatch(/is further out\.$/);
     const dry = ringsOf(m.rings, 'dry');
@@ -149,16 +170,27 @@ describe('the words', () => {
     expect(dryWords(m, m.rings.indexOf(fair), 1)).toBe(`${fair}’s ring isn’t thin — not a dry year. Look for the narrowest rings.`);
     const end = t.beam[t.beam.length - 1];
     expect(matchWords(t, fitOffset(t))).toBe(`They match! The beam’s rings run from ${t.beam[0]} to ${end}, so its tree was cut in ${end} — and ${t.building} was built soon after.`);
-    expect(matchWords(t, fitOffset(t) + 1)).toBe('Not yet — look at the thin dark rings: do the beam’s sit right under the tree’s?');
+    // Not yet: the thin rings first — or, lined up, the wide ones too (UX review round 1: the hint said only thin).
+    const away = Array.from({ length: maxOffset(t) + 1 }, (_, o) => o).filter((o) => o !== fitOffset(t));
+    const lined = away.find((o) => thinLinedUp(t, o));
+    const not = away.find((o) => !thinLinedUp(t, o))!;
+    expect(matchWords(t, not)).toBe('Not yet — find the thin dark rings first: slide till the beam’s sit right under the tree’s.');
+    if (lined !== undefined) expect(matchWords(t, lined)).toBe('The thin rings line up here — but not the wide ones. Slide on: thin under thin, wide under wide!');
+    // Somewhere in Tricky, the thin rings line up where the beam doesn't fit.
+    expect(jobs('tricky').some((j) => Array.from({ length: maxOffset(j as MatchJob) + 1 }, (_, o) => o).some((o) => o !== fitOffset(j as MatchJob) && thinLinedUp(j as MatchJob, o)))).toBe(true);
   });
 
   it('the lessons', () => {
     expect(learnedLine(g)).toBe(`Silver Birch: four rings, four years. Its widest ring is 2019, a wet year. ${TREE_BY_ID.birch.note}`);
+    // Two as wide as each other: both named (code review round 1: the first was, whichever was picked).
+    const rowan = jobs('gentle').find((j) => j.tree === 'rowan')!;
+    expect(learnedLine(rowan)).toBe(`Rowan: five rings, five years. Its widest rings, 2001 and 2003, were wet years. ${TREE_BY_ID.rowan.note}`);
     const md = ringsOf(m.rings, 'dry');
     expect(learnedLine(m)).toContain(`its thin rings were dry years — ${md.length > 1 ? `${md.slice(0, -1).join(', ')} and ${md[md.length - 1]}` : md[0]}.`);
     const pine = jobs('medium').find((j) => j.tree === 'pine') as DateJob;
     expect(learnedLine(pine)).toContain('The dark scar on 2013’s ring is a fire it lived through.');
-    expect(learnedLine(t)).toBe(`Matching rings dates wood: the beam from ${t.building} was cut in ${t.beam[t.beam.length - 1]}. ${TREE_BY_ID[t.tree].note}`);
+    const end = t.beam[t.beam.length - 1];
+    expect(learnedLine(t)).toBe(`Matching rings dates wood: the beam’s rings matched the living silver birch’s from ${t.beam[0]} to ${end}, so its tree was cut in ${end}. ${TREE_BY_ID[t.tree].note}`);
   });
 });
 
