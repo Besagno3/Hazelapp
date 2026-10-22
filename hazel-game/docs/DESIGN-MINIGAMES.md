@@ -232,6 +232,12 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   opposite colours.
 - **Collection:** the gallery's nine patterns. The kid's own picture hangs
   beside them (one at a time, their save only).
+- **Built (PR 4):** nine 6×6 tiles, each the same across and down, so every
+  mirror fits each; the paint to mix first is one the kid paints with (on an
+  opposite mirror, an opposite). Squares are painted by a tap, a drag across
+  them or the arrow keys and Enter. The kid's picture is kept as the name of
+  one save flag (its code), so no save bump. Madame Hue also gives a quest,
+  so 🪞 shows quietly over its offer; the first round gives a Mirror Charm.
 
 ### 5.5 🎵 Echo's Call — Music · Bard Lyra, the Music House, Chromaria
 

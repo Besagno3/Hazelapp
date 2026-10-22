@@ -1163,6 +1163,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'Welcome to the Grand Gallery, darling! Every painting here was rescued from the gray. Well — almost every painting.',
+      'And my mirror murals! Half of each one faded clean away. Mix me the right paint and finish them — the mirror will tell us if you’re right.',
       {
         text: '"Sunrise in Seven Colours" is back on its wall where it belongs. Visitors weep. With JOY, darling.',
         ifFlag: 'quest:masterpiece:done',

@@ -37,6 +37,7 @@ import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { useFitWidth } from '../useFitWidth';
 import { GearShape } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -192,7 +193,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   }
 
   const stepIndex = result ? 2 : placed.size > 0 ? 1 : 0;
-  const [area, fit] = useFitWidth(boardRatio(job.board, band));
+  const [area, fit] = useFitWidth(boardRatio(job.board, band), LABELS_PX);
 
   let line: string;
   const readMachine = read ? MACHINE_BY_ID[read] : null;
@@ -362,31 +363,6 @@ function useHeight() {
     return () => ro.disconnect();
   }, []);
   return [ref, h] as const;
-}
-
-/**
- * The width that fits the board in its space from `sm` up: as wide as the
- * space, or as the space's height allows at the board's shape, whichever is
- * less. On a phone the page scrolls and the space is as tall as the board
- * itself (fitting to it would shrink it for ever): the space's width.
- */
-function useFitWidth(ratio: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const fit = () => {
-      if (!window.matchMedia?.('(min-width: 640px)').matches) return setWidth(null);
-      const { width: w, height: h } = el.getBoundingClientRect();
-      setWidth(h > LABELS_PX ? Math.floor(Math.min(w, (h - LABELS_PX) * ratio)) : null);
-    };
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    fit();
-    return () => ro.disconnect();
-  }, [ratio]);
-  return [ref, width] as const;
 }
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];

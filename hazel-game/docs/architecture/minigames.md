@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktower Gears.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears and 🪞 Mirror Mural.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -134,7 +134,30 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktowe
   scrolls into view as a step starts, never on a peg tap. From `sm` up the
   Clocktower's room (the great clock, today's machine on its plate, stopped
   or running) is above the board; a phone and a short screen keep just the
-  board (not sticky on a phone on its side under 640 px).
-  The
+  board (not sticky on a phone on its side under 640 px). `useFitWidth`
+  (`features/minigames/useFitWidth.ts`) is shared: a board's width that fits
+  its space from `sm` up, null on a phone. **🪞 Mirror Mural**
+  (`chromaria-curator`, Madame Hue, Chromaria — she gives a quest too;
+  `lib/minigames/mural.ts`, `features/minigames/mural/`): symmetry and colour
+  mixing — three pictures a round (`jobFor`, `roundQueue`: those not in the
+  Gallery first). Nine 6×6 patterns (`PATTERNS`, each the same across and
+  down so every mirror fits, drawn in two colour slots); a job's `kind` says
+  how the given part makes the rest (`source`, `given`): `across` (Gentle,
+  Medium), `down` (Medium), `four`, `turn` (rotational) and `opposite` (each
+  colour's opposite, `OPPOSITE`; Tricky). The kid mixes the paint first from
+  two pots (`mix`, `recipe`; Tricky has white for tints — paint, not light),
+  a wrong pair said kindly (`mixWords`); then paints (tap, a drag across the
+  squares — pointer events with `elementFromPoint`, `touch-none` on the canvas
+  — or the arrow keys between the kid's squares, one in the tab order, and
+  Enter), each square named by place, colour and the square it copies; the
+  mirror (`mismatches`, `checkWords`) marks what doesn't match yet, cleared as
+  it's repainted. After the third picture, a free canvas: the left half
+  painted, the right mirrored live (`mirrored`); "Hang it in the Gallery"
+  keeps it in the save as one flag whose name holds its code
+  (`mineFlag(id, encodeMine(grid))`, the old one dropped — §3.5; the whole
+  copy wins between devices, so flags aren't merged), shown under the
+  Gallery. The canvas and its paints and mirror button sit together (beside
+  it on a short screen, `useCanvasSize`); the room above (this round's three
+  frames) from `sm` up. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
