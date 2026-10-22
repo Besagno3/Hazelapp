@@ -37,29 +37,45 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * profile load and coming back online send at once, and so does the tab
  * being hidden (`watchPlayDays`) unless a send just failed.
  *
- * The records have their own storage key (review round 1, #178): a tab still
- * running a build from before them reads and writes `hazel-play-days-<kid>`
- * as a list of bare days, and would have written over the records. Days such
- * a tab leaves there are folded in here (as days played, nothing else
- * known) and the old key is cleared, so neither build writes over the other.
- * Such a day is `bare` (#181): that build earned XP on it that was never
- * noted, so it goes without `noted` — `note_play_history` then leaves
- * `noted_play` as it was and 📈 keeps "played, XP not recorded" for it,
- * never a "0 XP" it didn't earn. It stays bare once this device adds play
- * of its own to that day: the old build's XP for it is still missing, so
- * the day is still partial.
- *
  * Each browser's day is its own part of the kid's day (migration 0027,
  * #179): days go to `note_device_play` with this browser's device id
  * (`deviceId`, `hazel-device-id` — the tabs of one browser share it, as they
  * share these records), and the database adds the devices' parts up, so a
  * kid on a tablet and a laptop the same day has both counted, while each
- * device re-sending its whole day never counts it twice. A record keeps the
- * part it first went to (`part`), so it always goes back to the same one;
- * one sent before — through `note_play_history`, by this build without 0027
- * or by an older build — stays in the day's 'legacy' part, where the
- * database keeps what it had (sending it as a new device's part would count
- * it twice).
+ * device re-sending its whole day never counts it twice. Where a record goes
+ * — this browser's part, or the day's 'legacy' part through
+ * `note_play_history` (no 0027 yet) — is decided once and stored on it
+ * (`part`) BEFORE its first send, and every later send of it goes there
+ * (#179 review round 1): a send whose answer never came back, or two tabs
+ * sending at once across the 0027 switch, can't put one record in two parts.
+ * Only "no such function" — a sure answer that nothing has it — moves a
+ * record just given this browser's part to the legacy one (stored before
+ * that call too); a record already in a device's part then waits for 0027
+ * (sent the old way as well, it would count twice).
+ *
+ * Three builds' records, three keys (each build adds play only under its own):
+ *   * this build's: `hazel-play-parts-<kid>` (`playDaysKey`) — the play it
+ *     notes, and nothing else;
+ *   * the #89 build's: `hazel-play-history-<kid>` (`legacyPlayDaysKey`) — read
+ *     as a legacy-only source (#179 review round 1): each of its records is
+ *     sent as it is through `note_play_history`, into the day's legacy part,
+ *     which keeps the larger per day — so this tab and a #89 tab still open
+ *     sending the same record never add it up — and this build never adds
+ *     play to one (it marks one played, or sent, as that build would). It
+ *     used to share that key, so a #89 tab rewrote this build's record and
+ *     sent it, play and all, to the legacy part: the day counted twice. A
+ *     day there leaves once it's sent and past; today's stays for a #89 tab
+ *     that may still be writing it;
+ *   * main's from before the records (#88): `hazel-play-days-<kid>`
+ *     (`oldPlayDaysKey`), a list of bare days — folded into this build's
+ *     records as days played, nothing else known, and cleared (review round
+ *     1, #178). Such a day is `bare` (#181): that build earned XP on it that
+ *     was never noted, so it goes without `noted` — the database then leaves
+ *     `noted_play` as it was and 📈 keeps "played, XP not recorded" for it,
+ *     never a "0 XP" it didn't earn. It stays bare once this device adds play
+ *     of its own to that day: the old build's XP for it is still missing.
+ * A day either build's record counts as played is played on this device, so
+ * both records go; the minutes of both count towards five (#177).
  *
  * When a send fails it backs off rather than trying after every round
  * (#29 review round 1): no `note_device_play` (0027 not applied) → the days
@@ -76,9 +92,12 @@ import type { PlayDayRecord, TopicTally } from '../types';
  * again on the kid's next new day or the next time their profile loads.
  */
 
-const PREFIX = 'hazel-play-history-';
+const PREFIX = 'hazel-play-parts-';
 
-/** Where a build from before the day records keeps a kid's unsent days (bare `YYYY-MM-DD`s): read and folded in, never written. */
+/** Where the #89 build keeps its day records: sent as they are to the legacy part, never added to (#179 review round 1). */
+const LEGACY_PREFIX = 'hazel-play-history-';
+
+/** Where a build from before the day records (#88) keeps a kid's unsent days (bare `YYYY-MM-DD`s): read and folded in, never written. */
 const OLD_PREFIX = 'hazel-play-days-';
 
 /** At most this many days are kept on a device (today and the week the database takes back). */
@@ -161,9 +180,14 @@ export function deviceId(): string {
   return sessionDevice;
 }
 
-/** The localStorage key for a kid's kept days. */
+/** The localStorage key for a kid's day records — this build's own (#179 review round 1). */
 export function playDaysKey(kidId: string): string {
   return `${PREFIX}${kidId}`;
+}
+
+/** The key the #89 build keeps a kid's day records under: a legacy-only source here (#179 review round 1). */
+export function legacyPlayDaysKey(kidId: string): string {
+  return `${LEGACY_PREFIX}${kidId}`;
 }
 
 /** The key a build from before the day records keeps a kid's unsent days under (#29, migration 0025). */
@@ -178,9 +202,10 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
  * played (only then is it sent), what the database has of it — nothing,
  * the day alone (`note_play_days`, before 0026), or all of it as it stands —
  * whether an older build played it too (`bare`, #181: its play there was
- * never noted, so this record isn't all of the day's), and the device part
- * it went to (`part`, #179 — none for a record sent another way, which
- * stays in the day's legacy part).
+ * never noted, so this record isn't all of the day's), and where it goes
+ * (`part`, #179: this browser's device id, or `LEGACY_PART` — stored before
+ * its first send; none yet for a record never sent; a #89 build's record
+ * never has one: it goes to the legacy part).
  */
 interface Kept extends PlayDayRecord {
   played?: true;
@@ -202,6 +227,8 @@ interface SentDay extends PlayDayRecord {
 
 /** A kid's kept days when this device can't write them to storage (private mode, quota): kept for this session. */
 const unstored = new Map<string, Kept[]>();
+/** …and the #89 build's records, as this build last marked them, when that key can't be written. */
+const legacyUnstored = new Map<string, Kept[]>();
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const count = (v: unknown, max: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(0, Math.round(v))) : 0);
@@ -219,9 +246,11 @@ function tallyFrom(v: unknown): TopicTally | null {
 /**
  * One stored day: a bare day (the format before 0026 — a day an older build
  * played, nothing sent, its play unknown: `bare`) or a record; anything
- * else is null.
+ * else is null. `mine`: one of this build's, with its part (a record sent
+ * with none — never this build's — goes on to the legacy part); a #89
+ * build's has none.
  */
-function keptFrom(v: unknown): Kept | null {
+function keptFrom(v: unknown, mine = true): Kept | null {
   if (typeof v === 'string') return ISO_DAY.test(v) ? { day: v, xp: 0, minutes: 0, topics: {}, played: true, bare: true } : null;
   if (!isRecord(v) || typeof v.day !== 'string' || !ISO_DAY.test(v.day)) return null;
   const topics: Record<string, TopicTally> = {};
@@ -235,7 +264,9 @@ function keptFrom(v: unknown): Kept | null {
   if (v.played === true) kept.played = true;
   if (v.sent === 'day' || v.sent === 'all') kept.sent = v.sent;
   if (v.bare === true) kept.bare = true;
-  if (isDevice(v.part)) kept.part = v.part;
+  if (!mine) return kept;
+  if (isDevice(v.part) || v.part === LEGACY_PART) kept.part = v.part;
+  else if (kept.sent) kept.part = LEGACY_PART;
   return kept;
 }
 
@@ -277,33 +308,63 @@ function readKept(kidId: string): Kept[] {
   return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
 }
 
+/** The #89 build's records for a kid, oldest first (#179 review round 1) — never with a part. */
+function readLegacy(kidId: string): Kept[] {
+  const held = legacyUnstored.get(kidId);
+  if (held) return held;
+  const byDay = new Map<string, Kept>();
+  for (const v of storedList(legacyPlayDaysKey(kidId))) {
+    const kept = keptFrom(v, false);
+    if (kept) byDay.set(kept.day, kept);
+  }
+  return [...byDay.values()].sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
 /**
- * Keep a kid's days: oldest first; a day the database won't take any more
- * (older than 7 back), a past day it has as it stands, and a day more than
- * one ahead (a device clock that was set ahead: the database never takes it,
- * and it would hold one of the `PENDING_MAX` places for good — review round
- * 2) leave; at most `PENDING_MAX`.
+ * The days worth keeping: oldest first; a day the database won't take any
+ * more (older than 7 back), a past day it has as it stands, and a day more
+ * than one ahead (a device clock that was set ahead: the database never
+ * takes it, and it would hold one of the `PENDING_MAX` places for good —
+ * review round 2) leave; at most `PENDING_MAX`.
  */
-function writeKept(kidId: string, list: Kept[]): void {
+function keeping(list: Kept[]): Kept[] {
   const today = todayIso();
   const oldest = isoOffset(today, -DAYS_BACK);
   const newest = isoOffset(today, DAYS_AHEAD);
-  const days = list
+  return list
     .filter((r) => r.day >= oldest && r.day <= newest && !(r.sent === 'all' && r.day < today))
     .sort((a, b) => (a.day < b.day ? -1 : 1))
     .slice(-PENDING_MAX);
+}
+
+/** Write a kid's days under `key`; in `held` instead (this session) when storage can't be written. */
+function store(key: string, held: Map<string, Kept[]>, kidId: string, days: Kept[], then?: () => void): void {
   try {
-    if (days.length === 0) localStorage.removeItem(playDaysKey(kidId));
-    else localStorage.setItem(playDaysKey(kidId), JSON.stringify(days));
-    // An older build's days were read in with the rest (`readKept`): they're here now.
-    localStorage.removeItem(oldPlayDaysKey(kidId));
-    unstored.delete(kidId);
+    if (days.length === 0) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(days));
+    then?.();
+    held.delete(kidId);
   } catch {
     // Private mode / quota: kept in memory instead, so the day is still sent —
     // this session, or not at all.
-    if (days.length === 0) unstored.delete(kidId);
-    else unstored.set(kidId, days);
+    if (days.length === 0) held.delete(kidId);
+    else held.set(kidId, days);
   }
+}
+
+/** Keep a kid's days (this build's records — `keeping`). */
+function writeKept(kidId: string, list: Kept[]): void {
+  // An older build's days were read in with the rest (`readKept`): they're here now.
+  store(playDaysKey(kidId), unstored, kidId, keeping(list), () => localStorage.removeItem(oldPlayDaysKey(kidId)));
+}
+
+/**
+ * Keep the #89 build's records as this build marked them (played, sent) —
+ * their play as it was: a day leaves once it's sent and past (`keeping`;
+ * today's stays for a #89 tab that may still be writing it).
+ */
+function writeLegacy(kidId: string, list: Kept[]): void {
+  store(legacyPlayDaysKey(kidId), legacyUnstored, kidId, keeping(list));
 }
 
 /** The part of a record the database keeps. */
@@ -345,30 +406,47 @@ function change(kidId: string, day: string, edit: (r: Kept) => void, { played = 
   }
 }
 
-/** The days kept for a kid with something still to send (oldest first). */
+/**
+ * A kid's records with something to send, both builds' (`which` says what's
+ * still to send of a record): those of a day played on this device — a day
+ * either build's record counts as played (the #89 build's play on this
+ * device is this device's too, and so is this build's on a day it counted).
+ */
+function waiting(kidId: string, which: (r: Kept) => boolean): { mine: Kept[]; legacy: Kept[] } {
+  const mine = readKept(kidId);
+  const legacy = readLegacy(kidId);
+  const played = new Set([...mine, ...legacy].filter((r) => r.played).map((r) => r.day));
+  const sendable = (r: Kept) => played.has(r.day) && which(r);
+  return { mine: mine.filter(sendable), legacy: legacy.filter(sendable) };
+}
+
+/** The days kept for a kid with something still to send (oldest first), either build's. */
 export function pendingPlayDays(kidId: string): string[] {
-  return readKept(kidId)
-    .filter((r) => r.played && r.sent !== 'all')
-    .map((r) => r.day);
+  const { mine, legacy } = waiting(kidId, (r) => r.sent !== 'all');
+  return [...new Set([...mine, ...legacy].map((r) => r.day))].sort();
 }
 
 /**
  * This device's minutes on a kid's day and whether the day counts as played
- * here (#177: five active minutes count it) — null when nothing is kept for it.
+ * here (#177: five active minutes count it) — null when nothing is kept for
+ * it. Both builds' records: minutes a #89 tab counted here earlier that day
+ * count too.
  */
 export function keptDay(kidId: string, day: string): { minutes: number; played: boolean } | null {
-  const r = readKept(kidId).find((k) => k.day === day);
-  return r ? { minutes: r.minutes, played: !!r.played } : null;
+  const both = [...readKept(kidId), ...readLegacy(kidId)].filter((k) => k.day === day);
+  if (both.length === 0) return null;
+  return { minutes: both.reduce((n, k) => n + k.minutes, 0), played: both.some((k) => k.played) };
 }
 
-/** The records kept on this device for a kid (oldest first) — sent or not. */
+/** This build's records kept on this device for a kid (oldest first) — sent or not. */
 export function playDayRecords(kidId: string): PlayDayRecord[] {
   return readKept(kidId).map(recordOf);
 }
 
-/** Forget a kid's kept days, under either key (they were removed, or the family's copies leave this device). */
+/** Forget a kid's kept days, under every key (they were removed, or the family's copies leave this device). */
 export function forgetPlayDays(kidId: string): void {
   writeKept(kidId, []);
+  writeLegacy(kidId, []);
   wait.delete(kidId);
 }
 
@@ -425,9 +503,12 @@ export function notePlayDay(kidId: string, day: string): Promise<void> {
  * the caller's own send (throttled, or a load's at once) takes them.
  */
 export function markPlayDays(kidId: string, played: (day: string) => boolean): void {
-  const list = readKept(kidId);
-  if (!list.some((r) => !r.played && played(r.day))) return;
-  writeKept(kidId, list.map((r) => (!r.played && played(r.day) ? { ...r, played: true as const } : r)));
+  const mark = (list: Kept[]) => (list.some((r) => !r.played && played(r.day)) ? list.map((r) => (!r.played && played(r.day) ? { ...r, played: true as const } : r)) : null);
+  const mine = mark(readKept(kidId));
+  if (mine) writeKept(kidId, mine);
+  // The #89 build's records too (that build would mark them so on a profile load): played isn't play.
+  const legacy = mark(readLegacy(kidId));
+  if (legacy) writeLegacy(kidId, legacy);
 }
 
 /** `amount` XP earned on `day` (#169): added to the day's total, sent within a couple of minutes. */
@@ -489,9 +570,15 @@ export function noteDayLevel(kidId: string, day: string, topic: string, level: n
   return noted ? flushPlayDays(kidId) : Promise.resolve();
 }
 
-/** What's waiting to go for a kid: played days the database doesn't have as they stand (or, before 0026, the days themselves). */
-function toSend(kidId: string): Kept[] {
-  return readKept(kidId).filter((r) => r.played && (historyMissing() ? !r.sent : r.sent !== 'all'));
+/** What's waiting to go for a kid, either build's: played days the database doesn't have as they stand (or, before 0026, the days themselves). */
+function toSend(kidId: string): { mine: Kept[]; legacy: Kept[] } {
+  return waiting(kidId, (r) => (historyMissing() ? !r.sent : r.sent !== 'all'));
+}
+
+/** The #89 build's past days that are sent leave its key (#179 review round 1) — today's stays for a #89 tab still writing it. */
+function tidyLegacy(kidId: string): void {
+  const list = readLegacy(kidId);
+  if (keeping(list).length !== list.length) writeLegacy(kidId, list);
 }
 
 /**
@@ -505,7 +592,9 @@ function toSend(kidId: string): Kept[] {
 export function flushPlayDays(kidId: string, { now = false, hidden = false }: { now?: boolean; hidden?: boolean } = {}): Promise<void> {
   const running = inFlight.get(kidId);
   if (running) return running.then(() => flushPlayDays(kidId, { now, hidden }));
-  if (missing() || toSend(kidId).length === 0) return Promise.resolve();
+  tidyLegacy(kidId);
+  const { mine, legacy } = toSend(kidId);
+  if (missing() || mine.length + legacy.length === 0) return Promise.resolve();
   const w = wait.get(kidId);
   if (!now && w && Date.now() < w.at && (w.failed || !hidden)) return Promise.resolve();
   const send = sendPending(kidId).finally(() => inFlight.delete(kidId));
@@ -538,46 +627,84 @@ const notYours = (error: { message?: string }): boolean => /not your player/i.te
 /**
  * The database has what was sent: a record unchanged since is done (`all`;
  * a past day then leaves the device), one that grew meanwhile goes again —
- * its day, at least, is there. `part`: the device part it went to, kept so
- * it always goes back there (#179).
+ * its day, at least, is there. `legacy`: the #89 build's records — marked
+ * so in its key, as that build marks what it sent (and played: a day played
+ * here), their play left as it was.
  */
-function settle(kidId: string, sent: Kept[], what: 'day' | 'all', part?: string): void {
-  const list = readKept(kidId).map((r) => {
+function settle(kidId: string, sent: Kept[], what: 'day' | 'all', legacy = false): void {
+  if (sent.length === 0) return;
+  const done = (r: Kept): Kept => {
     const was = sent.find((s) => s.day === r.day);
     if (!was) return r;
-    const into = part ? { part } : {};
-    if (what === 'all' && contents(r) === contents(was)) return { ...r, ...into, sent: 'all' as const };
-    return r.sent ? { ...r, ...into } : { ...r, ...into, sent: 'day' as const };
-  });
-  writeKept(kidId, list);
+    const marked: Kept = legacy ? { ...r, played: true } : r;
+    if (what === 'all' && contents(r) === contents(was)) return { ...marked, sent: 'all' };
+    return r.sent ? marked : { ...marked, sent: 'day' };
+  };
+  if (legacy) writeLegacy(kidId, readLegacy(kidId).map(done));
+  else writeKept(kidId, readKept(kidId).map(done));
   wait.set(kidId, { at: Date.now() + SEND_EVERY_MS, failed: false, offline: false });
 }
 
 /**
- * The device part a record goes to (#179): the one it went to before; none
- * (`null`: the day's legacy part, through `note_play_history`) for one sent
- * another way before; else this browser's.
+ * Where each of these records goes, decided once and stored BEFORE the call
+ * (#179 review round 1): one that has a part keeps it — stored by an earlier
+ * send, or a moment ago by another tab of this browser; one that has none
+ * gets this browser's part, or the legacy part while `note_device_play` is
+ * known to be missing. So a send whose answer is lost (the database has it,
+ * the device never heard) or a race at the 0027 switch can't put one record
+ * in two parts. Returns the records as stored, and the days given a part now.
  */
-const partFor = (r: Kept, device: string): string | null => r.part ?? (r.sent ? null : device);
+function claimParts(kidId: string, records: Kept[]): { claimed: Kept[]; chosen: Set<string> } {
+  const want = new Set(records.map((r) => r.day));
+  const chosen = new Set<string>();
+  const list = readKept(kidId).map((r) => {
+    if (!want.has(r.day) || r.part) return r;
+    chosen.add(r.day);
+    return { ...r, part: deviceMissing() ? LEGACY_PART : deviceId() };
+  });
+  if (chosen.size > 0) writeKept(kidId, list);
+  return { claimed: list.filter((r) => want.has(r.day)), chosen };
+}
+
+/**
+ * `note_device_play` isn't there after all (0027 not applied — a sure
+ * answer: nothing was written): the records this send had just given
+ * `part` go to the legacy part instead, stored before that call too — each
+ * only if it's still `part`'s and still unsent here. Returns them.
+ */
+function toLegacy(kidId: string, records: Kept[], part: string): Kept[] {
+  const want = new Set(records.map((r) => r.day));
+  const moved: Kept[] = [];
+  const list = readKept(kidId).map((r) => {
+    if (!want.has(r.day) || r.part !== part || r.sent) return r;
+    const legacy = { ...r, part: LEGACY_PART };
+    moved.push(legacy);
+    return legacy;
+  });
+  if (moved.length > 0) writeKept(kidId, list);
+  return moved;
+}
+
+const byDay = (a: Kept, b: Kept) => (a.day < b.day ? -1 : 1);
 
 async function sendPending(kidId: string): Promise<void> {
-  const records = toSend(kidId);
   try {
-    // Each device part's days to note_device_play (0027); the rest — days
-    // first sent another way, or every day without 0027 — the old way below.
-    const device = deviceId();
+    const { mine, legacy } = toSend(kidId);
+    const { claimed, chosen } = claimParts(kidId, mine);
+    // Each device part's days to note_device_play (0027); the rest — the
+    // legacy part's (no 0027 when first sent), and the #89 build's records —
+    // to note_play_history below.
     const parts = new Map<string, Kept[]>();
-    let rest: Kept[] = [];
-    for (const r of records) {
-      const part = partFor(r, device);
-      if (part) parts.set(part, [...(parts.get(part) ?? []), r]);
-      else rest.push(r);
+    const rest: Kept[] = [];
+    for (const r of claimed) {
+      if (r.part === LEGACY_PART) rest.push(r);
+      else if (r.part) parts.set(r.part, [...(parts.get(r.part) ?? []), r]);
     }
     for (const [part, days] of parts) {
       if (!deviceMissing()) {
         const { error } = await supabase.rpc('note_device_play', { p_kid: kidId, p_device: part, p_days: days.map(sentOf) });
         if (!error) {
-          settle(kidId, days, 'all', part);
+          settle(kidId, days, 'all');
           continue;
         }
         if (notYours(error)) return forgetPlayDays(kidId);
@@ -586,24 +713,29 @@ async function sendPending(kidId: string): Promise<void> {
         deviceMissingUntil = Date.now() + MISSING_RECHECK_MS;
         console.warn('Noting play per device needs migration 0027 — sent as before:', errorMessage(error));
       }
-      // A record already in a device's part waits for 0027: sent the old way
-      // as well, it would count twice.
-      rest = [...rest, ...days.filter((r) => !r.part)];
+      // A record given this part just now goes the old way (its part is the
+      // legacy one from now on); one already in a device's part waits for
+      // 0027 — sent the old way as well, it would count twice.
+      rest.push(...toLegacy(kidId, days.filter((r) => chosen.has(r.day)), part));
     }
-    rest.sort((a, b) => (a.day < b.day ? -1 : 1));
-    if (rest.length === 0) return;
+    const all = [...rest, ...legacy].sort(byDay);
+    if (all.length === 0) return;
     if (!historyMissing()) {
-      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: rest.map(sentOf) });
-      if (!error) return settle(kidId, rest, 'all');
+      const { error } = await supabase.rpc('note_play_history', { p_kid: kidId, p_days: all.map(sentOf) });
+      if (!error) {
+        settle(kidId, rest, 'all');
+        return settle(kidId, legacy, 'all', true);
+      }
       if (notYours(error)) return forgetPlayDays(kidId);
       if (!noFunction(error)) return backOff(kidId, error);
       // Migration 0026 isn't applied (yet): the days alone, as before it; the rest waits on the device.
       historyMissingUntil = Date.now() + MISSING_RECHECK_MS;
       console.warn('Noting play history needs migration 0026 — the days alone are sent:', errorMessage(error));
     }
-    const days = rest.filter((r) => !r.sent);
+    const fresh = (list: Kept[]) => list.filter((r) => !r.sent);
+    const days = [...new Set(fresh(all).map((r) => r.day))].sort();
     if (days.length === 0) return;
-    const { error } = await supabase.rpc('note_play_days', { p_kid: kidId, p_days: days.map((r) => r.day) });
+    const { error } = await supabase.rpc('note_play_days', { p_kid: kidId, p_days: days });
     if (error) {
       if (notYours(error)) return forgetPlayDays(kidId);
       if (noFunction(error)) {
@@ -614,7 +746,8 @@ async function sendPending(kidId: string): Promise<void> {
       }
       return backOff(kidId, error);
     }
-    settle(kidId, days, 'day');
+    settle(kidId, fresh(rest), 'day');
+    settle(kidId, fresh(legacy), 'day', true);
   } catch (err) {
     backOff(kidId, err);
   }

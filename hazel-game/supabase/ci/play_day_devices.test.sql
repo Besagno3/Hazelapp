@@ -7,13 +7,15 @@
 -- note_play_history (an older app) writes the 'legacy' part; a day noted
 -- before it had any part keeps what it held as its 'legacy' part. Parts are
 -- tidied at 35 days like the days, go with the kid, and no API role can read
--- or write them. The concurrency of two notes of one day:
+-- or write them; a day takes at most 8 devices' parts (a 9th new device is
+-- counted out). The concurrency of two notes of one day:
 -- play_day_devices_lock.test.sql. Any failed assertion raises and exits
 -- non-zero under `psql -v ON_ERROR_STOP=1`.
 --
--- Who's who: grown-up A (…c1) has Sam (…7a1a), Kit (…7a1b), Ivy (…7a1c) and
--- Zoe (…7a1d); grown-up B (…c2) has Bea (…7b1a). A acts on the family
--- device's sign-in with no 👪 window open: noting play is the kid's play.
+-- Who's who: grown-up A (…c1) has Sam (…7a1a), Kit (…7a1b), Ivy (…7a1c),
+-- Zoe (…7a1d) and Ada (…7a1e); grown-up B (…c2) has Bea (…7b1a). A acts
+-- on the family device's sign-in with no 👪 window open: noting play is the
+-- kid's play.
 begin;
 -- The test's dates are the server's (UTC), as the note functions' are.
 set local timezone = 'UTC';
@@ -49,13 +51,17 @@ insert into public.profiles (id, parent_id, display_name, icon, birth_year, birt
   ('00000000-0000-0000-0000-000000007a1b', '00000000-0000-0000-0000-0000000000c1', 'Kit', 'frog', 2018, 5),
   ('00000000-0000-0000-0000-000000007a1c', '00000000-0000-0000-0000-0000000000c1', 'Ivy', 'owl', 2019, 1),
   ('00000000-0000-0000-0000-000000007a1d', '00000000-0000-0000-0000-0000000000c1', 'Zoe', 'cat', 2016, 9),
+  ('00000000-0000-0000-0000-000000007a1e', '00000000-0000-0000-0000-0000000000c1', 'Ada', 'owl', 2017, 6),
   ('00000000-0000-0000-0000-000000007b1a', '00000000-0000-0000-0000-0000000000c2', 'Bea', 'bee', 2016, 7);
 
 -- Kit's yesterday was noted before 0027 (0026's note_play_history wrote the
 -- row itself), and the day before by an old tab's note_play_days (zeros).
+-- Ada's day 2 back too: a send whose answer never came back (0026 wrote it,
+-- the app never heard, so it sends the record again).
 insert into public.play_days (profile_id, day, xp, minutes, topics, noted_play) values
   ('00000000-0000-0000-0000-000000007a1b', current_date - 1, 30, 8, '{"math": {"a": 5, "r": 3, "l": 2}}', true),
-  ('00000000-0000-0000-0000-000000007a1b', current_date - 2, 0, 0, '{}', false);
+  ('00000000-0000-0000-0000-000000007a1b', current_date - 2, 0, 0, '{}', false),
+  ('00000000-0000-0000-0000-000000007a1e', current_date - 2, 50, 10, '{}', true);
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -163,6 +169,54 @@ begin
   -- larger of the two, never both.
   perform public.note_play_history(kit, jsonb_build_array(pg_temp.el(-1, 12, 3, null, false)));
   assert pg_temp.day(kit, -1) -> 'xp' = '45', format('the carried 30 stays the legacy part''s (%s)', pg_temp.day(kit, -1));
+end $$;
+
+-- 3b) A send whose answer was lost (review round 1): 0026 wrote the record,
+--     the app never heard and sends it again, grown — to the legacy part,
+--     where it was decided to go before the first send. The larger of the
+--     two, never both.
+do $$
+declare
+  ada constant uuid := '00000000-0000-0000-0000-000000007a1e';
+begin
+  assert public.note_play_history(ada, jsonb_build_array(pg_temp.el(-2, 52, 11, null, true))) = 1, 'the record again';
+  assert pg_temp.day(ada, -2) = '{"xp": 52, "minutes": 11, "noted": true, "topics": {}}'::jsonb,
+    format('the lost send and its re-send are one record: 52 XP, 11 minutes — not 102 and 21 (%s)', pg_temp.day(ada, -2));
+  assert (select count(*) from jsonb_object_keys(pg_temp.parts(ada, -2))) = 1, 'one part, the legacy one';
+end $$;
+
+-- 3c) At most 8 devices' parts a day (review round 1): a 9th new device's
+--     day is counted out, never an error; the legacy part isn't a device's;
+--     a device with a part that day still adds to it; the cap is per day.
+do $$
+declare
+  ada constant uuid := '00000000-0000-0000-0000-000000007a1e';
+  v jsonb;
+begin
+  assert public.note_play_history(ada, jsonb_build_array(pg_temp.el(0, 7, 0, null, false))) = 1, 'an old tab''s day first';
+  for i in 1..8 loop
+    assert public.note_device_play(ada, 'dev-' || i, jsonb_build_array(pg_temp.el(0, 10, 1, null, true))) = 1,
+      format('device %s of 8 is noted, the legacy part beside them', i);
+  end loop;
+  assert public.note_device_play(ada, 'dev-9', jsonb_build_array(pg_temp.el(0, 10, 1, null, true), pg_temp.el(-1, 4, 1, null, true))) = 1,
+    'a 9th device: its today counted out, its yesterday noted';
+  v := pg_temp.parts(ada, 0);
+  assert not v ? 'dev-9' and (select count(*) from jsonb_object_keys(v)) = 9, format('8 devices and the legacy part (%s)', v);
+  assert pg_temp.day(ada, 0) -> 'xp' = '87' and pg_temp.day(ada, 0) -> 'minutes' = '8',
+    format('the day is the 8 devices'' and the legacy part''s: 87 XP (%s)', pg_temp.day(ada, 0));
+  assert pg_temp.parts(ada, -1) ? 'dev-9', 'the cap is per day';
+  assert public.note_device_play(ada, 'dev-3', jsonb_build_array(pg_temp.el(0, 25, 2, null, true))) = 1,
+    'a device with a part that day still notes';
+  assert public.note_play_history(ada, jsonb_build_array(pg_temp.el(0, 9, 0, null, false))) = 1, 'and so does the legacy part';
+  assert pg_temp.day(ada, 0) -> 'xp' = '104', format('80 + 15 more from dev-3 + the legacy part''s 9 (%s)', pg_temp.day(ada, 0));
+  assert public.note_device_play(ada, 'dev-10', jsonb_build_array(pg_temp.el(0, 10, 1, null, true))) = 0, 'still no 9th device';
+  assert not pg_temp.parts(ada, 0) ? 'dev-10', 'nor its part';
+  -- 8 devices first, then an old tab: its legacy part joins them.
+  perform public.note_device_play(ada, 'dev-' || i, jsonb_build_array(pg_temp.el(-3, 1, 0, null, true)))
+     from generate_series(1, 8) i;
+  assert public.note_play_history(ada, jsonb_build_array(pg_temp.el(-3, 5, 0, null, false))) = 1, 'the old tab''s day is noted';
+  assert pg_temp.day(ada, -3) -> 'xp' = '13',
+    format('an old tab''s day joins 8 devices: the legacy part isn''t a 9th device (%s)', pg_temp.day(ada, -3));
 end $$;
 
 -- 4) The caps: XP 100,000, minutes 1,440, a ≤ 10,000 with r ≤ a, at most

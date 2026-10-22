@@ -502,7 +502,8 @@ describe('the play on each day: XP, minutes, answers (#169, #172, #173; migratio
     rpc.mockResolvedValue(ok);
     mod.recheckPlayFunctions();
     await mod.flushPlayDays('kid-1', { now: true });
-    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play']);
+    // Its part was decided (the legacy one: no note_device_play) before that send, and stays (#179 review round 1).
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history']);
     expect(mod.pendingPlayDays('kid-1')).toEqual([]);
   });
 
@@ -613,13 +614,141 @@ describe('each device its own part of the day: note_device_play (#179, migration
     expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ ...sent(TODAY), minutes: 1 }] });
   });
 
-  it('a record an older build sent (no part) goes on to note_play_history, never as a new device\'s part', async () => {
+  it('the #89 build\'s records are a legacy-only source: sent as they are to note_play_history, never added to — new play on their day is this build\'s record, for this browser\'s part (review round 1)', async () => {
     rpc.mockResolvedValue(ok);
-    localStorage.setItem(mod.playDaysKey('kid-1'), JSON.stringify([{ day: TODAY, xp: 30, minutes: 2, topics: {}, played: true, sent: 'all' }]));
+    expect(new Set([mod.playDaysKey('kid-1'), mod.legacyPlayDaysKey('kid-1'), mod.oldPlayDaysKey('kid-1')]).size).toBe(3);
+    const theirs = [
+      { day: '2026-10-20', xp: 12, minutes: 2, topics: { math: { a: 1, r: 1, l: 3 } }, played: true },
+      { day: TODAY, xp: 30, minutes: 2, topics: {}, played: true, sent: 'all' },
+    ];
+    localStorage.setItem(mod.legacyPlayDaysKey('kid-1'), JSON.stringify(theirs));
+    await mod.addDayMinute('kid-1', TODAY);
+    await mod.flushPlayDays('kid-1', { now: true });
+    // Its unsent yesterday as it is; its today (sent) not again; this build's minute — a day played here — to its part.
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_play_history']);
+    expect(rpc).toHaveBeenCalledWith('note_device_play', mine([{ ...sent(TODAY), minutes: 1 }]));
+    expect(rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ ...sent('2026-10-20'), xp: 12, minutes: 2, topics: { math: { a: 1, r: 1, l: 3 } } }] });
+    // Its play untouched; yesterday, sent and past, has left its key; today's stays (a #89 tab may still write it).
+    expect(JSON.parse(localStorage.getItem(mod.legacyPlayDaysKey('kid-1')) ?? '[]')).toEqual([theirs[1]]);
+    expect(mod.playDayRecords('kid-1')).toEqual([{ day: TODAY, xp: 0, minutes: 1, topics: {} }]);
+    // A record of this build's sent with no part (never this build's own doing) goes to the legacy part.
+    localStorage.setItem(mod.playDaysKey('kid-1'), JSON.stringify([{ day: '2026-10-19', xp: 4, minutes: 0, topics: {}, played: true, sent: 'day' }]));
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc).toHaveBeenLastCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ ...sent('2026-10-19'), xp: 4 }] });
+    // A day the profile proves (markPlayDays) marks the #89 build's record of it played — as that build would on a
+    // profile load — so its minutes go too, as they are; forgetting a kid clears its key.
+    localStorage.setItem(mod.legacyPlayDaysKey('kid-1'), JSON.stringify([{ day: '2026-10-18', xp: 0, minutes: 3, topics: {} }]));
+    expect(mod.pendingPlayDays('kid-1')).toEqual([]);
+    mod.markPlayDays('kid-1', (d) => d === '2026-10-18');
+    expect(JSON.parse(localStorage.getItem(mod.legacyPlayDaysKey('kid-1')) ?? '[]')).toEqual([{ day: '2026-10-18', xp: 0, minutes: 3, topics: {}, played: true }]);
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc).toHaveBeenLastCalledWith('note_play_history', { p_kid: 'kid-1', p_days: [{ ...sent('2026-10-18'), minutes: 3 }] });
+    localStorage.setItem(mod.legacyPlayDaysKey('kid-1'), JSON.stringify([theirs[1]]));
+    mod.forgetPlayDays('kid-1');
+    expect(localStorage.getItem(mod.legacyPlayDaysKey('kid-1'))).toBeNull();
+  });
+
+  it('a record\'s part is stored before its first send: a send whose answer was lost goes on to the same part — the legacy one after 0027 too (review round 1)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // No 0027: note_play_history writes today, but its answer never comes back (a closing tab, a dropped connection).
+    rpc.mockImplementation(async (fn: string) => {
+      if (fn === 'note_device_play') return noDevice;
+      throw offline();
+    });
+    await mod.notePlayDay('kid-1', TODAY);
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_play_history']);
+    expect(mod.pendingPlayDays('kid-1')).toEqual([TODAY]);
+    expect(JSON.parse(localStorage.getItem(mod.playDaysKey('kid-1')) ?? '[]')[0].part).toBe(mod.LEGACY_PART);
+    // 0027 is applied, the day grows, a profile load asks again: still the legacy part, where the database has it —
+    // as this browser's part it would count twice.
+    rpc.mockReset();
+    rpc.mockResolvedValue(ok);
+    mod.recheckPlayFunctions();
     await mod.addDayMinute('kid-1', TODAY);
     await mod.flushPlayDays('kid-1', { now: true });
     expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history']);
-    expect(sentDays()).toEqual([{ ...sent(TODAY), xp: 30, minutes: 3 }]);
+    expect(sentDays()).toEqual([{ ...sent(TODAY), minutes: 1 }]);
+    // A lost answer from note_device_play: the record stays that part's, even once the browser's id is another.
+    rpc.mockReset();
+    rpc.mockRejectedValueOnce(offline()).mockResolvedValue(ok);
+    await mod.notePlayDay('kid-1', '2026-10-22');
+    const first = mod.deviceId();
+    localStorage.removeItem(mod.DEVICE_KEY);
+    vi.resetModules();
+    mod = await import('./playDays');
+    expect(mod.deviceId()).not.toBe(first);
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc.mock.calls.map((c) => [c[0], (c[1] as { p_device?: string }).p_device])).toEqual([
+      ['note_device_play', first],
+      ['note_device_play', first],
+    ]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('a part given in an earlier send stays: no note_device_play then, the record waits for it rather than go the old way too; one another tab sent meanwhile isn\'t sent again (review round 1)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Today's first send gets no answer: its part is this browser's, stored before the call.
+    rpc.mockRejectedValueOnce(offline());
+    await mod.notePlayDay('kid-1', TODAY);
+    // Next time the database says it has no note_device_play (a stale schema, say): it waits for it, in that part.
+    rpc.mockReset();
+    rpc.mockImplementation(without('note_device_play'));
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play']);
+    expect(mod.pendingPlayDays('kid-1')).toEqual([TODAY]);
+    // Another tab's send of a record this tab just gave its part, while this tab's call is out: if the database
+    // turns out to have no note_device_play for this one, the record the other tab sent isn't sent the old way.
+    mod.recheckPlayFunctions();
+    rpc.mockReset();
+    let answer: (v: unknown) => void = () => {};
+    rpc.mockImplementationOnce(() => new Promise((r) => (answer = r))).mockResolvedValue(ok);
+    const sending = mod.notePlayDay('kid-1', '2026-10-22');
+    vi.resetModules();
+    const other = await import('./playDays');
+    await other.flushPlayDays('kid-1', { now: true });
+    expect(rpc.mock.calls.slice(1).map((c) => [c[0], (c[1] as { p_days: { day: string }[] }).p_days.map((d) => d.day)])).toEqual([
+      ['note_device_play', [TODAY, '2026-10-22']],
+    ]);
+    answer(noDevice);
+    await sending;
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_device_play']);
+  });
+
+  it('before 0026, the #89 build\'s records go as days alone too, and are marked so in its key', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    rpc.mockImplementation(without('note_device_play', 'note_play_history'));
+    localStorage.setItem(mod.legacyPlayDaysKey('kid-1'), JSON.stringify([{ day: '2026-10-20', xp: 3, minutes: 1, topics: {}, played: true }]));
+    await mod.notePlayDay('kid-1', TODAY);
+    expect(rpc).toHaveBeenLastCalledWith('note_play_days', { p_kid: 'kid-1', p_days: ['2026-10-20', TODAY] });
+    expect(JSON.parse(localStorage.getItem(mod.legacyPlayDaysKey('kid-1')) ?? '[]')[0].sent).toBe('day');
+    // Not sent as a day again.
+    await mod.flushPlayDays('kid-1', { now: true });
+    expect(rpc).toHaveBeenCalledTimes(3);
+  });
+
+  it('two tabs of one browser across the 0027 switch: the first to send a record decides its part, and the other sends it there too (review round 1)', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // Tab A learnt a while ago that 0027 wasn't there (it remembers for MISSING_RECHECK_MS); tab B has just opened.
+    rpc.mockImplementation(without('note_device_play'));
+    await mod.notePlayDay('kid-1', '2026-10-20');
+    const tabA = mod;
+    vi.resetModules();
+    const tabB = await import('./playDays');
+    // 0027 is applied now. A sends today (the legacy part, by what it knows); its answer is slow to come.
+    rpc.mockReset();
+    let answer: (v: unknown) => void = () => {};
+    rpc.mockImplementation(() => new Promise((r) => (answer = r)));
+    const sending = tabA.notePlayDay('kid-1', TODAY);
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history']);
+    // B sends the same record meanwhile: to the part A stored for it — never this browser's as well.
+    rpc.mockImplementation(async () => ok);
+    await tabB.flushPlayDays('kid-1', { now: true });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_play_history', 'note_play_history']);
+    answer(ok);
+    await sending;
+    // A new day for B goes to this browser's part (it has no reason to think 0027 is missing).
+    await tabB.notePlayDay('kid-1', '2026-10-22');
+    expect(rpc).toHaveBeenLastCalledWith('note_device_play', { p_kid: 'kid-1', p_device: tabB.deviceId(), p_days: [sent('2026-10-22')] });
   });
 
   it('a record already in a device part waits while note_device_play is missing — never sent the old way too', async () => {
@@ -647,7 +776,7 @@ describe('each device its own part of the day: note_device_play (#179, migration
   it('one send, two parts: this browser\'s days and the legacy ones each to their own function; a refusal stops it', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     rpc.mockResolvedValue(ok);
-    localStorage.setItem(mod.playDaysKey('kid-1'), JSON.stringify([{ day: '2026-10-19', xp: 5, minutes: 0, topics: {}, played: true, sent: 'day' }]));
+    localStorage.setItem(mod.legacyPlayDaysKey('kid-1'), JSON.stringify([{ day: '2026-10-19', xp: 5, minutes: 0, topics: {}, played: true, sent: 'day' }]));
     await mod.notePlayDay('kid-1', TODAY);
     expect(rpc.mock.calls.map((c) => c[0])).toEqual(['note_device_play', 'note_play_history']);
     expect(rpc).toHaveBeenCalledWith('note_device_play', mine([sent(TODAY)]));

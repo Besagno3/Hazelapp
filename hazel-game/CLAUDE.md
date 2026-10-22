@@ -412,15 +412,25 @@ measured ~106 KB gzipped for one bar chart.
   replayed; a 🍂 Falling Leaves round with a leaf caught; a Scriptorium page —
   each calls `recordActivity`, review round 2) — that day
   (their device's own `YYYY-MM-DD`) is kept on the device as a record of the
-  day's play (`hazel-play-history-<kid>`, at most 8, a week back, never more
+  day's play (`hazel-play-parts-<kid>`, at most 8, a week back, never more
   than a day ahead — a clock that was set ahead, #89 review round 2; in memory
-  when storage can't be written — its own key since #89 review round 1, so a
-  tab on an older build, which reads and writes `hazel-play-days-<kid>` as a
-  list of days, can't write over the records; the days it leaves there are
-  folded in as days played and that key cleared, #178 — and marked `bare`:
-  that build's XP for the day was never noted, so the day goes without
-  `noted` and keeps "played, XP not recorded", even once this device plays
-  it too, #181 review): the XP earned
+  when storage can't be written). Each build's records have their own key,
+  and a build adds play only under its own (#178, #179 review round 1): the
+  #89 build's, `hazel-play-history-<kid>`, is a legacy-only source — each of
+  its records is sent as it is through `note_play_history` into the day's
+  legacy part, which keeps the larger per day, so this tab and a #89 tab
+  still open sending the same record never add it up; this build never adds
+  play to one (it marks one played or sent, as that build would), and a day
+  there leaves once it's sent and past (today's stays for a #89 tab still
+  writing it) — it shared that key once, and a #89 tab rewrote this build's
+  record and sent it, play and all, to the legacy part: the day counted
+  twice; main's from before the records (#88), `hazel-play-days-<kid>`, a list
+  of days, is folded in as days played and cleared (#178) — and marked
+  `bare`: that build's XP for the day was never noted, so the day goes
+  without `noted` and keeps "played, XP not recorded", even once this device
+  plays it too, #181 review. A day either build's record counts as played is
+  played on this device (both records go), and the minutes of both count
+  towards five (`keptDay`, #177): the XP earned
   (#169, `addXp` → `addDayXp`, even while the row is unread), active minutes
   (#172, `lib/activeMinutes.ts`, wired in `App`: every 60 s a minute counts
   with the game on screen, the tab in view and a key, pointer or touch in
@@ -478,13 +488,22 @@ measured ~106 KB gzipped for one bar chart.
   part whose play changed last, `noted_play` if any part was sent with
   `noted: true` (#181 — every day the app sends but a `bare` one; never
   unset, never by `note_play_days`), at most 16 topics, those already on the
-  day first; two notes of one day take turns on its row (`for update`). A
-  record keeps the part it went to (`part`) and always goes back there; one
-  sent before another way (`note_play_history`, or an older build) goes on to
-  `note_play_history(kid, days)` (0026; 0027 makes it write the day's
-  `legacy` part — so a tab still on the #89 build adds to the devices'
-  parts), whose part holds it; a day noted before it had any part keeps what
-  its row held as that `legacy` part. Every note deletes **every**
+  day first; two notes of one day take turns on its row (`for update`); at
+  most **8 devices' parts a kid's day** (#179 review round 1: a 9th new
+  device's day is skipped and counted out of the days noted, never an error,
+  so no family can make a day's sum re-add hundreds of parts under its lock;
+  the legacy part isn't a device's, and a device with a part that day always
+  adds to it). Where a record goes is decided once and stored on it
+  (`part`: this browser's id, or `legacy`) **before** its first send, and
+  every later send of it goes there (#179 review round 1 — a send whose
+  answer was lost, or two tabs sending at once across the 0027 switch, can't
+  put one record in two parts): this browser's part, or the legacy part
+  while `note_device_play` is known to be missing — `note_play_history(kid,
+  days)` (0026; 0027 makes it write the day's `legacy` part — so a tab still
+  on the #89 build adds to the devices' parts); only "no such function" for
+  the send that just chose this browser's part moves the record to the legacy
+  part (stored before that call too). A day noted before it had any part
+  keeps what its row held as that `legacy` part. Every note deletes **every**
   kid's days and parts older than 35 (was 14 before 0026; any family's note — at
   most 1,000 of the oldest of each a call, by the index on `day`, so no note risks
   the API's statement timeout, review round 2; rows another note is deleting
@@ -501,8 +520,9 @@ measured ~106 KB gzipped for one bar chart.
   keeps the 🔥 streak going too — intended (the lead, 2026-10-21) — and so
   does a day spent only walking the world: five active minutes on the device
   count it (#177, the lead, 2026-10-22). A failed send
-  backs off: no `note_device_play` → `note_play_history` as before (a record
-  already in a device's part waits for 0027); no `note_play_history` → the
+  backs off: no `note_device_play` → `note_play_history` as before for a
+  record whose part that send chose (a record already in a device's part
+  waits for 0027); no `note_play_history` → the
   days alone to `note_play_days`; none (0025 not applied) → nothing more;
   each is asked for again
   after `MISSING_RECHECK_MS` (10 min) and on the next profile load
@@ -1260,7 +1280,8 @@ measured ~106 KB gzipped for one bar chart.
   re-applies 0026, then 0027 as the bundle does, inside its own transaction
   with psql's `\ir`, to test the backfill and the bundle's replay over live
   data); `play_day_devices.test.sql` each device's part of a day and their
-  sum, the legacy part, the caps, the refusals and the parts' tidy-up (0027,
+  sum, the legacy part (a lost answer's re-send is one record), the caps, 8
+  devices a day, the refusals and the parts' tidy-up (0027,
   #179) and `play_day_devices_lock.test.sql` two notes of one day taking
   turns (two dblink sessions, its own committed family, and a test-only
   trigger that pauses one note between adding up and writing);
@@ -1641,8 +1662,11 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   own part (play_day_parts, no client access) and play_days holds their sum; an old open tab's
 #   note_play_history writes the day's 'legacy' part, so it adds to the new app's devices instead of replacing
 #   them, and a day noted before 0027 keeps what it holds (as that legacy part) the first time a device writes
-#   to it. A day two devices both sent through note_play_history (two old tabs, or new tabs before 0027) keeps
-#   the larger of the two, as before; days add up from then on. Parts are tidied at 35 days by the same notes.
+#   to it. An old tab and a new tab in one browser never count a day twice (each build keeps its own records:
+#   the old tab's go to the legacy part, the new tab's to its device's). A day two devices both sent through
+#   note_play_history (an old tab on each, or new tabs before 0027) keeps the larger of the two, as before; days
+#   add up from then on. At most 8 devices' parts a kid's day (a 9th new device's day is skipped). Parts are
+#   tidied at 35 days by the same notes.
 #   The draft privacy notice now says each device's share of a day is kept under a random code the browser
 #   makes up (#124, for the lawyer). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
 
@@ -1819,6 +1843,41 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Two devices add up, review: an old tab and a new tab never count a day twice, a record's part decided before it's sent, at most 8 devices a day (#179)
+`/saas-code-review` of PR #93 (1 medium, 2 low; #177 clean), with the
+lead's calls, all fixed. **One browser, two builds (medium):** a tab left
+open on the #89 build shared `hazel-play-history-<kid>` with this build;
+it rewrote this build's record (dropping its `part`) and sent it, play and
+all, to `note_play_history` — the legacy part — so this build's device part
+counted again (12 minutes → 22). This build's records now have their own
+key, `hazel-play-parts-<kid>`, and it adds play only there; the #89 key is a
+legacy-only source: each record sent as it is through `note_play_history`
+(the legacy part keeps the larger per day, so both tabs sending it never add
+up), never added to (marked played or sent, as that build would), a day
+there removed once sent and past (today's left for a #89 tab still writing
+it); main's #88 days-only key folds in as bare days, as before. A day either
+build's record counts as played is played here, and both builds' minutes
+count towards five (`keptDay`, #177). **A record's part, stored before its
+first send (low):** this browser's id, or `legacy` while `note_device_play`
+is known missing (`claimParts`), and every later send goes there — a lost
+answer or two tabs at the 0027 switch can't put one record in two parts;
+only "no such function" for the send that just chose the device part moves
+it to legacy (`toLegacy`, stored before that call too, and never a record
+another tab has sent meanwhile). **8 devices a day (low):** 0027 (changed in
+place, unapplied) skips a 9th new device's day under the day's lock and
+counts it out — no error; the legacy part isn't a device's, a known device
+always adds. Tests 2517 → 2526, the full suite green (a first run had
+`App.worldLoad.test` time out under load; alone 3 of 3 and the rerun pass);
+new `playDays.builds.test` runs this build beside the #89 build's code word
+for word (`src/test/playDays89.ts`) on one storage — the review's two-tab
+reproduction now 12 minutes / 55 XP / 3 answers; lint, `tsc -b`,
+`build:web` with the placeholders (`ProgressPage` 39.76 KB, 13.06 KB gz);
+CI's migrations job locally (27 migrations, the bundle twice, 22 SQL tests
+— `play_day_devices.test.sql` §3b a lost answer's re-send, §3c the cap);
+10 of 10 SQL and 19 of 20 client mutations caught (one equivalent). Left:
+a day two devices both sent the old way keeps the larger (ISSUES #179). No
+screen changed. Deploy: as the PR (re-run `apply_all_migrations.sql`).
 
 ### 2026-10-22 — A walk counts after five minutes, and two devices add up (#177, #179)
 Two follow-ups from the progress history PR, the lead's calls. **A walk

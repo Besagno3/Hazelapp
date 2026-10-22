@@ -41,6 +41,11 @@
 --     the account deletes them (cascade).
 --   * Two notes of one day at once (two devices) take turns on the day's
 --     row, so each sum sees the other's part.
+--   * At most 8 devices' parts a kid's day (review round 1): a note for a
+--     9th new device that day is skipped — counted out of the days noted,
+--     never an error — so no family can make every later note of a day
+--     re-add hundreds of parts under its lock. The legacy part isn't a
+--     device's; a device that has a part that day always adds to it.
 --
 -- Backward compatible both ways: an app from before this calls
 -- note_play_history (kept, as above) or note_play_days; this app calls
@@ -120,9 +125,11 @@ $$;
 
 -- One device's part of a kid's day, cleaned already: merged into the part
 -- as 0026 merges a day, then the day worked out again from all its parts.
+-- False (nothing changed) for a new device on a day that has 8 devices'
+-- parts already.
 create or replace function public.play_day_add_part(
   p_kid uuid, p_day date, p_device text, p_xp integer, p_minutes integer, p_topics jsonb, p_noted boolean)
-returns void
+returns boolean
 language plpgsql
 set search_path = ''
 as $$
@@ -140,6 +147,16 @@ begin
   select d.topics into v_had from public.play_days d
    where d.profile_id = p_kid and d.day = p_day
      for update;
+
+  -- At most 8 devices a day (under the day's lock, so two new devices can't
+  -- both slip in as the 8th): a 9th new one is skipped.
+  if p_device <> 'legacy'
+     and not exists (select 1 from public.play_day_parts q
+                      where q.profile_id = p_kid and q.day = p_day and q.device = p_device)
+     and (select count(*) from public.play_day_parts q
+           where q.profile_id = p_kid and q.day = p_day and q.device <> 'legacy') >= 8 then
+    return false;
+  end if;
 
   -- A day noted before it had any part: what it holds is its 'legacy' part,
   -- so the sum drops nothing already recorded. (A day noted alone, zeros and
@@ -196,15 +213,17 @@ begin
   update public.play_days d
      set xp = v_xp, minutes = v_minutes, topics = v_topics, noted_play = v_noted
    where d.profile_id = p_kid and d.day = p_day;
+  return true;
 end;
 $$;
 
 -- Note a kid's play into one part (`p_device`), a day at a time — the rules
 -- of 0026's note_play_history: `p_days` is a JSON array of {day:
 -- "YYYY-MM-DD", xp, minutes, topics, noted}; returns how many days were
--- inside the window (7 back to 1 ahead of the server's date, by their exact
--- text); a day outside it, or an element that isn't an object with such a
--- day, is skipped — never an error. A value out of range is clamped, a field
+-- noted: inside the window (7 back to 1 ahead of the server's date, by their
+-- exact text) and not a 9th device's (play_day_add_part); a day outside it,
+-- a 9th device's, or an element that isn't an object with such a day, is
+-- skipped — never an error. A value out of range is clamped, a field
 -- that isn't a number counts as 0, the topics are cleaned
 -- (play_topics_clean), and a day sent with `"noted": true` (JSON true,
 -- nothing else) makes its part noted. Refusals: 22023 "too many days" (over
@@ -242,7 +261,7 @@ begin
                where to_char(current_date + g, 'YYYY-MM-DD') = v_el ->> 'day');
     continue when v_day is null;
 
-    perform public.play_day_add_part(
+    continue when not public.play_day_add_part(
       p_kid,
       v_day,
       p_device,
