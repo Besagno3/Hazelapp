@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -168,6 +168,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: null,
     backdrop: '/backgrounds/chromaria.png',
     firstItem: 'ward',
+  },
+  'star-charts': {
+    id: 'star-charts',
+    name: 'Vela’s Star Charts',
+    emoji: '✨',
+    topic: 'space',
+    host: 'coast-stargazer',
+    place: 'Vela’s Observatory · Starfall Coast',
+    where: 'Vela, Starfall Coast',
+    playLabel: 'Let’s stargaze!',
+    againLabel: 'Another night',
+    hello: 'The fog made us forget the star pictures. Help me find them again — every one goes back on my chart!',
+    steps: [
+      { title: 'Look at the card', text: 'Vela shows you a star picture: what shape its stars make.' },
+      { title: 'Join the stars', text: 'Tap a star, then one it’s joined to — a line appears. Join them all!' },
+      { title: 'Read its card', text: 'A true thing about it. Every picture goes on Vela’s chart!' },
+    ],
+    collection: 'Star chart',
+    pages: 9,
+    bandNote: 'Medium: no outline, and find the North Star. Tricky: the sky has turned — and how long the light took.',
+    music: 'starfall',
+    backdrop: '/backgrounds/starfall-coast.png',
+    firstItem: 'candle',
   },
 };
 

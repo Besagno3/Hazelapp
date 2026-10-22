@@ -6,6 +6,7 @@ import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import { GearsLogo, StepCrank, StepJoin, StepPeg } from './gears/art';
 import { MuralLogo, StepMirror, StepMix, StepPaint } from './mural/art';
 import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
+import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
 import type { PlayProps } from './types';
 
 /**
@@ -44,5 +45,10 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./echo/EchosCall')),
     Logo: EchoLogo,
     steps: [StepListen, StepShape, StepPlay],
+  },
+  'star-charts': {
+    Play: retryableLazy(() => import('./stars/StarCharts')),
+    Logo: StarsLogo,
+    steps: [StepFind, StepConnect, StepFact],
   },
 };

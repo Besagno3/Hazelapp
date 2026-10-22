@@ -282,6 +282,15 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Tricky:** no outline and a turned sky (the sky turns through the night);
   how far the light travelled.
 - **Collection:** nine constellations on Vela's chart.
+- **Built (PR 6):** Gentle joins Orion's Belt, the Summer Triangle, the
+  Southern Cross and Cassiopeia (3–5 stars, outline dotted); Medium the Big
+  Dipper, the Little Dipper (the North Star found first, from Merak and
+  Dubhe), Orion, Cygnus and Leo (6–8 stars, the card only); Tricky all nine
+  on a turned sky, each card with how long its light took. The chart's nine
+  pages are those pictures (the Summer Triangle and Orion's Belt are
+  asterisms, not constellations — the card says so for the Triangle). Vela
+  has no quest, so ✨ is her gold offer; the first round gives a Glimmer
+  Candle.
 
 ### 5.7 🌳 Ringwood's Rings — Nature · Old Ringwood, Eldergrove
 

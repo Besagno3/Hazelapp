@@ -709,6 +709,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     role: 'villager',
     lines: [
       'Every star has a question for a name. The fog made us forget them. Each brave answer you give writes one back into the sky.',
+      'Come up to my telescope! I’ll show you a star picture, you find it in the sky and join its stars — every one goes back on my chart.',
       'See that bright one low in the west? I named it after a kid who would not stop asking why. …It does not have to be you. But it could be.',
     ],
     ambient: ['*peers skyward*', 'So many stars…', 'What is that one called?'],
