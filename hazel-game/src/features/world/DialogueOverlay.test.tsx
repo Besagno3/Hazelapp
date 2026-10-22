@@ -582,6 +582,34 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
   });
 
+  it('beside a pen-pal offer on a step’s last line, the game leaves the step and the one-time ask standing (review round 2)', async () => {
+    const { useKeyboardStore } = await import('../../store/keyboardStore');
+    const { PEN_PALS, typingLessonFlag } = await import('../../content/typing');
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    withFlags({ [typingLessonFlag('capitals')]: true });
+    const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['A letter for me?', 'Shall I write back?'], badge: 'A test quest', finishKind: 'step', questId: 'test', step: PEN_PALS[0].stepId, finish } : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText('✍️ Add a line of my own')).toBeInTheDocument();
+    const game = screen.getByText('🧪 Potion Lab');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(finish).not.toHaveBeenCalled();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    useKeyboardStore.getState().reset();
+  });
+
+  it('a line’s own flag is kept when the kid leaves by the game button, as ▼ Next keeps it (review round 2)', () => {
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: [{ text: 'Have you met my cousin?', setFlag: 'met-cousin' }], badge: 'A test quest', finishKind: null, questId: 'test', finish: null } : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(useSaveStore.getState().save!.flags['met-cousin']).toBe(true);
+  });
+
   it('someone who runs no game offers none', () => {
     render(<DialogueOverlay npcId="numbria-innkeeper" />);
     expect(screen.queryByText(/Potion Lab/)).toBeNull();

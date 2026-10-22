@@ -23,13 +23,14 @@ function slicePath(cx: number, cy: number, r: number, i: number, n: number): str
 
 /**
  * A pie seen from above, cut into `cut` equal slices (1: not cut yet). On the
- * board, slices in `taken` are lifted out — drawn as a gold outline with a
- * tick where the slice was — and `onSlice`, if given, is called when a slice
- * is tapped. As an `amount` (an order's picture), the slices in `taken` are
- * the ones wanted, drawn full, and the rest faint (review round 1: the lifted
- * look read as the opposite). The picture is decorative (`aria-hidden`):
- * every screen also says it in words and has buttons that do the same.
- * `className` can size it with CSS (`h-auto w-full` fills its box).
+ * board, a slice in `taken` (in the box) keeps its filling and is lifted a
+ * little, with a gold outline and a tick — never drawn as a hole, the
+ * opposite of the order's picture (review round 2) — and `onSlice`, if given,
+ * is called when a slice is tapped. As an `amount` (the order's picture, the
+ * box closed) the slices in `taken` are full and the rest pale. The picture is
+ * decorative (`aria-hidden`): every screen also says it in words and has
+ * buttons that do the same. `className` can size it with CSS (`h-auto w-full`
+ * fills its box).
  */
 export function PieArt({
   cut,
@@ -55,15 +56,18 @@ export function PieArt({
       <circle cx="100" cy="100" r="88" fill={CRUST} />
       {Array.from({ length: Math.max(1, cut) }, (_, i) => {
         const d = slicePath(100, 100, r, i, cut);
-        if (amount) {
-          const wanted = !!taken[i];
-          return <path key={i} d={d} fill={wanted ? filling : '#f4e3c3'} stroke={wanted ? INK : '#c9a878'} strokeWidth={wanted ? 4 : 3} />;
-        }
         const out = !!taken[i];
+        if (amount) return <path key={i} d={d} fill={out ? filling : PALE} stroke={out ? INK : '#c9a878'} strokeWidth={out ? 4 : 3} />;
+        const lift = out && cut > 1 ? sliceMid(i, cut, 7) : null;
         return (
-          <g key={i} onClick={onSlice ? () => onSlice(i) : undefined} style={onSlice ? { cursor: 'pointer' } : undefined}>
-            <path d={d} fill={out ? '#fff6dc' : filling} stroke={out ? '#f59e0b' : INK} strokeWidth={out ? 5 : 3} strokeDasharray={out ? '8 6' : undefined} />
-            {!out && cut > 1 && <path d={slicePath(100, 100, r - 18, i, cut)} fill="#ffffff" opacity="0.12" />}
+          <g
+            key={i}
+            onClick={onSlice ? () => onSlice(i) : undefined}
+            style={onSlice ? { cursor: 'pointer' } : undefined}
+            transform={lift ? `translate(${(lift.x - 100).toFixed(2)} ${(lift.y - 100).toFixed(2)})` : undefined}
+          >
+            <path d={d} fill={filling} stroke={out ? '#f59e0b' : INK} strokeWidth={out ? 6 : 3} strokeDasharray={out ? '10 5' : undefined} />
+            {cut > 1 && <path d={slicePath(100, 100, r - 18, i, cut)} fill="#ffffff" opacity="0.12" />}
             {out && cut > 1 && (
               // A bold tick, ringed in white, so a lifted slice reads on every filling (review round 1).
               <text {...sliceMid(i, cut)} textAnchor="middle" dominantBaseline="central" fontSize={cut >= 6 ? 26 : 34} fontWeight="900" fill="#92400e" stroke="#ffffff" strokeWidth="4" paintOrder="stroke">
@@ -84,10 +88,13 @@ export function PieArt({
   );
 }
 
-/** Where to put a mark in the middle of slice `i` of `n`. */
-function sliceMid(i: number, n: number): { x: number; y: number } {
+/** A slice not wanted (an order's picture) or not in the box (the box closed). */
+const PALE = '#f4e3c3';
+
+/** A point out from the middle along slice `i` of `n` (52: where its tick goes). */
+function sliceMid(i: number, n: number, out = 52): { x: number; y: number } {
   const a = ((-90 + (360 * (i + 0.5)) / n) * Math.PI) / 180;
-  return { x: 100 + 52 * Math.cos(a), y: 100 + 52 * Math.sin(a) };
+  return { x: 100 + out * Math.cos(a), y: 100 + out * Math.sin(a) };
 }
 
 /** A cherry pie with one slice lifted out, steam rising. */

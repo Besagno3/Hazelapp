@@ -13,7 +13,7 @@ and each game — so far 🧪 Potion Lab.
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
   line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service — over
-  their quest's offer too, quiet there beside "I'm on it!", leaving it
+  their quest's offer too, as quiet there as "I'm on it!", leaving it
   offered; over a reminder, keeping its own bookkeeping from the last line as
   ▼ Next would; never over a reward or a riddle; on a step through them only
   on its last line, which it finishes) → `OPEN_GAME` → machine substate
@@ -36,8 +36,11 @@ and each game — so far 🧪 Potion Lab.
   still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
   Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
   kid and game on this device (`rememberBand`; picking the suggested band
-  again forgets it, `forgetBand`, so it grows with the level); a mini-game
-  **never moves the question level**. No timers, no AI: each game's rules are pure in
+  again forgets it, `forgetBand`, so it grows with the level); the stage's
+  `round` starts at the rounds this kid has finished in the game on this
+  device (`roundsPlayed`, `noteRoundPlayed` as a round ends), so a visit
+  picks up a game's orders where the last left off rather than at the same
+  first round; a mini-game **never moves the question level**. No timers, no AI: each game's rules are pure in
   `lib/minigames/<game>.ts`. Each game's play screen loads on first play
   (`GAME_SCREENS[id].Play`, `retryableLazy` in a `LazyBoundary`, "The … didn't
   open. Try again."; a bug in it stays on the stage too, `PlayCrashed`, with
@@ -81,8 +84,15 @@ and each game — so far 🧪 Potion Lab.
   (`Order.with`); the reward keeps the morning's "is the same as" lesson
   (`learnedLine`; more slices than a pie has are "Three halves is the same as
   one and a half pies."). The pies are in the step card on a phone (as wide
-  as it, so an eighth can be tapped) and beside the steps from `sm` up,
-  smaller on a short screen so they stay in sight. The scene's customer and
+  as it, so an eighth can be tapped, but no taller than about a third of the
+  screen, so the box and its button fit under them) and beside the steps from `sm` up,
+  sized from the board (up to 260 px; the scene gets 45 % of the side, 88 px
+  on a short screen) so they stay in sight. The gold button scrolls into
+  view as a step starts, never on a slice tap, and what's in the box has a
+  fixed height above − / +, so nothing moves under a kid's finger. On the
+  board a slice in the box keeps its filling, lifted with a gold outline and
+  a tick; the ticket and the closed box draw what's in it full and the rest
+  pale. The scene's customer and
   Ember stand over the SVG as HTML (no `foreignObject`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

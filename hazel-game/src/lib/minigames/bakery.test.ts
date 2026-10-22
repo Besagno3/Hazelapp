@@ -49,6 +49,8 @@ describe('amounts of pie (docs/DESIGN-MINIGAMES.md §5.2)', () => {
     expect(amountWords(A(5, 4))).toBe('one and a quarter pies');
     expect(amountWords(A(2, 3))).toBe('two thirds of a pie');
     expect(amountWords(A(5, 8))).toBe('five eighths of a pie');
+    expect(amountWords(A(1, 8))).toBe('an eighth of a pie');
+    expect(amountWords(A(9, 8))).toBe('one and an eighth pies');
   });
 
   it('as a number on Tricky', () => {
@@ -63,8 +65,10 @@ describe('amounts of pie (docs/DESIGN-MINIGAMES.md §5.2)', () => {
     expect(slicesWords(1, 2)).toBe('one half');
     expect(slicesWords(0, 8)).toBe('no slices');
     for (const band of BANDS) for (const cut of CUTS[band]) expect(SLICE[cut], `${cut}`).toBeDefined();
-    // Gentle cuts in halves and quarters only.
+    // Gentle cuts in halves and quarters only; Medium and Tricky every cut (review round 2: Tricky's thirds weren't pinned).
     expect(CUTS.gentle).toEqual([2, 4]);
+    expect(CUTS.medium).toEqual([2, 3, 4, 6, 8]);
+    expect(CUTS.tricky).toEqual([2, 3, 4, 6, 8]);
   });
 
   it('enough pies on the board, at least one', () => {

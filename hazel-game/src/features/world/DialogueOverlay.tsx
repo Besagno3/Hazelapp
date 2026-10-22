@@ -337,7 +337,7 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
             <button
               onClick={openGame}
               // Beside the pen-pal offer the pen is the gold action, as for a service (round 6); beside a quest's
-              // offer, "I'm on it!" is (review round 1: a kid follows the gold button).
+              // offer it's as quiet as "I'm on it!", so it doesn't pull a kid away from the quest (review round 1).
               className={
                 offering || gameTalk === 'offer'
                   ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'

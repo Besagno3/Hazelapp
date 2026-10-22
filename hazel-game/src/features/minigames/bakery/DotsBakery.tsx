@@ -79,17 +79,20 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   const first = useRef(true);
   useEffect(() => {
     const to = step === 'cut' ? cutHead.current : step === 'fill' ? fillHead.current : resultHead.current;
-    to?.focus({ preventScroll: first.current });
+    // The box's step scrolls to its button below (the pies are between), not up to its heading.
+    to?.focus({ preventScroll: first.current || step === 'fill' });
     first.current = false;
   }, [step, served]);
 
   const hint = cut !== null && step === 'fill' ? cutHint(cut, order) : null;
 
-  // The step's gold button comes into view once it can be pressed (a cut that can't make the order: "Cut it another way").
+  // The step's gold button comes into view as the step starts, with the pies above it (a cut that can't make the
+  // order: "Cut it another way") — never on a slice tap, which slid the pie under the kid's finger and put the
+  // next tap on Close (review round 2).
   const goRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    if ((step === 'fill' && (count > 0 || hint)) || step === 'closed') goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
-  }, [step, count > 0, !!hint, still]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (step === 'fill' || step === 'closed') goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+  }, [step, !!hint, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function pickCut(c: number) {
     sfx('select');
@@ -169,6 +172,10 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
 
   // "the pie" when there's one on the board, "each pie" when there are two (review round 1).
   const eachPie = pies > 1 ? 'each pie' : 'the pie';
+  const boardWords =
+    cut === null
+      ? `${pies > 1 ? 'Two pies' : 'One pie'}, not cut yet.`
+      : `${pies > 1 ? `Two pies, each cut into ${cut} ${SLICE[cut].many}` : `One pie, cut into ${cut} ${SLICE[cut].many}`}. ${boxWords(count, cut)}`;
   const question = `How many equal slices should ${eachPie} be cut into?`;
 
   let line: string;
@@ -186,18 +193,22 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
-      <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_380px]">
-        <section aria-label="Dot’s bakery" className="relative h-[150px] overflow-hidden [@media(max-width:359px)]:h-[112px] sm:col-start-1 sm:row-start-1 sm:h-auto sm:min-h-[150px]">
+      {/* From `sm` up the pies get more of the left side than the scene (review round 2: on a tablet they were the
+          smallest thing on it), and on a short screen nearly all of it. */}
+      <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,45fr)_minmax(0,55fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-rows-[88px_minmax(0,1fr)]">
+        <section aria-label="Dot’s bakery" className="relative h-[150px] overflow-hidden [@media(max-width:359px)]:h-[112px] sm:col-start-1 sm:row-start-1 sm:h-auto">
           <BakeryScene customer={order.regular} closed={step === 'closed'} right={verdict === 'right'} />
         </section>
 
         {/* The pies on the board, from `sm` up (on a phone they're in the step card). Beside the steps on a short
             screen too, smaller, so they stay in sight as the panel scrolls (review round 1: a phone on its side). */}
-        <div role="group" aria-labelledby="bk-board" aria-describedby="bk-order" className="hidden border-t-4 border-[#1b0f22] bg-[#6f4127] px-3 pb-3 pt-1.5 sm:col-start-1 sm:row-start-2 sm:block [@media(max-height:500px)]:pb-2 [@media(max-height:500px)]:pt-1">
+        <div role="group" aria-labelledby="bk-board" aria-describedby="bk-order" className="hidden border-t-4 border-[#1b0f22] bg-[#6f4127] px-3 pb-3 pt-1.5 sm:col-start-1 sm:row-start-2 sm:flex sm:min-h-0 sm:flex-col [@media(max-height:500px)]:pb-2 [@media(max-height:500px)]:pt-1">
           <h2 id="bk-board" className={cn(pixelHeadClass, 'mb-1.5 text-lg text-[#fde68a] [@media(max-height:500px)]:mb-0.5')}>
             The pies on the board
           </h2>
-          {board(false)}
+          {/* The pies are pictures: what's on the board, in words (review round 2: an empty group). */}
+          <p className="sr-only">{boardWords}</p>
+          <div className="min-h-0 flex-1">{board(false)}</div>
         </div>
 
         <aside className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
@@ -213,16 +224,19 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">
               Order {served + 1} of {ORDERS_PER_ROUND}
             </p>
+            {/* Who it's for, heard with each step (review round 2: "Half a pie." alone). */}
+            <span id="bk-who" className="sr-only">
+              For {who}:
+            </span>
 
             {step === 'cut' && (
               <>
-                <h2 ref={cutHead} tabIndex={-1} aria-describedby="bk-order" className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
-                  Step 1 · Cut the pie
+                <h2 ref={cutHead} tabIndex={-1} aria-describedby="bk-who bk-order" className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
+                  Step 1 · Cut the {pies > 1 ? 'pies' : 'pie'}
                 </h2>
                 <OrderLine order={order} />
-                {/* Dot's bubble asks it just above on a phone; here where there's room — and on a phone too
-                    while a book page has her bubble (review round 1). */}
-                <p className={cn('text-[15px] leading-snug text-[#e4e1ff]', read ? 'block' : 'hidden sm:[@media(min-height:501px)]:block')}>{capFirst(question)}</p>
+                {/* Dot's bubble asks it — but while a book page has her bubble, the card does (review rounds 1 and 2). */}
+                {read && <p className="text-[15px] leading-snug text-[#e4e1ff]">{capFirst(question)}</p>}
                 {/* Three across, the picture over the word, where the panel is narrow (review round 1: "Quarters" was cut to "Quarter"). */}
                 <div role="group" aria-label="Cuts" className={cn('grid grid-cols-2 gap-2', CUTS[band].length > 2 && narrowCuts.grid)}>
                   {CUTS[band].map((c) => (
@@ -247,7 +261,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
 
             {step === 'fill' && cut !== null && (
               <>
-                <h2 ref={fillHead} tabIndex={-1} aria-describedby="bk-order" className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
+                <h2 ref={fillHead} tabIndex={-1} aria-describedby="bk-who bk-order" className={cn(pixelHeadClass, 'self-start rounded text-[26px]', focusRing)}>
                   Step 2 · Fill the box
                 </h2>
                 <OrderLine order={order} />
@@ -265,16 +279,24 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                     </button>
                   </>
                 )}
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={less} aria-disabled={count === 0 || undefined} aria-label="Take a slice out" className={cn(outlineClass, 'min-w-11 px-0 text-2xl aria-disabled:opacity-50')}>
-                    −
+                {/* What's in the box, the card's whole width with room for the longest, so nothing under it moves as
+                    it grows (review round 2: four lines in a narrow panel pushed Close off the screen). */}
+                <p role="status" className="flex min-h-[4.75rem] flex-col justify-center rounded-md bg-[#24215a] px-2 text-center text-[16px] font-bold leading-tight">
+                  <span className="block text-[13px] font-semibold uppercase tracking-wide text-[#c9c5f2]">In the box</span>
+                  {boxWords(count, cut)}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={less} aria-disabled={count === 0 || undefined} aria-label="Take a slice out" className={cn(outlineClass, 'min-h-11 whitespace-nowrap px-1 text-[15px] aria-disabled:opacity-50')}>
+                    <span aria-hidden="true" className="mr-1 text-xl">
+                      −
+                    </span>
+                    Slice out
                   </button>
-                  <p role="status" className="min-w-0 flex-1 text-center text-[16px] font-bold leading-tight">
-                    <span className="block text-[13px] font-semibold uppercase tracking-wide text-[#c9c5f2]">In the box</span>
-                    {boxWords(count, cut)}
-                  </p>
-                  <button type="button" onClick={more} aria-disabled={count === taken.length || undefined} aria-label="Put a slice in" className={cn(outlineClass, 'min-w-11 px-0 text-2xl aria-disabled:opacity-50')}>
-                    +
+                  <button type="button" onClick={more} aria-disabled={count === taken.length || undefined} aria-label="Put a slice in" className={cn(outlineClass, 'min-h-11 whitespace-nowrap px-1 text-[15px] aria-disabled:opacity-50')}>
+                    <span aria-hidden="true" className="mr-1 text-xl">
+                      +
+                    </span>
+                    Slice in
                   </button>
                 </div>
                 <button
@@ -299,7 +321,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                 <div className="flex items-center gap-3">
                   <span aria-hidden="true" className="flex flex-none gap-1">
                     {Array.from({ length: pies }, (_, p) => (
-                      <PieArt key={p} cut={cut} taken={taken.slice(p * cut, (p + 1) * cut)} filling={regular.filling} size={pies > 1 ? 44 : 56} />
+                      <PieArt key={p} cut={cut} taken={taken.slice(p * cut, (p + 1) * cut)} filling={regular.filling} size={pies > 1 ? 44 : 56} amount />
                     ))}
                   </span>
                   <div className="min-w-0">
@@ -402,8 +424,9 @@ function AmountIcon({ order }: { order: Order }) {
   if (order.with)
     return (
       <span aria-hidden="true" className="flex items-center gap-0.5 font-bold">
+        {/* Both in the pie on the board (review round 2: the other's filling sent a kid looking for a pie that isn't there). */}
         <AmountPies amount={order.with.mine} filling={filling} />+
-        <AmountPies amount={order.with.amount} filling={REGULAR_BY_ID[order.with.regular].filling} />
+        <AmountPies amount={order.with.amount} filling={filling} />
       </span>
     );
   return (
@@ -443,11 +466,13 @@ function PieBoard({
   onSlice?: (i: number) => void;
   compact: boolean;
 }) {
-  // In a phone's step card the pies fill it, so an eighth is big enough to tap (review round 1); on the counter,
-  // small enough to leave the scene its sign and oven — smaller still on a short screen, beside the steps.
-  const sized = compact ? cn('h-auto w-full min-w-0', pies > 1 ? 'max-w-[170px]' : 'max-w-[240px]') : '[@media(max-height:500px)]:h-[104px] [@media(max-height:500px)]:w-[104px]';
+  // In a phone's step card the pies fill it, so an eighth is big enough to tap (review round 1), but never so tall
+  // that the box and its button leave the screen (review round 2); beside the steps, as tall as the board allows.
+  const sized = compact
+    ? cn('h-auto w-full min-w-0', pies > 1 ? 'max-w-[min(170px,30svh)]' : 'max-w-[min(240px,36svh)]')
+    : cn('h-full max-h-[260px] w-auto', pies > 1 && 'max-w-[calc(50%-0.5rem)]');
   return (
-    <div className={cn('flex items-center justify-center', compact ? 'gap-2' : 'flex-wrap gap-4 [@media(max-height:500px)]:gap-2')}>
+    <div className={cn('flex items-center justify-center', compact ? 'gap-2' : 'h-full gap-4')}>
       {Array.from({ length: pies }, (_, p) => (
         <PieArt
           key={p}
@@ -504,7 +529,7 @@ function RegularsBook({ known, read, onRead }: { known: (id: RegularId) => boole
                   )}
                 >
                   {npc && <CharacterPortrait spriteId={npcSpriteId(npc, flags)} emoji={npcEmoji(npc, flags)} scale={1.25} className="text-2xl" />}
-                  <span aria-hidden="true" className="w-full truncate px-0.5 text-center text-[12px] font-bold leading-tight text-[#1b0f22]">
+                  <span aria-hidden="true" className="w-full truncate text-center text-[12px] font-bold leading-tight tracking-tight text-[#1b0f22]">
                     {r.name.split(' ').pop()}
                   </span>
                   <span aria-hidden="true" className="mt-0.5 h-2 w-full flex-none border-t-2 border-[#1b0f22]" style={{ background: r.filling }} />

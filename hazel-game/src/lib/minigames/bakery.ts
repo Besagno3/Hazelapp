@@ -77,7 +77,8 @@ export function slicesWords(count: number, cut: number): string {
 function partWords({ n, d }: Amount): string {
   if (d === 2) return 'half';
   const s = SLICE[d] ?? { one: `1/${d}`, many: `1/${d}s` };
-  return n === 1 ? `a ${s.one}` : `${num(n)} ${s.many}`;
+  // "an eighth" (review round 2: "one and a eighth pies").
+  return n === 1 ? `${/^[aeiou]/.test(s.one) ? 'an' : 'a'} ${s.one}` : `${num(n)} ${s.many}`;
 }
 
 /**
