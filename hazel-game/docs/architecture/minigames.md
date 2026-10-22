@@ -270,9 +270,12 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   says whether the thin rings line up, `thinLinedUp`). The slice and the
   core are each one pointer target, acting as the finger lifts (the shared
   `useLiftTap`: a press that moves `SWIPE_PX` or is cancelled is the page
-  scrolling) — the ring under the tap, a ring the step wants `WANT_PX` wide
-  to hit and any ring `RING_MIN_PX`, the thinner winning, but never past a
-  neighbour's middle third (`ringAt`) — with
+  scrolling; a right-click or a mouse leaving drops it; a click's own
+  pointer type says whether it's a pointer's) — the ring under the tap, a
+  ring the step wants `WANT_PX` wide to hit (the next to count reaching
+  outward only) and any ring `RING_MIN_PX`, the thinner winning, but never
+  past a neighbour's middle third (`rings/hit.ts`, `ringAt`, tested as a
+  table) — with
   a button per ring for the keyboard (one in the tab order, the arrow keys
   in and out) and a reader (where it is, how it grew; the slice's each over
   its ring, so a reader's press lands on it; a pointer's click after its
@@ -280,9 +283,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   widths (`data-band`), the core's as bands; the two Tricky cores are one
   picture, the beam slid by ◀ ▶ or a tap along the tree's core (a slice's
   card is beside it held sideways, a core's always under it, Tricky's beside
-  only on a short screen), both cores'
+  only on a short phone — on a short split screen under, compact), both cores'
   rings said under them for a reader, live (`rr-under`). What Ringwood said
   is in the step's card by the wood, and till he's said something, what he
-  asked. The shared `Ticket` puts its chip by its heading. The
+  asked — a tip; a step's start adds the next ask to what he says. The shared
+  `Ticket` puts its chip by its heading, and `HostBubble` wraps a long word. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

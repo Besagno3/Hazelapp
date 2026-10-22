@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES } = await import('../../../content/minigames');
-const { jobFor } = await import('../../../lib/minigames/rings');
+const { fitOffset, jobFor, ringsOf } = await import('../../../lib/minigames/rings');
 
 let now = 0;
 beforeEach(() => {
@@ -47,5 +47,39 @@ describe('🌳 a double tap', () => {
     wait();
     ring(3);
     expect(screen.getByRole('heading', { name: 'Silver Birch!' })).toBeInTheDocument();
+  });
+
+  it('Medium: a dry year pressed as its step starts does nothing, nor a ring as the next tree starts (code review round 2)', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="medium" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('medium', 0, 0);
+    if (job.kind !== 'date') throw new Error('a date job');
+    wait();
+    ring(job.rings.indexOf(job.event.year));
+    expect(screen.getByRole('heading', { name: 'The dry years' })).toBeInTheDocument();
+    const dry = ringsOf(job.rings, 'dry');
+    ring(job.rings.indexOf(dry[0]));
+    expect(screen.queryByText(new RegExp(`^${dry[0]} — a dry year`))).not.toBeInTheDocument();
+    wait();
+    for (const y of dry) ring(job.rings.indexOf(y));
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: 'Next tree' }));
+    expect(screen.getByRole('heading', { name: 'Find the year' })).toBeInTheDocument();
+    // The second tap of the double lands on a ring as the next tree starts: nothing.
+    ring(0);
+    expect(screen.getAllByText(/^Count in from the bark/)).toHaveLength(1);
+  });
+
+  it('Tricky: Slide and “Do they match?” pressed as the step starts do nothing', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('tricky', 0, 0);
+    if (job.kind !== 'match') throw new Error('a match job');
+    fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Do they match?' }));
+    expect(screen.getByRole('button', { name: '◀ Slide' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByText(/^Not yet/)).not.toBeInTheDocument();
+    wait();
+    for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Do they match?' }));
+    expect(screen.getByRole('heading', { name: `Cut in ${job.beam[job.beam.length - 1]}!` })).toBeInTheDocument();
   });
 });

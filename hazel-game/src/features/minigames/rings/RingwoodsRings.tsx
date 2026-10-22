@@ -8,8 +8,10 @@ import {
   backWords,
   countWords,
   dateWords,
+  dryAsk,
   dryWords,
   fitOffset,
+  foundWords,
   growthWord,
   jobFor,
   jobWords,
@@ -21,6 +23,7 @@ import {
   ringsOf,
   roundQueue,
   weather,
+  wetAsk,
   wetWords,
   type Job,
   type MatchJob,
@@ -38,6 +41,7 @@ import type { PlayProps } from '../types';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
 import { SliceCard } from './art';
+import { TAP_REACH_PX, ringAt, type Band, type Want } from './hit';
 import { BARK, LATE, TREE_TINT, WOOD } from './wood';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -47,13 +51,6 @@ type Step = 'count' | 'wet' | 'date' | 'dry' | 'slide' | 'done';
 
 /** Old Ringwood after a tree's read, in turn. */
 const RIGHT_LINES = ['Hrrrm! Just as I remember it.', 'You read wood like an old owl. Well done.', 'Ha! I’d forgotten that year. Thank you.'];
-
-/** Past the bark (or the core's ends), how near a tap must land to a ring (px) to be that ring. */
-const TAP_REACH_PX = 14;
-/** However thin a ring's drawn, it's this wide to hit (px) — where it's thinner than its neighbours, it wins. */
-const RING_MIN_PX = 24;
-/** A ring the step wants (the next to count, a dry year not found) is this wide to hit (px): UX review round 1. */
-const WANT_PX = 32;
 
 const STEP_CHIPS: Record<Job['kind'], readonly string[]> = {
   count: ['Count the rings', 'The wettest year', 'Its page'],
@@ -123,7 +120,11 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
       sfx('correct');
       setHintAt(null);
       setCounted(counted + 1);
-      if (counted + 1 === total) setStep('wet');
+      if (counted + 1 === total) {
+        // The next step's ask, with it: on a short screen nothing else says it (UX review round 2).
+        setSaid(`${countWords(counted, k, total)} ${wetAsk(job)}`);
+        setStep('wet');
+      }
       return;
     }
     if (job.kind === 'count' && step === 'wet') {
@@ -134,16 +135,19 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
       return;
     }
     if (job.kind === 'date' && step === 'date') {
-      setSaid(dateWords(job, k));
-      if (job.rings[k] !== job.event.year) return void sfx('wrong');
+      if (job.rings[k] !== job.event.year) {
+        setSaid(dateWords(job, k));
+        return void sfx('wrong');
+      }
       sfx('correct');
+      setSaid(`${dateWords(job, k)} ${dryAsk(job)}`);
       setPicked(k);
       setStep('dry');
       return;
     }
     if (job.kind === 'date' && step === 'dry') {
       if (found.includes(k)) {
-        setSaid(`${job.rings[k]} is found already — ${dryRings.length - found.length} to go.`);
+        setSaid(foundWords(job.rings[k], dryRings.length - found.length));
         return;
       }
       const dry = weather(job.rings[k]) === 'dry';
@@ -158,7 +162,8 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
 
   /** The beam moved to `to` (its first ring under the tree's ring `to`): by ◀ ▶, or a tap along the tree's core. */
   function slideTo(to: number) {
-    if (job.kind !== 'match' || step !== 'slide') return;
+    // Waits as the step starts, like Check: a double tap on Next tree could land on Slide (code review round 2).
+    if (job.kind !== 'match' || step !== 'slide' || !settled()) return;
     const o = Math.max(0, Math.min(maxOffset(job), to));
     // At an end already: what Ringwood said stays (code review round 1).
     if (o === offset) return;
@@ -230,9 +235,19 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
   let opening: string;
   if (step === 'count') opening = `A slice of ${tree.name}. Count its rings for me, from the middle out — I always lose count.`;
   else if (step === 'wet') opening = 'Now: which ring is the widest? That was its wettest year.';
-  else if (step === 'date' && job.kind === 'date') opening = `The bark ring is ${job.rings[job.rings.length - 1]}. Count back to ${job.event.year}!`;
+  else if (step === 'date' && job.kind === 'date') opening = `The ring by the bark is ${job.rings[job.rings.length - 1]}. Count back to ${job.event.year}!`;
   else if (step === 'dry') opening = 'Dry years grew thin rings. Find every one!';
   else opening = 'An old beam, and my neighbour’s core. Slide the beam till its rings match — thin under thin, wide under wide!';
+  // The box by the wood, till he's said something: a tip, not his words again (UX review round 2: the card, the box and
+  // his bubble said the same thing three times) — on a short screen, what to do (the card's words are a reader's there).
+  let tip: string;
+  if (step === 'count') tip = 'Start with the ring round the dot in the middle!';
+  else if (step === 'wet' && job.kind === 'count') tip = wetAsk(job);
+  else if (step === 'date' && job.kind === 'date') {
+    const bark = job.rings[job.rings.length - 1];
+    tip = `Count in from the bark — ${bark}, ${bark - 1}, ${bark - 2}… — to ${job.event.year}!`;
+  } else if (step === 'dry' && job.kind === 'date') tip = dryAsk(job);
+  else tip = 'Find the beam’s thin dark rings in the tree’s core, then slide the beam under them.';
   let line: string;
   if (read) line = `${TREE_BY_ID[read].name}: ${TREE_BY_ID[read].note}`;
   // A tree read: why it's right (the last thing he said), then his cheer — UX review round 1 (the why was lost).
@@ -255,7 +270,15 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto split:overflow-hidden">
       {/* Split, the board sits under the grove (from 701 px high), beside the aside; on a short one it's all there is. */}
-      <div className="grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)] split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)]">
+      {/* On a short split screen the board's at least 440 px — 400 for Tricky's two cores with their card under them, the
+          side panel having the rest (UX review round 2: at 640 × 360 Ringwood's bubble was a word a line); Medium's
+          lesson needs the 440 (bench: the pine's pushed its heading out of view). */}
+      <div
+        className={cn(
+          'grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)]',
+          job.kind === 'match' ? 'split:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]' : 'split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)]',
+        )}
+      >
         <div aria-hidden="true" className="relative hidden overflow-hidden split:col-start-1 split:row-start-1 split:block [@media(max-height:700px)]:hidden">
           <Grove cheer={step === 'done'} />
         </div>
@@ -264,14 +287,16 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
             ring (on an upright tablet the card keeps a height through a tree — bench: the core moved up at the payoff).
             A slice's card is beside it on a screen held sideways from 560 px; a core's always under it, the strip
             having the width (bench: beside a card at 768 × 700 its rings were 8 px a year); Tricky's two beside it
-            only on a short screen, where there's no height for both. */}
+            only on a short phone held sideways (568 × 320), where there's no height for both — on a short split screen
+            its card is under them, compact, what Ringwood said in his bubble beside the board (UX review round 2: beside
+            a card there, the tree's rings were 3.5 px). */}
         <section
           ref={board}
           aria-labelledby="rr-step"
           className={cn(
             'flex flex-col gap-3 bg-[#2c3a26] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:border-t-4 split:border-[#1b0f22] split:p-4 split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(max-height:500px)]:p-2',
             job.kind === 'count' && '[@media(min-width:560px)_and_(orientation:landscape)]:flex-row',
-            job.kind === 'match' && '[@media(min-width:560px)_and_(max-height:500px)]:flex-row',
+            job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-row',
           )}
         >
           <div
@@ -280,7 +305,7 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
               // A slice in the middle of its room; a core at the top of its, so a card growing under it never moves it
               // (bench: Medium's moved up 10–45 px at the payoff).
               job.kind === 'count' ? 'split:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:flex-1' : 'split:pt-2',
-              job.kind === 'match' && '[@media(min-width:560px)_and_(max-height:500px)]:flex-1 [@media(min-width:560px)_and_(max-height:500px)]:justify-center',
+              job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-1 [@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:justify-center',
             )}
           >
             {job.kind === 'count' ? (
@@ -295,7 +320,9 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                 bark={TREE_TINT[job.tree].bark}
                 label={ringLabel}
                 done={step === 'done'}
-                want={(k) => step === 'count' && k === counted}
+                // The next to count (reaching outward only); in the wettest year's step, the wet rings (code review round 2: a
+                // medium ring by the widest took a third of it).
+                want={(k) => (step === 'count' ? k === counted && 'out' : step === 'wet' && weather(job.rings[k]) === 'wet')}
                 onTap={tapRing}
               />
             ) : job.kind === 'date' ? (
@@ -312,7 +339,7 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                 onTap={tapRing}
               />
             ) : (
-              <Match job={job} offset={offset} matched={step === 'done'} onSlideTo={slideTo} />
+              <Match key={done} job={job} offset={offset} matched={step === 'done'} onSlideTo={slideTo} />
             )}
           </div>
           <div
@@ -324,8 +351,9 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
               job.kind === 'count' &&
                 '[@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:w-[clamp(200px,42%,236px)]',
               // Tricky's, once matched, wider for the lesson (the beam's done with): bench, its heading went out of view.
-              job.kind === 'match' && '[@media(min-width:560px)_and_(max-height:500px)]:flex-none',
-              job.kind === 'match' && (step === 'done' ? '[@media(min-width:560px)_and_(max-height:500px)]:w-[clamp(220px,58%,320px)]' : '[@media(min-width:560px)_and_(max-height:500px)]:w-[clamp(200px,42%,236px)]'),
+              job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-none',
+              job.kind === 'match' &&
+                (step === 'done' ? '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:w-[clamp(220px,58%,320px)]' : '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:w-[clamp(200px,42%,236px)]'),
               // On an upright tablet a slice is square and wants the room; a core or two are a strip, and the card can grow.
               job.kind === 'count' ? 'split:[@media(orientation:portrait)]:max-h-[45%]' : 'split:[@media(orientation:portrait)]:max-h-[60%]',
             )}
@@ -336,8 +364,9 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
             {step === 'done' ? (
               <>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                  <h2 id="rr-step" ref={doneHead} tabIndex={-1} aria-describedby="rr-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}>
-                    {tree.name}!
+                  {/* Focused from script, no ring: it carried the title card's (UX review round 2) — as the stage's heading. */}
+                  <h2 id="rr-step" ref={doneHead} tabIndex={-1} aria-describedby="rr-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white focus:outline-none [@media(max-height:500px)]:text-[20px]')}>
+                    {job.kind === 'match' ? `Cut in ${job.beam[job.beam.length - 1]}!` : `${tree.name}!`}
                   </h2>
                   <TreeOf done={done} />
                 </div>
@@ -346,7 +375,13 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
                 {/* A core's card is under it, the width of the board: on a short screen Next's beside the lesson (bench: at
                     640 × 360 the pine's pushed the heading out of view). */}
-                <div className={cn('flex flex-col gap-2.5', job.kind === 'date' && '[@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-end [@media(max-height:500px)]:gap-2')}>
+                <div
+                  className={cn(
+                    'flex flex-col gap-2.5',
+                    job.kind === 'date' && '[@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-end [@media(max-height:500px)]:gap-2',
+                    job.kind === 'match' && 'split:[@media(max-height:500px)]:flex-row split:[@media(max-height:500px)]:items-end split:[@media(max-height:500px)]:gap-2',
+                  )}
+                >
                   <p id="rr-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
                     {lessons[lessons.length - 1]}
                     {/* Said to a reader only on a split screen: the grove book's in sight beside the board (bench: at 640 × 360
@@ -358,7 +393,12 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                     ref={goRef}
                     type="button"
                     onClick={next}
-                    className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base', job.kind === 'date' && '[@media(max-height:500px)]:flex-none [@media(max-height:500px)]:px-4')}
+                    className={cn(
+                      goldClass,
+                      'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base',
+                      job.kind === 'date' && '[@media(max-height:500px)]:flex-none [@media(max-height:500px)]:px-4',
+                      job.kind === 'match' && 'split:[@media(max-height:500px)]:flex-none split:[@media(max-height:500px)]:px-4',
+                    )}
                   >
                     {done + 1 < JOBS_PER_ROUND ? 'Next tree' : 'All done!'}
                   </button>
@@ -372,7 +412,7 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                     ref={stepHead}
                     tabIndex={-1}
                     aria-describedby="rr-job"
-                    className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none [@media(max-height:500px)]:text-[19px]', focusRing)}
+                    className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none focus:outline-none [@media(max-height:500px)]:text-[19px]')}
                   >
                     {stepTitle(step)}
                   </h2>
@@ -385,12 +425,18 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                 {/* What Ringwood said of the last tap, by the wood too: on a phone his bubble's below the fold — till he's
                     said something, what he asked as the step started. Room for the longest, so nothing under it moves;
                     not read out — his bubble is. */}
-                <p className="flex min-h-[4.25rem] items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]">
-                  {said ?? <span className="font-normal text-[#e4e1ff]">{opening}</span>}
+                <p
+                  className={cn(
+                    'flex min-h-[4.25rem] items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]',
+                    // Tricky's on a short split screen: his bubble's beside the board, and the card's compact.
+                    job.kind === 'match' && 'split:[@media(max-height:500px)]:hidden',
+                  )}
+                >
+                  {said ?? <span className="font-normal text-[#e4e1ff]">{tip}</span>}
                 </p>
                 {step === 'slide' && job.kind === 'match' && (
-                  <>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-2.5 split:[@media(max-height:500px)]:flex-row split:[@media(max-height:500px)]:gap-2">
+                    <div className="grid grid-cols-2 gap-2 split:[@media(max-height:500px)]:flex-1">
                       <button type="button" onClick={() => slideTo(offset - 1)} aria-disabled={offset === 0 || undefined} aria-describedby="rr-under" className={cn(outlineClass, 'min-h-12 border-2 px-2 text-base aria-disabled:opacity-50')}>
                         ◀ Slide
                       </button>
@@ -398,10 +444,10 @@ export default function RingwoodsRings({ def, band, round, onPage, onFinish }: P
                         Slide ▶
                       </button>
                     </div>
-                    <button ref={goRef} type="button" onClick={check} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base')}>
+                    <button ref={goRef} type="button" onClick={check} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base split:[@media(max-height:500px)]:flex-none split:[@media(max-height:500px)]:px-4')}>
                       Do they match?
                     </button>
-                  </>
+                  </div>
                 )}
               </>
             )}
@@ -465,61 +511,9 @@ function stepWords(step: Step, job: Job, counted: number, dryLeft: number): Reac
     const wet = ringsOf(job.rings, 'wet').length;
     return <>A wet year grew a wide ring. {wet > 1 ? `Tap one of the widest — there are ${numberWord(wet)}!` : 'Tap the widest!'}{KEYS}</>;
   }
-  if (job.kind === 'date' && step === 'date') return <>The bark ring is {job.rings[job.rings.length - 1]}; each ring in is a year earlier. Tap the ring from {job.event.year}.{KEYS}</>;
+  if (job.kind === 'date' && step === 'date') return <>The ring by the bark is {job.rings[job.rings.length - 1]}; each ring in is a year earlier. Tap the ring from {job.event.year}.{KEYS}</>;
   if (step === 'dry') return <>Dry years grew thin rings. Tap every thin one: {numberWord(dryLeft)} to find.{KEYS}</>;
   return 'Slide the old beam — tap along the tree’s core, or ◀ ▶ — till its rings match the tree’s: thin under thin, wide under wide. Then tap “Do they match?”';
-}
-
-type Band = { from: number; to: number };
-
-/** Whether `el` shows its focus (a keyboard's) — false where the browser can't say. */
-function focusVisible(el: Element): boolean {
-  try {
-    return el.matches(':focus-visible');
-  } catch {
-    return false;
-  }
-}
-
-/**
- * The wood's tap: the ring a point (`at`, along the way out, in the bands'
- * units; `unit` of them a px) is on. A ring the step wants is `WANT_PX` wide to
- * hit, and any ring at least `RING_MIN_PX` — where they overlap, the thinner
- * wins (its neighbours are easy to hit elsewhere); past the wood's ends, the
- * nearest within `reach` px. Code review round 1: a thin ring was as thin to
- * hit as it's drawn, and a tap just off it went to its neighbour.
- */
-function ringAt(at: number, bands: readonly Band[], unit: number, want: (k: number) => boolean, reach: number): number | null {
-  // A ring's reach past its edges: never into the middle third of a neighbour (bench: a dry ring took the tap on the
-  // middle of the ring by it, on a core 8 px a year).
-  const width = (b: Band | undefined) => (b ? b.to - b.from : Infinity);
-  const pick = (grow: (b: Band, k: number) => number | null, better: (a: Band, b: Band) => boolean) => {
-    let best: number | null = null;
-    bands.forEach((b, k) => {
-      const g = grow(b, k);
-      if (g === null) return;
-      const lo = b.from - Math.min(g, width(bands[k - 1]) / 3);
-      const hi = b.to + Math.min(g, width(bands[k + 1]) / 3);
-      if (at < lo || at > hi) return;
-      if (best === null || better(b, bands[best])) best = k;
-    });
-    return best;
-  };
-  const near = (a: Band, b: Band) => Math.abs(at - (a.from + a.to) / 2) < Math.abs(at - (b.from + b.to) / 2);
-  // How far past its edges a ring reaches, to be `px` wide to hit (none if it's that wide already).
-  const grow = (b: Band, px: number) => Math.max(0, (px * unit - (b.to - b.from)) / 2);
-  const wanted = pick((b, k) => (want(k) ? grow(b, WANT_PX) : null), near);
-  if (wanted !== null) return wanted;
-  const any = pick(
-    (b) => grow(b, RING_MIN_PX),
-    (a, b) => a.to - a.from < b.to - b.from || (a.to - a.from === b.to - b.from && near(a, b)),
-  );
-  if (any !== null) return any;
-  const first = bands[0];
-  const last = bands[bands.length - 1];
-  if (at < first.from && first.from - at <= reach * unit) return 0;
-  if (at > last.to && at - last.to <= reach * unit) return bands.length - 1;
-  return null;
 }
 
 /** From the keyboard: one ring in the tab order; the arrow keys go in and out; Enter or Space taps it. */
@@ -540,15 +534,37 @@ function useRoving(count: number, start: number) {
   return [now, setAt, onKey] as const;
 }
 
-const PITH = 7;
+/**
+ * The ring the keyboard's on, shown only for the keyboard: a key pressed on a
+ * ring, or a Tab onto one (UX review round 2: `:focus-visible` carried over
+ * from the title card's button, so a tap player saw a ring lit as if it were
+ * the answer). A tap puts it away.
+ */
+function useKeysFocus() {
+  const [keys, setKeys] = useState(false);
+  const [focused, setFocused] = useState<number | null>(null);
+  const ring = (k: number) => ({
+    onFocus: () => setFocused(k),
+    onBlur: () => setFocused(null),
+    onKeyUp: (e: KeyboardEvent<HTMLButtonElement>) => {
+      if (e.key === 'Tab') setKeys(true);
+    },
+  });
+  return { shown: keys ? focused : null, ring, keyed: () => setKeys(true), tapped: () => setKeys(false) };
+}
+
+/** The pith (the very middle, a dot) and the bark's edge, of the slice's 100. */
+const PITH = 2.4;
 const OUTER = 42;
 
 /**
- * A young tree's slice (Gentle): its rings from the middle out, drawn to
- * their width; counted ones tinted, the next outlined after a slip, the
- * wettest marked once found. A tap is on the ring under it — the first ring
- * from the very middle (the pith, a dot) — and the ring the step wants, or a
- * thin one, is easier to hit than it's drawn (`ringAt`).
+ * A young tree's slice (Gentle): its rings from the middle out, each drawn its
+ * width from the pith out (UX review round 2: the first took in the middle and
+ * looked the widest); counted ones tinted, the next outlined after a slip, the
+ * wettest marked once found; the bark edged in ink and flecked, so it isn't a
+ * ring. A tap is on the ring under it — the first ring from the very middle —
+ * and the ring the step wants, or a thin one, is easier to hit than it's
+ * drawn (`ringAt`).
  */
 const Slice = forwardRef<
   HTMLDivElement,
@@ -561,7 +577,7 @@ const Slice = forwardRef<
   bark: string;
   label: (k: number, year: number) => string;
   done: boolean;
-  want: (k: number) => boolean;
+  want: Want;
   onTap: (k: number) => void;
   }
 >(({ rings, counted, hintAt, picked, tint, bark, label, done, want, onTap }, ref) => {
@@ -574,13 +590,10 @@ const Slice = forwardRef<
   // To hit, the first ring runs in to the very middle.
   const hit = useMemo(() => bands.map((b, k) => (k === 0 ? { from: 0, to: b.to } : b)), [bands]);
   const [focusAt, setFocusAt, onKey] = useRoving(rings.length, 0);
-  const [focused, setFocused] = useState<number | null>(null);
-  // The focused ring glows only for the keyboard — a tap, or focus put there as a step starts, shows nothing (it lit a
-  // ring as if it were the answer).
-  const [keys, setKeys] = useState(false);
+  const focus = useKeysFocus();
   const { handlers, pointerClick } = useLiftTap<number, HTMLDivElement>(
     (e) => {
-      setKeys(false);
+      focus.tapped();
       const r = e.currentTarget.getBoundingClientRect();
       const x = ((e.clientX - r.left) / r.width) * 100 - 50;
       const y = ((e.clientY - r.top) / r.height) * 100 - 50;
@@ -592,30 +605,36 @@ const Slice = forwardRef<
     },
     done,
   );
+  const lit = focus.shown;
   return (
     <div
       ref={ref}
       role="group"
       aria-label="The slice, its rings from the middle out"
-      aria-describedby="rr-do"
+      aria-describedby={done ? undefined : 'rr-do'}
       {...handlers}
       className="relative aspect-square w-full max-w-[min(420px,calc(100dvh-290px))] touch-manipulation select-none split:w-[min(100cqw,100cqh)] split:max-w-none [@media(min-width:560px)_and_(orientation:landscape)]:max-w-[min(420px,calc(100dvh-90px))]"
     >
       <svg viewBox="0 0 100 100" aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full">
         <circle cx="50" cy="50" r={OUTER + 5} fill={bark} stroke="#1b0f22" strokeWidth="1.6" />
+        {/* The bark's flecks: rough, not a ring (UX review round 2: the birch's pale bark read as a fifth). */}
+        <circle cx="50" cy="50" r={OUTER + 2.5} fill="none" stroke="#1b0f22" strokeOpacity="0.4" strokeWidth="1.6" strokeDasharray="0.8 2.4" />
         {[...bands].reverse().map((b, j) => {
           const k = bands.length - 1 - j;
           const fill = picked === k ? '#9fd3ff' : k < counted ? (k % 2 ? '#f5c66b' : '#f9d98f') : tint;
-          return <circle key={k} data-band={k} data-mid={(b.from + b.to) / 2} cx="50" cy="50" r={b.to} fill={fill} stroke={LATE} strokeWidth={0.9} />;
+          return <circle key={k} data-band={k} data-mid={(hit[k].from + hit[k].to) / 2} cx="50" cy="50" r={b.to} fill={fill} stroke={LATE} strokeWidth={0.9} />;
         })}
+        {/* Where the wood meets the bark: a line in ink. */}
+        <circle cx="50" cy="50" r={OUTER} fill="none" stroke="#1b0f22" strokeWidth="1.1" />
         {/* The pith: the very middle, a dot — not a ring of its own (UX review round 1: it was counted as one). */}
-        <circle cx="50" cy="50" r="2.4" fill={LATE} />
-        {/* The ring to count next, after a slip; the one the keyboard is on. */}
+        <circle cx="50" cy="50" r={PITH} fill={LATE} />
+        {/* The ring to count next, after a slip; the one the keyboard is on (the first, a disc — it holds the pith). */}
         {hintAt !== null && bands[hintAt] && (
           <circle cx="50" cy="50" r={(bands[hintAt].from + bands[hintAt].to) / 2} fill="none" stroke="#1b0f22" strokeWidth="1.2" strokeDasharray="2 1.6" />
         )}
-        {keys && focused !== null && bands[focused] && (
-          <circle cx="50" cy="50" r={(bands[focused].from + bands[focused].to) / 2} fill="none" stroke="#22d3ee" strokeWidth={Math.max(1.4, bands[focused].to - bands[focused].from)} strokeOpacity="0.85" />
+        {lit === 0 && bands[0] && <circle cx="50" cy="50" r={bands[0].to} fill="#22d3ee" fillOpacity="0.55" />}
+        {lit !== null && lit > 0 && bands[lit] && (
+          <circle cx="50" cy="50" r={(bands[lit].from + bands[lit].to) / 2} fill="none" stroke="#22d3ee" strokeWidth={Math.max(1.4, bands[lit].to - bands[lit].from)} strokeOpacity="0.85" />
         )}
         {picked !== null && bands[picked] && (
           <text x="50" y={50 - (bands[picked].from + bands[picked].to) / 2 + 1.6} textAnchor="middle" fontSize="5" aria-hidden="true">
@@ -629,8 +648,8 @@ const Slice = forwardRef<
           </text>
         )}
       </svg>
-      {/* The rings as buttons for the keyboard and a reader, each over its ring's top (a reader's press lands on its
-          ring — code review round 1); a pointer's tap is the slice's. The one focused glows. */}
+      {/* The rings as buttons for the keyboard and a reader, each over the middle of where it's hit (a reader's press lands
+          on its ring — code review rounds 1 and 2); a pointer's tap is the slice's. The one focused glows. */}
       {rings.map((y, k) => (
         <button
           key={k}
@@ -639,21 +658,20 @@ const Slice = forwardRef<
           tabIndex={k === focusAt ? 0 : -1}
           aria-label={label(k, y)}
           aria-disabled={done || undefined}
-          onFocus={(e) => {
+          {...focus.ring(k)}
+          onFocus={() => {
             setFocusAt(k);
-            setFocused(k);
-            setKeys(focusVisible(e.currentTarget));
+            focus.ring(k).onFocus();
           }}
-          onBlur={() => setFocused(null)}
           onKeyDown={(e) => {
-            setKeys(true);
+            focus.keyed();
             onKey(e, k);
           }}
-          onClick={() => {
-            if (!pointerClick() && !done) onTap(k);
+          onClick={(e) => {
+            if (!pointerClick(e) && !done) onTap(k);
           }}
           className="sr-only"
-          style={{ left: '50%', top: `${50 - (bands[k].from + bands[k].to) / 2}%` }}
+          style={{ left: '50%', top: `${50 - (hit[k].from + hit[k].to) / 2}%` }}
         />
       ))}
     </div>
@@ -663,8 +681,9 @@ Slice.displayName = 'Slice';
 
 /**
  * A core (Medium): a pencil-thin sample from toward the middle (left) out to
- * the bark (right), each ring a band its width; the bark's year said; the year
- * found and the dry years found marked with theirs; a fire's scar a dark notch.
+ * the bark (right, at its end), each ring a band its width; the year found
+ * and the dry years found marked with theirs (the year under, the dry years
+ * over, so two side by side don't run together); a fire's scar a dark notch.
  */
 const Core = forwardRef<
   HTMLDivElement,
@@ -675,14 +694,16 @@ const Core = forwardRef<
   scar?: number;
   label: (k: number, year: number) => string;
   done: boolean;
-  want: (k: number) => boolean;
+  want: Want;
   onTap: (k: number) => void;
   }
 >(({ job, picked, found, scar, label, done, want, onTap }, ref) => {
   const { bands, total } = useStrip(job.rings);
   const [focusAt, setFocusAt, onKey] = useRoving(job.rings.length, job.rings.length - 1);
+  const focus = useKeysFocus();
   const { handlers, pointerClick } = useLiftTap<number, HTMLDivElement>(
     (e) => {
+      focus.tapped();
       // The rings sit inside the core's border (code review round 1: a thin ring's edge answered for its neighbour).
       const el = e.currentTarget;
       const left = el.getBoundingClientRect().left + el.clientLeft;
@@ -703,59 +724,71 @@ const Core = forwardRef<
         <span>◀ toward the middle</span>
         <span>the bark: {bark} ▶</span>
       </div>
-      <div
-        ref={ref}
-        role="group"
-        aria-label="The core, its rings out to the bark"
-        aria-describedby="rr-do"
-        {...handlers}
-        className="relative h-24 w-full touch-manipulation select-none overflow-hidden rounded-md border-[3px] border-[#1b0f22] [@media(max-height:500px)]:h-20"
-        style={{ background: WOOD }}
-      >
-        {job.rings.map((y, k) => {
-          const b = bands[k];
-          const isFound = found.includes(k);
-          const marked = picked === k || isFound;
-          return (
-            <button
-              key={k}
-              type="button"
-              data-ring={k}
-              tabIndex={k === focusAt ? 0 : -1}
-              aria-label={label(k, y)}
-              aria-disabled={done || undefined}
-              onFocus={() => setFocusAt(k)}
-              onKeyDown={(e) => onKey(e, k)}
-              onClick={() => {
-                if (!pointerClick() && !done) onTap(k);
-              }}
-              // A marked ring above its neighbours, so its year shows whole (UX review round 1: "202").
-              className={cn('absolute inset-y-0 outline-none focus-visible:z-10 focus-visible:shadow-[inset_0_0_0_3px_#22d3ee]', marked && 'z-[1]', k === last && 'rounded-r-sm')}
-              style={{
-                left: `${(b.from / total) * 100}%`,
-                width: `${((b.to - b.from) / total) * 100}%`,
-                // A dry year found is gold, even the year picked (code review round 1).
-                background: isFound ? '#fbbf24' : picked === k ? '#9fd3ff' : weather(y) === 'dry' ? '#e3b77d' : WOOD,
-                borderRight: `${weather(y) === 'dry' ? 3 : 2}px solid ${LATE}`,
-              }}
-            >
-              {scar === y && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/3 bg-[#2b1a10]" />}
-              {marked && (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute top-0.5 rounded bg-[#1b0f22] px-0.5 text-[10px] font-black leading-tight text-white',
-                    k === 0 ? 'left-0' : k === last ? 'right-0' : 'left-1/2 -translate-x-1/2',
-                  )}
-                >
-                  {y}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="flex">
+        <div
+          ref={ref}
+          role="group"
+          aria-label="The core, its rings out to the bark"
+          aria-describedby={done ? undefined : 'rr-do'}
+          {...handlers}
+          // Taller on an upright tablet, where there's room (UX review round 2); shorter on a short screen.
+          className="relative h-24 min-w-0 flex-1 touch-manipulation select-none overflow-hidden rounded-l-md border-[3px] border-r-0 border-[#1b0f22] split:[@media(orientation:portrait)]:h-36 [@media(max-height:500px)]:h-16"
+          style={{ background: WOOD }}
+        >
+          {job.rings.map((y, k) => {
+            const b = bands[k];
+            const isFound = found.includes(k);
+            const marked = picked === k || isFound;
+            return (
+              <button
+                key={k}
+                type="button"
+                data-ring={k}
+                tabIndex={k === focusAt ? 0 : -1}
+                aria-label={label(k, y)}
+                aria-disabled={done || undefined}
+                {...focus.ring(k)}
+                onFocus={() => {
+                  setFocusAt(k);
+                  focus.ring(k).onFocus();
+                }}
+                onKeyDown={(e) => {
+                  focus.keyed();
+                  onKey(e, k);
+                }}
+                onClick={(e) => {
+                  if (!pointerClick(e) && !done) onTap(k);
+                }}
+                // A marked ring above its neighbours, so its year shows whole (UX review round 1: "202").
+                className={cn('absolute inset-y-0 outline-none', marked && 'z-[1]', focus.shown === k && 'z-10 shadow-[inset_0_0_0_3px_#22d3ee]')}
+                style={{
+                  left: `${(b.from / total) * 100}%`,
+                  width: `${((b.to - b.from) / total) * 100}%`,
+                  // A dry year found is gold, even the year picked (code review round 1).
+                  background: isFound ? '#fbbf24' : picked === k ? '#9fd3ff' : weather(y) === 'dry' ? '#e3b77d' : WOOD,
+                  borderRight: k === last ? undefined : `${weather(y) === 'dry' ? 3 : 2}px solid ${LATE}`,
+                }}
+              >
+                {scar === y && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-1/3 bg-[#2b1a10]" />}
+                {marked && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'absolute rounded bg-[#1b0f22] px-0.5 text-[10px] font-black leading-tight text-white',
+                      isFound ? 'top-0.5' : 'bottom-0.5',
+                      k === 0 ? 'left-0' : k === last ? 'right-0' : 'left-1/2 -translate-x-1/2',
+                    )}
+                  >
+                    {y}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {/* The bark, at the core's end — where "the bark ▶" points (UX review round 2: a strip under the whole core). */}
+        <div aria-hidden="true" className="w-3 flex-none rounded-r-md border-[3px] border-l-0 border-[#1b0f22]" style={{ background: BARK }} />
       </div>
-      <div aria-hidden="true" className="h-2 w-full rounded-b" style={{ background: BARK }} />
     </div>
   );
 });
@@ -777,7 +810,9 @@ const BEAM_DRY = '#a8794a';
 function Match({ job, offset, matched, onSlideTo }: { job: MatchJob; offset: number; matched: boolean; onSlideTo: (offset: number) => void }) {
   const { bands, total } = useStrip(job.rings);
   const beam = useStrip(job.beam);
-  const left = bands[offset]?.from ?? 0;
+  // Its first ring under the tree's ring `offset` — but never past the picture's end (code review round 2: at the far
+  // end a beam of wider rings ran 2 units over). Where it fits, it's always inside.
+  const left = Math.min(bands[offset]?.from ?? 0, total - beam.total);
   const above = job.rings.slice(offset, offset + job.beam.length);
   const { handlers } = useLiftTap<number, SVGSVGElement>(
     (e) => {
@@ -792,19 +827,19 @@ function Match({ job, offset, matched, onSlideTo }: { job: MatchJob; offset: num
   const said = (ys: readonly number[]) => ys.map(growthWord).join(', ');
   return (
     <div role="group" aria-label="Two cores: the living tree’s, and the old beam’s under it" aria-describedby="rr-under" className="flex w-full max-w-[640px] flex-col gap-1.5">
-      <div className="flex justify-between text-[13px] font-bold text-[#e4e1ff]">
+      <div className="flex justify-between gap-x-2 whitespace-nowrap text-[13px] font-bold text-[#e4e1ff]">
         <span>{job.rings[0]}</span>
-        <span>The living tree</span>
+        <span className="min-w-0 truncate">The living tree</span>
         <span>{job.rings[job.rings.length - 1]} ▶</span>
       </div>
       {/* One picture, so the beam lines up with the tree to the pixel (code review round 1: each core's border put it
-          up to 4 px off). */}
+          up to 4 px off); its edges' ink drawn whole, past the picture's box. */}
       <svg
         viewBox={`0 0 ${total} 70`}
         preserveAspectRatio="none"
         aria-hidden="true"
         {...handlers}
-        className={cn('h-[136px] w-full select-none [@media(max-height:500px)]:h-[100px]', !matched && 'cursor-pointer touch-manipulation')}
+        className={cn('h-[136px] w-full select-none overflow-visible [@media(max-height:500px)]:h-[100px]', !matched && 'cursor-pointer touch-manipulation')}
       >
         <Rings bands={bands} years={job.rings} wood={WOOD} dry="#d8a868" y={0} />
         <rect x="0" y="0" width={total} height="30" fill="none" stroke="#1b0f22" strokeWidth="3" vectorEffect="non-scaling-stroke" />
@@ -813,8 +848,11 @@ function Match({ job, offset, matched, onSlideTo }: { job: MatchJob; offset: num
           <rect x="0" y="40" width={beam.total} height="30" fill="none" stroke="#1b0f22" strokeWidth="3" vectorEffect="non-scaling-stroke" />
         </g>
       </svg>
-      <div className="flex justify-between text-[13px] font-bold text-[#e4e1ff]">
-        <span>The beam{matched ? `: ${job.beam[0]}–${job.beam[job.beam.length - 1]}` : ''}</span>
+      {/* Its name goes with the beam (UX review round 2: it stayed at the left as the beam slid away). */}
+      <div className="text-[13px] font-bold text-[#e4e1ff]">
+        <span className="inline-block transition-[margin] duration-200 motion-reduce:transition-none" style={{ marginLeft: `${Math.min((left / total) * 100, 55)}%` }}>
+          The beam{matched ? `: ${job.beam[0]}–${job.beam[job.beam.length - 1]}` : ''}
+        </span>
       </div>
       <p id="rr-under" aria-live="polite" className="sr-only">
         The beam’s rings: {said(job.beam)}. The tree’s rings above them: {said(above)}.

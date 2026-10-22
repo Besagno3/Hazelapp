@@ -322,7 +322,10 @@ Old Ringwood is the tree who loses count of his rings.
   easy to hit as a wide one; a young tree's slice is its age, the same every
   round, and an event's year the same in every tree; Tricky's living tree is
   living, its hint says thin under thin and wide under wide, and a tap along
-  its core moves the beam there.
+  its core moves the beam there. Review round 2: each step's start says the
+  next ask; each ring is drawn its width from a pith dot (the first looked the
+  widest) and the bark isn't a ring; on a short split screen Tricky's cores
+  take the board's width.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 

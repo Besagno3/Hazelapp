@@ -78,7 +78,7 @@ export const TREES: readonly Tree[] = [
     id: 'beech',
     name: 'Beech',
     from: 'a beech the woodcutter felled to make room',
-    note: 'People once wrote on thin beech boards: the words "book" and "beech" grew from the same old word.',
+    note: 'People once wrote on thin beech boards: the words “book” and “beech” grew from the same old word.',
     cut: 2011,
     age: 8,
   },
@@ -200,7 +200,7 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Tr
   const q = queue ?? roundQueue(band, () => false, round);
   const tree = TREE_BY_ID[q[i % q.length]];
   if (band === 'gentle') return { kind: 'count', tree: tree.id, rings: years(tree.cut - (tree.age ?? 4) + 1, tree.cut) };
-  const n = RINGS[band][i];
+  const n = RINGS[band][i % JOBS_PER_ROUND];
   if (band === 'medium') {
     const rings = years(tree.cut - n + 1, tree.cut);
     // An event inside the core — never its first ring or the bark's — in turn by round and place.
@@ -248,7 +248,7 @@ export function ringWords(k: number, year: number, said = true): string {
 }
 
 /** A core's ring, said from the bark (`back` rings in), as the year's found by counting. */
-export const backWords = (back: number) => (back === 0 ? 'The bark ring' : `${cap(numberWord(back))} ${back === 1 ? 'ring' : 'rings'} in from the bark`);
+export const backWords = (back: number) => (back === 0 ? 'The ring by the bark' : `${cap(numberWord(back))} ${back === 1 ? 'ring' : 'rings'} in from the bark`);
 
 /** The job, as its ticket says it. */
 export function jobWords(job: Job): string {
@@ -261,12 +261,26 @@ export function jobWords(job: Job): string {
 /** After a ring is tapped while counting (`next` is the one to count, from the middle). Never scolded. */
 export function countWords(next: number, tapped: number, total: number): string {
   const n = numberWord(total);
-  if (tapped === next) return next + 1 === total ? `${cap(n)}! That’s the bark — ${n} rings, so the tree was ${n} years old.` : `${cap(numberWord(next + 1))}!`;
+  // The bark isn't a ring (UX review round 2: "That's the bark" had a kid count it).
+  if (tapped === next) return next + 1 === total ? `${cap(n)}! The last ring, right by the bark — ${n} rings, so the tree was ${n} years old.` : `${cap(numberWord(next + 1))}!`;
   if (tapped === next - 1) return 'That one’s counted already — the next is just outside it.';
   if (tapped < next) return `That one’s counted already — count on from ${numberWord(next)}: the ${ordinal(next)} ring.`;
   if (next === 0) return 'Count from the middle out: start with the first ring, right by the middle.';
   return `Count from the middle out: the next ring is the ${ordinal(next)}, just outside the last one counted.`;
 }
+
+/** As the wettest year's step starts: what to tap (UX review round 2: on a short screen nothing said it). */
+export function wetAsk(job: CountJob): string {
+  return ringsOf(job.rings, 'wet').length > 1 ? 'Now tap one of the two widest rings — its wettest years!' : 'Now tap the widest ring — its wettest year!';
+}
+
+/** As the dry years' step starts: what to find. */
+export function dryAsk(job: DateJob): string {
+  return `Now find every thin ring: ${numberWord(ringsOf(job.rings, 'dry').length)} dry years!`;
+}
+
+/** A dry year tapped again; `left` still to find. */
+export const foundWords = (year: number, left: number) => `${year} is found already — ${numberWord(left)} to go.`;
 
 /** After a ring is picked as the wettest year (Gentle). */
 export function wetWords(job: CountJob, k: number): string {
@@ -284,7 +298,7 @@ export function dateWords(job: DateJob, k: number): string {
   const want = job.event.year;
   const last = job.rings[job.rings.length - 1];
   if (y === want) return `Yes — ${want}: ${backWords(last - want).toLowerCase()}, the year ${job.event.what}.`;
-  return `That ring is ${y}: the bark ring is ${last}, and each ring in is a year earlier. ${want} is ${y > want ? 'further in' : 'further out'}.`;
+  return `That ring is ${y}: the ring by the bark is ${last}, and each ring in is a year earlier. ${want} is ${y > want ? 'further in' : 'further out'}.`;
 }
 
 /** After a ring is picked as a dry year (Medium); `left` dry rings still to find after it. */

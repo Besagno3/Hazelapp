@@ -10,6 +10,9 @@ import {
   TREE_IDS,
   EVENTS,
   countWords,
+  dryAsk,
+  foundWords,
+  wetAsk,
   dateWords,
   dryWords,
   fitOffset,
@@ -145,7 +148,7 @@ describe('the words', () => {
   it('counting from the middle out, kindly', () => {
     expect(countWords(0, 0, 4)).toBe('One!');
     expect(countWords(2, 2, 4)).toBe('Three!');
-    expect(countWords(3, 3, 4)).toBe('Four! That’s the bark — four rings, so the tree was four years old.');
+    expect(countWords(3, 3, 4)).toBe('Four! The last ring, right by the bark — four rings, so the tree was four years old.');
     expect(countWords(2, 1, 4)).toBe('That one’s counted already — the next is just outside it.');
     expect(countWords(3, 0, 4)).toBe('That one’s counted already — count on from three: the fourth ring.');
     expect(countWords(1, 3, 4)).toBe('Count from the middle out: the next ring is the second, just outside the last one counted.');
@@ -161,7 +164,7 @@ describe('the words', () => {
     const k = m.rings.indexOf(m.event.year);
     const bark = m.rings[m.rings.length - 1];
     expect(dateWords(m, k)).toMatch(new RegExp(`^Yes — ${m.event.year}: [a-z]+ rings in from the bark, the year ${m.event.what}\\.$`));
-    expect(dateWords(m, k + 1)).toBe(`That ring is ${m.event.year + 1}: the bark ring is ${bark}, and each ring in is a year earlier. ${m.event.year} is further in.`);
+    expect(dateWords(m, k + 1)).toBe(`That ring is ${m.event.year + 1}: the ring by the bark is ${bark}, and each ring in is a year earlier. ${m.event.year} is further in.`);
     expect(dateWords(m, k - 1)).toMatch(/is further out\.$/);
     const dry = ringsOf(m.rings, 'dry');
     expect(dryWords(m, m.rings.indexOf(dry[0]), 1)).toBe(`${dry[0]} — a dry year! One more to find.`);
@@ -172,12 +175,21 @@ describe('the words', () => {
     expect(matchWords(t, fitOffset(t))).toBe(`They match! The beam’s rings run from ${t.beam[0]} to ${end}, so its tree was cut in ${end} — and ${t.building} was built soon after.`);
     // Not yet: the thin rings first — or, lined up, the wide ones too (UX review round 1: the hint said only thin).
     const away = Array.from({ length: maxOffset(t) + 1 }, (_, o) => o).filter((o) => o !== fitOffset(t));
-    const lined = away.find((o) => thinLinedUp(t, o));
     const not = away.find((o) => !thinLinedUp(t, o))!;
     expect(matchWords(t, not)).toBe('Not yet — find the thin dark rings first: slide till the beam’s sit right under the tree’s.');
-    if (lined !== undefined) expect(matchWords(t, lined)).toBe('The thin rings line up here — but not the wide ones. Slide on: thin under thin, wide under wide!');
-    // Somewhere in Tricky, the thin rings line up where the beam doesn't fit.
-    expect(jobs('tricky').some((j) => Array.from({ length: maxOffset(j as MatchJob) + 1 }, (_, o) => o).some((o) => o !== fitOffset(j as MatchJob) && thinLinedUp(j as MatchJob, o)))).toBe(true);
+    // Somewhere in Tricky the thin rings line up where the beam doesn't fit: said so (code review round 2: never asserted).
+    const offsets = (j: MatchJob) => Array.from({ length: maxOffset(j) + 1 }, (_, o) => o);
+    const lj = jobs('tricky').find((j) => offsets(j as MatchJob).some((o) => o !== fitOffset(j as MatchJob) && thinLinedUp(j as MatchJob, o))) as MatchJob;
+    const lined = offsets(lj).find((o) => o !== fitOffset(lj) && thinLinedUp(lj, o))!;
+    expect(matchWords(lj, lined)).toBe('The thin rings line up here — but not the wide ones. Slide on: thin under thin, wide under wide!');
+  });
+
+  it('as a step starts, what to do next; a dry year found again', () => {
+    const rowan = as(jobs('gentle').find((j) => j.tree === 'rowan')!, 'count');
+    expect(wetAsk(g)).toBe('Now tap the widest ring — its wettest year!');
+    expect(wetAsk(rowan)).toBe('Now tap one of the two widest rings — its wettest years!');
+    expect(dryAsk(m)).toBe(`Now find every thin ring: ${['no', 'one', 'two', 'three', 'four'][ringsOf(m.rings, 'dry').length]} dry years!`);
+    expect(foundWords(2017, 1)).toBe('2017 is found already — one to go.');
   });
 
   it('the lessons', () => {
