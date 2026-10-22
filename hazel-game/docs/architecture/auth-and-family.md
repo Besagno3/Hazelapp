@@ -57,8 +57,9 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   `set_parent_pin`, `record_consent`, the admin review functions and
   `delete_family`; each refuses with SQLSTATE HQ001 `grown_ups_locked`
   (`grownUpsLocked`, `lib/grownUpsGate.ts`). The kid's own play — saves, the
-  XP / level / streak / power-up columns, 🚩 reports, seen questions, their
-  PIN — never needs it. A sign-in may open itself only while the family is
+  XP / level / streak / power-up / topic-start (`skill_starts`, 0026)
+  columns, 🚩 reports, seen questions, noting the day's play, their PIN —
+  never needs it. A sign-in may open itself only while the family is
   still being set up and only in the minute after it signed in (a password,
   or an email link — `openForFirstRun` from `familyStore.load`), so the
   first run needs no gate; a named session must be one of the login's live
@@ -128,24 +129,45 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   `lib/progress.ts`):** a "📈 Progress" button on each kid's row opens their
   page, lazy-loaded (`React.lazy` in `GrownUpsArea`, so the game's first load
   doesn't carry it); a toggle per kid at the top (`aria-pressed`). The family
-  is read once, three reads whatever its size (`fetchFamilyProgress`):
+  is read once, four reads whatever its size (`fetchFamilyProgress`):
   `profiles` progress columns only (`PROGRESS_COLUMNS` — never the birth date;
   the kid's age only picks a topic's starting level, and PINs are unreadable
-  anyway), `saves` (normalized), and the last week of `play_days`. Reading is
+  anyway — and `skill_starts`), `saves` (normalized), the last five weeks of
+  `play_days` with each day's `xp, minutes, topics, noted_play` (`HISTORY_DAYS`,
+  validated by `playDayFromRow`; `noted_play`, #181, comes with the other
+  0026 columns, so the fallback below covers it), and `play_history_since`; a database
+  without 0026 (`missingColumn`, `missingTable`) is read again as before it —
+  the profiles without `skill_starts`, the last week's days alone, no "since"
+  — and that's remembered for `LACKING_RECHECK_MS` (10 min; the page's own
+  Try again forgets it, `forgetMissingProgress`), so opens meanwhile read
+  that shape straight away, in one round (#89 review round 1), and a tab
+  open across the deploy finds 0026 after that (round 2). Reading is
   not a grown-up action (no `asGrownUp`, no 👪 window needed — RLS keeps it to
   the family's own kids), but the page is only reachable through the gate and
   goes back to it when the 15 minutes run out, like the list. The page opens
   on an h2 with the kid's name and a few lines **at a glance** (`glance`:
   days played this week ("Not sure which days they played" when their
-  device's date is set ahead, like the tiles — review round 3), the topics
+  device's date is set ahead, like the tiles — review round 3), ⏱️ about
+  how long they played in the last 7 days (`minutesText`, #172; when some
+  days played had no time recorded, how many did comes first: "Time
+  recorded on 2 of the 6 days played: about 50 minutes." — #89 review
+  rounds 1–2: never a part said as the whole, nor first), the topics
   that climbed since their noted start (`climbedText`: "Most progress" only
   when every measured topic has a noted start and there are two or more —
   `Glance.ranked`; otherwise "Up since they started: Maps & Places (level 4
-  → 5)", none crowned, round 3), what to practise together grouped by why
-  with every topic named once (`practiseText`: below where it started, or
-  `SEVERAL_MISSED` questions of one topic waiting at the Library, a topic
-  with both said once with both; "nothing stands out" only when both the
-  levels and the Library were read) and how many questions wait), then h3 sections
+  → 5)", none crowned, round 3; a topic in 💡 for under half right is
+  never crowned too, and no other takes its "most" — #89 review round 1),
+  what to practise together, topics first (`practiseText`: each once with
+  its reasons in a few words — "below their start", "under half right" (in
+  the last 7 days, `ENOUGH_ANSWERS` (5) or more, #173), "3 to try again"
+  (`SEVERAL_MISSED` questions of one topic waiting at the Library) — the
+  most reasons first, at most `PRACTISE_NAMED` (2) with their reasons and
+  the rest named after them — "Also: Words & Stories, Science and Space."
+  — #89 review round 1: grouped by why it ran 12 lines on a phone; round 2:
+  "and 3 more topics" couldn't be found below; "nothing stands out" only
+  when both the levels and the Library were read) and how many questions
+  wait), then h3 sections — ⭐, 🎯, then
+  📊 XP (after the topics since #89 review round 1), 🗺️, 📚, ⌨️
   (emoji `aria-hidden`); switching kids is said in the page's status region.
   Pure shaping in `lib/progress.ts`: `levelSummary` (the **player level**, so
   named, as the hero number, with one line saying it grows with XP and never
@@ -156,10 +178,39 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   `clockAhead`, review round 2), `dayWords`, `recentDays` (played where the
   database noted the day or it's the last day played, plus the days a live
   streak proves — review round 2 — drawn and read "played" like any other,
-  one mark, no key (round 3); nothing else guessed),
+  one mark, no key (round 3); nothing else guessed — each day also `counted`
+  (on or after `countedSince`; before it "not recorded", not read out, and
+  `countedFromText`'s note, "Days played are recorded from Monday 19
+  October." — said once on the page: under the week when it falls in it,
+  else under the XP chart, #170 / #89 review rounds 1–2), and its `xp` /
+  `minutes` only from a day whose play was recorded (#169, #172) — the
+  database's `noted_play` says so (#181: a 30-second day is "0 XP", "under
+  a minute" and no answers, recorded, and every total counts it whole); a
+  day it says wasn't — an older app's, or one an older build played too,
+  whatever this device added to it (#181 review) — is "XP not recorded";
+  only a row that doesn't say reads any XP, minute or answer as noted; the days
+  end on the kid's today, `windowEnd` — the day after this device's when
+  anything was noted on it (their device a time zone ahead), so "the last
+  7 days" are the kid's 7, never their today and tomorrow added into one,
+  #89 review round 2 — `topicWeeks` takes the same end), `minutesWords` /
+  `minutesText` (the ⏱️ line; a day's minutes to the minute, the week's to
+  the nearest 5), `xpWeeks` / `dayRange` / `bestXpDay` / `xpBrief` (📊 XP: a
+  row of columns per week under the weekdays, a grey dot for a day played
+  without its XP; each week's `amount` and `note` — "430 XP" bold, "At
+  least 220 XP" plain with "XP not recorded on 4 days played" on a line of
+  its own, "100 XP since Tuesday" when recording began mid-week; a week
+  with no day played is its words alone, no plot; weeks wholly before
+  recording left out and the title says how many are shown ("XP, the last
+  2 weeks", "XP, the last 7 days"); fewer than two days of XP recorded is
+  one line instead, `xpBrief`, without minutes (⏱️ says them); "Most on a
+  recorded day" only with three or more days of XP; the dots' key hidden
+  from a screen reader (the rows say it); no section with their device's
+  date set ahead (the glance says "Not sure"); a folded table twin in short
+  forms at every width, the whole words read out — #89 review rounds 1–2),
   `topicLevels` / `topicMeaning` (each topic "Math: level 6 of 10" read
-  against **where that topic really started** — the save's `topicStarts`,
-  noted by `profileStore.setSkillLevel` the first time a topic's level is
+  against **where that topic really started** — the profile's
+  `skill_starts` first, then the save's `topicStarts` (`topicStartsOf`,
+  #174), noted by `profileStore.setSkillLevel` the first time a topic's level is
   saved (`ageToStartLevel` of the age then, and that age): "Up 2 from level
   1, where they started at age 6", "Below level 4, where they started at age
   9 — a good one to practise together", plus the writer's top bands, a
@@ -174,10 +225,19 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   above / below claim, only the top bands; "Where these began wasn't
   recorded.", and when one sits under today's start, that one first played
   younger may have started lower — so a bare 2 never reads as a step back
-  from the box below, round 3); nothing claims a level went down: no history
-  is kept; topics no round has moved grouped in one "Not moved yet" box at
+  from the box below, round 3); nothing in the level's own words claims it
+  went down; the days recorded say "Last 7 days: 7 of 10 right · Up / Down 1
+  since last week" or "Same as last week" (`topicWeeks`, `topicWeekParts` /
+  `topicWeekText`, #173 — against the latest level noted 8–14 days back,
+  only for a topic answered this week; the change never broken across
+  lines; when some days played in the 7 had no answers recorded, it's said
+  once under the section's intro, `answersNote`: "Answers below are from 4
+  of the 5 days played in the last 7 — the other day's answers weren't
+  recorded." — #89 review rounds 1–2) and a topic with `ENOUGH_ANSWERS` and under
+  half right joins 💡; topics no round has moved grouped in one "Not moved yet" box at
   the start for their age now, with no bar — a grey bar there outgrew the
-  bars a long-time player earned), `storySummary` (the act by
+  bars a long-time player earned; one answered in the last 7 days says so,
+  "Answered in the last 7 days: Space (1 of 2 right)."), `storySummary` (the act by
   `act2/3/4-seen` as "Act II" only — the game names no acts; a crystal by
   name once restored, once their own 🚩 names it, or, Act I's four, once the
   opening story has; any other "a crystal they haven't found yet"; "4
@@ -196,7 +256,8 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   region; errors use `plainErrorOr` (with "Sign in again" when the sign-in
   ran out) and log `errorMessage`; "Try again" waits in place with
   `aria-disabled` and, once loaded, the kid's heading takes the focus; no
-  `play_days` table (0025 not applied) just leaves the week out. **A file
+  `play_days` table (0025 not applied) just leaves the week and the XP chart
+  out; without 0026 there is no XP chart, ⏱️ line or answers per topic. **A file
   that doesn't load** (offline, or a deploy replaced it): the page sits in a
   `LazyBoundary` (`components/`) and says "The progress page didn't load. Try
   again." on its own card (the loading card is as wide as the page) — the
@@ -214,35 +275,101 @@ Covers: sign-in, the family (kids as profiles), PINs and their limits, the datab
   error under "Details for grown-ups" (`components/ErrorDetails`) and Back —
   👪 stays open (`LazyBoundary`'s `crashed`, round 3; the world keeps the
   game's crash screen). Bars are plain HTML/CSS: blue `#2a78d6` on its `#cde2fb` track
-  for measured values and played days,
-  the de-emphasis grey `#898781` for crystals not yet restored — validated with the dataviz palette script on
+  for measured values, played days and the XP columns,
+  the de-emphasis grey `#898781` for crystals not yet restored and the XP
+  chart's "played, XP not recorded" dot — validated with the dataviz palette script on
   the card's white; every bar carries its value in words beside it
-  (`aria-hidden` bars), the week is an ordered list read day by day.
-  **Days played (#29, migration 0025, `lib/playDays.ts`):** when a kid plays
+  (`aria-hidden` bars; the XP chart says its weeks and best day in words and
+  has a table twin), the week is an ordered list read day by day (with each
+  day's minutes).
+  **Days played and their play (#29, #169, #172, #173; migrations 0025 +
+  0026, `lib/playDays.ts`):** when a kid plays
   on a new day — a round, a battle, **any XP earned** (`profileStore.addXp`
   runs `recordActivity`, so typing, the Library, shrines and the Scriptorium
   count, and the streak and "last played" agree with the week), or
   **finished typing practice** whatever it pays (a lesson, a cleared one
   replayed; a 🍂 Falling Leaves round with a leaf caught; a Scriptorium page —
   each calls `recordActivity`, review round 2) — that day
-  (their device's own `YYYY-MM-DD`) is kept on the device
-  (`hazel-play-days-<kid>`, at most 8; in memory when storage can't be
-  written) and sent to `note_play_days(kid, days)` — security definer, run in
-  UTC whatever time zone a request asks for, the family's own kid only (42501
-  "not your player"), only adding days from 7 back to 1 ahead of the server's
-  date, at most 31 a call, and deleting **every** kid's days older than 14
-  (any family's note — at most 1,000 of the oldest a call, by the index on
-  `day`, so no note risks the API's statement timeout, review round 2; rows
-  another note is deleting are skipped, `skip locked`) — and leaves the
-  device once sent. **The streak (#28) follows the same days:** `recordActivity`
+  (their device's own `YYYY-MM-DD`) is kept on the device as a record of the
+  day's play (`hazel-play-history-<kid>`, at most 8, a week back, never more
+  than a day ahead — a clock that was set ahead, #89 review round 2; in memory
+  when storage can't be written — its own key since #89 review round 1, so a
+  tab on an older build, which reads and writes `hazel-play-days-<kid>` as a
+  list of days, can't write over the records; the days it leaves there are
+  folded in as days played and that key cleared, #178 — and marked `bare`:
+  that build's XP for the day was never noted, so the day goes without
+  `noted` and keeps "played, XP not recorded", even once this device plays
+  it too, #181 review): the XP earned
+  (#169, `addXp` → `addDayXp`, even while the row is unread), active minutes
+  (#172, `lib/activeMinutes.ts`, wired in `App`: every 60 s a minute counts
+  with the game on screen, the tab in view and a key, pointer or touch in
+  that minute, on a game screen, by the kid playing as it came (not the PIN
+  pad, the family screens or 👪, and never the last kid's before a Switch
+  player — #89 review round 2) — and no other window of the game on this device counted one
+  for the kid in the last 55 s, `claimMinute` / `hazel-last-minute-<kid>`,
+  so two windows used in turn don't count a minute twice) and per topic the answers asked / right and the level last
+  saved (#173: `profileStore.noteAnswer` from `QuestionCard`'s final pick —
+  a Forget-Me-Knot cross-out isn't one — `QuizRound` and a timed-out defend;
+  bank questions only, asked at most one level above the topic's saved
+  level — a spell or a Pair Attack (3 up), the Spire's top floors and a
+  speed boost's second step (+2) are hard on purpose and left out, a
+  boost's first step (+1) counts, #89 review round 2; no level while the row
+  is unread). **Only a played
+  day goes up** (`notePlayDay` ← `recordActivity`; a battle fled after
+  answering counts as one, #89 review round 2): minutes or answers on a day
+  nobody has played — a kid who only walks the world before anything else
+  that day — wait on the device unsent and go only if the day is played, so
+  the week, the streak and "last played" agree (the lead, 2026-10-21;
+  #177). A day the profile already counts as played — its last day played,
+  or a day its live streak proves (`provesPlayed`, `lib/streak.ts`), so
+  another device or browser played it — is this device's to send too: play
+  noted for it marks it played as it's noted (`Noting.played`, from
+  `profileStore.dayPlayed` — the minute watcher in `App`, `noteAnswer`,
+  `addXp`, `setSkillLevel`), on the usual wait, the hidden tab and the `now`
+  sends; a profile read (load or `retryRead`) and `recordActivity` mark
+  every kept day it proves (`markPlayDays`) — #89 review rounds 1–2: round 1
+  marked only today, and only what was kept as the profile loaded, so
+  minutes and wrong answers noted after never went.
+  Played days
+  are sent to `note_play_history(kid, days)` (migration 0026) — security
+  definer, run in UTC whatever time zone a request asks for, the family's
+  own kid only (42501 "not your player"), each `{day, xp, minutes, topics,
+  noted}`, days outside 7 back to 1 ahead of the server's date skipped, at
+  most 31 a call, values clamped (the limits `lib/playDays` keeps a record
+  to, and 📈's reader reads one with — `playDays.limits.test` reads 0026,
+  `progress.ts` and `profile.ts` and holds them together, #182), the larger
+  total kept per day and per topic the tally with more answers (a tie takes
+  the new one), a day sent with `noted: true` marked `noted_play` (#181 —
+  every day the app sends but a `bare` one; never unset, never by
+  `note_play_days`), and deleting **every**
+  kid's days older than 35 (was 14 before 0026; any family's note — at
+  most 1,000 of the oldest a call, by the index on `day`, so no note risks
+  the API's statement timeout, review round 2; rows another note is deleting
+  are skipped, `skip locked`). Today's record stays on the device and goes
+  again whole once it grows; a past day leaves once sent; a send asked for
+  without `now` goes at most every `SEND_EVERY_MS` (2 min) — a new day, a
+  profile load, back online, the tab hidden (`watchPlayDays`), Switch player
+  and opening 👪 Grown-ups (every kid's, #89 review round 1) go at once.
+  Without 0026 the days alone go to `note_play_days(kid, days)` (0025's
+  checks; 0026 redefines it with the same 35-day tidy-up, so an old tab
+  can't delete history at two weeks) and the rest waits on the device until
+  0026 is found. **The streak (#28) follows the same days:** `recordActivity`
   is the one path, so a day spent only on typing, the Library or a shrine
   keeps the 🔥 streak going too — intended (the lead, 2026-10-21). A failed send
-  backs off: no such function (0025 not applied) → nothing more this session;
+  backs off: no `note_play_history` → the days alone to `note_play_days`;
+  neither (0025 not applied) → nothing more; either is asked for again
+  after `MISSING_RECHECK_MS` (10 min) and on the next profile load
+  (`recheckPlayFunctions`; #89 review round 2: remembered for the tab's
+  life, a tablet left open across the deploy dropped a week of play);
   offline → again on the `online` event or after `RETRY_OFFLINE_MS` (10 min);
   any other refusal → the next new day or profile load (`flushPlayDays(kid,
-  { now })`). `play_days` (profile, day) is readable by the family for the
-  last two weeks only (RLS) and writable by no client; removing a kid or
-  closing the account deletes it (cascade). Kids have no login, so "the kid's
+  { now })`). `play_days` (profile, day, and since 0026 the day's `xp`,
+  `minutes`, `topics` and `noted_play`) is readable by the family for the last five weeks
+  only (RLS) and writable by no client, only by `note_play_history` /
+  `note_play_days`. `play_history_since` (one row per kid: the first day
+  ever noted, set by both, backfilled by 0026, never tidied) is readable by
+  the family too. Removing a kid or closing the account deletes both
+  (cascade). Kids have no login, so "the kid's
   own session" is the family's sign-in playing as them, as with saves.
 
 ## Closing an account

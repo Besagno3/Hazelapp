@@ -19,10 +19,12 @@
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
-react-router-dom + recharts, vite-plugin-pwa (PWA, #5), zod, react-query.
+react-router-dom + recharts, vite-plugin-pwa (offline play, #5 — the
+home-screen app needs none: it is `public/manifest.webmanifest`), zod, react-query.
 Add the package in the same change that first uses it. The parent dashboard
 (#29) needed neither: it is a page inside 👪 Grown-ups (no router), and its
-bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
+bars — the 4-week XP columns too (#169) — are plain HTML/CSS; recharts
+measured ~106 KB gzipped for one bar chart.
 
 ## Decisions
 
@@ -37,8 +39,12 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   (`profiles.skill_levels`, 1–10) starts from the child's **sign-up age**
   (`ageToStartLevel(playerAge)` — age recomputes from the birth date, so new
   topics start higher each birthday; where each topic really started is
-  noted in the save the first time its level is saved, `topicStarts`, #29
-  review round 2) and then moves with **performance**
+  noted the first time its level is saved — on the profile
+  (`profiles.skill_starts`, migration 0026, #174; the database keeps the
+  first, and works its age out from the day it was noted and the kid's
+  birth date, so a grown-up's corrected birth date corrects the age, never
+  the level — #183) and in the save (`topicStarts`, #29 review round 2), for a
+  database or app without the column) and then moves with **performance**
   (quiz ramp, battle ramp, and the battle **speed trigger**: 5 quick correct
   answers in a row → +1 mid-battle). It sets quiz, gate, chest, Spire and
   battle questions and enemy levels. **XP / player level** only tracks
@@ -60,11 +66,29 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   (settings, leaderboard). The parent dashboard became 👪 Grown-ups → 📈
   Progress (#29, 2026-10-21): a page inside the gated area, not a route.
 - **Parent dashboard (#29, 2026-10-21):** it shows only what the database
-  stores — no invented history. The days a kid played are stored for it
-  (migration 0025 `play_days`, kept 14 days); XP over time is not, so there is
-  no XP chart (#169). Charts follow the dataviz method: forms by job (one hero
-  number, meters and cells with their values in words), one sequential hue
-  plus the de-emphasis grey, validated against the card's surface.
+  stores — no invented history. The days a kid played are stored for it, and
+  since migration 0026 what they played on each — the XP earned, active
+  minutes, answers asked / right per topic — noted on the device and sent
+  with the day (`play_days`, migrations 0025 + 0026, kept 35 days), with each
+  kid's first day ever noted (`play_history_since`), so a gap before it reads
+  "not recorded"; a day noted without its play (an older app) says so, never
+  0 XP, and a day noted with its play and none says "0 XP" (`noted_play`,
+  #181 — never a day an older app played too, whose XP it never noted). A day's play goes up only once the day counts as played (XP, a
+  round, a battle, a battle fled after answering… — `recordActivity`), or
+  the profile already counts it (its last day played, or a day its live
+  streak proves — another device played it; then play noted for it goes up
+  whenever it's noted, #89 review round 2): a kid who only walks the world
+  on a day nobody has played has those minutes kept on the device unsent,
+  so the week, the streak and "last played" agree (the lead, 2026-10-21;
+  #177). One pair of words on the page and in the notice: days played "are
+  recorded from" the first day noted; a day is "played", has "no play
+  recorded", or (before that) is "not recorded"; a day played may have its
+  "XP not recorded" — and a total that leaves days out is "At least …"
+  (#89 review round 2). Charts follow the dataviz
+  method: forms by job (one hero number, meters and cells with their values
+  in words; daily XP as columns — many days have no play, and a line would
+  draw through them), one sequential hue plus the de-emphasis grey,
+  validated against the card's surface.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.

@@ -98,9 +98,26 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 # 📈 Progress's days played (#29) — migration 0025, any time (either order with the app)
 #   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`). Before it, the page
 #   leaves "Last 7 days" out and each device keeps its days (up to 8), sending none more that session.
-#   0025 changed in review round 1 (every kid's old days deleted, a two-week read window, UTC, an
-#   index) and round 2 (the old days deleted at most 1,000 a note): a project that applied it before
-#   must re-run apply_all_migrations.sql — `db push` skips a recorded version.
+#   0025 changed in review round 1 (every kid's old days deleted, a two-week read window — five weeks
+#   since 0026 — UTC, an index) and round 2 (the old days deleted at most 1,000 a note): a project that
+#   applied it before must re-run apply_all_migrations.sql — `db push` skips a recorded version.
+
+# 📈 Progress's history (#169, #170, #172, #173, #174) — migration 0026, any time (either order with the app)
+#   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`; 0026 is new). No edge-function
+#   deploy. Before it, the new app notes days with note_play_days and keeps each day's XP / minutes /
+#   answers on the device (a week back; sent once 0026 is there), reads and writes profiles without
+#   skill_starts (topic starts stay in the save), and 📈 shows the week as before (one extra read per part,
+#   logged). Each side asks for 0026 again every 10 minutes and on a profile load (📈: its Try again), so
+#   tabs open across the deploy pick it up without a reload. After it, an old open tab's note_play_days
+#   keeps five weeks too (its days read "played, XP not recorded"). History fills from then on: 0025-era
+#   days have zeros (read the same way), and five weeks are there once five weeks have passed. The draft
+#   privacy notice says a day's note is kept five weeks, then the family can't see it and it's deleted as
+#   the game tidies up (inside the note functions — no scheduled job); CONSENT_VERSION waits for the
+#   lawyer (#124). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
+#   Also in 0026 (#181, #183): play_days.noted_play (set by note_play_history for a day sent with
+#   "noted": true; a day noted without it reads as before), and each topic start's age worked out from
+#   the day it was noted ("on", topic_start_day) and the kid's birth date — again on a grown-up's
+#   correction (trigger profiles_keep_skill_starts, kid_age_on); a start's level is never changed.
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):

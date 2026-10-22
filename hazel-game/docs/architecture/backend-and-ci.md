@@ -36,7 +36,12 @@ Covers: applying the schema and the migration rules, the CI jobs and SQL tests, 
   and deletes it again; `grown_ups_gate.test.sql` proves 👪 Grown-ups is held
   by the database, #167 — and fails when a `profiles` column is on neither
   side of the gate — and `grown_ups_password.test.sql` the password wait;
-  `play_days.test.sql` the days-played rules, #29;
+  `play_days.test.sql` the days-played rules, #29; `progress_history.test.sql`
+  a day's play and `noted_play` (`noted: true`), the first day noted, topic
+  starts, their days (`on`) and a corrected birth date's ages (0026,
+  #169–#174, #181, #183 — it
+  re-applies 0026 inside its own transaction with psql's `\ir`, to test the
+  backfill and the bundle's replay over live data);
   the other tests that act as a grown-up open it first, on the stub's
   `request.jwt.claims` session). A new migration must apply cleanly there; put
   SQL-level tests for it in `supabase/ci/`.

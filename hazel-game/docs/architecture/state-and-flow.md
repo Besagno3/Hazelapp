@@ -66,17 +66,80 @@ Covers: the xstate game-flow machine, the feature folders, `saveStore` (write-th
   `profiles` row (birth date, skill levels, xp, saved level, power-ups, streak).
   `recordActivity` is the one way a day counts as played (the streak, last
   played, 📈 Progress's week — #28, #29); `setSkillLevel` notes a topic's
-  real start in the save the first time its level is saved (`topicStarts`).
+  real start the first time its level is saved, on the profile
+  (`skill_starts`, written with the level; a database without the column —
+  PostgREST 42703 / PGRST204 — is read and written without it for
+  `STARTS_RECHECK_MS`, 10 min, and asked again on every load, #89 review
+  round 2) and in the save (`topicStarts`); on load, starts in the save the
+  profile lacks are carried onto it (one write, once the save is loaded;
+  `mergeProfiles` keeps the union, the server's on a clash); `noteAnswer`
+  counts a bank question's final pick for today (#173). The database keeps
+  each topic's first start (`profiles_keep_skill_starts`, 0026) and its age
+  is the kid's (#183, the lead's calls): a start carries the day it was
+  noted (`TopicStart.on`, the device's `YYYY-MM-DD`, set by `setSkillLevel`
+  and kept by `normalizeSave`, `skillStartsFrom` and `mergeProfiles`), and
+  the trigger works its age out from that day and the row's birth date
+  (0026's `kid_age_on`, as `calcAge` does — `age.test` checks `calcAge`
+  against the table the SQL test checks `kid_age_on` with; within 3–18) —
+  as it arrives, from whichever device or save or unread take-up, whatever
+  age it was sent with, and again on a grown-up's birth-date correction. So
+  **exact:** every start this app notes, year or month corrected, however
+  late it reaches the row. **Approximate:** a start without `on` (only from
+  a save written by an app from before it): kept as sent, and a correction
+  moves it by the change in the kid's age today — exact for the year (unless
+  capped at 3 or 18), maybe a year off for a month; and the save's own
+  `topicStarts` copy is never moved (📈 reads the profile's first). An `on`
+  that isn't a real day from 2020 to a day after the server's is dropped
+  alone (`topic_start_day`). A level never moves — the level they really
+  started at stays true. Levels are never reset: the family's devices keep
+  cached copies that merge levels by the higher and starts by union, so a
+  reset on the server would be undone by the next device that loads. A
+  grown-up's Save in 👪 sends the birth date only where the form changed it
+  (`familyStore.updateKid`, #183 review), so a device with an older kid list
+  never puts back another device's correction. Each read of the row is
+  timed whole — the fetch and the session supabase-js waits for first (a
+  token refresh after the tab slept), a race, not only the fetch's abort
+  signal — and one still out after `READ_TIMEOUT_MS` (10 s) ends as a failed
+  read; each failure gives the next read twice as long, up to
+  `READ_TIMEOUT_MAX_MS` (30 s), back to 10 s on a read, a load or a clear
+  (#184 and its review: a captive portal or a half-open connection held a
+  kid's retries for minutes; a slow link that does answer gets its row).
   **A row that couldn't be read is never written over (#29 review round 3,
   #61's class):** after a failed read the profile is this device's copy, or
   a made-up start (level 1, no topics), and `unread` is set: play goes on in
   memory, but nothing goes to the row and no topic start is noted (a made-up
-  profile never becomes the device's copy either); the next change after
-  `RETRY_READ_MS` (15 s) reads it again (`retryRead`) and takes it up — the
-  row as the copy the device had would have merged it, plus the XP earned
-  since and today played; levels and power-ups moved since count only from
-  a real copy — then writes the result. A read that answers after the kid
-  changed (or the game was put away) is dropped (`readGen`).
+  profile never becomes the device's copy either); it is read again on a
+  timer — after `RETRY_READ_MS` (15 s), then twice as long after each read
+  that fails, up to `RETRY_READ_MAX_MS` (5 min), back to 15 s on a read, a
+  load or a clear (#89 review round 1) — the moment the device is back
+  online, and on the next change after that long (`retryRead`, #176; one
+  read at a time per load, `readingGen`, so one still out for the last kid
+  never holds up the next kid's), and taken up — the row as the copy the device had
+  would have merged it, plus the XP earned since and today played; each
+  topic's level moved since goes on as a step from the real level (1–10), a
+  topic the row has no level for keeps the level played to and gets the
+  start it was played from; power-ups count only from a real copy — then
+  the result is written (`takeUp`). The steps — and the XP earned meanwhile
+  (#180 review) — are kept beside the copy (`hazel-profile-steps-<kid>`,
+  `lib/profile`'s `UnreadSteps`, #180), so a reload — or Switch player —
+  before the row is read keeps a step down and the XP too (the copy alone,
+  merged by the higher, lost them): the copy is taken back to where it stood
+  (`withoutSteps`) and they go on from the row's once it's read. Every tab
+  of the kid on the device adds to what's kept (`addUnreadStep`,
+  `addUnreadXp`), and the first to read the row takes it all
+  (`takeUnreadSteps`, inside `withStepsLock`: the Web Locks API's lock per
+  kid where the browser has it, else read-and-remove in one synchronous
+  step — best effort), so a step goes on once: a tab that finds its steps
+  taken takes each topic it stepped from the copy that tab left (its own
+  read may predate that write). A tab without a copy (a made-up start), or
+  whose storage can't be written (`unread.unstored`), puts on its own.
+  Another tab's step on a topic this tab never stepped meets "the higher
+  wins", as another device's does. Cleared once taken, and with the copy
+  (`forgetLocalProfile`: removing the kid, closing the account — a plain
+  sign-out keeps both). No level is noted for today while unread. A read that answers after the kid
+  changed (or the game was put away) is dropped (`readGen`). Removing the
+  kid who's playing in 👪 puts their game away too (`removeKid`, #89 review
+  round 1).
 
 ## Progression
 

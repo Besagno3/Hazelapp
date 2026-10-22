@@ -11,7 +11,7 @@ const db = vi.hoisted(() => {
     const chain = { table, ops: [] as Op[] };
     chains.push(chain);
     const b: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle']) {
+    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle', 'abortSignal']) {
       b[m] = (...args: unknown[]) => {
         chain.ops.push([m, args]);
         return b;
@@ -273,6 +273,31 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids[0]).toMatchObject({ name: 'Ada B', hasPin: true });
   });
 
+  it("updateKid sends the birth date only where the form changed it — a kid list older than another device's correction never puts it back (#183 review)", async () => {
+    useFamilyStore.setState({ userId: 'grown-up-1', status: 'ready', kids: [{ id: 'kid-sam', name: 'Sam', icon: 'fox', hasPin: true, birthYear: 2016, birthMonth: 9 }] });
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    db.chains.length = 0;
+    const updates = () =>
+      db.chains.filter((c) => c.table === 'profiles').flatMap((c) => c.ops.filter(([m]) => m === 'update').map(([, args]) => args[0] as Record<string, unknown>));
+    // A nickname: the birth date isn't sent (another device may have corrected it since this list was read).
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2016, birthMonth: 9 });
+    expect(updates()[0]).toMatchObject({ display_name: 'Sammy', icon: 'fox' });
+    expect(updates()[0]).not.toHaveProperty('birth_year');
+    expect(updates()[0]).not.toHaveProperty('birth_month');
+    // The month changed: the month alone goes.
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2016, birthMonth: 3 });
+    expect(updates()[1]).toMatchObject({ birth_month: 3 });
+    expect(updates()[1]).not.toHaveProperty('birth_year');
+    expect(useFamilyStore.getState().kids[0]).toMatchObject({ birthYear: 2016, birthMonth: 3 });
+    // The year changed: the year alone.
+    await useFamilyStore.getState().updateKid('kid-sam', { name: 'Sammy', icon: 'fox', birthYear: 2015, birthMonth: 3 });
+    expect(updates()[2]).toMatchObject({ birth_year: 2015 });
+    expect(updates()[2]).not.toHaveProperty('birth_month');
+    // A kid this list doesn't have (it can't know what changed): all of it.
+    await useFamilyStore.getState().updateKid('kid-new', { name: 'Ada', icon: 'bee', birthYear: 2017, birthMonth: 5 });
+    expect(updates()[3]).toMatchObject({ birth_year: 2017, birth_month: 5 });
+  });
+
   it('PINs are checked by the database\'s count (#124c): a kid\'s, and the grown-up\'s (which can also be set)', async () => {
     db.rpc.mockResolvedValueOnce({ data: { ok: true, tries_left: 5, wait_seconds: 0 }, error: null } as never);
     expect(await useFamilyStore.getState().checkKidPin('kid-sam', '4821')).toEqual({ ok: true, triesLeft: 5, waitSeconds: 0, limited: true });
@@ -366,6 +391,7 @@ describe('useFamilyStore', () => {
     await useFamilyStore.getState().load('grown-up-1');
     localStorage.setItem('hazel-save-kid-sam', '{}');
     localStorage.setItem('hazel-profile-kid-kit', '{}');
+    localStorage.setItem('hazel-profile-steps-kid-kit', '{"steps": {"math": -1}, "starts": {}}');
     sessionStorage.setItem('hazel-active-kid-grown-up-1', 'kid-sam');
     useAuthStore.setState({ user: { id: 'grown-up-1', email: 'mum@example.com' } as never });
     functions.invoke.mockResolvedValueOnce({ data: { ok: true, kids: 2 }, error: null });
@@ -375,6 +401,8 @@ describe('useFamilyStore', () => {
     expect(functions.invoke).toHaveBeenCalledWith('delete-account', { body: { confirm: 'DELETE', session: DEVICE_SESSION }, headers: { Authorization: 'Bearer fresh-token' } });
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-kit')).toBeNull();
+    // The level steps kept with the copy go with it (#180).
+    expect(localStorage.getItem('hazel-profile-steps-kid-kit')).toBeNull();
     expect(sessionStorage.getItem('hazel-active-kid-grown-up-1')).toBeNull();
     expect(auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(takeAccountClosedNotice()).toBe('Your account and all its data are gone.');
@@ -468,11 +496,55 @@ describe('useFamilyStore', () => {
     warn.mockRestore();
   });
 
+  it("switchPlayer and opening 👪 Grown-ups send the kids' waiting play at once — not a couple of minutes later (#89 review round 1)", async () => {
+    const { playDaysKey } = await import('../lib/playDays');
+    const { todayIso } = await import('../lib/streak');
+    const today = todayIso();
+    const kept = (xp: number) => JSON.stringify([{ day: today, xp, minutes: 3, topics: {}, played: true }]);
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useFamilyStore.getState().choose('kid-sam');
+    useProfileStore.setState({ profile: { id: 'kid-sam', birthYear: 2017, birthMonth: 3, skillLevels: {}, xp: 40, powerUps: {}, currentStreak: 1, longestStreak: 1, lastPlayedOn: today } });
+    localStorage.setItem(playDaysKey('kid-sam'), kept(40));
+    db.rpc.mockClear();
+    await useFamilyStore.getState().switchPlayer();
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-sam', p_days: [{ day: today, xp: 40, minutes: 3, topics: {}, noted: true }] }));
+    // 👪 Grown-ups opened from "Who's playing?": every kid's waiting play goes (Kit's here); nothing waiting, no call.
+    localStorage.setItem(playDaysKey('kid-kit'), kept(15));
+    db.rpc.mockClear();
+    useFamilyStore.getState().setGrownUpsOpen(true);
+    await vi.waitFor(() => expect(db.rpc).toHaveBeenCalledWith('note_play_history', { p_kid: 'kid-kit', p_days: [{ day: today, xp: 15, minutes: 3, topics: {}, noted: true }] }));
+    expect(db.rpc.mock.calls.filter(([fn]) => fn === 'note_play_history')).toHaveLength(1);
+    useFamilyStore.getState().setGrownUpsOpen(false);
+  });
+
+  it('removeKid: the kid playing on this device is put away too — their profile no longer asks for a row that is gone (#89 review round 1)', async () => {
+    family('2026-10-10', [SAM, KIT]);
+    await useFamilyStore.getState().load('grown-up-1');
+    useFamilyStore.getState().choose('kid-sam');
+    useProfileStore.setState({ profile: { id: 'kid-sam', birthYear: 2017, birthMonth: 3, skillLevels: {}, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null } });
+    db.answer.mockImplementation(() => ({ data: null, error: null }));
+    await useFamilyStore.getState().removeKid('kid-sam');
+    expect(useProfileStore.getState().profile).toBeNull();
+    expect(clearSave).toHaveBeenCalled();
+    expect(useFamilyStore.getState().activeKidId).toBeNull();
+    // Another kid removed: the one playing stays.
+    useFamilyStore.getState().choose('kid-kit');
+    useProfileStore.setState({ profile: { id: 'kid-kit', birthYear: 2019, birthMonth: 8, skillLevels: {}, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null } });
+    clearSave.mockClear();
+    family('2026-10-10', [KIT, SAM]);
+    await useFamilyStore.getState().removeKid('kid-sam');
+    expect(useProfileStore.getState().profile?.id).toBe('kid-kit');
+    expect(useFamilyStore.getState().activeKidId).toBe('kid-kit');
+    expect(clearSave).not.toHaveBeenCalled();
+  });
+
   it("removeKid: deletes the kid and the copies of their game on this device", async () => {
     family('2026-10-10', [SAM, KIT]);
     await useFamilyStore.getState().load('grown-up-1');
     localStorage.setItem('hazel-save-kid-sam', '{}');
     localStorage.setItem('hazel-profile-kid-sam', '{}');
+    localStorage.setItem('hazel-profile-steps-kid-sam', '{"steps": {"math": -1}, "starts": {}}');
     localStorage.setItem('hazel-save-kid-kit', '{}');
     db.answer.mockImplementation(() => ({ data: null, error: null }));
     await useFamilyStore.getState().removeKid('kid-sam');
@@ -483,6 +555,7 @@ describe('useFamilyStore', () => {
     expect(useFamilyStore.getState().kids.map((k) => k.id)).toEqual(['kid-kit']);
     expect(localStorage.getItem('hazel-save-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-profile-kid-sam')).toBeNull();
+    expect(localStorage.getItem('hazel-profile-steps-kid-sam')).toBeNull();
     expect(localStorage.getItem('hazel-save-kid-kit')).toBe('{}');
   });
 

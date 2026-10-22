@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { isoOffset, nextStreak, todayIso } from './streak';
+import { isRealDay, isoOffset, nextStreak, provesPlayed, todayIso } from './streak';
+
+describe('isRealDay (#183)', () => {
+  it('a real calendar day written YYYY-MM-DD, and nothing else', () => {
+    for (const ok of ['2026-10-22', '2024-02-29', '2020-01-01']) expect(isRealDay(ok), ok).toBe(true);
+    for (const bad of ['2026-02-30', '2025-02-29', '2026-13-01', '2026-00-10', '2026-10-22T00:00:00Z', '2026-1-5', 20261022, null, undefined, {}]) {
+      expect(isRealDay(bad), String(bad)).toBe(false);
+    }
+  });
+});
 
 describe('todayIso', () => {
   it('formats a date as YYYY-MM-DD in local time', () => {
@@ -41,5 +50,23 @@ describe('nextStreak', () => {
 
   it('starts at 1 the very first time the player plays', () => {
     expect(nextStreak(0, null, '2026-05-17')).toBe(1);
+  });
+});
+
+describe('provesPlayed (#29 progress history review round 2)', () => {
+  const T = '2026-10-21';
+  it('the last day played, and the days a live streak counts back from it — nothing else', () => {
+    const p = { lastPlayedOn: T, currentStreak: 3 };
+    expect(['2026-10-22', T, '2026-10-20', '2026-10-19', '2026-10-18'].map((d) => provesPlayed(p, d, T))).toEqual([false, true, true, true, false]);
+    // Ending yesterday, still live.
+    expect(provesPlayed({ lastPlayedOn: '2026-10-20', currentStreak: 2 }, '2026-10-19', T)).toBe(true);
+    expect(provesPlayed({ lastPlayedOn: '2026-10-20', currentStreak: 2 }, T, T)).toBe(false);
+    // Gone cold (two days ago): only its last day.
+    expect(provesPlayed({ lastPlayedOn: '2026-10-19', currentStreak: 5 }, '2026-10-19', T)).toBe(true);
+    expect(provesPlayed({ lastPlayedOn: '2026-10-19', currentStreak: 5 }, '2026-10-18', T)).toBe(false);
+    // Never played, no profile, a junk streak.
+    expect(provesPlayed({ lastPlayedOn: null, currentStreak: 4 }, T, T)).toBe(false);
+    expect(provesPlayed(null, T, T)).toBe(false);
+    expect(provesPlayed({ lastPlayedOn: T, currentStreak: Number.NaN }, '2026-10-20', T)).toBe(false);
   });
 });

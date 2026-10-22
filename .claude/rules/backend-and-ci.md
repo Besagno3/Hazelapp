@@ -7,6 +7,8 @@ paths:
   - hazel-game/vercel.json
   - hazel-game/site/**
   - hazel-game/vite.config.ts
+  - hazel-game/index.html
+  - hazel-game/public/manifest.webmanifest
   - hazel-game/package.json
   - .github/workflows/**
   - .githooks/**

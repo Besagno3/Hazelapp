@@ -38,8 +38,13 @@ insert into public.saves (profile_id, data) values
   ('00000000-0000-0000-0000-000000005a04', '{"version": 3, "revision": 1}');
 insert into public.question_flags (question_id, profile_id, reason) values
   ('00000000-0000-0000-0000-00000000f001', '00000000-0000-0000-0000-000000005a04', 'confusing');
--- The days Sam played (migration 0025, the parent dashboard #29).
+-- The days Sam played (migration 0025, the parent dashboard #29), what he
+-- played on them and where a topic started (0026).
 select public.note_play_days('00000000-0000-0000-0000-000000005a04', array[current_date, current_date - 1]);
+select public.note_play_history('00000000-0000-0000-0000-000000005a04',
+  jsonb_build_array(jsonb_build_object('day', to_char(current_date, 'YYYY-MM-DD'), 'xp', 30, 'minutes', 10)));
+update public.profiles set skill_starts = '{"math": {"level": 4, "age": 9}}'
+ where id = '00000000-0000-0000-0000-000000005a04';
 
 -- Grown-up B: one kid, a save — none of it may go.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b4', true);
@@ -221,6 +226,8 @@ begin
   assert not exists (select 1 from public.question_views where profile_id in (sam, kit)), 'their seen questions are gone';
   assert not exists (select 1 from public.question_flags where profile_id in (sam, kit)), 'their reports are gone';
   assert not exists (select 1 from public.play_days where profile_id in (sam, kit)), 'the days they played are gone';
+  assert not exists (select 1 from public.play_history_since where profile_id in (sam, kit)),
+    'and the first day noted for them';
   assert not exists (select 1 from public.parent_pins where id = a), 'the grown-up PIN is gone';
   assert not exists (select 1 from public.parents where id = a), 'the consent row is gone';
   assert not exists (select 1 from public.admins where user_id = a), 'the admin row is gone';
@@ -246,6 +253,7 @@ begin
   assert exists (select 1 from public.kid_pins where profile_id = bea), 'B''s kid''s PIN stays';
   assert exists (select 1 from public.question_views where profile_id = bea), 'B''s seen questions stay';
   assert exists (select 1 from public.play_days where profile_id = bea), 'B''s kid''s play days stay';
+  assert exists (select 1 from public.play_history_since where profile_id = bea), 'and her first day noted';
   assert exists (select 1 from public.parents where id = b), 'B''s consent stays';
   assert (select sum(fresh_count) from public.question_requests where parent_id = b) = 4, 'B''s request log stays';
 end $$;

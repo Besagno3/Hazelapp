@@ -13,6 +13,8 @@ import {
   MIN_SKILL_LEVEL,
   MAX_SKILL_LEVEL,
 } from './age';
+// ?raw: the SQL test's text — its table of ages is checked against calcAge too.
+import progressHistoryTest from '../../supabase/ci/progress_history.test.sql?raw';
 
 describe('calcAge', () => {
   it('returns whole years', () => {
@@ -25,6 +27,20 @@ describe('calcAge', () => {
 
   it('does not subtract during the birth month', () => {
     expect(calcAge(2014, 6, new Date('2026-06-15'))).toBe(12);
+  });
+
+  // A corrected birth date moves each topic start's age by the change in the
+  // kid's age today, worked out by the database (0026's kid_age_on, #183):
+  // the cases its SQL test checks it with, read from that test, give the same
+  // ages here — so the server's age and the app's can't drift apart.
+  it("agrees with the database's kid_age_on on the cases its test checks (#183)", () => {
+    const block = progressHistoryTest.match(/from \(values -- age cases\n([\s\S]*?)\) as cases/)?.[1] ?? '';
+    const cases = [...block.matchAll(/\((\d{4}), (\d{1,2}), '(\d{4})-(\d{2})-(\d{2})', (\d+)\)/g)].map((m) => m.slice(1).map(Number));
+    expect(cases.length).toBeGreaterThanOrEqual(10);
+    for (const [year, month, y, m, d, age] of cases) {
+      // The day on this device's calendar, as the app's `new Date()` is.
+      expect(calcAge(year, month, new Date(y, m - 1, d)), `born ${year}-${month}, on ${y}-${m}-${d}`).toBe(age);
+    }
   });
 });
 

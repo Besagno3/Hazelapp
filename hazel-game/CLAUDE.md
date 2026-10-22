@@ -19,7 +19,7 @@ session, so it holds only what applies everywhere; how each system works is in
 
 `package.json` lists only what the app imports. Approved to adopt when a
 feature first needs them (add in that same change): react-router-dom (non-game
-pages only), recharts, vite-plugin-pwa (#5), zod, react-query.
+pages only), recharts, vite-plugin-pwa (offline play, #5; the home-screen app is a manifest), zod, react-query.
 
 ## Commands (in `hazel-game/`)
 
