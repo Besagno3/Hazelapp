@@ -227,7 +227,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
           </p>
           <div ref={area} className="flex w-full justify-center sm:min-h-0 sm:flex-1 sm:items-center">
             <div className="flex w-full max-w-[360px] flex-col gap-2 sm:max-w-none" style={fit ? { width: fit } : undefined}>
-              <h2 id="sc-sky" className={cn(pixelHeadClass, 'truncate text-2xl text-[#fde68a] [@media(max-width:639px)]:sr-only [@media(max-height:500px)]:sr-only')}>
+              <h2 id="sc-sky" className={cn(pixelHeadClass, 'truncate text-2xl leading-none text-[#fde68a] [@media(max-width:639px)]:sr-only [@media(max-height:500px)]:sr-only')}>
                 {step === 'north' ? 'Find the North Star' : picture.name}
               </h2>
               <Sky
@@ -275,7 +275,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
             </p>
             {step === 'north' && (
               <>
-                <h2 className={cn(pixelHeadClass, 'text-[24px] [@media(max-height:500px)]:text-[20px]')}>Find the North Star</h2>
+                <h2 className={cn(pixelHeadClass, 'text-[24px] leading-none [@media(max-height:500px)]:text-[20px]')}>Find the North Star</h2>
                 <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
                   Tap <b>Merak</b>, then <b>Dubhe</b>: the two stars at the end of the Big Dipper’s bowl. They point straight at the North Star — then tap it.
                 </p>
@@ -283,7 +283,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
             )}
             {step === 'join' && (
               <>
-                <h2 className={cn(pixelHeadClass, 'text-[24px] [@media(max-height:500px)]:text-[20px]')}>Join the stars</h2>
+                <h2 className={cn(pixelHeadClass, 'text-[24px] leading-none [@media(max-height:500px)]:text-[20px]')}>Join the stars</h2>
                 <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
                   It looks like {picture.looks}. Tap a star, then one it’s joined to — a line appears.
                 </p>
@@ -298,7 +298,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                   ref={factHead}
                   tabIndex={-1}
                   aria-describedby="sc-fact"
-                  className={cn(pixelHeadClass, 'self-start rounded text-[26px] text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
+                  className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
                 >
                   {picture.name}!
                 </h2>

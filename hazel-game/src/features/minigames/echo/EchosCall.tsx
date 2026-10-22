@@ -4,6 +4,7 @@ import {
   CHIME,
   ECHOES_PER_ROUND,
   PLACE,
+  STAFF_LINES,
   TUNES,
   TUNE_BY_ID,
   echoFor,
@@ -17,6 +18,7 @@ import {
   shapeQuestion,
   shapeWords,
   spotWords,
+  staffY,
   tapWords,
   type Echo,
   type Note,
@@ -94,9 +96,13 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
   const [rights, setRights] = useState(0);
   const [read, setRead] = useState<TuneId | null>(null);
   const known = (id: TuneId) => !!flags[pageFlag(def.id, id)];
-  // A step's buttons wait a moment as it starts — and as Lyra first finishes, when Next appears (review round 1: a
-  // kid tapping Listen again and again went on, then answered, with taps meant for Listen).
-  const settled = useSettled(`${step}:${done}:${heard}`);
+  // A step's buttons wait a moment as it starts; the listen step's Next as it first appears too, when Lyra's done (review
+  // round 1: a kid tapping Listen again and again went on, then answered) — that wait is Next's alone (round 2: keyed
+  // for every button, it swallowed Listen again, and Next tune after a staff tune's first hearing).
+  const settled = useSettled(`${step}:${done}`);
+  const nextSettled = useSettled(`${step}:${done}:${heard}`);
+  // Every tune the band plays already in the Songbook as the round starts (Gentle's chimes play five of the eight).
+  const [knewAll] = useState(() => queue.every((id) => !!flags[pageFlag(def.id, id)]));
 
   // Lyra's playing, note by note; stopped if the kid moves on (or leaves).
   const timers = useRef<number[]>([]);
@@ -161,11 +167,14 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
     if (playing) return;
     ring(n);
     setRead(null);
+    // Spotting, a chime that sounded wrong is the likely tap: it rings, and says where to look (review round 2).
+    if (step === 'spot') setSaid('That chime just rings — tap the note on the staff that didn’t match it.');
     if (step !== 'play') return;
     const i = got.length;
     setSaid(tapWords(echo, i, n));
+    // No buzzer on a miss: it would drown the chime's own note, the one to compare (review round 2) — the words and the
+    // red ring say it.
     if (judge(echo, i, n) !== 'right') {
-      sfx('wrong');
       setShake((s) => ({ at: i, n: (s?.n ?? 0) + 1 }));
       return;
     }
@@ -173,11 +182,22 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
     const next = [...got, n];
     setGot(next);
     if (next.length < echo.notes.length) return;
-    sfx('chest');
+    cheer();
     setNewPage(onPage(echo.tune, tune.name));
     setLessons((l) => [...l, learnedLine(echo)]);
     setRights((r) => r + 1);
     setStep('done');
+  }
+
+  /**
+   * A tune echoed: the jingle after its last note has rung, and a light running up the chimes, low to high — there with
+   * the sound off and the Music House out of sight on a phone (review round 2). Still with motion turned down.
+   */
+  function cheer() {
+    timers.current.push(window.setTimeout(() => sfx('chest'), 350));
+    if (still) return;
+    echo.chimes.forEach((c, k) => timers.current.push(window.setTimeout(() => setLit({ note: c, at: null }), 380 + k * 90)));
+    timers.current.push(window.setTimeout(() => setLit(null), 380 + echo.chimes.length * 90 + 60));
   }
 
   function answerShape(s: Shape) {
@@ -257,15 +277,20 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const n = echo.notes.length;
+  const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Ready for the next one?' : 'Take a bow!'}`;
   let line: string;
   if (read) line = `${TUNE_BY_ID[read].name}: ${TUNE_BY_ID[read].note}`;
   else if (playing) line = soundOn ? 'Listen… and watch the chimes!' : 'Watch the chimes light up!';
-  else if (step === 'done') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Ready for the next one?' : 'Take a bow!'}`;
+  else if (step === 'done') line = cheerLine;
   else if (said && step !== 'listen') line = said;
   else if (step === 'listen') {
     if (heard) line = echo.mode === 'wrong' ? 'Again, or on to the wrong note?' : 'Again, or on to my question?';
     // The sound's off till it's turned on (review round 1: a kid pressed Listen and heard nothing, never asked).
-    else line = `Here’s the start of a tune: ${n} notes. ${soundOn ? 'Press Listen!' : 'My chimes are quiet — tap 🔇 Sounds to hear them, or just watch them light up!'}`;
+    else {
+      // Every tune her chimes play already known: say there are more, on all five chimes (review round 2).
+      const more = knewAll && done === 0 && band === 'gentle' ? 'You know every tune my three chimes can play — try Medium for three more! ' : '';
+      line = `${more}Here’s the start of a tune: ${n} notes. ${soundOn ? 'Press Listen!' : 'My chimes are quiet — tap 🔇 Sounds to hear them, or just watch them light up!'}`;
+    }
   } else if (step === 'shape') line = echo.mode === 'staff' ? 'No listening this time — read my notes on the staff!' : shapeQuestion(echo);
   else if (step === 'spot') line = 'Watch the chimes and read the staff: which note did I play wrong?';
   else line = echo.mode === 'staff' ? 'Now play what the staff says!' : echo.mode === 'wrong' ? 'Now play what the staff says — with the right note!' : 'Your turn — play it back!';
@@ -279,7 +304,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto split:overflow-hidden">
       {/* Split, the board sits under the Music House, beside the aside; on a short split screen it's all there is. */}
-      <div className="grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,30fr)_minmax(0,70fr)] split:[@media(orientation:portrait)]:grid-rows-[minmax(0,22fr)_minmax(0,78fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)] split:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)]">
+      <div className="grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] split:[@media(orientation:portrait)]:grid-rows-[minmax(0,22fr)_minmax(0,78fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)] split:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)]">
         <div aria-hidden="true" className="relative hidden overflow-hidden split:col-start-1 split:row-start-1 split:block [@media(max-height:500px)]:hidden">
           <MusicHouse playing={playing} cheer={step === 'done'} />
         </div>
@@ -294,7 +319,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
         >
           {/* On a short screen the chimes keep a column wide enough for five, and the step takes the rest. Not on a split
               screen the board grows with the step's card, so the chimes keep to the top (centred, they moved as it grew). */}
-          <div className="flex min-w-0 flex-col items-center justify-start gap-2 split:min-h-0 split:justify-center [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-1 [@media(min-width:560px)_and_(max-height:500px)]:w-[max(236px,min(320px,50%))] [@media(min-width:560px)_and_(max-height:500px)]:flex-none">
+          <div className="flex min-w-0 flex-col items-center justify-start gap-2 split:min-h-0 split:justify-center [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-1 [@media(min-width:560px)_and_(max-height:500px)]:w-[max(236px,min(420px,55%))] [@media(min-width:560px)_and_(max-height:500px)]:flex-none">
             {/* Under 640 px high the heading's left out for room, and the sound switch is in the step's card. */}
             <div className="flex w-full items-center justify-between gap-2 [@media(max-height:640px)]:hidden">
               <span className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">{showStaff ? 'The staff' : 'Lyra’s notes'}</span>
@@ -302,11 +327,28 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
             </div>
             {/* The staff shows what's been played on it; Lyra's notes have slots. */}
             {showStaff ? (
-              <Staff ref={staff} echo={echo} got={got} litAt={playing ? (lit?.at ?? null) : null} spotting={spotting} describedBy={spotting ? 'ec-spot' : undefined} onSpot={spot} />
+              <Staff
+                ref={staff}
+                echo={echo}
+                got={got}
+                litAt={playing ? (lit?.at ?? null) : null}
+                nextAt={step === 'play' ? got.length : null}
+                shake={shake}
+                spotting={spotting}
+                describedBy={spotting ? 'ec-spot' : undefined}
+                onSpot={spot}
+              />
             ) : (
               <Slots echo={echo} got={got} litAt={playing && lit ? lit.at : null} playing={step === 'play'} shake={shake} />
             )}
             <Chimes ref={chimes} notes={echo.chimes} lit={lit?.note ?? null} busy={playing} still={still} describedBy={step === 'play' ? 'ec-play' : undefined} onTap={tap} />
+            {/* Which way is higher, in sight: a higher note is a shorter chime, so a tune going up can look like it's going
+                down (review round 2). Its group is named low to high for a reader. Its room is the chimes' (they're 16 px
+                shorter), so nothing under them moved down. */}
+            <p aria-hidden="true" className="flex w-full max-w-[420px] justify-between px-1 text-[12px] font-bold leading-none text-[#c9c5f2]">
+              <span>◀ lower · longer</span>
+              <span>shorter · higher ▶</span>
+            </p>
             {/* What Lyra played, said once it's done (a chime lighting up isn't heard). */}
             <p role="status" className="sr-only">
               {heardSaid}
@@ -315,28 +357,45 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
           <div
             className={cn(
               windowClass,
-              'flex flex-col gap-2.5 p-3 split:overflow-y-auto split:[@media(orientation:portrait)]:min-h-0 split:[@media(orientation:portrait)]:flex-1 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:min-w-0 [@media(min-width:560px)_and_(max-height:500px)]:flex-1 [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
+              'flex flex-col gap-2.5 p-3 [&>*]:flex-none split:overflow-y-auto split:[@media(orientation:portrait)]:min-h-0 split:[@media(orientation:portrait)]:flex-1 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:min-w-0 [@media(min-width:560px)_and_(max-height:500px)]:flex-1 [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
             )}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
-                Tune {done + 1} of {ECHOES_PER_ROUND}
-              </p>
-              <span className="hidden [@media(max-height:640px)]:flex">
-                <SoundToggle />
-              </span>
-            </div>
-            {step === 'done' ? (
-              <>
+            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
+              Tune {done + 1} of {ECHOES_PER_ROUND}
+            </p>
+            {/* Under 640 px high the sound switch is by the step's heading (round 2: on a row of its own it pushed Next
+                below the fold on a phone on its side). */}
+            <div className="flex items-start justify-between gap-2">
+              {step === 'done' ? (
                 <h2
                   id="ec-step"
                   ref={doneHead}
                   tabIndex={-1}
                   aria-describedby="ec-result"
-                  className={cn(pixelHeadClass, 'self-start rounded text-[26px] text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
+                  className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
                 >
                   {tune.name}!
                 </h2>
+              ) : (
+                <h2
+                  id="ec-step"
+                  ref={stepHead}
+                  tabIndex={-1}
+                  aria-describedby={step === 'play' ? undefined : 'ec-job'}
+                  className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none [@media(max-height:500px)]:text-[19px]', focusRing)}
+                >
+                  {stepTitle(step, echo.mode)}
+                </h2>
+              )}
+              <span className="hidden flex-none [@media(max-height:640px)]:flex">
+                <SoundToggle />
+              </span>
+            </div>
+            {step === 'done' ? (
+              <>
+                {/* Her cheer, in the card too: on a phone her bubble's below the fold (review round 2) — not on a split
+                    screen, where her bubble's beside the board, nor a short one: the card hasn't the room. */}
+                <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
                 <p id="ec-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
                   {lessons[lessons.length - 1]}
                   {newPage && ` ${tune.name} is in the Songbook!`}
@@ -350,19 +409,12 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
               </>
             ) : (
               <>
-                <h2
-                  id="ec-step"
-                  ref={stepHead}
-                  tabIndex={-1}
-                  aria-describedby={step === 'play' ? undefined : 'ec-job'}
-                  className={cn(pixelHeadClass, 'self-start rounded text-[24px] [@media(max-height:500px)]:text-[19px]', focusRing)}
-                >
-                  {stepTitle(step, echo.mode)}
-                </h2>
                 {step === 'listen' && (
                   <>
                     <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
-                      {echo.mode === 'wrong' ? 'One of Lyra’s notes won’t match the staff. Watch the chimes and find it!' : `Lyra plays ${n} notes. Watch the chimes light up — and listen, if your sound is on.`}
+                      {echo.mode === 'wrong'
+                        ? 'One of Lyra’s notes won’t match the staff. Watch the chimes and find it!'
+                        : `Lyra plays ${n} notes. Watch the chimes light up${soundOn ? ' — and listen!' : ' — or tap 🔇 Sounds to hear them too.'}`}
                     </p>
                     {/* One button for Listen, then Listen again — where a kid taps again; Next comes in under it, its room
                         kept from the start, so nothing moves (review round 1). */}
@@ -370,17 +422,17 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                       type="button"
                       onClick={listen}
                       aria-disabled={playing || undefined}
-                      className={cn(heard ? cn(outlineClass, 'border-2 px-3') : goldClass, 'h-14 text-lg [@media(max-height:640px)]:h-12 [@media(max-height:640px)]:text-base')}
+                      className={cn(heard ? cn(outlineClass, 'border-2 px-3') : goldClass, 'min-h-14 py-1.5 text-lg leading-tight [@media(max-height:640px)]:min-h-12 [@media(max-height:640px)]:text-base')}
                     >
                       {playing ? '♪ Listening…' : heard ? '↻ Listen again' : '▶ Listen'}
                     </button>
                     <button
                       ref={goRef}
                       type="button"
-                      onClick={() => heard && settled() && setStep(echo.mode === 'wrong' ? 'spot' : 'shape')}
+                      onClick={() => heard && nextSettled() && setStep(echo.mode === 'wrong' ? 'spot' : 'shape')}
                       aria-hidden={!heard || undefined}
                       tabIndex={heard ? undefined : -1}
-                      className={cn(goldClass, 'h-14 text-lg [@media(max-height:640px)]:h-12 [@media(max-height:640px)]:text-base', !heard && 'invisible')}
+                      className={cn(goldClass, 'min-h-14 py-1.5 text-lg leading-tight [@media(max-height:640px)]:min-h-12 [@media(max-height:640px)]:text-base', !heard && 'invisible')}
                     >
                       {echo.mode === 'wrong' ? 'Next — which was wrong?' : 'Next — up or down?'}
                     </button>
@@ -471,7 +523,7 @@ function stepTitle(step: Step, mode: Echo['mode']): string {
  */
 function Said({ text }: { text: string }) {
   return (
-    <p className="flex min-h-[4.25rem] items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]">
+    <p className="flex min-h-[4.25rem] flex-none items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]">
       {text}
     </p>
   );
@@ -537,7 +589,7 @@ const Chimes = forwardRef<
       role="group"
       aria-label="The chimes, low to high"
       aria-describedby={describedBy}
-      className="flex h-[176px] w-full max-w-[420px] items-end justify-center gap-1.5 split:h-[200px] [@media(max-height:500px)]:h-[132px] [@media(max-height:500px)]:gap-1 [@media(min-height:501px)_and_(max-height:640px)]:h-[136px]"
+      className="flex h-[160px] w-full max-w-[420px] items-end justify-center gap-1.5 split:h-[184px] [@media(max-height:500px)]:h-[120px] [@media(max-height:500px)]:gap-1 [@media(min-height:501px)_and_(max-height:640px)]:h-[124px]"
     >
       {notes.map((n) => {
         const on = lit === n;
@@ -596,7 +648,8 @@ function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly
             data-shake={shaken || undefined}
             className={cn(
               'flex h-10 w-10 items-center justify-center rounded-lg border-[3px] text-[17px] font-black [@media(max-height:500px)]:h-8 [@media(max-height:500px)]:w-8 [@media(max-height:500px)]:text-[14px]',
-              n || lit ? 'border-[#1b0f22]' : shaken ? 'cg-shake border-red-400 bg-[#24215a]' : nextUp ? 'border-dashed border-amber-300 bg-[#24215a]' : 'border-[#5a55a8] bg-[#24215a]',
+              // Shaken first: lit as Lyra passes it, it keeps its shake (round 2: it restarted) and its red ring.
+              shaken ? 'cg-shake border-red-400 bg-[#24215a]' : n || lit ? 'border-[#1b0f22]' : nextUp ? 'border-dashed border-amber-300 bg-[#24215a]' : 'border-[#8f8ad0] bg-[#24215a]',
               lit && 'shadow-[0_0_0_3px_#ffffff]',
             )}
             style={lit ? { background: '#ffffff', color: '#1b0f22' } : n ? { background: CHIME[n].colour, color: n === 'G' ? '#ffffff' : '#1b0f22' } : undefined}
@@ -616,76 +669,101 @@ function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly
   );
 }
 
-/** Where the staff's five lines are, top to bottom (a column's height, 96). */
-const LINES = [20, 32, 44, 56, 68];
+/** A staff column's height (a strip under the lines holds each played note's letter, clear of C's ledger line). */
+const STAFF_H = 110;
 
 /**
  * The staff (Tricky): five lines drawn once, right across (review round 1: drawn per note, they broke between notes), a
- * treble clef, and the tune's notes, each a column — marked as Lyra plays it; buttons, said by their place, when a wrong
- * note's to be found (while she plays too: picking one stops her).
+ * treble clef, and the tune's notes, each a column — marked as Lyra plays it; the next to play outlined, and a miss
+ * shaking it ringed red, as the slots do (round 2); buttons, said by their place and looking like ones (dashed), when a
+ * wrong note's to be found (while she plays too: picking one stops her).
  */
 const Staff = forwardRef<
   HTMLDivElement,
-  { echo: Echo; got: readonly Note[]; litAt: number | null; spotting: boolean; describedBy?: string; onSpot: (at: number) => void }
->(({ echo, got, litAt, spotting, describedBy, onSpot }, ref) => {
-  const head = (n: Note) => 80 - height(n) * 6; // C on a ledger line at 80, each note a half-step of the staff higher
-  return (
-    <div
-      ref={ref}
-      role="group"
-      aria-label="The staff"
-      aria-describedby={describedBy}
-      className="relative flex h-[88px] w-full max-w-[420px] justify-center rounded-lg border-[3px] border-[#1b0f22] bg-[#fff6dc] px-1 [@media(max-height:640px)]:h-[72px]"
-    >
-      <svg aria-hidden="true" viewBox="0 0 100 96" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
-        {LINES.map((y) => (
-          <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="#1b0f22" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-        ))}
-      </svg>
-      <svg aria-hidden="true" viewBox="0 0 26 96" className="relative h-full w-[24px] flex-none">
-        <TrebleClef />
-      </svg>
-      {echo.notes.map((n, k) => {
-        const y = head(n);
-        const on = litAt === k;
-        const svg = (
-          <svg aria-hidden="true" viewBox="0 0 30 96" className="h-full w-full">
-            {on && <path d="M9 2 h12 l-6 8 z" fill="#1b0f22" />}
-            {n === 'C' && <line x1="6" x2="24" y1="80" y2="80" stroke="#1b0f22" strokeWidth="1.6" />}
-            <ellipse cx="15" cy={y} rx="7.5" ry="5.5" transform={`rotate(-20 15 ${y})`} fill="#1b0f22" />
-            <line x1="21.5" x2="21.5" y1={y - 2} y2={y - 34} stroke="#1b0f22" strokeWidth="2" />
-          </svg>
-        );
-        const played = got[k];
-        const label = `Note ${k + 1}: ${PLACE[n]}${played ? `, played: ${played}` : ''}`;
-        // Lit: an ink ring and a ▼ over it (review round 1: a pale tint on cream was too faint). Tints are see-through,
-        // so the lines show.
-        const look = cn('relative h-full max-w-[56px] flex-1 rounded', on && 'bg-amber-300/50 ring-[3px] ring-inset ring-[#1b0f22]');
-        return spotting ? (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onSpot(k)}
-            aria-label={label}
-            className={cn(look, 'min-w-11 hover:bg-amber-300/40 [@media(max-height:500px)]:min-w-9', focusRing)}
-          >
-            {svg}
-          </button>
-        ) : (
-          // Played: tinted its chime's colour, its letter under it.
-          <span key={k} role="img" aria-label={label} className={cn(look, 'min-w-7')} style={played && !on ? { background: `${CHIME[played].colour}55` } : undefined}>
-            {svg}
-            {played && (
-              <span aria-hidden="true" className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[11px] font-black leading-none text-[#1b0f22]">
-                {played}
-              </span>
-            )}
-          </span>
-        );
-      })}
-    </div>
-  );
-});
+  {
+    echo: Echo;
+    got: readonly Note[];
+    litAt: number | null;
+    nextAt: number | null;
+    shake: { at: number; n: number } | null;
+    spotting: boolean;
+    describedBy?: string;
+    onSpot: (at: number) => void;
+  }
+>(({ echo, got, litAt, nextAt, shake, spotting, describedBy, onSpot }, ref) => (
+  <div
+    ref={ref}
+    role="group"
+    aria-label="The staff"
+    aria-describedby={describedBy}
+    className="relative flex h-[88px] w-full max-w-[420px] justify-center rounded-lg border-[3px] border-[#1b0f22] bg-[#fff6dc] px-1 [@media(max-height:640px)]:h-[76px]"
+  >
+    <svg aria-hidden="true" viewBox={`0 0 100 ${STAFF_H}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
+      {STAFF_LINES.map((y) => (
+        <line key={y} x1="0" x2="100" y1={y} y2={y} stroke="#1b0f22" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
+      ))}
+    </svg>
+    <svg aria-hidden="true" viewBox={`0 0 26 ${STAFF_H}`} className="relative h-full w-[24px] flex-none">
+      <TrebleClef />
+    </svg>
+    {echo.notes.map((n, k) => {
+      const y = staffY(n);
+      const on = litAt === k;
+      const svg = (
+        <svg aria-hidden="true" viewBox={`0 0 30 ${STAFF_H}`} className="h-full w-full">
+          {on && <path data-marker="" d="M9 2 h12 l-6 8 z" fill="#1b0f22" />}
+          {n === 'C' && <line data-ledger="" x1="6" x2="24" y1={y} y2={y} stroke="#1b0f22" strokeWidth="1.6" />}
+          <ellipse cx="15" cy={y} rx="7.5" ry="5.5" transform={`rotate(-20 15 ${y})`} fill="#1b0f22" />
+          <line x1="21.5" x2="21.5" y1={y - 2} y2={y - 34} stroke="#1b0f22" strokeWidth="2" />
+        </svg>
+      );
+      const played = got[k];
+      const shaken = nextAt === k && shake?.at === k;
+      const label = `Note ${k + 1}: ${PLACE[n]}${played ? `, played: ${played}` : ''}`;
+      // Lit: an ink ring and a ▼ over it (review round 1: a pale tint on cream was too faint). Tints are see-through,
+      // so the lines show.
+      const look = cn(
+        'relative h-full max-w-[56px] flex-1 rounded',
+        on && 'bg-amber-300/50 ring-[3px] ring-inset ring-[#1b0f22]',
+        !on && shaken && 'cg-shake ring-[3px] ring-inset ring-red-500',
+        !on && !shaken && nextAt === k && 'outline-dashed outline-2 -outline-offset-2 outline-amber-600',
+      );
+      return spotting ? (
+        <button
+          key={k}
+          type="button"
+          onClick={() => onSpot(k)}
+          aria-label={label}
+          // Dashed and tinted, so they look like what to tap (round 2); the focus ring in ink (cyan on cream was faint).
+          className={cn(
+            look,
+            'min-w-11 border-2 border-dashed border-[#1b0f22]/60 bg-amber-100/60 hover:bg-amber-300/40 [@media(max-height:500px)]:min-w-9',
+            focusRing,
+            'focus-visible:outline-[#1b0f22]',
+          )}
+        >
+          {svg}
+        </button>
+      ) : (
+        // Played: tinted its chime's colour, its letter in the strip under the lines.
+        <span
+          key={shaken ? `${k}-${shake.n}` : k}
+          role="img"
+          aria-label={label}
+          className={cn(look, 'min-w-7')}
+          style={played && !on ? { background: `${CHIME[played].colour}55` } : undefined}
+        >
+          {svg}
+          {played && (
+            <span aria-hidden="true" className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[11px] font-black leading-none text-[#1b0f22]">
+              {played}
+            </span>
+          )}
+        </span>
+      );
+    })}
+  </div>
+));
 Staff.displayName = 'Staff';
 
 /** A treble (G) clef: its curl round the second line up, where G sits — what makes the bottom line E. */

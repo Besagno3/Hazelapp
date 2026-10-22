@@ -263,7 +263,8 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   Frère Jacques, Au Clair de la Lune, Go Tell Aunt Rhody, Ode to Joy, Old
   MacDonald and Lightly Row (Old MacDonald for Jingle Bells, whose first
   seven notes are all E), each on C–G; Gentle's three chimes are C D E, which
-  play the first five. A round is three tunes, each a note longer; a tune
+  play the first five (its band note says "five of the eight", and Lyra says
+  when a kid knows them all). A round is three tunes, each a note longer; a tune
   listened to or read asks its shape (higher, lower, the same) before it's
   played back. Tricky reads one from the staff and, in another, spots Lyra's
   wrong note on the staff (listen → spot → play it right: no shape question).

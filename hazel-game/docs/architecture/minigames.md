@@ -215,8 +215,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   under the chimes so it growing never moves one (and each step scrolls back
   to the board's top). The board itself puts the step beside the chimes on
   any screen on its side from 560 px, under them on one held upright. A
-  step's buttons wait as it starts and as Next first appears (`useSettled`,
-  keyed on `heard` too); a held Enter rings a chime once.
+  step's buttons wait as it starts (`useSettled`), and the listen step's
+  Next as it first appears too (a second settle, keyed on `heard` — for it
+  alone); a held Enter rings a chime once. Under the chimes, which way is
+  higher; the staff's geometry is `staffY` / `STAFF_LINES` in `echo.ts`.
   **✨ Vela's Star Charts** (`coast-stargazer`, Vela, Starfall Coast — no
   quest of her own, so ✨ is her gold offer; `lib/minigames/stars.ts`,
   `features/minigames/stars/`): star pictures and how far starlight travels.

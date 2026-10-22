@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   CHIME,
   CHIMES,
+  PLACE,
+  STAFF_LINES,
   ECHOES_PER_ROUND,
   NOTES,
   TUNES,
@@ -17,6 +19,7 @@ import {
   shapeQuestion,
   shapeWords,
   spotWords,
+  staffY,
   tapWords,
 } from './echo';
 import { BANDS, type Band } from '../../content/minigames';
@@ -26,7 +29,8 @@ const echoes = (band: Band) => Array.from({ length: 24 }, (_, k) => echoFor(band
 describe('the chimes (docs/DESIGN-MINIGAMES.md §5.5)', () => {
   it('five, C to G, low to high; each its own colour and name', () => {
     expect(NOTES).toEqual(['C', 'D', 'E', 'F', 'G']);
-    for (let k = 1; k < NOTES.length; k++) expect(CHIME[NOTES[k]].hz).toBeGreaterThan(CHIME[NOTES[k - 1]].hz);
+    // Middle C up to G, tuned as a piano is.
+    expect(NOTES.map((n) => CHIME[n].hz)).toEqual([261.63, 293.66, 329.63, 349.23, 392.0]);
     expect(new Set(NOTES.map((n) => CHIME[n].colour)).size).toBe(5);
     expect(new Set(NOTES.map((n) => CHIME[n].name)).size).toBe(5);
     expect(CHIMES.gentle).toEqual(['C', 'D', 'E']);
@@ -92,6 +96,8 @@ describe('the echoes', () => {
       expect(w).toBeGreaterThan(0);
       expect(w).toBeLessThan(e.notes.length - 1);
       expect(Math.abs(height(e.played[w]) - height(e.notes[w]))).toBe(1);
+      // A step up — down only from the top, G.
+      expect(height(e.played[w]) - height(e.notes[w])).toBe(e.notes[w] === 'G' ? -1 : 1);
       e.played.forEach((n, k) => k !== w && expect(n).toBe(e.notes[k]));
     }
     for (const e of [...echoes('gentle'), ...echoes('medium')]) {
@@ -105,6 +111,24 @@ describe('the echoes', () => {
   });
 });
 
+describe('the staff (Tricky)', () => {
+  it('each note drawn where its place says: E on the bottom line, F the space above, G the next line; D just under; C on a line of its own', () => {
+    const [, , , second, bottom] = STAFF_LINES;
+    expect(staffY('E')).toBe(bottom);
+    expect(staffY('G')).toBe(second);
+    expect(staffY('F')).toBe((bottom + second) / 2);
+    expect(staffY('D')).toBeGreaterThan(bottom);
+    expect(staffY('C')).toBe(bottom + (bottom - second));
+    expect(PLACE).toEqual({
+      C: 'on a little line below the staff',
+      D: 'just under the staff',
+      E: 'on the bottom line',
+      F: 'in the bottom space',
+      G: 'on the second line',
+    });
+  });
+});
+
 describe('the checks and the words', () => {
   it('a note: right, or where the right one is', () => {
     const hcb = echoFor('medium', 0, 0); // Hot Cross Buns: E D C E
@@ -114,7 +138,7 @@ describe('the checks and the words', () => {
     expect(judge(hcb, 1, 'C')).toBe('higher');
     expect(tapWords(hcb, 1, 'E')).toBe('That was E. The second note is lower — a longer chime, further left.');
     expect(tapWords(hcb, 1, 'C')).toBe('That was C. The second note is higher — a shorter chime, further right.');
-    expect(tapWords(hcb, 1, 'D')).toBe('D — yes!');
+    expect(tapWords(hcb, 1, 'D')).toBe('D — yes! 2 of 4.');
     expect(tapWords(hcb, 3, 'E')).toBe('That’s the whole tune!');
   });
 
@@ -127,11 +151,13 @@ describe('the checks and the words', () => {
     expect(shapeWords(mary, 'lower')).toBe('Not quite: it starts and ends on E. The same note!');
     const g = echoFor('gentle', 0, 1); // Mary, three notes: E D C
     expect(g.notes.join(' ')).toBe('E D C');
-    expect(shapeWords(g, 'lower')).toBe('Yes — lower: it starts on E and ends on C, lower down.');
+    expect(shapeWords(g, 'lower')).toBe('Yes — lower: it starts on E and ends on C — a longer chime, further left.');
+    const up = echoFor('medium', 0, 2); // Frère Jacques, six: C D E C C D
+    expect(shapeWords(up, 'same')).toBe('Not quite: it starts on C and ends on D — a shorter chime, further right. Higher!');
     // Read from the staff, the notes are said by their place: reading them is the job.
     const read = echoFor('tricky', 0, 0); // Hot Cross Buns, five: E D C E D
     expect(shapeQuestion(read)).toBe('Read the staff: does the last note sit higher, lower or the same as the first?');
-    expect(shapeQuestion(g)).toBe('Did the tune end higher, lower or the same as it started?');
+    expect(shapeQuestion(g)).toBe('Did the tune end higher, lower or the same as it started? Higher notes are shorter chimes, further right.');
     expect(shapeWords(read, 'lower')).toBe('Yes — lower: it starts on the bottom line and ends just under the staff, lower down.');
     expect(shapeWords(read, 'same')).toBe('Not quite: it starts on the bottom line and ends just under the staff, lower down. Lower!');
   });
@@ -152,5 +178,6 @@ describe('the checks and the words', () => {
     expect(learnedLine(low)).toBe('Old MacDonald starts G G G D E E: Lyra’s second note was F, a step too low.');
     expect(learnedLine(echoFor('tricky', 0, 0))).toMatch(/E sits on the bottom line/);
     expect(learnedLine(echoFor('gentle', 0, 1))).toBe('Mary Had a Little Lamb starts E D C: it ends lower than it starts. A higher note is a shorter chime.');
+    expect(learnedLine(echoFor('medium', 0, 0))).toBe('Hot Cross Buns starts E D C E: it ends on the note it started on. A higher note is a shorter chime.');
   });
 });

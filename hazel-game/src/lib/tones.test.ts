@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // A stand-in Web Audio: records the contexts made, the oscillators, the pitches and levels set, and what's connected.
-const made = { contexts: 0, hz: [] as number[], started: 0, stopped: [] as number[], peaks: [] as number[], toSpeakers: 0 };
+const made = {
+  contexts: 0,
+  hz: [] as number[],
+  started: 0,
+  startedAt: [] as number[],
+  stopped: [] as number[],
+  peaks: [] as number[],
+  /** Each gain's level set (a partial's), and each ramp: [to, at]. */
+  levels: [] as number[],
+  ramps: [] as [number, number][],
+  toSpeakers: 0,
+};
 const resume = vi.fn(async () => {});
 const SPEAKERS = { speakers: true };
 class FakeCtx {
@@ -15,7 +26,13 @@ class FakeCtx {
     this.state = FakeCtx.startState;
   }
   createGain() {
-    const param = { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: (v: number) => made.peaks.push(v) };
+    const param = {
+      setValueAtTime: (v: number) => made.levels.push(v),
+      exponentialRampToValueAtTime: (v: number, at: number) => {
+        made.peaks.push(v);
+        made.ramps.push([v, at]);
+      },
+    };
     return {
       gain: param,
       connect: (x: unknown) => {
@@ -29,14 +46,17 @@ class FakeCtx {
       type: '',
       frequency: { setValueAtTime: (v: number) => made.hz.push(v) },
       connect: (x: unknown) => x,
-      start: () => (made.started += 1),
+      start: (at: number) => {
+        made.started += 1;
+        made.startedAt.push(at);
+      },
       stop: (at: number) => made.stopped.push(at),
     };
   }
 }
 
 beforeEach(() => {
-  Object.assign(made, { contexts: 0, hz: [], started: 0, stopped: [], peaks: [], toSpeakers: 0 });
+  Object.assign(made, { contexts: 0, hz: [], started: 0, startedAt: [], stopped: [], peaks: [], levels: [], ramps: [], toSpeakers: 0 });
   FakeCtx.startState = 'suspended';
   resume.mockClear();
   vi.resetModules();
@@ -77,6 +97,28 @@ describe('playTone (Echo’s Call’s chimes)', () => {
     const fresh = await load(true, 1);
     fresh.playTone(440);
     expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('a bell: strikes at once, peaks in 12 ms at 0.25 × the volume with its overtone, fades out by its end', async () => {
+    const { playTone } = await load(true, 0.8);
+    playTone(440, 500);
+    expect(made.startedAt).toEqual([1, 1]);
+    // The output starts silent (0.0001), the note and its overtone at 1 and 0.18.
+    expect(made.levels).toEqual([0.0001, 1, 0.18]);
+    const [up, down] = made.ramps;
+    expect(up[1]).toBeCloseTo(1.012);
+    expect(up[0] * (1 + 0.18)).toBeCloseTo(0.25 * 0.8);
+    expect(down).toEqual([0.0001, 1.5]);
+  });
+
+  it('on an older iPhone, through webkitAudioContext', async () => {
+    vi.stubGlobal('AudioContext', undefined);
+    vi.stubGlobal('webkitAudioContext', FakeCtx);
+    const { useSettingsStore } = await import('../store/settingsStore');
+    useSettingsStore.setState({ sfx: true, sfxVolume: 1 });
+    const { playTone } = await import('./tones');
+    playTone(330);
+    expect(made.hz).toEqual([330, 330 * 2.76]);
   });
 
   it('at the setting’s volume, never loud enough to clip', async () => {

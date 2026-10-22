@@ -164,7 +164,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     ],
     collection: 'Songbook',
     pages: 8,
-    bandNote: 'Gentle: three chimes. Medium: all five. Tricky: read the notes on a staff, and spot a wrong one.',
+    bandNote: 'Gentle: three chimes and five of the eight tunes. Medium: all five chimes and all eight. Tricky: read the notes on a staff, and spot a wrong one.',
     music: null,
     backdrop: '/backgrounds/chromaria.png',
     firstItem: 'ward',
