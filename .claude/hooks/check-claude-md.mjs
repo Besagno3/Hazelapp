@@ -9,8 +9,9 @@
 //   node .claude/hooks/check-claude-md.mjs        CLI report (pre-commit hook, CI): exit 1 at the cap
 //   … --staged                                    check the copy in git's index instead of the working tree
 //   … --hook session-start                        Claude Code SessionStart hook: prints a warning as context
-//   … --hook post-tool-use                        Claude Code PostToolUse hook (Edit|Write): reads the hook's JSON on
-//                                                 stdin and, after a CLAUDE.md edit, hands Claude the warning as
+//   … --hook post-tool-use                        Claude Code PostToolUse hook (Edit|Write|Bash): reads the hook's JSON
+//                                                 on stdin and, after an Edit/Write of a CLAUDE.md or a Bash command
+//                                                 that names one (sed, a heredoc, cp…), hands Claude the warning as
 //                                                 additionalContext
 // No dependencies. Node 20+.
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -139,13 +140,15 @@ if (process.argv[1] && basename(process.argv[1]) === 'check-claude-md.mjs') {
     if (r.level !== 'ok') process.stdout.write(`[check-claude-md] ${warningText(r)}\n${TELL}\n`);
     process.exit(0);
   } else if (hook === 'post-tool-use') {
-    let filePath = '';
+    let touched = false;
     try {
-      filePath = JSON.parse(readFileSync(0, 'utf8'))?.tool_input?.file_path ?? '';
+      const input = JSON.parse(readFileSync(0, 'utf8'))?.tool_input ?? {};
+      // Edit / Write name the file; a Bash edit (sed, a heredoc, cp, mv…) names it in the command.
+      touched = basename(input.file_path ?? '') === 'CLAUDE.md' || /CLAUDE\.md/.test(input.command ?? '');
     } catch {
       /* no stdin, or not JSON */
     }
-    if (basename(filePath) === 'CLAUDE.md' && r.level !== 'ok') {
+    if (touched && r.level !== 'ok') {
       process.stdout.write(
         JSON.stringify({
           hookSpecificOutput: {
