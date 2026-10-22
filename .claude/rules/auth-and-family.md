@@ -2,11 +2,28 @@
 paths:
   - hazel-game/src/features/auth/**
   - hazel-game/src/features/family/**
-  - hazel-game/src/store/{authStore,familyStore,grownUpsStore,profileStore}.ts
-  - hazel-game/src/lib/{grownUps,grownUpsGate,pinLock,accountChange,closeAccount,progress,playDays,familyErrors,supabase,signupLink,review,streak,profile}.ts
-  - hazel-game/src/content/family.ts
   - hazel-game/supabase/functions/delete-account/**
   - hazel-game/supabase/functions/_shared/closeAccount.ts
+  - hazel-game/src/test/grownUps.ts
+  - hazel-game/src/test/progressFixtures.ts
+  - hazel-game/src/store/authStore*
+  - hazel-game/src/store/familyStore*
+  - hazel-game/src/store/grownUpsStore*
+  - hazel-game/src/store/profileStore*
+  - hazel-game/src/lib/grownUps*
+  - hazel-game/src/lib/grownUpsGate*
+  - hazel-game/src/lib/pinLock*
+  - hazel-game/src/lib/accountChange*
+  - hazel-game/src/lib/closeAccount*
+  - hazel-game/src/lib/progress*
+  - hazel-game/src/lib/playDays*
+  - hazel-game/src/lib/familyErrors*
+  - hazel-game/src/lib/supabase*
+  - hazel-game/src/lib/signupLink*
+  - hazel-game/src/lib/review*
+  - hazel-game/src/lib/streak*
+  - hazel-game/src/lib/profile*
+  - hazel-game/src/content/family*
 ---
 # Auth, the family and 👪 Grown-ups — read `hazel-game/docs/architecture/auth-and-family.md` before changing these files
 

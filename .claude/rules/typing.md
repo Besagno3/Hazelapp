@@ -1,10 +1,12 @@
 ---
 paths:
   - hazel-game/src/features/typing/**
-  - hazel-game/src/lib/{typing,leaves}.ts
-  - hazel-game/src/content/typing.ts
-  - hazel-game/src/store/keyboardStore.ts
-  - hazel-game/src/features/battle/{TypeBurst,TypingBonus}.tsx
+  - hazel-game/src/features/battle/TypeBurst*.tsx
+  - hazel-game/src/features/battle/TypingBonus*.tsx
+  - hazel-game/src/lib/typing*
+  - hazel-game/src/lib/leaves*
+  - hazel-game/src/content/typing*
+  - hazel-game/src/store/keyboardStore*
 ---
 # Touch typing (#165) — read `hazel-game/docs/architecture/typing.md` before changing these files
 

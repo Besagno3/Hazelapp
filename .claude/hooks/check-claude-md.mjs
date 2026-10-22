@@ -7,12 +7,14 @@
 //
 // Three ways in, one check:
 //   node .claude/hooks/check-claude-md.mjs        CLI report (pre-commit hook, CI): exit 1 at the cap
+//   … --staged                                    check the copy in git's index instead of the working tree
 //   … --hook session-start                        Claude Code SessionStart hook: prints a warning as context
 //   … --hook post-tool-use                        Claude Code PostToolUse hook (Edit|Write): reads the hook's JSON on
 //                                                 stdin and, after a CLAUDE.md edit, hands Claude the warning as
 //                                                 additionalContext
 // No dependencies. Node 20+.
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -62,8 +64,17 @@ function unconditionalRuleLines() {
   return { lines, files: always };
 }
 
-export function check() {
-  const main = read(MAIN);
+/** The staged copy of hazel-game/CLAUDE.md, or null when git has none (or isn't there). */
+function stagedMain() {
+  try {
+    return execFileSync('git', ['show', ':hazel-game/CLAUDE.md'], { cwd: repoDir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch {
+    return null;
+  }
+}
+
+export function check({ staged = false } = {}) {
+  const main = (staged ? stagedMain() : null) ?? read(MAIN);
   const mainLines = countLines(main);
   const rootLines = countLines(read(ROOT));
   const rules = unconditionalRuleLines();
@@ -122,7 +133,7 @@ const hook = args.includes('--hook') ? args[args.indexOf('--hook') + 1] : null;
 const TELL = 'Tell the owner this at the start of your next reply and offer to make the trim.';
 
 if (process.argv[1] && basename(process.argv[1]) === 'check-claude-md.mjs') {
-  const r = check();
+  const r = check({ staged: args.includes('--staged') });
   if (hook === 'session-start') {
     // stdout becomes context Claude sees. Say nothing while all is well.
     if (r.level !== 'ok') process.stdout.write(`[check-claude-md] ${warningText(r)}\n${TELL}\n`);

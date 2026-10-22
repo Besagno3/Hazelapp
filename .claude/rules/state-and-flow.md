@@ -2,9 +2,15 @@
 paths:
   - hazel-game/src/store/**
   - hazel-game/src/machines/**
-  - hazel-game/src/lib/{save,saveKeepalive,level,age,settings}.ts
-  - hazel-game/src/App.tsx
+  - hazel-game/src/App*.tsx
+  - hazel-game/src/main.tsx
   - hazel-game/src/types/**
+  - hazel-game/src/test/saveFixtures.ts
+  - hazel-game/src/lib/save*
+  - hazel-game/src/lib/saveKeepalive*
+  - hazel-game/src/lib/level*
+  - hazel-game/src/lib/age*
+  - hazel-game/src/lib/settings*
 ---
 # Game flow, stores and saves — read `hazel-game/docs/architecture/state-and-flow.md` before changing these files
 

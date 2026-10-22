@@ -2,11 +2,20 @@
 paths:
   - hazel-game/supabase/functions/**
   - hazel-game/supabase/scripts/**
-  - hazel-game/src/lib/{questions,seen,funFacts}.ts
   - hazel-game/src/features/quiz/**
-  - hazel-game/src/hooks/**
-  - hazel-game/src/content/{starterQuestions,topicPrompts,topics}.ts
-  - hazel-game/src/components/{QuestionCard,FlagButton}.tsx
+  - hazel-game/src/hooks/useBattleQuestions*
+  - hazel-game/src/components/QuestionCard*.tsx
+  - hazel-game/src/components/FlagButton*.tsx
+  - hazel-game/src/lib/questions*
+  - hazel-game/src/lib/seen*
+  - hazel-game/src/lib/funFacts*
+  - hazel-game/src/lib/questionScreen*
+  - hazel-game/src/lib/questionFlavors*
+  - hazel-game/src/lib/notify*
+  - hazel-game/src/lib/edgeImports*
+  - hazel-game/src/content/starterQuestions*
+  - hazel-game/src/content/topicPrompts*
+  - hazel-game/src/content/topics*
 ---
 # Questions — read `hazel-game/docs/architecture/questions.md` before changing these files
 

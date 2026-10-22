@@ -14,10 +14,14 @@
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 if printf '%s\n' "$staged" | grep -qx 'hazel-game/CLAUDE.md'; then
-  if ! node .claude/hooks/check-claude-md.mjs; then
-    printf '\n\033[31m✖ Commit blocked — hazel-game/CLAUDE.md is over its budget (see above).\033[0m\n'
-    printf 'Trim it as recommended, then re-commit. To bypass intentionally: git commit --no-verify\n\n'
-    exit 1
+  if command -v node >/dev/null 2>&1; then
+    if ! node .claude/hooks/check-claude-md.mjs --staged; then
+      printf '\n\033[31m✖ Commit blocked — hazel-game/CLAUDE.md is over its budget (see above).\033[0m\n'
+      printf 'Trim it as recommended, then re-commit. To bypass intentionally: git commit --no-verify\n\n'
+      exit 1
+    fi
+  else
+    printf '\033[33m⚠ node not found — skipping the CLAUDE.md size check (CI still runs it).\033[0m\n'
   fi
 fi
 

@@ -1,10 +1,36 @@
 ---
 paths:
   - hazel-game/src/features/world/**
-  - hazel-game/src/lib/{reach,terrain,transition,travel,encounter,interact,escort,sleepMark,fog,wander,wayfinding,worldMap,camera,journey,facing,tiled}.ts
-  - hazel-game/src/content/{zones,regions,dungeons,fieldSpells,boat,secrets,tiles,spire}.ts
   - hazel-game/src/content/maps/**
   - hazel-game/bench/**
+  - hazel-game/src/lib/reach*
+  - hazel-game/src/lib/terrain*
+  - hazel-game/src/lib/transition*
+  - hazel-game/src/lib/travel*
+  - hazel-game/src/lib/encounter*
+  - hazel-game/src/lib/interact*
+  - hazel-game/src/lib/escort*
+  - hazel-game/src/lib/sleepMark*
+  - hazel-game/src/lib/fog*
+  - hazel-game/src/lib/wander*
+  - hazel-game/src/lib/wayfinding*
+  - hazel-game/src/lib/worldMap*
+  - hazel-game/src/lib/camera*
+  - hazel-game/src/lib/journey*
+  - hazel-game/src/lib/facing*
+  - hazel-game/src/lib/tiled*
+  - hazel-game/src/lib/audio*
+  - hazel-game/src/lib/spriteAnim*
+  - hazel-game/src/content/zones*
+  - hazel-game/src/content/regions*
+  - hazel-game/src/content/dungeons*
+  - hazel-game/src/content/fieldSpells*
+  - hazel-game/src/content/boat*
+  - hazel-game/src/content/secrets*
+  - hazel-game/src/content/tiles*
+  - hazel-game/src/content/spire*
+  - hazel-game/src/content/seaCritters*
+  - hazel-game/src/content/sprites*
 ---
 # The world — read `hazel-game/docs/architecture/world.md` before changing these files
 

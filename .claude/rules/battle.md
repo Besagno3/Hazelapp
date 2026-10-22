@@ -1,9 +1,16 @@
 ---
 paths:
   - hazel-game/src/features/battle/**
-  - hazel-game/src/lib/{battleTurn,battleMath,gauntlet,powerups}.ts
-  - hazel-game/src/store/battleStore.ts
-  - hazel-game/src/content/{companion,spells,abilities,enemies,avatars}.ts
+  - hazel-game/src/lib/battleTurn*
+  - hazel-game/src/lib/battleMath*
+  - hazel-game/src/lib/gauntlet*
+  - hazel-game/src/lib/powerups*
+  - hazel-game/src/store/battleStore*
+  - hazel-game/src/content/companion*
+  - hazel-game/src/content/spells*
+  - hazel-game/src/content/abilities*
+  - hazel-game/src/content/enemies*
+  - hazel-game/src/content/avatars*
 ---
 # Battle — read `hazel-game/docs/architecture/battle.md` before changing these files
 

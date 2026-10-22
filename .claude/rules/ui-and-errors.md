@@ -1,10 +1,17 @@
 ---
 paths:
   - hazel-game/src/components/**
-  - hazel-game/src/hooks/**
-  - hazel-game/src/lib/{errors,familyErrors,lazyRetry,modalLayers,toast,utils}.ts
+  - hazel-game/src/hooks/useInertOutside*
   - hazel-game/src/index.css
+  - hazel-game/src/App.css
   - hazel-game/tailwind.config.js
+  - hazel-game/src/test/setup.ts
+  - hazel-game/src/lib/errors*
+  - hazel-game/src/lib/familyErrors*
+  - hazel-game/src/lib/lazyRetry*
+  - hazel-game/src/lib/modalLayers*
+  - hazel-game/src/lib/toast*
+  - hazel-game/src/lib/utils*
 ---
 # Shared UI and errors — read `hazel-game/docs/architecture/errors.md` before changing these files
 
