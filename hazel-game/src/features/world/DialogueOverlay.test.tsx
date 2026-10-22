@@ -569,6 +569,16 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(Object.keys(useSaveStore.getState().save!.flags).filter((f) => f.includes('bakery-deliveries'))).toEqual([]);
   });
 
+  it('Tock offers ⚙️ Clocktower Gears, quietly, over his own quest’s offer (PR 3)', () => {
+    render(<DialogueOverlay npcId="gearfall-clockkeeper" />);
+    expect(screen.getByText(/Tock's Stopped Clock/)).toBeInTheDocument(); // his quest's offer
+    const game = screen.getByText('⚙️ Clocktower Gears');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'clocktower-gears' });
+    expect(useSaveStore.getState().save!.flags['quest:tock-gears:offered']).toBeUndefined();
+  });
+
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
     const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
     quests.override = (id) =>

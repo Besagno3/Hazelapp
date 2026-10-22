@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -99,6 +99,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'town',
     backdrop: '/backgrounds/lumina-village.png',
     firstItem: 'snack',
+  },
+  'clocktower-gears': {
+    id: 'clocktower-gears',
+    name: 'Clocktower Gears',
+    emoji: '⚙️',
+    topic: 'engineering',
+    host: 'gearfall-clockkeeper',
+    place: 'Tock’s Clocktower · Gearfall',
+    where: 'Tock, Gearfall',
+    playLabel: 'Let’s tinker!',
+    againLabel: 'More machines',
+    hello: 'Tick… tock… three of my old machines have stopped. Gears on pegs, a turn of the crank — will you bring them back to life?',
+    steps: [
+      { title: 'Pick a gear', text: 'Gears that touch turn each other — each the other way round.' },
+      { title: 'Put it on a peg', text: 'Build a chain of gears from the crank to the machine.' },
+      { title: 'Turn the crank', text: 'Watch what turns, and which way. Every machine fixed is a page!' },
+    ],
+    collection: 'Clocktower Machines',
+    pages: 9,
+    bandNote: 'Medium: make it turn the right way. Tricky: the right speed too.',
+    music: 'spireEngine',
+    backdrop: '/backgrounds/gearfall.png',
+    firstItem: 'spark',
   },
 };
 

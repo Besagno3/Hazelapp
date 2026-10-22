@@ -93,6 +93,31 @@ and each game — so far 🧪 Potion Lab.
   board a slice in the box keeps its filling, lifted with a gold outline and
   a tick; the ticket and the closed box draw what's in it full and the rest
   pale. The scene's customer and
-  Ember stand over the SVG as HTML (no `foreignObject`). The
+  Ember stand over the SVG as HTML (no `foreignObject`). **⚙️ Clocktower
+  Gears** (`gearfall-clockkeeper`, Tock, Gearfall — he gives a quest too;
+  `lib/minigames/gears.ts`, `features/minigames/gears/`): gear trains — three
+  machines a round (`jobFor(band, round, i, queue)`, `JOBS_PER_ROUND`; which
+  machine from `roundQueue`, machines not in the book first; the board and
+  what's asked by the slot). A board (`board(rows)`: `E` the crank's peg, `X`
+  the machine's) is pegs on an odd-r hex grid one peg apart (`pegAt`,
+  `touching`); the crank and the machine slide on their axles to touch only
+  their own peg's gear at any size (`ends`, `radius`: teeth ÷ 32 pegs).
+  `run` turns the crank clockwise: every gear it reaches turns the other way
+  from the one turning it (a breadth-first walk), a gear pushed both ways is
+  `jammed` (its two gears marked), a train that stops short is
+  `not-joined`, and the machine's speed is crank teeth ÷ machine teeth;
+  `check` against the job (Gentle: just turn; Medium: `turn`; Tricky: `turn`
+  and `speed`, the crank's gear picked from `CRANK_TEETH`), said back by
+  `verdictWords` and taught by `learnedLine` ("Five gears between…: an odd
+  number, so it turns the same way as the crank"). Gentle's boards can't
+  jam; Medium's and Tricky's offer both ways round (tested by trying every
+  filling, `solve`). Each peg is an SVG `role="button"` (Enter / Space; a
+  drawn focus ring) named by row and place ("Middle row, peg 2: empty. Put a
+  gear on. It touches the crank."); a run spins what turned (`animate-spin`,
+  each gear's period from its teeth; reduced motion: still, with the arrows).
+  On a phone the board stays at the top while the steps scroll; from `sm` up
+  the Clocktower's room (the great clock, today's machine on its plate,
+  stopped or running) is above it, and a short screen keeps just the board.
+  The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
