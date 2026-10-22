@@ -473,3 +473,24 @@ describe("Escape takes the box's own way out, and nothing more (#110o)", () => {
     expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
   });
 });
+
+describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
+  it('Trader Tadpole offers 🧪 Potion Lab from his first line, beside his Shop', () => {
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.getByText('▼ Next')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('on his last line both are on offer', () => {
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText('🛒 Shop')).toBeInTheDocument();
+    expect(screen.getByText('🧪 Potion Lab')).toBeInTheDocument();
+  });
+
+  it('someone who runs no game offers none', () => {
+    render(<DialogueOverlay npcId="numbria-innkeeper" />);
+    expect(screen.queryByText(/Potion Lab/)).toBeNull();
+  });
+});

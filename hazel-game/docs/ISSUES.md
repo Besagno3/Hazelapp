@@ -7,6 +7,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 
 | ID  | Status | Severity | Summary |
 |-----|--------|----------|---------|
+| #177 | 🟡 | Med    | **Mini-games (docs/DESIGN-MINIGAMES.md, 2026-10-22).** Ten learning mini-games, one per topic, each on its own full-screen stage, one PR each followed by two rounds of `/saas-code-review` + `/saas-ux-review`. **Done:** (1) the stage + 🧪 Potion Lab. **To build:** (2) 🥧 Dot's Bakery, (3) ⚙️ Clocktower Gears, (4) 🪞 Mirror Mural, (5) 🎵 Echo's Call, (6) ✨ Vela's Star Charts, (7) 🌳 Ringwood's Rings, (8) 📜 Index's Timeline, (9) 🐉 Ember Air Mail, (10) 🔨 Word Forge. **Left for later (doc §7):** (a) each game's own music — they borrow `shrine` / `town` (`tools/assets/audio.py`; `lameenc` isn't installed in the cloud sessions); (b) a side quest per game that sends a kid there the first time; (c) a 🎮 line on 📈 Progress for grown-ups; (d) the band a kid picks lives in this device's storage, not the save (by design: it's a preference, not progress). |
 | #1  | 🟢 | High   | Auth is cosmetic — game state not gated on a real session |
 | #2  | 🟢 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
 | #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |

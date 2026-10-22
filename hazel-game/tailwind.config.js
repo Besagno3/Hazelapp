@@ -11,6 +11,10 @@ export default {
         touch: { raw: '(pointer: coarse)' },
         'touch-wide': { raw: '(pointer: coarse) and (orientation: landscape)' },
       },
+      // The mini-games' big pixel titles (docs/DESIGN-MINIGAMES.md), self-hosted in public/fonts.
+      fontFamily: {
+        pixel: ['"Jersey 15"', '"Arial Narrow"', 'sans-serif'],
+      },
     },
   },
   plugins: [],

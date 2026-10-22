@@ -127,4 +127,23 @@ describe('gameFlowMachine', () => {
     actor.send({ type: 'RESET' });
     expect(actor.getSnapshot().value).toBe('boot');
   });
+
+  it('a host opens their mini-game from the talk or the map; CLOSE goes back to exploring; RESET forgets it (docs/DESIGN-MINIGAMES.md)', () => {
+    setSave({ worldUnlocked: true, avatarId: 'a1' });
+    const actor = startActor();
+    actor.send({ type: 'READY' });
+    actor.send({ type: 'TALK', npcId: 'verdara-merchant' });
+    actor.send({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    expect(actor.getSnapshot().context.game).toBe('potion-lab');
+    actor.send({ type: 'CLOSE' });
+    expect(actor.getSnapshot().matches({ world: 'exploring' })).toBe(true);
+    actor.send({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    // No battle starts under a game.
+    actor.send({ type: 'ENCOUNTER' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    actor.send({ type: 'RESET' });
+    expect(actor.getSnapshot().context.game).toBeNull();
+  });
 });

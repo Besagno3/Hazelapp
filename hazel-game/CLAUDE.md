@@ -904,6 +904,45 @@ bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
   and typed; kept by its number (`penPalReplyFlag`, never free text) and
   read back by the giver at the end (`penPalReadLine`). `QuestConversation`
   carries its `questId` and `step` for it.
+- **Mini-games (docs/DESIGN-MINIGAMES.md, #177):** learning games on their
+  own full-screen **stage**, one per topic, each run by a host in the world.
+  The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
+  line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service; on a
+  quest's conversation only on its last line) → `OPEN_GAME` → machine substate
+  `world.minigame` (context `game`) → `features/minigames/MiniGameStage`
+  (a `ModalLayer`): a round window grows from the middle (`ZOOM_MS`; a fade
+  with reduced motion), the title card (logo, the host's hello, three "how to
+  play" steps, the band, the collection and stars, Back / Play), the game,
+  and a reward after each round (`RewardScreen`: what was made, the stars,
+  what was learned, only what's new). The stage plays the game's `music`
+  (`App`'s `inSpire` guard covers `world.minigame`), sets `openedFlag` (📜
+  Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
+  `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
+  when a round is done; `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
+  saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
+  and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
+  `MINIGAME_STAR_COINS` per new star (★ first round, ★ half the collection,
+  ★ all of it) and the game's `firstItem` once — replays pay nothing but
+  still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
+  Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
+  kid and game on this device (`rememberBand`); a mini-game **never moves the
+  question level**. No timers, no AI: each game's rules are pure in
+  `lib/minigames/<game>.ts`. Each game's play screen loads on first play
+  (`GAME_SCREENS[id].Play`, `retryableLazy` in a `LazyBoundary`, "The … didn't
+  open. Try again."); its title-card art loads with the stage. Shared look:
+  `features/minigames/styles.ts` (the navy window, gold buttons, pixel titles
+  in Jersey 15 — `public/fonts`, Tailwind `font-pixel`) and `parts.tsx`
+  (`Stars`, `HostBubble` — a live region, `phoneStrip` on phones — `EmberSprite`,
+  `Ticket`, `StepChips`). Hosts never wander (`npcWanders`). **🧪 Potion Lab**
+  (`verdara-merchant`, Trader Tadpole, `lib/minigames/potionLab.ts`,
+  `features/minigames/potionLab/`): red cabbage juice as a pH indicator — 12
+  jars (Gentle 6, Medium 9, Tricky 12, `jarsFor`), colours by pH (`shadeOf`:
+  three on Gentle / Medium, five on Tricky), guesses by band (`guessOptions`:
+  the colour; acid / neutral / base; the five-colour strip with pH ranges),
+  orders (`orderFor`, every one brewable at its band), the Brew Book (a page
+  per jar, read back by Tadpole), `STIR_MS` before the colour shows. The
+  bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
+  stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
 - **Battle** (`features/battle/BattleArena.tsx`): FF-style side-profile command
   battle — Attack / Spells / Companion / Guard / Items / Swap / Flee, every command resolved by
   a question; enemy counterattacks are blocked by defend questions. **Spells**
@@ -1534,6 +1573,29 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — Mini-games I: the stage, and 🧪 Potion Lab (#177)
+The owner liked the visual draft (claude.ai canvas "Hazel Quest Mini-Game
+Screens"): ten learning mini-games, one per topic, each on its own
+full-screen stage — `docs/DESIGN-MINIGAMES.md` (the plan, the rules, the ten
+games, one PR each with two rounds of code and UX review). This PR: the
+design doc, the stage and the first game.
+- **The stage** (`features/minigames/`): opened from a host's talk
+  (`OPEN_GAME` → `world.minigame`), the zoom, title card, play, reward; the
+  shared rules in `lib/minigames.ts` (bands, stars, first-time-only pay), the
+  registry in `content/minigames.ts`, 📜 Menu → 🎮 Mini-games, hosts that
+  never wander, each game's own lazy file, the Jersey 15 pixel font in the
+  game. See Architecture → Mini-games.
+- **🧪 Potion Lab** with Trader Tadpole in Verdara (he says so): a real
+  red-cabbage pH experiment, three bands, twelve jars, orders from Verdara
+  folk, the Brew Book; the first order filled gives a Berry Potion.
+- **Bench:** `bench/minigame.html` mounts the stage alone at any size.
+- Tests: `lib/minigames.test`, `lib/minigames/potionLab.test`,
+  `content/minigames.test`, `MiniGameStage.test` (a whole round at each band,
+  what's paid and what isn't), `MiniGamesPanel.test`, and in
+  `gameFlow.test`, `DialogueOverlay.test`, `wander.test`. Rendered on the
+  bench at 1280×800, 1024×768, 375×667, 320×568 and 740×360: no errors, no
+  sideways scroll.
 
 ### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
 CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.

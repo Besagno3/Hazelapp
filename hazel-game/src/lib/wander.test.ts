@@ -14,20 +14,28 @@ import {
 } from './wander';
 import { NPC_DEFS } from '../content/npcs';
 import { QUESTS } from '../content/quests';
+import { MINIGAMES, MINIGAME_IDS } from '../content/minigames';
 
 describe('npcWanders', () => {
   it('lets pure-flavor villagers roam', () => {
-    expect(npcWanders({ role: 'villager' })).toBe(true);
+    expect(npcWanders({ id: 'x', role: 'villager' })).toBe(true);
   });
 
   it('keeps every service role put', () => {
     for (const role of ['sage', 'merchant', 'innkeeper', 'librarian'] as const) {
-      expect(npcWanders({ role })).toBe(false);
+      expect(npcWanders({ id: 'x', role })).toBe(false);
     }
   });
 
   it('keeps villagers explicitly marked stationary put (quest-givers, story, signposts)', () => {
-    expect(npcWanders({ role: 'villager', stationary: true })).toBe(false);
+    expect(npcWanders({ id: 'x', role: 'villager', stationary: true })).toBe(false);
+  });
+
+  it('keeps every mini-game host put, wherever their role would let them roam (docs/DESIGN-MINIGAMES.md §3.6)', () => {
+    for (const id of MINIGAME_IDS) {
+      const host = NPC_DEFS[MINIGAMES[id].host];
+      expect(npcWanders({ ...host, stationary: false, role: 'villager' }), host.id).toBe(false);
+    }
   });
 });
 

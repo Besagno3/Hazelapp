@@ -82,7 +82,10 @@ export default function App() {
   );
   const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
   // The Spire's climb and Umbra's finale (#75 item 16e) drive their own music.
-  const inSpire = useFlow((s) => s.matches({ world: 'spire' }) || (s.matches({ world: 'service' }) && s.context.service === 'name'));
+  // A mini-game's stage plays its own music too (docs/DESIGN-MINIGAMES.md §2.5).
+  const inSpire = useFlow(
+    (s) => s.matches({ world: 'spire' }) || s.matches({ world: 'minigame' }) || (s.matches({ world: 'service' }) && s.context.service === 'name'),
+  );
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
   // Bumped when the world's file loads after failing: the boundary starts afresh.

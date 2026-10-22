@@ -21,6 +21,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
+import MiniGamesPanel from '../minigames/MiniGamesPanel';
 import type { FieldCast } from '../../content/fieldSpells';
 import ModalLayer from '../../components/ModalLayer';
 
@@ -147,6 +148,9 @@ export default function MenuOverlay({
             </div>
           </div>
         </div>
+
+        {/* The mini-games found so far, and where (docs/DESIGN-MINIGAMES.md §3.6). */}
+        <MiniGamesPanel flags={save.flags} />
 
         {/* Battle party: who can be swapped in (🔄 Swap in battle — a free action) */}
         <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">

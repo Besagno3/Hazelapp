@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { MINIGAMES, gameHostedBy } from '../../content/minigames';
 import { NPC_DEFS, ROLE_SERVICE, npcEmoji, npcName, npcSpriteId, visibleLines, type DialogueLine } from '../../content/npcs';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
 import { riddleTopic, riddleWords, questConversation, type QuestConversation } from '../../content/quests';
@@ -130,6 +131,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // An innkeeper passes on the news from the road (#75 item 11), but a tired
   // hero shouldn't have to hear it first: Rest is on offer from line one.
   const offerService = !!service && (isLast || service === 'inn');
+  // A mini-game's host offers it from the first line (docs/DESIGN-MINIGAMES.md §2.1) — not
+  // over a quest's own conversation until its last line, which the button finishes as Learn does.
+  const game = gameHostedBy(npcId);
+  const offerGame = !!game && (!quest || isLast);
   // A shrine keeper's button: the trial, or (once passed) how to cast the spell.
   const taught = fieldSpellTaughtBy(npcId);
   const trialPassed = !!taught && knowsFieldSpell(taught.id, useSaveStore.getState().save?.flags ?? {});
@@ -173,6 +178,13 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
     // otherwise "Learn" would strand a delivery mid-step. Not past the pen-pal offer: the next talk makes it again.
     if (quest?.finish && !offering) update(quest.finish);
     if (service) sendFlow({ type: 'OPEN_SERVICE', service, npcId });
+  }
+
+  function openGame() {
+    if (!game) return;
+    applyLineFlag();
+    if (quest?.finish && isLast && !offering) update(quest.finish);
+    sendFlow({ type: 'OPEN_GAME', game });
   }
 
   // A riddle step's thing asks its question (#75 item 15e).
@@ -315,6 +327,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {text}
         </p>
         <div ref={rowRef} className="flex flex-wrap justify-end gap-3 mt-3">
+          {offerGame && game && (
+            <button
+              onClick={openGame}
+              className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11"
+            >
+              {MINIGAMES[game].emoji} {MINIGAMES[game].name}
+            </button>
+          )}
           {offerService && (
             <button
               // Umbra's finale is focused (16e review round 4): Enter through the talk mustn't close the climax.
