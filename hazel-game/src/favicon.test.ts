@@ -104,3 +104,68 @@ describe("the game's icon is the project's own (#146a)", () => {
     expect(page).toContain('<meta name="theme-color" content="#1e1b4b" />');
   });
 });
+
+describe('the home-screen app: Add to Home Screen opens the game full screen (#5)', () => {
+  const manifest = JSON.parse(readFileSync(at('public/manifest.webmanifest'), 'utf8')) as {
+    [key: string]: unknown;
+    short_name: string;
+    icons: { src: string; sizes: string; type: string; purpose: string }[];
+  };
+  const THEME = [0x1e, 0x1b, 0x4b];
+
+  it("index.html links the manifest, and tells iOS to open it without Safari's bars", () => {
+    expect(page).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
+    expect(page).toContain('<meta name="mobile-web-app-capable" content="yes" />');
+    expect(page).toContain('<meta name="apple-mobile-web-app-capable" content="yes" />');
+    expect(page).toContain('<meta name="apple-mobile-web-app-title" content="Hazel Quest" />');
+    // Not black-translucent: that draws the page under the status bar, and nothing pads the top for it.
+    expect(page).toContain('<meta name="apple-mobile-web-app-status-bar-style" content="black" />');
+  });
+
+  it('opens the game at /play/, full screen, in its own colours', () => {
+    expect(manifest).toMatchObject({
+      id: '/play/',
+      start_url: '/play/',
+      scope: '/play/',
+      display: 'fullscreen',
+      name: 'Hazel Quest',
+      theme_color: '#1e1b4b',
+      background_color: '#1e1b4b',
+    });
+    // A home-screen label fits about 12 characters before it's cut.
+    expect(manifest.short_name.length).toBeLessThanOrEqual(12);
+  });
+
+  it("names Ember's egg at 192 and 512 px (what Android asks for to install it), opaque on the theme colour", () => {
+    expect(manifest.icons.map((icon) => `${icon.purpose} ${icon.sizes}`)).toEqual(['any 192x192', 'any 512x512', 'maskable 512x512']);
+    for (const icon of manifest.icons) {
+      // Root paths, like the favicon: the manifest is at the root and the page at /play/.
+      expect(icon.src).toMatch(/^\/[\w-]+\.png$/);
+      expect(icon.type).toBe('image/png');
+      const file = at(`public${icon.src}`);
+      expect(pngSize(file).join('x')).toBe(icon.sizes);
+      const px = pngPixels(file);
+      expect(px.channels).toBe(3);
+      expect(px.pixel(0, 0)).toEqual(THEME);
+    }
+  });
+
+  it("the egg is centred, about 80% of the plain icons, and inside the maskable one's safe circle", () => {
+    for (const icon of manifest.icons) {
+      const px = pngPixels(at(`public${icon.src}`));
+      const box = artBox(px, (p) => p.join() === THEME.join());
+      const size = px.w;
+      expect(Math.abs(box.left - (size - box.right))).toBeLessThanOrEqual(1);
+      expect(Math.abs(box.top - (size - box.bottom))).toBeLessThanOrEqual(1);
+      if (icon.purpose === 'maskable') {
+        // Android crops a maskable icon to its own shape; only the circle 40% of the size from the centre is sure to show.
+        const corner = Math.hypot(Math.max(size / 2 - box.left, box.right - size / 2), Math.max(size / 2 - box.top, box.bottom - size / 2));
+        expect(corner).toBeLessThanOrEqual(size * 0.4);
+      } else {
+        const fill = Math.max(box.right - box.left, box.bottom - box.top) / size;
+        expect(fill).toBeGreaterThan(0.75);
+        expect(fill).toBeLessThan(0.9);
+      }
+    }
+  });
+});

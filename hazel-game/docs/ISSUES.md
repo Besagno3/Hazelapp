@@ -11,7 +11,7 @@ Status: 🔴 open · 🟡 in progress · 🟢 resolved
 | #2  | 🟢 | High   | `PASS_THRESHOLD` (0.82) vs 5 questions requires a perfect score |
 | #3  | 🟢 | High   | App crashes on boot if Supabase env vars are missing |
 | #4  | 🟢 | Med    | Test infrastructure (Vitest) installed but not wired |
-| #5  | 🔴 | Med    | No PWA (installable/offline). `vite-plugin-pwa` was removed as unused in #87 — `npm i -D vite-plugin-pwa` when this is picked up |
+| #5  | 🟡 | Med    | No PWA (installable/offline). **Installable: built (2026-10-22).** `public/manifest.webmanifest` (`/play/`, `display: fullscreen`, Ember's egg at 192 / 512 px and a maskable 512) and the iOS home-screen tags in `index.html`: Add to Home Screen opens the game with no browser bars. On iOS the home-screen app has its own storage, so a family signs in once more inside it (saves come from the server). **Offline: still open, on purpose.** No service worker: Chrome no longer needs one to install; questions, saves and sign-in are online, so offline play needs an offline question bank and a save queue first; and a cached old version brings back the stale-tab trouble the save version guard handles (#101i) — an update prompt would have to come with it. `vite-plugin-pwa` (removed as unused in #87) is the tool when this is picked up. Not yet tried on a real phone or tablet (TC-2114). |
 | #6  | 🟢 | Med    | Sign-up proceeds even when email confirmation is pending |
 | #7  | 🟢 | Med    | Quiz/battle questions are hardcoded — replaced by AI generation |
 | #8  | 🟢 | Low    | Battle damage and avatar HP do not persist between battles |

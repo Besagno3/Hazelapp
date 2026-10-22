@@ -4,7 +4,8 @@
 
 Reads public/ (tiles, sprites, backdrops), the logo from site/tools/logo.py,
 and the captures from site/tools/capture.cjs; writes site/assets/{img,shots,video}
-(and the game's own copy of the icons, public/favicon.png + apple-touch-icon.png).
+(and the game's own copy of the icons, public/favicon.png + apple-touch-icon.png,
+and its home-screen app's icon-192.png, icon-512.png + icon-maskable-512.png).
 Needs Pillow and numpy, and ffmpeg for the gameplay clip. The fonts in
 site/assets/fonts are committed as they are (SIL Open Font License, from
 @fontsource/jersey-15 and @fontsource/andika).
@@ -73,8 +74,8 @@ egg = frame(PUB / 'sprites' / 'ember-egg' / 'battle.png', 0)
 egg = egg.crop(egg.getbbox())
 
 
-def icon(size, background=None):
-    k = max(1, round(size * 0.8 / max(egg.size)))
+def icon(size, background=None, fill=0.8):
+    k = max(1, round(size * fill / max(egg.size)))
     big = egg.resize((egg.width * k, egg.height * k), N)
     im = Image.new('RGBA', (size, size), background or (0, 0, 0, 0))
     im.paste(big, ((size - big.width) // 2, (size - big.height) // 2), big)
@@ -85,6 +86,14 @@ icon(64).save(OUT / 'img' / 'favicon.png', optimize=True)
 icon(180, '#1e1b4b').save(OUT / 'img' / 'apple-touch-icon.png', optimize=True)
 for name in ('favicon.png', 'apple-touch-icon.png'):
     shutil.copyfile(OUT / 'img' / name, PUB / name)
+
+# --- the game's home-screen app (#5): the icons public/manifest.webmanifest
+# names, opaque like the 180 px one. The maskable one keeps the whole egg inside
+# the middle circle (40% of the size from the centre) that Android crops icons
+# to. The game's only: the public pages don't link the manifest.
+icon(192, '#1e1b4b').save(PUB / 'icon-192.png', optimize=True)
+icon(512, '#1e1b4b').save(PUB / 'icon-512.png', optimize=True)
+icon(512, '#1e1b4b', fill=0.55).save(PUB / 'icon-maskable-512.png', optimize=True)
 
 # --- the share card
 

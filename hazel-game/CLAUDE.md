@@ -27,7 +27,8 @@ shared source of truth for how this project works.
 
 `package.json` lists only packages the app actually imports (unused ones
 were removed in #87). Still "approved to adopt" when a feature needs them:
-react-router-dom + recharts, vite-plugin-pwa (PWA, #5), zod, react-query.
+react-router-dom + recharts, vite-plugin-pwa (offline play, #5 — the
+home-screen app needs none: it is `public/manifest.webmanifest`), zod, react-query.
 Add the package in the same change that first uses it. The parent dashboard
 (#29) needed neither: it is a page inside 👪 Grown-ups (no router), and its
 bars are plain HTML/CSS — recharts measured ~106 KB gzipped for one bar chart.
@@ -1534,6 +1535,45 @@ Doc-only and config-only commits are not blocked.
 ## Feature Log
 
 Newest first. One entry per commit (or per logical change).
+
+### 2026-10-22 — The home-screen app: Add to Home Screen opens the game full screen (#5)
+The owner asked for it after asking whether the game plays on a tablet or
+phone (it does: the d-pad and ✋ on any touch screen, #37 / #127; only touch
+typing needs a keyboard, #165).
+- **`public/manifest.webmanifest`:** `id`, `start_url` and `scope` `/play/`
+  (the game never navigates out of it), `display: fullscreen` (Android hides
+  the status bar too; iOS takes it as `standalone`), `#1e1b4b` for the theme
+  and the splash, and three icons: Ember's egg at 192 and 512 px (`any`,
+  about 80%, like the 180 px one) and a 512 px `maskable` one whose egg fits
+  inside the middle circle (40% of the size from the centre) Android crops
+  to. Root paths, like the favicon: the game is built with base `/` and only
+  its page moves (`build:web`); Vite copies `public/` as it is.
+- **`index.html`:** `<link rel="manifest">`; `mobile-web-app-capable` and
+  `apple-mobile-web-app-capable` (iOS before 16.4 reads only the meta;
+  Chrome warns about the Apple one alone); `apple-mobile-web-app-title`
+  "Hazel Quest"; status bar `black`, not `black-translucent` — that draws the
+  page under the status bar, and nothing pads the top for it (the viewport
+  has no `viewport-fit=cover`).
+- **Icons:** `site/tools/prep-assets.py` draws them (`icon(…, fill=)`)
+  straight into `public/` — the public pages don't link the manifest. A
+  rerun rebuilt every other image byte for byte (TC-1259).
+- **No service worker** (`vite-plugin-pwa` stays unadopted): Chrome no
+  longer needs one to install, the game can't play offline anyway
+  (questions, saves and sign-in are online), and a cached old version is the
+  stale-tab trouble the save version guard exists for (#101i). Offline stays
+  open in #5.
+- **Worth knowing:** on iOS a home-screen app keeps its own storage, apart
+  from Safari's, so a family signs in once more inside it (saves come from
+  the server, `saveStore`); an email link (a reset, a confirmation) opens in
+  the browser, not the app. With no browser bars, the game's own 🔄 Refresh
+  and Reload (`OutdatedScreen`, `ErrorBoundary`) are the way back from an
+  update or a crash — they were already there.
+
+Checked: `favicon.test` (4 new tests), lint, `build:web` (the manifest and
+icons at `dist/`'s root, the tags in `dist/play/index.html`), and headless
+Chromium on `vite preview` at 375×667 touch: the manifest served as
+`application/manifest+json`, parsed with no errors, no installability
+errors. Not yet tried on a real phone or tablet (TC-2114).
 
 ### 2026-10-21 — Parent dashboard: a crash-card test that doesn't race the live region (#29)
 CI's `test` job failed on PR #88 with "Found multiple elements with the text: Something went wrong showing progress…": `GrownUpsArea.test`'s crash-card test looked for the card's paragraph with `findByText`, but the area's live region says the same words in a `<p>` of its own, and on CI's runner its effect had already run. The test now waits for the paragraph outside the `role="status"` region, and for the live region's line, so either order passes. Test only; 2348 green, lint + `tsc -b` clean.
