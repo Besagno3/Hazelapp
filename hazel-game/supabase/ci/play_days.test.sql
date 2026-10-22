@@ -2,9 +2,11 @@
 -- played are their family's to read and nobody else's; only note_play_days
 -- writes them — the family's own sign-in, for its own kid, adding days from
 -- the last week only — and nothing can be changed or deleted through the API.
--- Kept two weeks for every kid (review round 1): any note deletes every
--- family's older days, and nobody can read one meanwhile — a bounded batch
--- per note, the oldest first (review round 2).
+-- Kept for every kid (review round 1): any note deletes every family's older
+-- days, and nobody can read one meanwhile — a bounded batch per note, the
+-- oldest first (review round 2). Five weeks (35 days) since migration 0026
+-- (#169: 4 weeks of XP on the page); it was two. 0026's own rules (the day's
+-- play, the first day noted, skill starts): progress_history.test.sql.
 -- Any failed assertion raises and exits non-zero under `psql -v ON_ERROR_STOP=1`.
 begin;
 -- The test's dates are the server's (UTC), as note_play_days' are.
@@ -21,18 +23,18 @@ insert into public.profiles (id, parent_id, display_name, icon, birth_year, birt
   ('00000000-0000-0000-0000-000000005a10', '00000000-0000-0000-0000-0000000000a9', 'Kit', 'frog', 2018, 5),
   ('00000000-0000-0000-0000-000000005b09', '00000000-0000-0000-0000-0000000000b9', 'Bea', 'bee', 2016, 7);
 
--- Bea already played yesterday — and 30 days ago, and she never notes a day
--- again here; Sam has a day from long ago; Kit's oldest day is 15 days back
--- and his next-oldest exactly 14 (the last day kept). Any note tidies away
--- every kid's day older than two weeks, whoever's family notes it.
+-- Bea already played yesterday — and 40 days ago, and she never notes a day
+-- again here; Sam has a day from long ago; Kit's oldest day is 36 days back
+-- and his next-oldest exactly 35 (the last day kept). Any note tidies away
+-- every kid's day older than five weeks, whoever's family notes it.
 insert into public.play_days (profile_id, day) values
   ('00000000-0000-0000-0000-000000005b09', current_date - 1),
-  ('00000000-0000-0000-0000-000000005b09', current_date - 30),
-  ('00000000-0000-0000-0000-000000005a09', current_date - 20),
-  ('00000000-0000-0000-0000-000000005a10', current_date - 15),
-  ('00000000-0000-0000-0000-000000005a10', current_date - 14);
+  ('00000000-0000-0000-0000-000000005b09', current_date - 40),
+  ('00000000-0000-0000-0000-000000005a09', current_date - 50),
+  ('00000000-0000-0000-0000-000000005a10', current_date - 36),
+  ('00000000-0000-0000-0000-000000005a10', current_date - 35);
 
--- Before any note: an old day is there, but nobody reads one older than two
+-- Before any note: an old day is there, but nobody reads one older than five
 -- weeks (the read policy stops there), not even its own family.
 do $$
 begin
@@ -42,13 +44,13 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000b9', true);
 do $$
 begin
-  assert (select count(*) from public.play_days) = 1, 'B reads Bea''s yesterday, never her day 30 days ago';
+  assert (select count(*) from public.play_days) = 1, 'B reads Bea''s yesterday, never her day 40 days ago';
 end $$;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
 do $$
 begin
-  assert (select array_agg(day order by day) from public.play_days) = array[current_date - 14],
-    'A reads Kit''s day 14 days back (still kept), not his 15 or Sam''s 20';
+  assert (select array_agg(day order by day) from public.play_days) = array[current_date - 35],
+    'A reads Kit''s day 35 days back (still kept), not his 36 or Sam''s 50';
 end $$;
 reset role;
 
@@ -73,8 +75,8 @@ begin
   assert (select count(*) from public.play_days where profile_id = sam) = 2,
     'today and yesterday noted, nothing else';
   assert exists (select 1 from public.play_days where profile_id = sam and day = current_date), 'today is there';
-  assert not exists (select 1 from public.play_days where profile_id = sam and day = current_date - 20),
-    'a day older than two weeks is deleted by the next note';
+  assert not exists (select 1 from public.play_days where profile_id = sam and day = current_date - 50),
+    'a day older than five weeks is deleted by the next note';
 
   -- Noting again changes nothing; the window's edges are kept.
   assert public.note_play_days(sam, array[current_date]) = 1, 'today again: still one day kept';
@@ -83,7 +85,7 @@ begin
     'a week back and a day ahead (a time zone ahead of the server) are the edges';
   assert public.note_play_days(kit, null) = 0 and public.note_play_days(kit, '{}') = 0, 'nothing to note';
 
-  -- A sees their own kids' days, never another family's (Kit's day 14 days
+  -- A sees their own kids' days, never another family's (Kit's day 35 days
   -- back is still kept).
   assert (select count(*) from public.play_days) = 5, format('A sees their five rows (got %s)',
     (select count(*) from public.play_days));
@@ -132,17 +134,17 @@ begin
   assert (select count(*) from public.play_days) = 1, 'B sees only Bea''s day';
 end $$;
 
--- A's notes tidied every family's old days away: Bea's 30-day-old one (her
--- family never noted again) and Kit's 15-day-old one — not his 14th.
+-- A's notes tidied every family's old days away: Bea's 40-day-old one (her
+-- family never noted again) and Kit's 36-day-old one — not his 35th.
 reset role;
 do $$
 begin
-  assert not exists (select 1 from public.play_days where day < current_date - 14),
-    'no kid keeps a day older than two weeks once anyone notes a day';
-  assert not exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 30),
+  assert not exists (select 1 from public.play_days where day < current_date - 35),
+    'no kid keeps a day older than five weeks once anyone notes a day';
+  assert not exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 40),
     'another family''s kid who stopped playing loses their old day too';
-  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 14),
-    'a day exactly two weeks back is kept';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 35),
+    'a day exactly 35 days back is kept';
   assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005b09' and day = current_date - 1),
     'Bea''s recent day stays';
 end $$;
@@ -150,20 +152,20 @@ end $$;
 -- A big backlog (review round 2): a note deletes at most 1,000 old days, the
 -- oldest first, so no call ever pays for a whole day's crossing (one unbounded
 -- delete outlasted the API's timeout at scale, rolling the note back with it).
--- 2,500 of Kit's days older than two weeks: three notes clear them, the 14th
--- day back stays, and the note itself is kept each time.
+-- 2,500 of Kit's days older than five weeks: three notes clear them, the
+-- 35th day back stays, and the note itself is kept each time.
 reset role;
 insert into public.play_days (profile_id, day)
-select '00000000-0000-0000-0000-000000005a10', current_date - 15 - g from generate_series(0, 2499) g;
+select '00000000-0000-0000-0000-000000005a10', current_date - 36 - g from generate_series(0, 2499) g;
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-0000000000a9', true);
 do $$ begin perform public.note_play_days('00000000-0000-0000-0000-000000005a09', array[current_date - 2]); end $$;
 reset role;
 do $$
 begin
-  assert (select count(*) from public.play_days where day < current_date - 14) = 1500,
-    format('one note deletes 1,000 old days, no more (left %s)', (select count(*) from public.play_days where day < current_date - 14));
-  assert (select min(day) from public.play_days) = current_date - 15 - 1499, 'the oldest go first';
+  assert (select count(*) from public.play_days where day < current_date - 35) = 1500,
+    format('one note deletes 1,000 old days, no more (left %s)', (select count(*) from public.play_days where day < current_date - 35));
+  assert (select min(day) from public.play_days) = current_date - 36 - 1499, 'the oldest go first';
   assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a09' and day = current_date - 2),
     'the note is kept';
 end $$;
@@ -174,9 +176,9 @@ do $$ begin perform public.note_play_days('00000000-0000-0000-0000-000000005a09'
 reset role;
 do $$
 begin
-  assert not exists (select 1 from public.play_days where day < current_date - 14), 'three notes clear the backlog';
-  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 14),
-    'the 14th day back is still kept';
+  assert not exists (select 1 from public.play_days where day < current_date - 35), 'three notes clear the backlog';
+  assert exists (select 1 from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a10' and day = current_date - 35),
+    'the 35th day back is still kept';
   assert (select count(*) from public.play_days where profile_id = '00000000-0000-0000-0000-000000005a09' and day in (current_date - 3, current_date - 4)) = 2,
     'every note is kept';
 end $$;

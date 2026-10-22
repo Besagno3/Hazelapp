@@ -8,6 +8,7 @@ import { BOAT_REMOOR_REACH, hasBoat, seaBeside, validMooring } from '../content/
 import { CONSUMABLE_IDS, LIBRARY_MAX, type ConsumableId } from '../content/items';
 import { ACT2_SEEN, SPIRE_VICTORY_SEEN, canFly } from '../content/story';
 import { withSecretsBadge } from '../content/secrets';
+import { isRealDay } from './streak';
 
 export const SAVE_VERSION = 4 as const;
 
@@ -240,18 +241,21 @@ const TOPIC_IDS: readonly string[] = [...CRYSTAL_TOPIC_IDS, ...EXTRA_TOPIC_IDS];
 
 /**
  * A save's topic starts (#29 review round 2): only known topics (own keys —
- * never `constructor`), each a whole level 1–10 and a whole age 0–120;
- * anything else is left out, so the page makes no claim on it.
+ * never `constructor`), each a whole level 1–10 and a whole age 0–120, with
+ * the day it was noted when it's a real one (`on`, #183 — the database works
+ * the start's age out from it when it's carried to the profile); anything
+ * else is left out, so the page makes no claim on it.
  */
 function topicStartsFrom(raw: unknown): Partial<Record<Topic, TopicStart>> {
   if (!isRecord(raw)) return {};
   const out: Partial<Record<Topic, TopicStart>> = {};
   for (const [topic, v] of Object.entries(raw)) {
     if (!TOPIC_IDS.includes(topic) || !isRecord(v)) continue;
-    const { level, age } = v as Record<string, unknown>;
+    const { level, age, on } = v as Record<string, unknown>;
     if (!Number.isInteger(level) || !Number.isInteger(age)) continue;
     if ((level as number) < 1 || (level as number) > 10 || (age as number) < 0 || (age as number) > 120) continue;
-    out[topic as Topic] = { level: level as number, age: age as number };
+    const start: TopicStart = { level: level as number, age: age as number };
+    out[topic as Topic] = isRealDay(on) ? { ...start, on } : start;
   }
   return out;
 }

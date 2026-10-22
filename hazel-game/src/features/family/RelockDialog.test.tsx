@@ -12,7 +12,7 @@ const db = vi.hoisted(() => {
     const chain = { table, ops: [] as Op[] };
     chains.push(chain);
     const b: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle']) {
+    for (const m of ['select', 'eq', 'order', 'insert', 'update', 'delete', 'single', 'maybeSingle', 'abortSignal']) {
       b[m] = (...args: unknown[]) => {
         chain.ops.push([m, args]);
         return b;

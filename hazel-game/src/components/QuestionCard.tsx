@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { sfx } from '../lib/audio';
 import { markSeen } from '../lib/seen';
+import { useProfileStore } from '../store/profileStore';
 import FlagButton from './FlagButton';
 import type { Question } from '../types';
 
@@ -13,7 +14,8 @@ import type { Question } from '../types';
  * `secondChance` (a Forget-Me-Knot, #75 item 14e): the first wrong pick is
  * crossed out instead of answered, and the player picks again.
  * The parent advances via `onContinue` so reading is never rushed. Once
- * answered, any question can be reported (`FlagButton`, B10).
+ * answered, any question can be reported (`FlagButton`, B10), and the pick
+ * is noted for the kid's day (`profileStore.noteAnswer`, #173).
  */
 export default function QuestionCard({
   question,
@@ -118,6 +120,10 @@ export default function QuestionCard({
     }
     setSelected(idx);
     sfx(correct ? 'correct' : 'wrong');
+    // The final pick counts for 📈 Progress's answers per topic (#173) —
+    // every screen that asks through this card: battles, gates, chests,
+    // tale-stones, shrines, the Spire, the Library, Umbra's questions.
+    useProfileStore.getState().noteAnswer(question, correct);
     onAnswered(correct, idx);
   }
 
