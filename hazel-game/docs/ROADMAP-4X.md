@@ -3,7 +3,7 @@
 Goal: grow the story and game to roughly **4× today's content and playtime**
 (~3–5 h → ~15–20 h) without breaking the tone, the learning loop, or existing
 saves. Companion docs: `STORY.md` (writing bible), `DESIGN-JRPG.md` (original
-design), `CLAUDE.md` (architecture + feature log), and **`STORY-4X.md` — the
+design), `CLAUDE.md` + `docs/architecture/` (architecture), `docs/feature-log/` (feature log), and **`STORY-4X.md` — the
 expansion bible**: the full end-to-end content spec for Acts II–IV (every
 zone, NPC, enemy, boss, quest, spell, item, cutscene, and flag). This doc is
 the *delivery plan*; STORY-4X.md is *what gets built*.
