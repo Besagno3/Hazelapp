@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline and 🐉 Ember Air Mail.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline, 🐉 Ember Air Mail and 🔨 Word Forge.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -365,6 +365,18 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   delivery's named it). A game's focus moved from script shows its ring for
   the keyboard only: `features/minigames/lastInput.ts` (`lastInputWasKey`)
   listens from the stage's load, as `:focus-visible` matches after a mouse
-  click on the title card's button too. The
+  click on the title card's button too. **🔨 Word
+  Forge** (`ink-dot`, Scrivener Dot, Inkwell Cove — no quest of her own, so
+  🔨 is her gold offer; `lib/minigames/forge.ts`, `features/minigames/
+  forge/`): how words are built. Nine families of three words (`FAMILIES`,
+  each word its two parts and a meaning; three a band, `BAND_FAMILIES`);
+  a job (`jobFor`) is a word and a tray of its parts and two to four others,
+  shuffled the same each time; Tricky's tiles say what each part means
+  (`PART_MEANS`). Each part tapped goes on the anvil in the next place (one
+  on the anvil tapped comes back); Hammer checks it (`forgeWords`: right,
+  the other way round, a real word meaning something else, -s for -es, or
+  no word, with `hintFor`). The tray keeps each part's spot; the step's card
+  is beside the board held sideways from 560 px, and on a short screen — or
+  a small phone held upright — a bar kept in sight under it. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

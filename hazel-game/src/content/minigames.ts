@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline', 'ember-air-mail'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline', 'ember-air-mail', 'word-forge'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -260,6 +260,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'sailing',
     backdrop: '/backgrounds/port-lantern.png',
     firstItem: 'hint',
+  },
+  'word-forge': {
+    id: 'word-forge',
+    name: 'Word Forge',
+    emoji: '🔨',
+    topic: 'words',
+    host: 'ink-dot',
+    place: 'The Ink Forge · Inkwell Cove',
+    where: 'Scrivener Dot, Inkwell Cove',
+    playLabel: 'Let’s forge!',
+    againLabel: 'Forge more',
+    hello: 'Words are made of parts, the way a key is made of teeth! I’ll say what a word means — you forge it from its parts. Mind the sparks!',
+    steps: [
+      { title: 'Read the meaning', text: 'Dot says what the word means: “full of help”, “far + look”…' },
+      { title: 'Pick two parts', text: 'Tap them in the tray — each goes on the anvil, in order.' },
+      { title: 'Hammer!', text: 'The word meant? It goes on Dot’s word wall, with its family.' },
+    ],
+    collection: 'Word wall',
+    pages: 9,
+    bandNote: 'Medium: un-, re-, pre-, -ful, -less, -er and -est. Tricky: Greek and Latin roots — tele means far!',
+    music: 'shallows',
+    backdrop: '/backgrounds/inkwell-cove.png',
+    firstItem: 'tea',
   },
 };
 
