@@ -173,7 +173,8 @@ const ASKS: Record<Band, readonly Ask[]> = {
 /**
  * Expert's orders (§8.5): a share in a ratio, a rate, or a percentage up or
  * down — never the amount itself, which is the kid's to work out. Each fits on
- * two pies and can be made with the cuts (tested); no two the same amount.
+ * two pies and can be made with the cuts (tested); no two the same amount, and
+ * nine, so three mornings never repeat one (UX review round 1).
  */
 const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Order['expert']>)[] = [
   {
@@ -187,13 +188,14 @@ const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Ord
     amount: A(5, 6),
     words: 'the bigger share of 1 pie, split 5 : 1',
     badge: '5 : 1',
-    how: 'Count the parts in 5 : 1 first — how big is one part of the pie?',
+    // Which share, too: boxing the other is the commonest slip (UX review round 1).
+    how: 'Count the parts in 5 : 1, then take the bigger share.',
     working: '5 : 1 splits a pie into 6 equal parts, and the bigger share is 5 of them: five sixths of a pie.',
   },
   {
     amount: A(2, 3),
     words: 'enough for 4 people, when 1 pie feeds 6',
-    badge: 'for 4',
+    badge: '4 people',
     how: 'Work out one person’s share of a pie first.',
     working: '1 pie feeds 6, so each person gets a sixth: 4 people need four sixths — two thirds of a pie.',
   },
@@ -206,8 +208,9 @@ const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Ord
   },
   {
     amount: A(4, 3),
-    words: 'enough for 2 tables, when 2 pies serve 3',
-    badge: 'for 2',
+    // "Serve 3" with no unit read as 3 people (code and UX review round 1).
+    words: 'enough for 2 tables, when 2 pies serve 3 tables',
+    badge: '2 tables',
     how: 'Work out one table’s share of the 2 pies first.',
     working: '2 pies for 3 tables is two thirds of a pie a table, so 2 tables need four thirds: one and a third pies.',
   },
@@ -215,7 +218,7 @@ const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Ord
     amount: A(3, 8),
     words: 'the smaller share of 1 pie, split 3 : 5',
     badge: '3 : 5',
-    how: 'Count the parts in 3 : 5 first — how big is one part of the pie?',
+    how: 'Count the parts in 3 : 5, then take the smaller share.',
     working: '3 : 5 splits a pie into 8 equal parts, and the smaller share is 3 of them: three eighths of a pie.',
   },
   {
@@ -231,6 +234,13 @@ const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Ord
     badge: '−75%',
     how: 'Work out 75% of 2 pies, then take it away.',
     working: '75% of 2 pies is one and a half pies, so 75% less than 2 pies leaves half a pie.',
+  },
+  {
+    amount: A(5, 3),
+    words: 'enough for 5 people, when 1 pie feeds 3',
+    badge: '5 people',
+    how: 'Work out one person’s share of a pie first.',
+    working: '1 pie feeds 3, so each person gets a third: 5 people need five thirds — one and two thirds pies.',
   },
 ];
 
@@ -318,10 +328,11 @@ export function verdictWords(count: number, cut: number, order: Order): string {
   const v = check(count, cut, order);
   // Expert, plainly: what's wrong and one thing to try — never the amount (§8.3). A cut that can't make it is said
   // here, after the miss, not as the cut's picked.
+  // Too little or too much is the heading's (UX review round 1: said twice).
   if (order.expert) {
     if (v === 'right') return 'Right.';
-    if (!cutMakes(cut, order.amount)) return `${cap(SLICE[cut].many)} can’t make this order exactly — cut it another way.`;
-    return `${v === 'too-little' ? 'Too little' : 'Too much'}. ${order.expert.how}`;
+    if (!cutMakes(cut, order.amount)) return cantMakeWords(cut);
+    return order.expert.how;
   }
   if (v === 'right') return 'Just right!';
   return v === 'too-little' ? `A little more — the order is ${askedWords(order)}.` : `A little less — the order is ${askedWords(order)}.`;
@@ -341,6 +352,11 @@ export function learnedLine(count: number, cut: number, order: Order): string {
   // More slices than one pie has ("three halves"): a pie can't be cut in two and give three (review round 1).
   if (boxed.d !== cut || count > cut) return `${cap(slicesWords(count, cut))} is the same as ${amountWords(order.amount)}.`;
   return `${cap(amountWords(order.amount))}: cut a pie into ${num(cut)} equal slices and take ${num(count)}.`;
+}
+
+/** Expert, once a miss has said so: "Thirds can’t make this order exactly — cut it another way." */
+export function cantMakeWords(cut: number): string {
+  return `${cap(SLICE[cut].many)} can’t make this order exactly — cut it another way.`;
 }
 
 /**

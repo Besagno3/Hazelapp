@@ -231,14 +231,19 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Expert (§8, PR 12):** an order is a ratio, a rate or a percentage change —
   "25% more pie than last week's 1 pie", "the bigger share of 1 pie, split
   5 : 1", "enough for 4 people, when 1 pie feeds 6" — and the amount of pie is
-  the kid's to work out (eight orders, up to two pies, each a different
-  amount). Always two pies on the board, so it doesn't say whether the order
-  is more than one; the ticket shows the order's numbers ("+25%", "5 : 1"),
-  never its pie; a cut that can't make it is said after a miss, not as it's
-  picked. Dot says it plainly: "Too little. Work out 25% of 1 pie, then add it
-  on." A right box shows the working ("25% of 1 pie is a quarter, so 25% more
-  than 1 pie is one and a quarter pies."); every box right at its first close
-  is the Expert seal.
+  the kid's to work out (nine orders, so three mornings never repeat one, up
+  to two pies, each a different amount; every unit said — "when 2 pies serve
+  3 tables"). Always two pies on the board, so it doesn't say whether the
+  order is more than one; the ticket shows the order's numbers ("+25%",
+  "5 : 1", "4 people"), never its pie; a cut that can't make it is said after
+  a miss, not as it's picked — and then "Cut it another way" is the gold
+  button, and the cut is said again if the box is fixed anyway. A miss gets a
+  plain heading and one way in ("Too little" — "Work out 25% of 1 pie, then
+  add it on."; a share, "Count the parts in 5 : 1, then take the bigger
+  share."), with the order in sight. A right box shows the working ("25% of 1
+  pie is a quarter, so 25% more than 1 pie is one and a quarter pies."), and
+  the reward keeps the working of an order the kid missed first; every box
+  right at its first close is the Expert seal.
 
 ### 5.3 ⚙️ Clocktower Gears — Engineering · Tock, Gearfall Canyon
 

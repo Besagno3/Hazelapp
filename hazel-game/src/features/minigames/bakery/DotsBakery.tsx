@@ -9,8 +9,10 @@ import {
   amountWords,
   boardPies,
   boxWords,
+  cantMakeWords,
   check,
   cutHint,
+  cutMakes,
   learnedLine,
   morningQueue,
   orderFor,
@@ -30,6 +32,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { useSettled } from '../useSettled';
 import { PieArt } from './art';
 
 type Step = 'cut' | 'fill' | 'closed';
@@ -76,6 +79,13 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   // Expert's seal (§8.3): each box right at its first close; a miss on this order means it isn't.
   const [missed, setMissed] = useState(false);
   const [spotOn, setSpotOn] = useState(0);
+  // Expert's cuts said not to make this order, after a miss: said again as the box is fixed (code and UX review round 1:
+  // "Fix the box" went back to the same cut with nothing said, and the same miss for ever).
+  const [told, setTold] = useState<number[]>([]);
+  // The morning's lessons, each with whether its order had a miss: Expert keeps the one the kid had to learn.
+  const missedLessons = useRef<string[]>([]);
+  // The last order's served once, whatever presses it twice (code review round 1).
+  const finished = useRef(false);
   const count = taken.filter(Boolean).length;
   const known = (id: RegularId) => !!flags[pageFlag(def.id, id)];
 
@@ -92,7 +102,11 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     first.current = false;
   }, [step, served]);
 
-  const hint = cut !== null && step === 'fill' ? cutHint(cut, order) : null;
+  const hint = cut !== null && step === 'fill' ? (cutHint(cut, order) ?? (told.includes(cut) ? cantMakeWords(cut) : null)) : null;
+  // A step's buttons wait a moment as it starts (§2.4): a double tap's second tap pressed what came under it — Hand it
+  // to, the next order's cut, Cut it another way — skipping the working or the verdict (code and UX review round 1).
+  // − / + aren't held: a quick second press is a second slice.
+  const settled = useSettled(`${step}:${served}`);
 
   // The step's gold button comes into view as the step starts, with the pies above it (a cut that can't make the
   // order: "Cut it another way") — never on a slice tap, which slid the pie under the kid's finger and put the
@@ -103,6 +117,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   }, [step, !!hint, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function pickCut(c: number) {
+    if (!settled()) return;
     sfx('select');
     setCut(c);
     setTaken(Array(c * pies).fill(false));
@@ -115,6 +130,11 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     if (step !== 'fill') return;
     sfx('select');
     setTaken((t) => t.map((on, k) => (k === i ? !on : on)));
+  }
+
+  /** A slice tapped on the board: it waits as the step starts, as a cut's second tap lands there. */
+  function tapSlice(i: number) {
+    if (settled()) toggle(i);
   }
 
   /** − / +: take the last slice out, or put the next one in. */
@@ -130,7 +150,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   }
 
   function close() {
-    if (step !== 'fill' || cut === null || count === 0) return;
+    if (step !== 'fill' || cut === null || count === 0 || !settled()) return;
     setRead(null);
     const v = check(count, cut, order);
     setVerdict(v);
@@ -138,23 +158,27 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
       sfx('chest');
       setNewPage(onPage(order.regular, regular.name));
       setLessons((l) => [...l, learnedLine(count, cut, order)]);
+      if (missed) missedLessons.current.push(learnedLine(count, cut, order));
       setRights((n) => n + 1);
       if (!missed) setSpotOn((n) => n + 1);
     } else {
       sfx('wrong');
       setMissed(true);
+      if (expert && !cutMakes(cut, order.amount)) setTold((t) => (t.includes(cut) ? t : [...t, cut]));
     }
     setStep('closed');
   }
 
   /** Back to the box as it was, to fix it. */
   function fix() {
+    if (!settled()) return;
     setRead(null);
     setVerdict(null);
     setStep('fill');
   }
 
   function recut() {
+    if (!settled()) return;
     setRead(null);
     setCut(null);
     setTaken([]);
@@ -163,16 +187,19 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   }
 
   function serve() {
-    if (verdict !== 'right') return;
+    if (verdict !== 'right' || !settled() || finished.current) return;
     setRead(null);
     if (served + 1 >= ORDERS_PER_ROUND) {
-      // An "is the same as" lesson is the one worth keeping, if the morning had one.
-      const learned = lessons.find((l) => l.includes('the same as')) ?? lessons[lessons.length - 1] ?? '';
+      finished.current = true;
+      // An "is the same as" lesson is the one worth keeping, if the morning had one — on Expert, the working of an order
+      // the kid missed first (UX review round 1: it was always the third's).
+      const learned = (expert ? missedLessons.current[0] : lessons.find((l) => l.includes('the same as'))) ?? lessons[lessons.length - 1] ?? '';
       onFinish({ title: 'Morning served!', learned, spotOn: expert ? { right: spotOn, of: ORDERS_PER_ROUND } : undefined });
       return;
     }
     setServed((n) => n + 1);
     setMissed(false);
+    setTold([]);
     setCut(null);
     setTaken([]);
     setVerdict(null);
@@ -200,14 +227,14 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     if (step === 'cut') line = `${who} wants ${order.words}. How will you cut the pies?`;
     else if (step === 'fill') line = `Box it: ${order.words}.`;
     else if (verdict === 'right') line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Next customer.' : 'That’s the last order.'}`;
-    else line = 'Not quite. Fix the box, or cut it another way.';
+    else line = cut !== null && !cutMakes(cut, order.amount) ? 'Not quite. Cut it another way.' : 'Not quite. Fix the box, or cut it another way.';
   } else if (step === 'cut') line = `${who} wants ${order.words}. ${question}`;
   else if (step === 'fill') line = hint ?? `Now tap slices into the box: ${who} wants ${order.words}.`;
   else if (verdict === 'right') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Hand it over, then the next customer!' : 'That’s the last order of the morning!'}`;
   else line = 'Not quite! Have another look — you can change the slices, or cut it another way.';
 
   const board = (compact: boolean) => (
-    <PieBoard pies={pies} cut={cut ?? 1} taken={taken} filling={regular.filling} onSlice={step === 'fill' ? toggle : undefined} compact={compact} />
+    <PieBoard pies={pies} cut={cut ?? 1} taken={taken} filling={regular.filling} onSlice={step === 'fill' ? tapSlice : undefined} compact={compact} />
   );
 
   return (
@@ -239,9 +266,10 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
             </Ticket>
           </div>
 
-          {/* The step card first where the side panel is short — up to 700 px high, where its cuts started below the fold
-              (all five even at 1366 × 650; PR 12 bench) — with the order in it (`OrderLine`). */}
-          <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first sm:[@media(max-height:700px)]:order-first')}>
+          {/* The step card first where the side panel is short — up to 800 px high, where its cuts started below the fold
+              (all five even at 1366 × 650, PR 12 bench; Expert's longer lines to 780, code and UX review round 1) — with
+              the order in it (`OrderLine`). */}
+          <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first sm:[@media(max-height:800px)]:order-first')}>
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">
               Order {served + 1} of {ORDERS_PER_ROUND}
             </p>
@@ -256,8 +284,14 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                   Step 1 · Cut the {pies > 1 ? 'pies' : 'pie'}
                 </h2>
                 <OrderLine order={order} />
-                {/* Dot's bubble asks it — but while a book page has her bubble, the card does (review rounds 1 and 2). */}
-                {read && <p className="text-[15px] leading-snug text-[#e4e1ff]">{capFirst(question)}</p>}
+                {/* Dot's bubble asks it — but while a book page has her bubble, the card does (review rounds 1 and 2); and on the
+                    younger bands where the card comes first in a side panel, as her bubble's below it (PR 12 UX review
+                    round 1). Not under 541 px high, where the cuts need the room (1280 × 505: the last went under the fold). */}
+                {read ? (
+                  <p className="text-[15px] leading-snug text-[#e4e1ff]">{capFirst(question)}</p>
+                ) : (
+                  !expert && <p className="hidden text-[15px] leading-snug text-[#e4e1ff] sm:[@media(min-height:541px)_and_(max-height:800px)]:block">{capFirst(question)}</p>
+                )}
                 {/* Three across, the picture over the word, where the panel is narrow (review round 1: "Quarters" was cut to "Quarter"). */}
                 <div role="group" aria-label="Cuts" className={cn('grid grid-cols-2 gap-2', CUTS[band].length > 2 && narrowCuts.grid, narrowCuts.panel)}>
                   {CUTS[band].map((c) => (
@@ -339,6 +373,8 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
 
             {step === 'closed' && cut !== null && verdict && (
               <>
+                {/* After a miss, the order in sight with what went wrong (UX review round 1: off-screen at 844 × 390). */}
+                {verdict !== 'right' && <OrderLine order={order} />}
                 <div className="flex items-center gap-3">
                   <span aria-hidden="true" className="flex flex-none gap-1">
                     {Array.from({ length: pies }, (_, p) => (
@@ -363,13 +399,24 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                   <button ref={goRef} type="button" onClick={serve} className={cn(goldClass, 'text-lg')}>
                     {served + 1 < ORDERS_PER_ROUND ? `Hand it to ${who}` : `Hand it to ${who} — the last one!`}
                   </button>
-                ) : (
+                ) : cutMakes(cut, order.amount) ? (
                   <div className="flex flex-col gap-2 lg:flex-row">
                     <button ref={goRef} type="button" onClick={fix} className={cn(goldClass, 'flex-1')}>
                       Fix the box
                     </button>
                     <button type="button" onClick={recut} className={cn(outlineClass, 'flex-1')}>
                       Cut it another way
+                    </button>
+                  </div>
+                ) : (
+                  // This cut can't make it, whatever's boxed: the way on is another cut (code and UX review round 1: gold
+                  // "Fix the box" went round in a loop).
+                  <div className="flex flex-col gap-2 lg:flex-row">
+                    <button ref={goRef} type="button" onClick={recut} className={cn(goldClass, 'flex-1')}>
+                      Cut it another way
+                    </button>
+                    <button type="button" onClick={fix} className={cn(outlineClass, 'flex-1')}>
+                      Fix the box
                     </button>
                   </div>
                 )}
@@ -417,15 +464,18 @@ function capFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** The order, in the step card on a phone or a short screen — up to 700 px high (the ticket is further down there). */
+/** The order, in the step card on a phone or a short screen — up to 800 px high (the ticket is further down there). */
 function OrderLine({ order }: { order: Order }) {
   return (
-    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:701px)]:hidden">
+    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:801px)]:hidden">
       <span className="flex-none">
         <AmountIcon order={order} />
       </span>
       <span>
-        For {REGULAR_BY_ID[order.regular].name}: <b>{order.words}</b>
+        {/* Who it's for, but not on a phone on its side: the name's in Dot's line, and the order's room is the cuts'
+            (code and UX review round 1: Expert's four lines hid the last row at 740 × 360). */}
+        <span className="[@media(max-height:500px)]:hidden">For {REGULAR_BY_ID[order.regular].name}: </span>
+        <b>{order.words}</b>
       </span>
     </p>
   );

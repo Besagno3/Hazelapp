@@ -6,6 +6,8 @@ vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => true,
 }));
+// The main tests stand in an always-ready wait (a step's buttons wait a moment as it starts — DotsBakery.taps.test).
+vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../../machines/gameFlow')>()),
@@ -235,7 +237,8 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     readNib();
     fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
     expect(nibSaid()).toBe(false);
-    expect(screen.getByText(/How many equal slices should the pie be cut into\?/)).toBeInTheDocument();
+    // Dot's bubble asks it (the card asks it too where it comes first in a side panel: PR 12 UX review round 1).
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toMatch(/How many equal slices should the pie be cut into\?/);
     boxUp('Halves', 1);
     readNib();
     fireEvent.click(screen.getByRole('button', { name: 'Hand it to Grandmother Wick' }));
@@ -321,7 +324,7 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     setUp(6, {}, 14);
     render(<MiniGameStage game="dots-bakery" />);
     expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(/Today’s orders come as ratios and percentages/)).toBeInTheDocument();
+    expect(screen.getByText(/Today’s orders come as ratios, rates and percentages/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Let’s bake!' }));
     // Always two pies on the board: it doesn't say whether the order is more than one.
     return screen.findByRole('heading', { name: 'Step 1 · Cut the pies' });
@@ -340,11 +343,20 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
     expect(screen.getByRole('heading', { name: 'Too much' })).toBeInTheDocument();
     expect(screen.getByText('Thirds can’t make this order exactly — cut it another way.')).toBeInTheDocument();
-    expect(screen.getByText('Not quite. Fix the box, or cut it another way.')).toBeInTheDocument();
+    // The way on is another cut — gold, and what Dot says (code and UX review round 1: gold "Fix the box" looped).
+    expect(screen.getByText('Not quite. Cut it another way.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cut it another way' }).className).toMatch(/bg-amber-300/);
+    expect(screen.getByRole('button', { name: 'Fix the box' }).className).not.toMatch(/bg-amber-300/);
+    // Fixed anyway: the thirds are said again, with the way on.
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    expect(screen.getAllByText('Thirds can’t make this order exactly — cut it another way.').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
     boxUp('Quarters', 4);
-    expect(screen.getByText('Too little. Work out 25% of 1 pie, then add it on.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Too little' })).toHaveAccessibleDescription(/Work out 25% of 1 pie, then add it on\.$/);
+    expect(screen.getByText('Not quite. Fix the box, or cut it another way.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    // Dot, plainly, as the box is filled (code review round 1: untested).
+    expect(screen.getByText('Box it: 25% more pie than last week’s 1 pie.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
     fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
     expect(screen.getByRole('heading', { name: 'Right' })).toBeInTheDocument();
@@ -352,19 +364,49 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     expect(screen.getByText('Right. Next customer.')).toBeInTheDocument();
     last();
 
-    // A share in a ratio, right first time.
+    // A share in a ratio, right first time — on two pies though it's less than one (code review round 1: untested).
     await screen.findByText('Order 2 of 3');
+    expect(screen.getByRole('heading', { name: 'Step 1 · Cut the pies' })).toBeInTheDocument();
     expect(screen.getByText(/wants the bigger share of 1 pie, split 5 : 1\./)).toBeInTheDocument();
     boxUp('Sixths', 5);
     expect(screen.getByRole('heading', { name: 'Right' })).toBeInTheDocument();
+    expect(screen.getByText('Exactly that. Next customer.')).toBeInTheDocument();
     last();
     // A rate, right first time.
     await screen.findByText('Order 3 of 3');
+    expect(screen.getByRole('heading', { name: 'Step 1 · Cut the pies' })).toBeInTheDocument();
     expect(screen.getByText(/wants enough for 4 people, when 1 pie feeds 6\./)).toBeInTheDocument();
     boxUp('Thirds', 2);
+    expect(screen.getByText('That’s it. That’s the last order.')).toBeInTheDocument();
     last();
     expect(await screen.findByText('Spot on: 2 of 3. Spot on every time wins the Expert seal.')).toBeInTheDocument();
     expect(save().flags[sealFlag('dots-bakery')]).toBeUndefined();
+    // The lesson kept is the one the kid had to learn: the order missed first (UX review round 1: always the third's).
+    expect(within(screen.getByRole('region', { name: 'What you found out' })).getByText(/25% more than 1 pie is one and a quarter pies\./)).toBeInTheDocument();
+  });
+
+  it('a miss, then another cut right at the next close, is still a miss — no seal (code review round 1: untested)', async () => {
+    await openExpert();
+    boxUp('Quarters', 4);
+    fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
+    boxUp('Eighths', 10);
+    expect(screen.getByRole('heading', { name: 'Right' })).toBeInTheDocument();
+    last();
+    await screen.findByText('Order 2 of 3');
+    boxUp('Sixths', 5);
+    last();
+    await screen.findByText('Order 3 of 3');
+    boxUp('Sixths', 4);
+    last();
+    expect(await screen.findByText('Spot on: 2 of 3. Spot on every time wins the Expert seal.')).toBeInTheDocument();
+  });
+
+  it('regulars in the book come later: the first order goes to one not in it yet, with the slot’s order', async () => {
+    setUp(6, { [pageFlag('dots-bakery', 'wick')]: true, [pageFlag('dots-bakery', 'sol')]: true }, 14);
+    render(<MiniGameStage game="dots-bakery" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s bake!' }));
+    await screen.findByRole('heading', { name: 'Step 1 · Cut the pies' });
+    expect(screen.getByText('Mayor Marigold wants 25% more pie than last week’s 1 pie. How will you cut the pies?')).toBeInTheDocument();
   });
 
   it('every box right at its first close: the Expert seal', async () => {

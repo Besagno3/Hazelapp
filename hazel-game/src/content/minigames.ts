@@ -121,7 +121,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     bandNote: 'Medium cuts thirds, sixths and eighths; Tricky uses percentages and decimals.',
     expert: {
       note: 'Expert: ratios, rates and percentage change — the pie is yours to work out.',
-      hello: 'Today’s orders come as ratios and percentages. Work out how much pie each one is, then box exactly that.',
+      hello: 'Today’s orders come as ratios, rates and percentages. Work out how much pie each one is, then box exactly that.',
       steps: [
         // The same three as the pictures: cut, fill, close.
         { title: 'Cut the pies', text: 'A share, a rate, or a percentage up or down: work out the pie it means, then cut.' },

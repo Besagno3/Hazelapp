@@ -10,6 +10,7 @@ import {
   askedWords,
   boardPies,
   boxWords,
+  cantMakeWords,
   check,
   compare,
   cutHint,
@@ -199,11 +200,11 @@ describe('the box', () => {
 });
 
 describe('Expert: ratios, rates and percentage change (§8.5)', () => {
-  const orders = Array.from({ length: 8 }, (_, k) => orderFor('expert', Math.floor(k / 3), k % 3));
+  const orders = Array.from({ length: 9 }, (_, k) => orderFor('expert', Math.floor(k / 3), k % 3));
   const value = (a: { n: number; d: number }) => a.n / a.d;
 
-  it('eight orders, each a different amount, each boxable with the cuts on the two pies always on the board', () => {
-    expect(new Set(orders.map((o) => `${simplify(o.amount).n}/${simplify(o.amount).d}`)).size).toBe(8);
+  it('nine orders — three mornings, none twice (UX review round 1) — each a different amount, each boxable with the cuts on the two pies always on the board', () => {
+    expect(new Set(orders.map((o) => `${simplify(o.amount).n}/${simplify(o.amount).d}`)).size).toBe(9);
     for (const o of orders) {
       expect(CUTS.expert.some((c) => cutMakes(c, o.amount)), o.words).toBe(true);
       expect(value(o.amount)).toBeLessThanOrEqual(2);
@@ -212,21 +213,25 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
     // The other bands' boards are as before: enough pies to hold it.
     expect(boardPies('gentle', A(1, 2))).toBe(1);
     expect(boardPies('medium', A(3, 2))).toBe(2);
-    // The same order slot comes round again after eight.
-    expect(orderFor('expert', 3, 0).words).toBe(orders[(9 % 8)].words);
+    // The fourth morning starts the orders again.
+    expect(orderFor('expert', 3, 0).words).toBe(orders[0].words);
   });
 
   it('each order’s words work out to its amount — a percentage up or down, a share in a ratio, a rate', () => {
     for (const o of orders) {
       const pct = /^(\d+)% (more|less) pie than last week’s (1 pie|2 pies|half a pie)$/.exec(o.words);
       const share = /^the (bigger|smaller) share of 1 pie, split (\d+) : (\d+)$/.exec(o.words);
-      const rate = /^enough for (\d+) (people|tables), when (\d+) pies? (?:feeds|serve) (\d+)$/.exec(o.words);
+      // The unit said both times (code and UX review round 1: "2 pies serve 3" read as 3 people).
+      const rate = /^enough for (\d+) (people|tables), when (\d+) pies? (?:feeds (\d+)|serve (\d+) tables)$/.exec(o.words);
       let worked: number | null = null;
       if (pct) worked = { '1 pie': 1, '2 pies': 2, 'half a pie': 0.5 }[pct[3]]! * (1 + (pct[2] === 'more' ? 1 : -1) * (Number(pct[1]) / 100));
       else if (share) {
         const [a, b] = [Number(share[2]), Number(share[3])];
         worked = (share[1] === 'bigger' ? Math.max(a, b) : Math.min(a, b)) / (a + b);
-      } else if (rate) worked = (Number(rate[1]) * Number(rate[3])) / Number(rate[4]);
+      } else if (rate) {
+        expect(rate[2] === 'tables', o.words).toBe(rate[5] !== undefined);
+        worked = (Number(rate[1]) * Number(rate[3])) / Number(rate[4] ?? rate[5]);
+      }
       expect(worked, o.words).not.toBeNull();
       expect(worked, o.words).toBeCloseTo(value(o.amount), 9);
     }
@@ -245,12 +250,15 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
     }
   });
 
-  it('a cut that can’t make it is said after a miss, not as it’s picked; a miss says too little or too much and one way in', () => {
+  it('a cut that can’t make it is said after a miss, not as it’s picked; a miss gives one way in (too little or too much is the heading’s)', () => {
     const quarter = orders[0]; // 25% more than 1 pie: one and a quarter pies
     expect(cutHint(3, quarter)).toBeNull();
     expect(verdictWords(4, 3, quarter)).toBe('Thirds can’t make this order exactly — cut it another way.');
-    expect(verdictWords(4, 4, quarter)).toBe('Too little. Work out 25% of 1 pie, then add it on.');
-    expect(verdictWords(6, 4, quarter)).toBe('Too much. Work out 25% of 1 pie, then add it on.');
+    expect(cantMakeWords(3)).toBe('Thirds can’t make this order exactly — cut it another way.');
+    expect(verdictWords(4, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
+    expect(verdictWords(6, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
+    // A share: which share, too (UX review round 1: the kid had counted the parts; they took the other share).
+    expect(verdictWords(1, 6, orders[1])).toBe('Count the parts in 5 : 1, then take the bigger share.');
     expect(verdictWords(10, 8, quarter)).toBe('Right.');
     // The other bands still say it as the cut's picked.
     expect(cutHint(3, orderFor('gentle', 0, 0))).not.toBeNull();
@@ -262,6 +270,33 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
       expect(learnedLine(1, 1, o)).toBe(o.expert!.working);
       expect(o.expert!.working.endsWith(`${amountWords(o.amount)}.`), o.expert!.working).toBe(true);
     }
+  });
+
+  it('each order’s tag and way in agree with its words (code review round 1: a tag or hint for another order passed)', () => {
+    for (const o of orders) {
+      const { badge, how } = o.expert!;
+      const pct = /^(\d+)% (more|less)/.exec(o.words);
+      const share = /split (\d+) : (\d+)$/.exec(o.words);
+      const rate = /^enough for (\d+) (people|tables)/.exec(o.words);
+      if (pct) {
+        expect(badge, o.words).toBe(`${pct[2] === 'more' ? '+' : '−'}${pct[1]}%`);
+        expect(how, o.words).toContain(`Work out ${pct[1]}% of`);
+        expect(how, o.words).toContain(pct[2] === 'more' ? 'add it on' : 'take it away');
+      } else if (share) {
+        expect(badge, o.words).toBe(`${share[1]} : ${share[2]}`);
+        expect(how, o.words).toBe(`Count the parts in ${share[1]} : ${share[2]}, then take the ${o.words.startsWith('the bigger') ? 'bigger' : 'smaller'} share.`);
+      } else {
+        expect(rate, o.words).not.toBeNull();
+        expect(badge, o.words).toBe(`${rate![1]} ${rate![2]}`);
+        expect(how, o.words).toBe(`Work out one ${rate![2] === 'people' ? 'person' : 'table'}’s share of ${rate![2] === 'people' ? 'a pie' : 'the 2 pies'} first.`);
+      }
+    }
+  });
+
+  it('a morning’s regulars come from its queue, those not in the book first, with the slot’s orders', () => {
+    const queue = morningQueue((id) => id === 'wick' || id === 'sol', 0);
+    expect([0, 1, 2].map((i) => orderFor('expert', 0, i, queue).regular)).toEqual(['marigold', 'rook', 'nib']);
+    expect(orderFor('expert', 0, 0, queue).words).toBe(orders[0].words);
   });
 });
 

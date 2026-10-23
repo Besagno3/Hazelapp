@@ -56,7 +56,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   and from a round with something in it (`spotOn.of > 0`), never paid; the
   title card's pictures are `GameScreens.expertSteps` on Expert where a game
   has them; the reward's buttons are in a footer of their own under what
-  scrolls, so they're always in view and over nothing; the stage's
+  scrolls, so they're always in view and over nothing, and a tap on them
+  waits `SETTLE_MS` as the reward comes up (a key doesn't: no click count) —
+  the last step's double tap had skipped the reward; the stage's
   `round` starts at the rounds this kid has finished in the game on this
   device (`roundsPlayed`, `noteRoundPlayed` as a round ends), so a visit
   picks up a game's orders where the last left off rather than at the same
@@ -124,17 +126,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   (`Order.with`); on Expert an order is a ratio, a rate or a percentage
   change (`EXPERT_ASKS`, `Order.expert`: the ticket's `badge`, a miss's `how`,
   a right box's `working`), always on two pies (`boardPies`), its cut hint
-  only after a miss (`cutHint` is null there; `verdictWords` says it), and
-  the boxes right at their first close are `spotOn`; the reward keeps the morning's "is the same as" lesson
+  only after a miss (`cutHint` is null there; `verdictWords` says it, as
+  `cantMakeWords`, and the cut is said again if the box is fixed — `told`;
+  a cut that can't make it makes "Cut it another way" the gold button on
+  every band), and the boxes right at their first close are `spotOn`; the
+  reward keeps an Expert morning's first missed order's working, and the
+  morning's "is the same as" lesson on the others
   (`learnedLine`; more slices than a pie has are "Three halves is the same as
   one and a half pies."). The pies are in the step card on a phone (as wide
   as it, so an eighth can be tapped, but no taller than about a third of the
   screen, so the box and its button fit under them) and beside the steps from `sm` up,
   sized from the board (up to 260 px; the scene gets 45 % of the side, 88 px
-  on a short screen) so they stay in sight. In a side panel up to 700 px
-  high the step card comes first, with the order in it (`OrderLine`), so the
-  cuts start in view; in the 300 px panel (`sm` to `lg`) and on a 320 px
-  phone each cut has its word under its picture (`narrowCuts`). The gold button scrolls into
+  on a short screen) so they stay in sight. In a side panel up to 800 px
+  high the step card comes first, with the order in it (`OrderLine`; who
+  it's for left off on a phone on its side, and the order there after a miss
+  too), so the cuts start in view; in the 300 px panel (`sm` to `lg`) and on a 320 px
+  phone each cut has its word under its picture (`narrowCuts`). A step's
+  buttons wait `SETTLE_MS` as it starts (`useSettled`: a cut, a slice tapped
+  on the board, Close, Fix, Cut it another way, Hand it to; not − / +), and
+  the last order is served once. The gold button scrolls into
   view as a step starts, never on a slice tap, and what's in the box has a
   fixed height above − / +, so nothing moves under a kid's finger. On the
   board a slice in the box keeps its filling, lifted with a gold outline and
