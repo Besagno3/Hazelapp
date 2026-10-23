@@ -109,24 +109,26 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     expect(pidge()).toContain('Nobody’s waiting here. The lighthouse is 2 squares east.');
     expect(line()).toBe('Nobody’s waiting here. The lighthouse is 2 squares east.');
     fly('E', 'E');
-    expect(pidge()).toContain('East! Ember’s at the lighthouse.');
+    // There: what to do now (UX review round 2).
+    expect(pidge()).toContain('East! Ember’s at the lighthouse. Now tap Deliver!');
     deliver();
     const head = screen.getByRole('heading', { name: 'Letter delivered!' });
     expect(head).toHaveFocus();
-    expect(head).toHaveAccessibleDescription(`${learnedLine(job, ['N', 'E', 'E'], { x: 4, y: 1 })} The letter stamp is in the album!`);
+    expect(head).toHaveAccessibleDescription(`${learnedLine(job, ['N', 'E', 'E'])} The letter stamp is in the album!`);
     expect(onPage).toHaveBeenCalledWith('letter', 'Letter');
     expect(pidge()).toContain('Coo! Right on target! Next parcel?');
 
-    // The next parcel starts back at the post office, its route fresh.
+    // The next parcel starts back at the post office, its route fresh — the map described without the clue Pidge has just
+    // said (UX review round 2: a reader heard it twice).
     fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
-    expect(mapOfBay()).toHaveAccessibleDescription(/Ember is at the post office\./);
+    expect(mapOfBay()).toHaveAccessibleDescription('Ember is at the post office. The farm is 2 squares south and 1 west. The arrow keys fly Ember too.');
     for (const i of [1, 2]) {
       fly(...GENTLE_ROUTES[i]);
       deliver();
       if (i < 2) fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
     }
     fireEvent.click(screen.getByRole('button', { name: 'All delivered!' }));
-    expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(jobFor('gentle', 0, 2, queue), GENTLE_ROUTES[2], { x: 0, y: 0 }) });
+    expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(jobFor('gentle', 0, 2, queue), GENTLE_ROUTES[2]) });
   });
 
   it('off the map’s edge: a bump and a word, and Ember stays; the arrow keys fly her too', () => {
@@ -168,9 +170,9 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     expect(pidge()).toContain('That’s Ember! Tap the compass arrows to fly her.');
     tap(4, 4);
     expect(pidge()).toContain('Ember flies one square at a time — tap a square next to her, or the compass: north, east, south, west.');
-    // A diagonal: not on Gentle's compass.
+    // A corner: next to her, but not on Gentle's compass (UX and code review round 2: it said to tap one next to her).
     tap(3, 0);
-    expect(pidge()).toContain('Ember flies one square at a time');
+    expect(pidge()).toContain('No corners on this compass — north, east, south or west, one square at a time.');
     tap(3, 1);
     expect(map).toHaveAccessibleDescription(/Ember is over the fields\./);
     expect(pidge()).toContain('East! Ember’s over the fields.');
@@ -194,12 +196,18 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     deliver();
     expect(pidge()).toContain('That’s C4. Find the castle first, then look east of it.');
     deliver();
-    expect(pidge()).toContain('That’s C4. The house is 2 squares north and 1 west.');
+    // Medium's lesson is the eight directions: the diagonal first (UX review round 2).
+    expect(pidge()).toContain('That’s C4. The house is 1 square north-west, then 1 north.');
     fly('NW', 'N');
     expect(map).toHaveAccessibleDescription(/Ember is over B6, at a house\./);
     deliver();
     expect(screen.getByRole('heading', { name: 'Seed packet delivered!' })).toHaveAccessibleDescription(/^The house was at B6: B along, 6 up\. Ember flew 2 squares north-west, then 1 north\./);
     expect(onPage).toHaveBeenCalledWith('seeds', 'Seed packet');
+    // The next parcel's first wrong delivery says how to find it again (code review round 2: untested).
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
+    fly('N');
+    deliver();
+    expect(pidge()).toMatch(/That’s D4\. (Find the .+ first, then look .+ of it\.|[A-F]\d is [A-F] along the bottom, then \d up the side\.)/);
   });
 
   it('Tricky: the world — round the back of it too; delivered, then how far by the map’s scale', () => {
@@ -208,7 +216,9 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     const job = jobFor('tricky', 0, 0, roundQueue('tricky', () => false, 0));
     expect(job).toMatchObject({ to: 'antarctica', stamp: 'postcard' });
     const map = screen.getByRole('group', { name: 'The map of the world' });
-    expect(map).toHaveAccessibleDescription(/Ember is over Europe\. Antarctica is the icy one, all along the bottom\./);
+    // Not named before a try: which place fits the clue is the work (UX review round 2).
+    expect(map).toHaveAccessibleDescription('A postcard to the icy continent at the very south of the world. Ember is over Europe. The arrow keys fly Ember too.');
+    expect(line()).toBe('Which place fits the clue? Read the names on the map.');
     expect(document.getElementById('am-clue')).toHaveTextContent('A postcard to the icy continent at the very south of the world.');
     // West across the Atlantic and North America, and round the back of the world.
     fly('W', 'W', 'W', 'W');
@@ -221,24 +231,44 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     fly('S', 'S');
     deliver();
     expect(pidge()).toContain('That’s Africa. Antarctica is the icy one, all along the bottom — find its name on the map.');
+    expect(map).toHaveAccessibleDescription(/Antarctica is the icy one, all along the bottom\./);
     deliver();
     expect(pidge()).toContain('That’s Africa. Antarctica is 2 squares south.');
     fly('S', 'S');
     deliver();
-    // How far: from Europe the shortest way — 4 squares, though Ember flew 18 (UX review round 1: asked as how far she flew).
+    // How far: from Europe in a straight line — 4 squares, though Ember flew 18 (UX review rounds 1 and 2).
     const far = screen.getByRole('heading', { name: 'How far?' });
     expect(far).toHaveFocus();
-    expect(document.getElementById('am-far')).toHaveTextContent('On this map each square counts as about 3,000 km. From Europe to Antarctica is 4 squares the shortest way (Ember flew 18).');
-    expect(pidge()).toContain('From Europe to Antarctica is 4 squares the shortest way (Ember flew 18): about how far is that?');
+    expect(document.getElementById('am-far')).toHaveTextContent('On this map each square counts as about 3,000 km. From Europe to Antarctica is about 4 squares in a straight line (the ruler on the map); Ember flew 18.');
+    // Pidge just asks: the card has it all (UX review round 2: a reader heard it twice).
+    expect(pidge()).toContain('Delivered! Now, by the map’s scale: about how far is it?');
+    // A held Enter on a choice picks it once (code review round 2).
+    expect(fireEvent.keyDown(screen.getByRole('button', { name: '15,000 km' }), { key: 'Enter', repeat: true })).toBe(false);
     // The line by the map waits for a wrong answer (UX review round 1: the question three times).
     expect(line()).toBe('');
     const choices = screen.getByRole('group', { name: 'About how far?' });
     expect(choices).toHaveTextContent('12,000 km15,000 km18,000 km');
     fireEvent.click(screen.getByRole('button', { name: '15,000 km' }));
-    expect(pidge()).toContain('Not quite: it’s 4 squares, and each counts as about 3,000 km — so 4 × 3,000.');
-    expect(line()).toBe('Not quite: it’s 4 squares, and each counts as about 3,000 km — so 4 × 3,000.');
+    expect(pidge()).toContain('Not quite: it’s 4 squares in a straight line, and each counts as about 3,000 km — so 4 × 3,000.');
+    expect(line()).toBe('Not quite: it’s 4 squares in a straight line, and each counts as about 3,000 km — so 4 × 3,000.');
     fireEvent.click(screen.getByRole('button', { name: '12,000 km' }));
-    expect(screen.getByRole('heading', { name: 'Postcard delivered!' })).toHaveAccessibleDescription(/From Europe it’s four squares — about 12,000 km by the map’s scale\./);
+    expect(screen.getByRole('heading', { name: 'Postcard delivered!' })).toHaveAccessibleDescription(/From Europe it’s about four squares in a straight line — about 12,000 km by the map’s scale\./);
+  });
+
+  it('Tricky: round the back of the world by a tap, and the world’s top a word of its own (code review and UX review round 2)', () => {
+    setUp(9);
+    play('tricky');
+    const map = screen.getByRole('group', { name: 'The map of the world' });
+    const squares = map.firstElementChild as HTMLElement;
+    // The world: 12 × 6 squares of 20 px.
+    squares.getBoundingClientRect = () => ({ left: 0, top: 0, width: 240, height: 120, right: 240, bottom: 120, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    fly('W', 'W', 'W', 'W', 'W', 'W');
+    expect(map).toHaveAccessibleDescription(/Ember is over the Pacific Ocean\./);
+    fireEvent.pointerDown(squares, { clientX: 11 * 20 + 10, clientY: 30, button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(squares, { clientX: 11 * 20 + 10, clientY: 30, button: 0, pointerType: 'touch' });
+    expect(pidge()).toContain('West! Round the back of the world! Ember’s over the Pacific Ocean.');
+    fly('N', 'N');
+    expect(pidge()).toContain('That’s the top of the world — Ember can’t fly any further north!');
   });
 
   it('the album: a stamp read out by Pidge and under the album; stamps not in it come first', () => {
@@ -254,7 +284,7 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     play('gentle', 0, false);
     fly(...GENTLE_ROUTES[0]);
     deliver();
-    expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toHaveAccessibleDescription(learnedLine(jobFor('gentle', 0, 0), GENTLE_ROUTES[0], { x: 4, y: 1 }));
+    expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toHaveAccessibleDescription(learnedLine(jobFor('gentle', 0, 0), GENTLE_ROUTES[0]));
     // Not new: not marked so.
     expect(screen.queryByText('New!')).not.toBeInTheDocument();
   });

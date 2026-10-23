@@ -17,6 +17,7 @@ import {
   delivered,
   destWords,
   farChoices,
+  farSeed,
   gridRef,
   howToFind,
   jobFor,
@@ -31,6 +32,7 @@ import {
   roundQueue,
   routeWords,
   STEP,
+  rulerTo,
   squaresAway,
   targetWords,
   targets,
@@ -233,7 +235,9 @@ describe('the words', () => {
     // Medium's compass has the diagonals (code review round 1: the pond's "north-east" was "north and east").
     expect(relWords({ x: 1, y: 2 }, { x: 2, y: 1 }, false, true)).toBe('1 square north-east');
     expect(relWords({ x: 0, y: 0 }, { x: 2, y: 2 }, false, true)).toBe('2 squares south-east');
-    expect(relWords({ x: 0, y: 0 }, { x: 1, y: 2 }, false, true)).toBe('2 squares south and 1 east');
+    // Off the exact diagonal, the diagonal first (UX review round 2: Medium's hints never used one).
+    expect(relWords({ x: 0, y: 0 }, { x: 1, y: 2 }, false, true)).toBe('1 square south-east, then 1 south');
+    expect(relWords({ x: 3, y: 3 }, { x: 0, y: 2 }, false, true)).toBe('1 square north-west, then 2 west');
   });
 
   it('the clue, the ticket, where Ember is', () => {
@@ -259,7 +263,9 @@ describe('the words', () => {
     expect(missWords(lighthouse, { x: 1, y: 1 }, 1)).toBe('Nobody’s waiting here. The lighthouse is 3 squares east.');
     // The first miss reads the map (UX review round 1: the way at once, and the map was never read).
     expect(missWords(c5, { x: 3, y: 3 }, 1)).toBe('That’s D3. C5 is C along the bottom, then 5 up the side.');
-    expect(missWords(c5, { x: 3, y: 3 }, 2)).toBe('That’s D3. The house is 2 squares north and 1 west.');
+    expect(missWords(c5, { x: 3, y: 3 }, 2)).toBe('That’s D3. The house is 1 square north-west, then 1 north.');
+    // Not flown yet: said (UX review round 2: it read as the line already by the map).
+    expect(missWords(c5, { x: 3, y: 3 }, 1, false)).toBe('That’s D3. Ember hasn’t flown yet! C5 is C along the bottom, then 5 up the side.');
     expect(missWords(pondHouse, { x: 1, y: 1 }, 1)).toBe('That’s B5. Find the duck pond first, then look north-east of it.');
     expect(missWords(pondHouse, { x: 1, y: 1 }, 2)).toBe('That’s B5. The house is 1 square east.');
     expect(missWords(pondHouse, { x: 1, y: 2 }, 2)).toBe('That’s B4. The house is 1 square north-east.');
@@ -275,11 +281,13 @@ describe('the words', () => {
     expect(targetWords(lighthouse, { x: 4, y: 1 })).toBe('The lighthouse is here.');
     expect(targetWords(pondHouse, { x: 3, y: 3 })).toBe('The duck pond is at B4.');
     expect(targetWords(c5, { x: 3, y: 3 })).toBe('');
-    expect(targetWords(ice, WORLD_START)).toBe('Antarctica is the icy one, all along the bottom.');
+    // The world's place isn't named till a wrong delivery has (UX review round 2: which place fits the clue is the work).
+    expect(targetWords(ice, WORLD_START)).toBe('');
+    expect(targetWords(ice, WORLD_START, 1)).toBe('Antarctica is the icy one, all along the bottom.');
     expect(howToFind(lighthouse)).toBe('Find the lighthouse’s picture on the map, then steer Ember there.');
     expect(howToFind(c5)).toBe('C5 is C along the bottom, then 5 up the side.');
     expect(howToFind(pondHouse)).toBe('Find the duck pond first, then look north-east of it.');
-    expect(howToFind(ice)).toBe('Find Antarctica on the map: north is up, the equator across the middle.');
+    expect(howToFind(ice)).toBe('Which place fits the clue? Read the names on the map.');
   });
 
   it('the route said in runs, or past three, how many squares; what a delivery teaches', () => {
@@ -287,29 +295,46 @@ describe('the words', () => {
     expect(routeWords(['NE'] as Dir[])).toBe('1 square north-east');
     // A wandering route (code review round 1: every run, too long for a phone's card).
     expect(routeWords(['N', 'S', 'N', 'S', 'E', 'E', 'N'] as Dir[])).toBe('7 squares');
-    expect(learnedLine(lighthouse, ['E', 'E', 'N'], { x: 4, y: 1 })).toBe(`Ember flew 2 squares east, then 1 north. ${STAMPS[0].note}`);
-    expect(learnedLine(c5, ['N', 'NW'], { x: 2, y: 1 })).toBe(`The house was at C5: C along, 5 up. Ember flew 1 square north, then 1 north-west. ${STAMPS.find((s) => s.id === 'seeds')!.note}`);
-    // The world's: how far from Europe, the shortest way — however Ember flew (UX review round 1).
-    expect(learnedLine(ice, ['E', 'S', 'S', 'S', 'S', 'W'], { x: 6, y: 5 })).toBe(`${REGION_BY_ID.antarctica.fact} From Europe it’s four squares — about 12,000 km by the map’s scale.`);
-    expect(squaresAway(ice, { x: 6, y: 5 })).toBe(4);
-    expect(squaresAway(ice, { x: 0, y: 5 })).toBe(10);
+    expect(learnedLine(lighthouse, ['E', 'E', 'N'])).toBe(`Ember flew 2 squares east, then 1 north. ${STAMPS[0].note}`);
+    expect(learnedLine(c5, ['N', 'NW'])).toBe(`The house was at C5: C along, 5 up. Ember flew 1 square north, then 1 north-west. ${STAMPS.find((s) => s.id === 'seeds')!.note}`);
+    // The map stamp's note says what "C along, 5 up" has (UX review round 2: seven lines on a phone).
+    expect(learnedLine({ ...c5, stamp: 'map' }, ['N', 'NW'])).toBe('The house was at C5: C along, 5 up. Ember flew 1 square north, then 1 north-west.');
+    // The world's: how far from Europe in a straight line — however Ember flew (UX review round 1).
+    expect(learnedLine(ice, ['E', 'S', 'S', 'S', 'S', 'W'])).toBe(`${REGION_BY_ID.antarctica.fact} From Europe it’s about four squares in a straight line — about 12,000 km by the map’s scale.`);
   });
 
-  it('how far: three choices, the right one first, in the middle or last by the parcel (code review and UX review round 1: always the middle)', () => {
+  it('how far: from Europe to the place’s nearest square, in a straight line — wherever Ember delivered (code and UX review round 2)', () => {
+    const to = (id: (typeof REGIONS)[number]['id']): Job => ({ band: 'tricky', stamp: 'globe', map: 'world', to: id });
+    const away = Object.fromEntries(REGIONS.filter((r) => r.id !== 'europe').map((r) => [r.id, squaresAway(to(r.id))]));
+    // A ruler's straight line, not across and down: the Arctic 1, not 2; North America 2, not 3; the Pacific 4, not 5.
+    expect(away).toEqual({ arctic: 1, atlantic: 1, africa: 1, asia: 1, 'north-america': 2, 'south-america': 3, indian: 3, pacific: 4, australia: 4, antarctica: 4 });
+    // Its ruler to the nearest square: the Pacific's round the back of the world, east of Asia.
+    expect(rulerTo(to('antarctica'))).toEqual({ x: 6, y: 5 });
+    expect(rulerTo(to('pacific'))).toEqual({ x: 10, y: 2 });
+  });
+
+  it('how far: three choices, the right one first, in the middle or last — not by the parcel’s number (code and UX review rounds 1 and 2)', () => {
     expect(farChoices(4, 0)).toEqual([12000, 15000, 18000]);
     expect(farChoices(4, 1)).toEqual([9000, 12000, 15000]);
     expect(farChoices(4, 2)).toEqual([6000, 9000, 12000]);
-    for (let n = 3; n <= 10; n++) for (const slot of [0, 1, 2]) expect(farChoices(n, slot).indexOf(n * 3000), `${n} ${slot}`).toBe(slot);
-    // Never none or fewer: one square, the right one first.
-    for (const slot of [0, 1, 2]) {
-      expect(farChoices(1, slot)).toEqual([3000, 6000, 9000]);
-      expect(Math.min(...farChoices(2, slot))).toBeGreaterThan(0);
+    // Under one square, a half and a place-value slip, so even one square's answer moves (UX review round 2).
+    expect(farChoices(1, 1)).toEqual([1500, 3000, 6000]);
+    expect(farChoices(1, 2)).toEqual([300, 1500, 3000]);
+    expect(farChoices(2, 2)).toEqual([600, 3000, 6000]);
+    for (let n = 1; n <= 10; n++)
+      for (const seed of [0, 1, 2]) {
+        const c = farChoices(n, seed);
+        expect(c.indexOf(n * 3000), `${n} ${seed}`).toBe(seed);
+        expect(new Set(c).size).toBe(3);
+        expect(Math.min(...c)).toBeGreaterThan(0);
+      }
+    // Over the rounds, each parcel's answer comes up in every place (code review round 2: parcel 1's was always first).
+    for (const i of [0, 1, 2]) {
+      const at = Array.from({ length: 40 }, (_, round) => {
+        const j = jobFor('tricky', round, i);
+        return farChoices(squaresAway(j), farSeed(j, round)).indexOf(squaresAway(j) * 3000);
+      });
+      expect(new Set(at), `parcel ${i + 1}`).toEqual(new Set([0, 1, 2]));
     }
-    // Over the rounds' parcels, each place comes up.
-    const at = jobs('tricky', 8).map((j, k) => {
-      const n = Math.min(...targets(j).map((c) => squaresAway(j, c)));
-      return farChoices(n, k).indexOf(n * 3000);
-    });
-    expect(new Set(at)).toEqual(new Set([0, 1, 2]));
   });
 });

@@ -22,6 +22,8 @@ import { GAME_SCREENS } from './games';
 import { EmberSprite, HostBubble, Stars } from './parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
 import type { RoundOutcome } from './types';
+// Listening for the last input from the stage's load, so a key on the title card counts (`lastInputWasKey`).
+import './lastInput';
 
 /** How long the round window takes to grow from the counter to the whole screen (§2.1). */
 export const ZOOM_MS = 600;

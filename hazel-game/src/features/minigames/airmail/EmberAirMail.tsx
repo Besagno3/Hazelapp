@@ -13,11 +13,13 @@ import {
   STAMP_BY_ID,
   TOWN,
   WORLD_START,
+  WORLD_W,
   capitalise,
   clueWords,
   delivered,
   destWords,
   farChoices,
+  farSeed,
   gridRef,
   howToFind,
   jobFor,
@@ -32,6 +34,7 @@ import {
   placeAt,
   regionAt,
   roundQueue,
+  rulerTo,
   squaresAway,
   targetWords,
   whereWords,
@@ -52,9 +55,11 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { lastInputWasKey } from '../lastInput';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
 import { StampCard } from './art';
+import { GUTTER, SCALE_LINE, fitMap, type Fit } from './layout';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
@@ -62,59 +67,31 @@ const EMPTY_FLAGS: Record<string, boolean> = {};
 type Step = 'fly' | 'far' | 'done';
 
 /** Pidge once a parcel's delivered, in turn. */
-const RIGHT_LINES = ['Coo! Right on target!', 'Delivered — and not a feather out of place!', 'The fastest post in Port Lantern!'];
+// Praise for care, not speed: there's no timer (UX review round 2: "the fastest post").
+const RIGHT_LINES = ['Coo! Right on target!', 'Delivered — and not a feather out of place!', 'The finest post-dragon in Port Lantern!'];
 
 /**
- * A split screen (the board beside the side panel): from 768 px wide (`md`) —
- * not, as the stage's `split`, a phone held sideways from 640: there the side
- * panel left the world's map 176 × 88 px (UX review round 1); the board takes
+ * A split screen (the board beside the side panel), as the `wide` screen: from
+ * 768 px wide and over 500 px high, or from 1000 px wide — not, as the stage's
+ * `split`, a phone held sideways from 640: there the side panel left the
+ * world's map 176 × 88 px (UX review round 1), and at 844 × 390, the way most
+ * phones are held for a game, 290 × 145 (UX review round 2); the board takes
  * the screen's width, the side panel under it, as at 568 × 320.
  */
-const SPLIT = '(min-width: 768px)';
-/** The compass's side (px): its buttons 52 px where the screen's over 600 px high, else 44 (UX review round 1: the smallest thing on screen). */
-const compassSide = (tall: boolean) => (tall ? 3 * 52 + 8 : 3 * 44 + 8);
-/** Deliver beside the compass, at least (px): its word fits (UX review round 1: at 640 × 360 it ran out of a 28 px button). */
-const DELIVER_MIN = 92;
-/** The step's card's padding and frame (px). */
-const CARD_CHROME = 30;
-/**
- * The step's card beside the map: at least the compass and Deliver side by
- * side — the same for a stamp's card, so the map doesn't shrink as a parcel's
- * delivered (UX review round 1: at 1366 × 650, 60 px).
- */
-const cardMin = (width: number, compass: number) => Math.min(300, Math.max(compass + 8 + DELIVER_MIN + CARD_CHROME, width * 0.4));
-/**
- * Under the map, the card's height: on a split screen under 500 px high only
- * Deliver and the compass, the clue beside them (what Pidge says is in her
- * bubble beside the board) — a stamp's card, its fact (bench: at 640 × 400 its
- * first line was clipped); else its parts: the parcel's count over 700 px
- * high, the clue (`clue`, measured), and the compass, Deliver and what Pidge
- * said beside it — a miss on a narrow phone is four lines (UX review round 1: a
- * constant cut the compass's last row off on a tablet held upright).
- */
-const cardUnder = (compass: number, tallScreen: boolean, clue: number) => (tallScreen ? 28 : 0) + clue + 10 + Math.max(compass, 48 + 8 + 96) + CARD_CHROME + 2;
-const CARD_UNDER_SHORT = { fly: 140 + CARD_CHROME + 2, done: 220 } as const;
-/** On a short phone held sideways, the room what Pidge said needs under the map (px). */
-const SAID_UNDER = 64;
-/** The town's labels: its letters under the map, its numbers beside it (px); the world's scale under it. */
-const GUTTER = 18;
-const SCALE_LINE = 20;
-const MIN_MAP = 150;
+const SPLIT = '(min-width: 768px) and (min-height: 501px), (min-width: 1000px)';
 
 /**
- * Where the step's card goes and how big the map is (px, its squares' width):
- * beside the map or under it, whichever lets the map be bigger — on a split
- * screen in the board's room, on a phone in the screen's height under the
- * header. And on a short phone held sideways, whether what Pidge said goes
- * under the map (the world's wide, so there's room; beside the compass it's a
- * narrow column — bench: at 568 × 320 a miss ran off the screen). Null where
- * it can't be measured (tests): the map takes the width.
+ * Where the step's card goes and how big the map is (`fitMap`), measured:
+ * on a split screen in the board's room, on a phone in the screen's height
+ * under the header. Null where it can't be measured (tests): the map takes the
+ * width.
  */
 function useMapLayout(page: RefObject<HTMLDivElement | null>, board: RefObject<HTMLElement | null>, ratio: number, gutter: number, under: number, done: boolean, parcel: number) {
-  const [layout, setLayout] = useState<{ beside: boolean; size: number; saidUnder: boolean; stack: boolean } | null>(null);
-  // The clue's height, as last measured: a stamp's card has none, and the map mustn't change size as it comes (bench: Next
-  // went under the fold on a phone).
+  const [layout, setLayout] = useState<Fit | null>(null);
+  // The clue's height as last measured under the map — a stamp's card has none, and the map mustn't change size as it comes
+  // (bench: Next went under the fold on a phone); beside it, it's narrower and taller (UX review round 2: 26 px too much).
   const clueH = useRef(50);
+  const beside = useRef(false);
   useLayoutEffect(() => {
     const p = page.current;
     const b = board.current;
@@ -122,29 +99,23 @@ function useMapLayout(page: RefObject<HTMLDivElement | null>, board: RefObject<H
     const fit = () => {
       const cs = getComputedStyle(b);
       const px = (v: string) => parseFloat(v) || 0;
-      const w = b.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
       const split = window.matchMedia(SPLIT).matches;
-      const h = (split ? b.clientHeight : window.innerHeight - p.getBoundingClientRect().top) - px(cs.paddingTop) - px(cs.paddingBottom);
-      const gap = 8;
-      const short = window.innerHeight <= 500;
-      const compass = compassSide(window.innerHeight > 600);
       const measured = b.querySelector('[data-clue]')?.getBoundingClientRect().height;
-      if (measured) clueH.current = measured;
-      const clue = clueH.current;
-      const card = split && short ? (done ? CARD_UNDER_SHORT.done : CARD_UNDER_SHORT.fly) : cardUnder(compass, window.innerHeight > 700, clue);
-      const side = Math.floor(Math.max(MIN_MAP, Math.min((h - under) * ratio, w - cardMin(w, compass) - gap - gutter)));
-      const below = Math.min(w - gutter, (h - card - gap - under) * ratio, ratio === 1 ? 440 : Infinity);
-      setLayout(
-        side > below
-          ? {
-              beside: true,
-              size: side,
-              saidUnder: !split && short && h - under - side / ratio - gap >= SAID_UNDER,
-              // Deliver under the compass if it'd be squeezed beside it.
-              stack: w - side - gap - gutter < compass + 8 + DELIVER_MIN + CARD_CHROME,
-            }
-          : { beside: false, size: Math.floor(Math.max(MIN_MAP, below)), saidUnder: false, stack: false },
-      );
+      if (measured && !beside.current) clueH.current = measured;
+      const next = fitMap({
+        w: b.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight),
+        h: (split ? b.clientHeight : window.innerHeight - p.getBoundingClientRect().top) - px(cs.paddingTop) - px(cs.paddingBottom),
+        split,
+        screenH: window.innerHeight,
+        clue: clueH.current,
+        ratio,
+        gutter,
+        under,
+        done,
+      });
+      beside.current = next.beside;
+      // The same fit again changes nothing (code review round 2: each new object re-rendered the game).
+      setLayout((was) => (was && (Object.keys(next) as (keyof Fit)[]).every((k) => was[k] === next[k]) ? was : next));
     };
     const ro = new ResizeObserver(fit);
     ro.observe(b);
@@ -194,8 +165,9 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   const [rights, setRights] = useState(0);
   const [read, setRead] = useState<StampId | null>(null);
   const known = (id: StampId) => !!flags[pageFlag(def.id, id)];
-  // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
-  const settled = useSettled(`${step}:${done}`);
+  // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger —
+  // and after a wrong delivery (code review round 2: a double tap on Deliver skipped the "how to find it" hint).
+  const settled = useSettled(`${step}:${done}:${misses}`);
   const at = path[path.length - 1];
   function say(words: string | null) {
     setSaid(words);
@@ -208,21 +180,27 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
     setRead(null);
     const to = move(job, at, dir);
     if (!to) {
-      sfx('wrong');
+      // A soft bump, not a "wrong" (UX review round 2: a buzz and a shake was the harshest thing in the game).
+      sfx('block');
       setBump((n) => n + 1);
-      say('Ember can’t fly off the edge of the map — try another way.');
+      if (job.map === 'world') say(`That’s the ${dir === 'N' ? 'top' : 'bottom'} of the world — Ember can’t fly any further ${DIR_WORDS[dir]}!`);
+      else say('Ember can’t fly off the edge of the map — try another way.');
       return;
     }
     sfx('select');
     setPath((p) => [...p, to]);
     setRoute((r) => [...r, dir]);
     const wrapped = job.map === 'world' && Math.abs(to.x - at.x) > 1 ? ' Round the back of the world!' : '';
-    say(`${capitalise(DIR_WORDS[dir])}!${wrapped} Ember’s ${whereWords(job, to)}.`);
+    // On Gentle, there: what to do now (UX review round 2: no nudge — the youngest's lesson is the way, not finding Deliver).
+    const there = job.map === 'bay' && delivered(job, to) ? ' Now tap Deliver!' : '';
+    say(`${capitalise(DIR_WORDS[dir])}!${wrapped} Ember’s ${whereWords(job, to)}.${there}`);
   }
 
   /** A square on the map tapped: next to Ember (a way the compass has), she flies there; else, how to fly her (UX review round 1: a tap did nothing). */
   function tapSquare(c: Cell) {
     if (step !== 'fly' || !settled()) return;
+    // Her words over a stamp being read (code review round 2: the stamp's note kept the bubble).
+    setRead(null);
     if (c.x === at.x && c.y === at.y) {
       say('That’s Ember! Tap the compass arrows to fly her.');
       return;
@@ -232,6 +210,9 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
       return to !== null && to.x === c.x && to.y === c.y;
     });
     if (d) fly(d);
+    // A corner on a four-way compass is next to her too (UX and code review round 2: it was told to tap one next to her).
+    else if (dirs.length === 4 && Math.abs(c.y - at.y) === 1 && (Math.abs(c.x - at.x) === 1 || (job.map === 'world' && Math.abs(c.x - at.x) === map.w - 1)))
+      say('No corners on this compass — north, east, south or west, one square at a time.');
     else say(`Ember flies one square at a time — tap a square next to her, or the compass: ${dirs.map((k) => DIR_WORDS[k]).join(', ')}.`);
   }
 
@@ -240,7 +221,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
     setRead(null);
     if (!delivered(job, at)) {
       sfx('wrong');
-      say(missWords(job, at, misses + 1));
+      say(missWords(job, at, misses + 1, route.length > 0));
       setMisses((m) => m + 1);
       return;
     }
@@ -259,10 +240,10 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   function far(km: number) {
     if (step !== 'far' || !settled()) return;
     setRead(null);
-    const n = squaresAway(job, at);
+    const n = squaresAway(job);
     if (km !== n * KM_PER_SQUARE) {
       sfx('wrong');
-      say(`Not quite: it’s ${n} ${n === 1 ? 'square' : 'squares'}, and each counts as about ${kmWords(KM_PER_SQUARE)} — so ${n} × ${KM_PER_SQUARE.toLocaleString('en-GB')}.`);
+      say(`Not quite: it’s ${n} ${n === 1 ? 'square' : 'squares'} in a straight line, and each counts as about ${kmWords(KM_PER_SQUARE)} — so ${n} × ${KM_PER_SQUARE.toLocaleString('en-GB')}.`);
       return;
     }
     sfx('chest');
@@ -271,7 +252,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
 
   function finish() {
     setNewPage(onPage(job.stamp, stamp.name));
-    setLessons((l) => [...l, learnedLine(job, route, at)]);
+    setLessons((l) => [...l, learnedLine(job, route)]);
     setRights((n) => n + 1);
     setSaid(null);
     setStep('done');
@@ -306,7 +287,9 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   }, [step, done]);
 
   // As each step starts, on a phone the page scrolls back to the board's top, as far as the card's last line allows (a
-  // parcel delivered: at least to its Next); on a split screen the side panel's back at its top (Pidge), the card at its.
+  // parcel delivered: at least to its Next); on a split screen the side panel's back at its top (Pidge), the card at its —
+  // but a stamp just stuck in brought into its sight (the album's own scroll was undone by this one: code and UX review
+  // round 2).
   const page = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
@@ -317,7 +300,9 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   };
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
-    side.current?.scrollTo?.({ top: 0, behavior });
+    const fresh = step === 'done' && newPage ? side.current?.querySelector(`[data-stamp="${job.stamp}"]`) : null;
+    if (fresh) fresh.scrollIntoView?.({ block: 'nearest', behavior });
+    else side.current?.scrollTo?.({ top: 0, behavior });
     const s = page.current;
     const b = board.current;
     const go = goRef.current;
@@ -340,9 +325,10 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   const saidUnder = layout?.saidUnder ?? false;
   const stack = layout?.stack ?? false;
 
-  // A wrong delivery: what Pidge said brought into sight, if it's under the fold (bench: at 320 × 568, its last lines were).
+  // A wrong delivery: what Pidge said brought into sight, if it's under the fold (bench: at 320 × 568, its last lines were) —
+  // with Deliver over it (the bench: at 740 × 360, the line alone scrolled Deliver off the top).
   useEffect(() => {
-    if (misses) goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    if (misses) goRef.current?.parentElement?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
   }, [misses]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // On a split screen, a stamp's card taller than its room scrolls within: from its top, as far as Next needs (bench: at
@@ -357,9 +343,11 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   }, [step, done, layout]);
 
   const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next parcel?' : 'The sack’s empty!'}`;
-  // Tricky's question: how far from where the post set off — the straight way, whichever way Ember flew (UX review round 1).
-  const away = job.map === 'world' ? squaresAway(job, at) : 0;
-  const farAsk = `Delivered! On this map each square counts as about ${kmWords(KM_PER_SQUARE)}. From Europe to ${destWords(job)} is ${away} ${away === 1 ? 'square' : 'squares'} the shortest way${route.length > away ? ` (Ember flew ${route.length})` : ''}: about how far is that?`;
+  // Tricky's question: how far the place is from where the post set off, in a straight line — its ruler drawn on the map —
+  // whichever way Ember flew (UX review rounds 1 and 2). Pidge just asks: the card has it all, and the heading's described
+  // by it (UX review round 2: a reader heard it twice).
+  const away = job.map === 'world' ? squaresAway(job) : 0;
+  const farAsk = 'Delivered! Now, by the map’s scale: about how far is it?';
   let line: string;
   if (read) line = `${STAMP_BY_ID[read].name}: ${STAMP_BY_ID[read].note}`;
   else if (step === 'done') line = cheerLine;
@@ -370,20 +358,33 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   if (beat % 2) line += '\u200b';
 
   const chips = job.map === 'world' ? ['Steer Ember', 'Deliver', 'How far?'] : ['Read the parcel', 'Steer Ember', 'Deliver'];
-  const chipAt = step === 'done' ? 3 : step === 'far' ? 2 : job.map === 'world' ? (route.length ? 1 : 0) : route.length ? 2 : 1;
+  // Steering till it's delivered (UX review round 2: a square flown ticked "Steer Ember" done).
+  const chipAt = step === 'done' ? 3 : step === 'far' ? 2 : job.map === 'world' ? 0 : 1;
   const where = `Ember is ${whereWords(job, at)}.`;
   // For a reader (the map's squares are pictures): where the place is, as a kid sees it (code review round 1: only a wrong
-  // delivery said it).
-  const target = targetWords(job, at);
+  // delivery said it) — the world's only once a wrong delivery's named it (UX review round 2).
+  const target = targetWords(job, at, misses);
   // By the map till the first move: how to find the place (UX review round 1: on a phone, it was below the fold).
   const fallback = route.length || misses ? where : howToFind(job);
 
+  // The post office scene over the board — not for the world's map, wide and short, nor on a tablet held upright (UX review
+  // round 2: at 1024 × 768 it left the world 310 px wide; as Index's Timeline leaves it out there).
+  const scene = job.map !== 'world';
   return (
-    <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
-      <div className="grid flex-none grid-cols-1 md:min-h-0 md:flex-1 md:grid-cols-[minmax(0,1fr)_300px] md:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] md:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)] md:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]">
-        <div aria-hidden="true" className="relative hidden overflow-hidden md:col-start-1 md:row-start-1 md:block [@media(max-height:700px)]:hidden">
-          <PostOffice cheer={step === 'done'} />
-        </div>
+    <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto wide:overflow-hidden">
+      <div
+        className={cn(
+          'grid flex-none grid-cols-1 wide:min-h-0 wide:flex-1 wide:grid-cols-[minmax(0,1fr)_300px] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] wide:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]',
+          scene
+            ? 'wide:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] wide:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)] wide:[@media(orientation:portrait)]:grid-rows-[minmax(0,1fr)]'
+            : 'wide:grid-rows-[minmax(0,1fr)]',
+        )}
+      >
+        {scene && (
+          <div aria-hidden="true" className="relative hidden overflow-hidden wide:col-start-1 wide:row-start-1 wide:block [@media(max-height:700px)]:hidden wide:[@media(orientation:portrait)]:hidden">
+            <PostOffice cheer={step === 'done'} />
+          </div>
+        )}
 
         {/* The map, and the step's card beside it or under it — whichever lets the map be bigger: the clue, the compass and
             Deliver always by the map. */}
@@ -391,11 +392,14 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
           ref={board}
           aria-labelledby="am-step"
           className={cn(
-            'flex gap-2 bg-[#14324a] p-2 md:col-start-1 md:row-start-2 md:min-h-0 md:border-t-4 md:border-[#1b0f22] md:p-4 md:[@media(max-height:700px)]:row-start-1 md:[@media(max-height:700px)]:border-t-0 md:[@media(max-height:500px)]:p-2',
+            'flex gap-2 bg-[#14324a] p-2 wide:col-start-1 wide:min-h-0 wide:border-[#1b0f22] wide:p-4 wide:[@media(max-height:500px)]:p-2',
+            scene
+              ? 'wide:row-start-2 wide:border-t-4 wide:[@media(max-height:700px)]:row-start-1 wide:[@media(max-height:700px)]:border-t-0 wide:[@media(orientation:portrait)]:row-start-1 wide:[@media(orientation:portrait)]:border-t-0'
+              : 'wide:row-start-1',
             beside ? 'flex-row' : 'flex-col',
           )}
         >
-          <div className={cn('flex flex-none flex-col items-center', beside ? 'md:justify-center' : '')}>
+          <div className={cn('flex flex-none flex-col items-center', beside ? 'wide:justify-center' : '')}>
             <MapView
               ref={mapRef}
               job={job}
@@ -404,11 +408,13 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
               bump={bump}
               still={still}
               done={step !== 'fly'}
+              ruler={step !== 'fly' && job.map === 'world'}
               where={where}
               target={target}
+              first={done === 0}
               onTap={tapSquare}
               onKey={(e) => {
-                const key: Record<string, Dir> = { ArrowUp: 'N', ArrowRight: 'E', ArrowDown: 'S', ArrowLeft: 'W' };
+                const key: Partial<Record<string, Dir>> = { ArrowUp: 'N', ArrowRight: 'E', ArrowDown: 'S', ArrowLeft: 'W' };
                 const d = key[e.key];
                 if (!d) return;
                 e.preventDefault();
@@ -423,8 +429,8 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
             ref={card}
             className={cn(
               windowClass,
-              'flex min-w-0 flex-col gap-2.5 p-3 [&>*]:flex-none md:min-h-0 md:overflow-y-auto [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
-              beside ? 'flex-1' : 'md:flex-1',
+              'flex min-w-0 flex-col gap-2.5 p-3 [&>*]:flex-none wide:min-h-0 wide:overflow-y-auto [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
+              beside ? 'flex-1' : 'wide:flex-1',
             )}
           >
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:700px)]:hidden">
@@ -437,12 +443,14 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                   {stamp.name} delivered!
                 </h2>
                 {/* Pidge's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
-                <p className="text-[15px] font-bold leading-snug text-amber-200 md:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
-                <p id="am-fact" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
+                <p className="text-[15px] font-bold leading-snug text-amber-200 wide:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
+                {/* 14 px at least, 13 on the shortest screens (UX review round 2: 13 px for a 6-year-old with room to spare). */}
+                <p id="am-fact" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1 [@media(min-height:341px)_and_(max-height:500px)]:text-[14px] [@media(max-height:340px)]:text-[13px]">
                   {lessons[lessons.length - 1]}
-                  {/* Said to a reader only on a split screen: the album's in sight beside the board (bench: at 640 × 360 the card's heading went out of view). */}
+                  {/* Said to a reader only on a split screen over 500 px high: the album's in sight beside the board (bench: at
+                      640 × 360 the card's heading went out of view; UX review round 2: at 1100 × 480 the album wasn't). */}
                   {newPage && ' '}
-                  {newPage && <span className="md:sr-only">The {stamp.name.toLowerCase()} stamp is in the album!</span>}
+                  {newPage && <span className="wide:[@media(min-height:501px)]:sr-only">The {stamp.name.toLowerCase()} stamp is in the album!</span>}
                 </p>
                 <button ref={setGo} type="button" onClick={next} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base')}>
                   {done + 1 < JOBS_PER_ROUND ? 'Next parcel' : 'All delivered!'}
@@ -454,12 +462,12 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                   How far?
                 </h2>
                 <p id="am-far" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
-                  On this map each square counts as about <b>{kmWords(KM_PER_SQUARE)}</b>. From Europe to {destWords(job)} is <b>{away}</b> {away === 1 ? 'square' : 'squares'} the shortest way
-                  {route.length > away ? ` (Ember flew ${route.length})` : ''}.
+                  On this map each square counts as about <b>{kmWords(KM_PER_SQUARE)}</b>. From Europe to {destWords(job)} is about <b>{away}</b> {away === 1 ? 'square' : 'squares'} in a straight line (the
+                  ruler on the map){route.length > away ? `; Ember flew ${route.length}` : ''}.
                 </p>
                 <div ref={setGo} role="group" aria-label="About how far?" className="grid grid-cols-3 gap-2">
-                  {farChoices(away, round * JOBS_PER_ROUND + done).map((km) => (
-                    <button key={km} type="button" onClick={() => far(km)} className={cn(outlineClass, 'min-h-12 border-2 px-1 text-[15px] leading-tight')}>
+                  {farChoices(away, farSeed(job, round)).map((km) => (
+                    <button key={km} type="button" onClick={() => far(km)} onKeyDown={noRepeat} className={cn(outlineClass, 'min-h-12 whitespace-nowrap border-2 px-1 text-[15px] leading-tight')}>
                       {kmWords(km)}
                     </button>
                   ))}
@@ -474,7 +482,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                   Fly the post
                 </h2>
                 {/* The clue on top — but under the map on a short split screen, where it sits by Deliver (the card's compact). */}
-                <ClueTag job={job} parcel={done} className={beside ? undefined : 'md:[@media(max-height:500px)]:hidden'} />
+                <ClueTag job={job} parcel={done} className={beside ? undefined : 'wide:[@media(max-height:500px)]:hidden'} />
                 {beside ? (
                   // Beside the map: the compass with Deliver by it — under it where the card's narrow (UX review round 1: at
                   // 640 × 360 its word ran out of a 28 px button) — and what Pidge said under them: on a short screen
@@ -485,7 +493,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                       <Compass dirs={dirs} at={at} job={job} onFly={fly} />
                       <div className={cn('flex min-w-0 flex-col gap-2', stack ? 'w-full' : 'flex-1 [@media(max-height:500px)]:self-stretch')}>
                         <DeliverButton onDeliver={deliver} column={!stack} />
-                        {!saidUnder && <SaidLine said={said} goRef={setGo} fallback={fallback} className="hidden [@media(max-height:500px)]:block md:[@media(max-height:500px)]:hidden" />}
+                        {!saidUnder && <SaidLine said={said} goRef={setGo} fallback={fallback} className="hidden [@media(max-height:500px)]:block wide:[@media(max-height:500px)]:hidden" />}
                       </div>
                     </div>
                     <SaidLine said={said} goRef={setGo} fallback={fallback} className="[@media(max-height:500px)]:hidden" />
@@ -493,15 +501,20 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                 ) : (
                   // Under it: the clue, Deliver and what Pidge said, the compass beside them (thumb's side) — Deliver first, so
                   // a long line can't push it under the fold (UX review round 1: after a miss, at 320 × 568) — on a short
-                  // split screen without what she said (it's in her bubble), so the map has the room.
-                  <div className="flex items-start gap-3">
-                    <div className="flex min-w-0 flex-1 flex-col gap-2">
-                      <ClueTag job={job} parcel={done} className="hidden md:[@media(max-height:500px)]:flex" copy />
-                      <DeliverButton onDeliver={deliver} />
-                      <SaidLine said={said} goRef={setGo} fallback={fallback} className="md:[@media(max-height:500px)]:hidden" />
+                  // split screen without what she said (it's in her bubble), so the map has the room. The compass first for
+                  // the keyboard, as beside the map (UX review round 2); Deliver over it where the column's too narrow for its
+                  // word (code review round 2: at 280 px wide it ran into the compass).
+                  <>
+                    {layout?.narrow && <DeliverButton onDeliver={deliver} />}
+                    <div className="flex flex-row-reverse items-start gap-3">
+                      <Compass dirs={dirs} at={at} job={job} onFly={fly} />
+                      <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <ClueTag job={job} parcel={done} className="hidden wide:[@media(max-height:500px)]:flex" copy />
+                        {!layout?.narrow && <DeliverButton onDeliver={deliver} />}
+                        <SaidLine said={said} goRef={setGo} fallback={fallback} className="wide:[@media(max-height:500px)]:hidden" />
+                      </div>
                     </div>
-                    <Compass dirs={dirs} at={at} job={job} onFly={fly} />
-                  </div>
+                  </>
                 )}
               </>
             )}
@@ -511,7 +524,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
         <aside
           ref={side}
           aria-label={`The job and the ${def.collection}`}
-          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] md:col-start-2 md:row-span-2 md:row-start-1 md:overflow-y-auto md:border-l-4 md:p-4"
+          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:overflow-y-auto wide:border-l-4 wide:p-4"
         >
           <HostBubble npcId={def.host} line={line} phoneStrip />
           <div className="[@media(max-height:500px)]:hidden">
@@ -524,7 +537,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
         </aside>
       </div>
 
-      <footer className="hidden flex-none flex-wrap items-center gap-3 border-t-4 border-[#1b0f22] bg-[#1e1b4b] px-5 py-2 md:flex [@media(max-height:500px)]:hidden">
+      <footer className="hidden flex-none flex-wrap items-center gap-3 border-t-4 border-[#1b0f22] bg-[#1e1b4b] px-5 py-2 wide:flex [@media(max-height:500px)]:hidden">
         <StepChips steps={chips} current={chipAt} />
         <span className="ml-auto text-[15px] text-[#c9c5f2]">
           {BAND_LABEL[band]} · No timer. Take your time.
@@ -544,7 +557,8 @@ function SaidLine({ said, goRef, fallback, className, width }: { said: string | 
         if (el && el.offsetParent !== null) goRef(el);
       }}
       className={cn(
-        'min-h-[4.1rem] rounded-md bg-[#24215a] px-2.5 py-1.5 text-[15px] leading-snug [@media(max-height:500px)]:min-h-[3.4rem] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[12px] [@media(max-height:500px)]:leading-tight',
+        // 14 px at least, 13 on the shortest screens (UX review round 2: 12 px, with room to spare).
+        'min-h-[4.1rem] rounded-md bg-[#24215a] px-2.5 py-1.5 text-[15px] leading-snug [@media(max-height:500px)]:min-h-[3.4rem] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:leading-tight [@media(min-height:341px)_and_(max-height:500px)]:text-[14px] [@media(max-height:340px)]:text-[13px]',
         said ? 'font-bold text-white' : 'text-[#e4e1ff]',
         className,
       )}
@@ -700,7 +714,8 @@ const REGION_LABEL: Record<RegionId, [number, number]> = {
   pacific: [1, 2.4],
   atlantic: [4.9, 1.6],
   indian: [8.7, 4.2],
-  arctic: [5.5, 0.5],
+  // Its far-left square: by Europe, "Arctic" ran into "Europe" (UX review round 2).
+  arctic: [0.55, 0.5],
 };
 
 interface MapViewProps {
@@ -711,9 +726,13 @@ interface MapViewProps {
   bump: number;
   still: boolean;
   done: boolean;
+  /** "How far?" and after: the ruler from where the post set off to the place, straight (UX review round 2). */
+  ruler: boolean;
   where: string;
   /** For a reader: where the parcel's going. */
   target: string;
+  /** The round's first parcel: the map's described by the clue too (later, Pidge's opening's just said it: UX review round 2). */
+  first: boolean;
   onTap: (c: Cell) => void;
   onKey: (e: KeyboardEvent<HTMLDivElement>) => void;
 }
@@ -726,7 +745,7 @@ interface MapViewProps {
  * in the Tab order (code review round 1: once focus left it, they were lost);
  * a reader hears where she is and where the parcel's going.
  */
-const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job, path, size, bump, still, done, where, target, onTap, onKey }, ref) {
+const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job, path, size, bump, still, done, ruler, where, target, first, onTap, onKey }, ref) {
   const { w, h } = mapOf(job);
   const at = path[path.length - 1];
   const grid: GridMap | null = job.map === 'bay' ? BAY : job.map === 'town' ? TOWN : null;
@@ -734,9 +753,9 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
   const cell = size ? size / w : null;
   // Under 28 px a square, the world's names are short (they ran into each other) — but all there (UX review round 1).
   const small = cell !== null && cell < 28;
-  // Its frame from the keyboard only: a Tab in, or a key (UX review round 1: after "Let's fly!" pressed with a mouse, a
-  // dashed frame).
-  const [keys, setKeys] = useState(false);
+  // Its frame from the keyboard only: a Tab in, a key, or a key's press that started the round (UX review round 1: after
+  // "Let's fly!" pressed with a mouse, a dashed frame; code review round 2: pressed with Enter, none).
+  const [keys, setKeys] = useState(lastInputWasKey);
   const { handlers } = useLiftTap<Cell, HTMLDivElement>((e) => {
     const r = e.currentTarget.getBoundingClientRect();
     const x = Math.floor(((e.clientX - r.left) / r.width) * w);
@@ -768,7 +787,7 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
           ref={ref}
           role="group"
           aria-label={label}
-          aria-describedby="am-clue am-where"
+          aria-describedby={first ? 'am-clue am-where' : 'am-where'}
           tabIndex={0}
           onKeyDown={(e) => {
             setKeys(true);
@@ -779,9 +798,10 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
           className={cn('relative w-full touch-manipulation select-none overflow-hidden rounded-md border-4 border-[#1b0f22] outline-none', keys && 'focus:outline-dashed focus:outline-2 focus:outline-offset-2 focus:outline-white')}
           style={{ aspectRatio: `${w} / ${h}` }}
         >
-          {/* Shaken when Ember bumps the edge (keyed, so each bump shakes; the map itself keeps its focus). Its squares a grid:
-              placed by percentages, they left thin dark lines between them (UX review round 1). */}
-          <div key={bump} {...handlers} className={cn('absolute inset-0', bump > 0 && !still && 'cg-shake')}>
+          {/* Nudged when Ember bumps the edge, once and softly (keyed, so each bump does; the map itself keeps its focus — UX
+              review round 2: a shake read as "wrong!"). Its squares a grid: placed by percentages, they left thin dark lines
+              between them (UX review round 1). */}
+          <div key={bump} {...handlers} className={cn('absolute inset-0', bump > 0 && !still && 'am-nudge')}>
             <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)` }}>
               {Array.from({ length: h }, (_, y) =>
                 Array.from({ length: w }, (_, x) => {
@@ -798,14 +818,23 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
             {job.map === 'world' && (
               <>
                 <span aria-hidden="true" className="absolute inset-x-0 border-t-2 border-dashed border-white/90" style={{ top: `${(EQUATOR_ROW / h) * 100}%` }} />
-                <span aria-hidden="true" className="absolute left-1 rounded bg-[#1b0f22]/70 px-1 text-[12px] font-bold leading-tight text-white" style={{ top: `calc(${(EQUATOR_ROW / h) * 100}% + 2px)` }}>
+                {/* Just under the line, over the Indian Ocean: clear of every place's name (UX review round 2: on S. America's). */}
+                <span
+                  aria-hidden="true"
+                  className="absolute -translate-x-1/2 rounded bg-[#1b0f22]/70 px-1 text-[12px] font-bold leading-tight text-white"
+                  style={{ left: `${(8.7 / w) * 100}%`, top: `calc(${(EQUATOR_ROW / h) * 100}% + 2px)` }}
+                >
                   Equator
                 </span>
                 {REGIONS.map((r) => (
                   <span
                     key={r.id}
                     aria-hidden="true"
-                    className={cn('pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-bold leading-none', r.ocean ? 'italic text-white' : 'text-[#1b0f22]')}
+                    // The oceans' names white with an ink edge, the pale Arctic's ink (UX review round 2: 1.7 : 1, unreadable).
+                    className={cn(
+                      'pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap font-bold leading-none',
+                      r.id === 'arctic' ? 'italic text-[#1b0f22]' : r.ocean ? 'italic text-white [text-shadow:0_0_2px_#1b0f22,0_0_2px_#1b0f22]' : 'text-[#1b0f22]',
+                    )}
                     style={{ left: `${(REGION_LABEL[r.id][0] / w) * 100}%`, top: `${(REGION_LABEL[r.id][1] / h) * 100}%`, fontSize: cell ? Math.max(11, Math.min(13, cell * 0.36)) : 11 }}
                   >
                     {small ? r.name.replace(/^the /, '').replace(/ Ocean$/, '').replace(/^(North|South) /, (m) => `${m[0]}. `) : r.name.replace(/^the /, '').replace(/ Ocean$/, '')}
@@ -824,11 +853,16 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
               </>
             )}
             <svg viewBox={`0 0 ${w} ${h}`} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full">
+              {/* Her route: gold on an ink edge (UX review round 2: gold on Africa's yellow didn't show). */}
               {runs.map((run, k) =>
                 run.length > 1 ? (
-                  <polyline key={k} points={run.map((c) => `${c.x + 0.5},${c.y + 0.5}`).join(' ')} fill="none" stroke="#fcd34d" strokeWidth="0.12" strokeDasharray="0.25 0.18" strokeLinecap="round" strokeLinejoin="round" />
+                  <g key={k}>
+                    <polyline points={run.map((c) => `${c.x + 0.5},${c.y + 0.5}`).join(' ')} fill="none" stroke="#1b0f22" strokeWidth="0.2" strokeLinecap="round" strokeLinejoin="round" />
+                    <polyline points={run.map((c) => `${c.x + 0.5},${c.y + 0.5}`).join(' ')} fill="none" stroke="#fcd34d" strokeWidth="0.12" strokeDasharray="0.25 0.18" strokeLinecap="round" strokeLinejoin="round" />
+                  </g>
                 ) : null,
               )}
+              {ruler && <Ruler job={job} />}
             </svg>
             <span
               data-ember
@@ -843,12 +877,13 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
                 🐉
               </span>
             </span>
-            {/* North's up, on every map (UX review round 1: only the world's said so). */}
-            <span aria-hidden="true" className="pointer-events-none absolute right-1 top-1 rounded bg-[#1b0f22]/75 px-1 text-[12px] font-black leading-tight text-amber-200">
-              N ↑
-            </span>
           </div>
         </div>
+        {/* North's up, on every map (UX review round 1: only the world's said so) — on its frame's corner, over no square Ember
+            can fly to (UX review round 2). */}
+        <span aria-hidden="true" className="pointer-events-none absolute -right-1.5 -top-2.5 z-10 rounded border-2 border-[#1b0f22] bg-[#fff6dc] px-1 text-[12px] font-black leading-tight text-[#1b0f22]">
+          N ↑
+        </span>
       </div>
       {town && (
         <div aria-hidden="true" className="flex" style={size ? { width: size, marginLeft: GUTTER } : { width: '100%' }}>
@@ -865,12 +900,32 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
         </p>
       )}
       <p id="am-where" className="sr-only">
-        {where} {target} The arrow keys fly Ember too.
+        {[where, target, 'The arrow keys fly Ember too.'].filter(Boolean).join(' ')}
       </p>
     </div>
   );
 });
 MapView.displayName = 'MapView';
+
+/**
+ * "How far?"'s ruler: a straight line from where the post set off to the
+ * place's nearest square — the way a map's scale is used (UX review round 2:
+ * the count went across and down). Round the back of the world, in two parts.
+ */
+function Ruler({ job }: { job: Job }) {
+  const { start } = mapOf(job);
+  const to = rulerTo(job);
+  let dx = to.x - start.x;
+  if (Math.abs(dx) > WORLD_W / 2) dx -= Math.sign(dx) * WORLD_W;
+  const dy = to.y - start.y;
+  const line = (x: number, y: number) => <line x1={x + 0.5} y1={y + 0.5} x2={x + dx + 0.5} y2={y + dy + 0.5} />;
+  return (
+    <g stroke="#fff" strokeWidth="0.09" strokeDasharray="0.12 0.1" strokeLinecap="round">
+      {line(start.x, start.y)}
+      {start.x + dx !== to.x && line(to.x - dx, to.y - dy)}
+    </g>
+  );
+}
 
 /** The map's key: each place's picture and name (UX and code review round 1: the pictures had no names — the lantern stamp says a key does that). */
 function MapKey({ map }: { map: GridMap }) {
@@ -910,21 +965,19 @@ function PostOffice({ cheer }: { cheer: boolean }) {
 
 /**
  * Pidge's stamp album: a stamp per kind of post delivered; tapped, read out —
- * by Pidge, and under the album. One just stuck in (`fresh`) is marked new and
- * brought into sight (UX review round 1: unmarked, and half cut off at 1366 × 650).
+ * by Pidge, and under the album. One just stuck in (`fresh`) is marked new —
+ * and brought into sight by the game, which owns the side panel's scroll (UX
+ * review round 1: unmarked, and half cut off at 1366 × 650).
  */
 function Album({ known, read, fresh, onRead }: { known: (id: StampId) => boolean; read: StampId | null; fresh: StampId | null; onRead: (id: StampId) => void }) {
   const count = STAMPS.filter((s) => known(s.id)).length;
   const reading = read ? STAMP_BY_ID[read] : null;
   const panel = useRef<HTMLDivElement>(null);
-  const list = useRef<HTMLUListElement>(null);
   const still = useReducedMotion() ?? false;
   useEffect(() => {
     if (read) panel.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
   }, [read, still]);
-  useEffect(() => {
-    if (fresh) list.current?.querySelector(`[data-stamp="${fresh}"]`)?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
-  }, [fresh, still]);
+
   return (
     <section aria-labelledby="am-album" className="mt-auto flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -935,7 +988,7 @@ function Album({ known, read, fresh, onRead }: { known: (id: StampId) => boolean
           {count} of {STAMPS.length} stamps
         </span>
       </div>
-      <ul ref={list} className="grid grid-cols-3 gap-1.5">
+      <ul className="grid grid-cols-3 gap-1.5">
         {STAMPS.map((s) => (
           <li key={s.id} data-stamp={s.id} className="relative">
             {fresh === s.id && (

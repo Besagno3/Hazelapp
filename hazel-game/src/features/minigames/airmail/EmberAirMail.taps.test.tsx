@@ -72,4 +72,24 @@ describe('🐉 a double tap', () => {
     press('12,000 km');
     expect(screen.getByRole('heading', { name: 'Postcard delivered!' })).toBeInTheDocument();
   });
+
+  it('a square tapped as a parcel starts does nothing; a double tap on Deliver after a miss keeps the “how to find it” hint (code review round 2)', () => {
+    render(<EmberAirMail def={MINIGAMES['ember-air-mail']} band="medium" round={0} onPage={() => true} onFinish={() => {}} />);
+    const squares = where().firstElementChild as HTMLElement;
+    squares.getBoundingClientRect = () => ({ left: 0, top: 0, width: 240, height: 240, right: 240, bottom: 240, x: 0, y: 0, toJSON() {} }) as DOMRect;
+    // D4: just north of the post office (D3).
+    fireEvent.pointerDown(squares, { clientX: 3 * 40 + 20, clientY: 2 * 40 + 20, button: 0, pointerType: 'touch' });
+    fireEvent.pointerUp(squares, { clientX: 3 * 40 + 20, clientY: 2 * 40 + 20, button: 0, pointerType: 'touch' });
+    expect(where()).toHaveAccessibleDescription(/Ember is over D3/);
+    wait();
+    press(/Deliver/);
+    const first = pidge();
+    expect(first).toContain('Ember hasn’t flown yet!');
+    // The second tap of the double: not a second miss.
+    press(/Deliver/);
+    expect(pidge()).toBe(first);
+    wait();
+    press(/Deliver/);
+    expect(pidge()).toMatch(/The house is \d square/);
+  });
 });

@@ -339,13 +339,21 @@ function offset(from: Cell, to: Cell, wraps: boolean): [number, number] {
 
 /**
  * How far one square is from another, in compass words: "2 squares north and
- * 1 east" — with eight directions, straight along a diagonal "2 squares
- * north-east" (code review round 1: the pond's clue said north-east, the hint
- * "north and east").
+ * 1 east" — with eight directions, the diagonal first: "2 squares north-east",
+ * "1 square north-west, then 1 north" (code review round 1: the pond's clue
+ * said north-east, the hint "north and east"; UX review round 2: Medium's
+ * lesson is the eight directions, and its hints never used one off the exact
+ * diagonal).
  */
 export function relWords(from: Cell, to: Cell, wraps = false, diagonals = false): string {
   const [dx, dy] = offset(from, to, wraps);
-  if (diagonals && dx && Math.abs(dx) === Math.abs(dy)) return `${squares(Math.abs(dx))} ${dy < 0 ? 'north' : 'south'}-${dx > 0 ? 'east' : 'west'}`;
+  if (diagonals && dx && dy) {
+    const d = Math.min(Math.abs(dx), Math.abs(dy));
+    const rest = Math.max(Math.abs(dx), Math.abs(dy)) - d;
+    const diag = `${squares(d)} ${dy < 0 ? 'north' : 'south'}-${dx > 0 ? 'east' : 'west'}`;
+    if (!rest) return diag;
+    return `${diag}, then ${rest} ${Math.abs(dy) > Math.abs(dx) ? (dy < 0 ? 'north' : 'south') : dx > 0 ? 'east' : 'west'}`;
+  }
   const ns = dy ? `${squares(Math.abs(dy))} ${dy < 0 ? 'north' : 'south'}` : '';
   const ew = dx ? `${dy ? Math.abs(dx) : squares(Math.abs(dx))} ${dx > 0 ? 'east' : 'west'}` : '';
   return ns && ew ? `${ns} and ${ew}` : ns || ew;
@@ -416,18 +424,20 @@ function howWords(job: Job & { map: 'town' }): string {
  * lesson is the way, so it says it at once. Short, to fit beside the compass
  * on a phone (bench). Never scolded.
  */
-export function missWords(job: Job, at: Cell, misses = 2): string {
+export function missWords(job: Job, at: Cell, misses = 2, moved = true): string {
   const to = nearest(job, at);
   const way = relWords(at, to, mapOf(job).wraps, BAND_DIRS[job.band].length === 8);
+  // Not flown yet: say so, not just the square (UX review round 2: it read as the line already by the map).
+  const yet = moved ? '' : ' Ember hasn’t flown yet!';
   if (job.map === 'world') {
     const r = REGION_BY_ID[job.to];
-    return misses < 2 ? `That’s ${regionAt(at).name}. ${cap(r.name)} is ${r.spot} — find its name on the map.` : `That’s ${regionAt(at).name}. ${cap(r.name)} is ${way}.`;
+    return misses < 2 ? `That’s ${regionAt(at).name}.${yet} ${cap(r.name)} is ${r.spot} — find its name on the map.` : `That’s ${regionAt(at).name}.${yet} ${cap(r.name)} is ${way}.`;
   }
   if (job.map === 'bay') {
     const here = placeAt(BAY, at);
-    return `${here && here !== 'house' ? `That’s the ${PLACES[here].name}` : 'Nobody’s waiting here'}. The ${PLACES[job.to].name} is ${way}.`;
+    return `${here && here !== 'house' ? `That’s the ${PLACES[here].name}` : 'Nobody’s waiting here'}.${yet} The ${PLACES[job.to].name} is ${way}.`;
   }
-  return misses < 2 ? `That’s ${gridRef(at)}. ${howWords(job)}` : `That’s ${gridRef(at)}. The house is ${way}.`;
+  return misses < 2 ? `That’s ${gridRef(at)}.${yet} ${howWords(job)}` : `That’s ${gridRef(at)}.${yet} The house is ${way}.`;
 }
 
 /**
@@ -459,15 +469,16 @@ export function openingWords(job: Job): string {
  * from Ember; on the town, the landmark's square (a square's in the clue); on
  * the world, where it is on the map.
  */
-export function targetWords(job: Job, at: Cell): string {
+export function targetWords(job: Job, at: Cell, misses = 0): string {
   if (job.map === 'bay') return delivered(job, at) ? `The ${PLACES[job.to].name} is here.` : `The ${PLACES[job.to].name} is ${relWords(at, nearest(job, at))}.`;
   if (job.map === 'town') {
     const c = landmarkOf(job);
     const lm = c && TOWN.places.find((p) => p.place === c.from);
     return lm && c ? `The ${PLACES[c.from].name} is at ${gridRef(lm)}.` : '';
   }
+  // The world's place isn't named till a wrong delivery has (UX review round 2: which place fits the clue is the work).
   const r = REGION_BY_ID[job.to];
-  return `${cap(r.name)} is ${r.spot}.`;
+  return misses ? `${cap(r.name)} is ${r.spot}.` : '';
 }
 
 /**
@@ -478,7 +489,9 @@ export function targetWords(job: Job, at: Cell): string {
 export function howToFind(job: Job): string {
   if (job.map === 'bay') return `Find the ${PLACES[job.to].name}’s picture on the map, then steer Ember there.`;
   if (job.map === 'town') return howWords(job);
-  return `Find ${REGION_BY_ID[job.to].name} on the map: north is up, the equator across the middle.`;
+  // Not named: which place fits the clue is Tricky's work (UX review round 2: "Find Australia" gave it away).
+  // Short: on a short screen it's beside the compass (the bench: at 740 × 360 a longer one pushed the compass off).
+  return 'Which place fits the clue? Read the names on the map.';
 }
 
 /** The ticket: the job, and how to play it. */
@@ -490,40 +503,63 @@ export function jobWords(job: Job): string {
 
 /**
  * Tricky's scale question: about how far, for `n` squares — three choices (km),
- * smallest first, the right one first, in the middle or last by the parcel
- * (`slot`), so where it sits says nothing (code review and UX review round 1:
- * always the middle, or first).
+ * smallest first, the right one first, in the middle or last by `seed`
+ * (`farSeed`), so where it sits says nothing (code review and UX review round
+ * 1: always the middle; code review round 2: then always as the parcel's
+ * number). Under one square, a place-value slip and a half (300 km, 1,500 km)
+ * so even one square's answer moves (UX review round 2).
  */
-export function farChoices(n: number, slot = 0): number[] {
+export function farChoices(n: number, seed = 0): number[] {
   const k = Math.max(1, n);
-  // Where the right one goes: as the slot says, as far as squares above none allow.
-  const at = Math.min(slot % 3, k - 1);
-  const others = at === 0 ? [k + 1, k + 2] : at === 1 ? [k - 1, k + 1] : [k - 2, k - 1];
-  return [k, ...others].map((m) => m * KM_PER_SQUARE).sort((a, b) => a - b);
+  const km = (m: number) => m * KM_PER_SQUARE;
+  const less1 = k > 1 ? km(k - 1) : km(k) / 2;
+  const less2 = k > 2 ? km(k - 2) : km(k) / 10;
+  const at = seed % 3;
+  const choices = at === 0 ? [km(k), km(k + 1), km(k + 2)] : at === 1 ? [less1, km(k), km(k + 1)] : [less2, less1, km(k)];
+  return choices.sort((a, b) => a - b);
 }
+
+/** Where a world parcel's right answer goes: by the round and the place, not the parcel's number (code review round 2). */
+export const farSeed = (job: Job, round: number) => round + (job.map === 'world' ? REGION_IDS.indexOf(job.to) : 0);
 
 export const kmWords = (km: number) => `${km.toLocaleString('en-GB')} km`;
 
 /**
- * How far a world parcel went: the fewest squares from where the post set off
- * to where it was delivered — the distance between the places, whichever way
- * Ember flew (UX review round 1: a wandering route was asked as its length,
- * and taught as how far apart they are).
+ * A world parcel's place's square nearest where the post set off, in a
+ * straight line — what the "How far?" ruler's drawn to.
  */
-export const squaresAway = (job: Job, at: Cell) => movesBetween(job, mapOf(job).start, at);
+export function rulerTo(job: Job): Cell {
+  const { start, wraps } = mapOf(job);
+  const d = (c: Cell) => Math.hypot(...offset(start, c, wraps));
+  return targets(job).reduce((a, b) => (d(b) < d(a) ? b : a));
+}
 
-/** What a delivery teaches, for the fact card and the reward (`at`: where it was delivered). */
-export function learnedLine(job: Job, route: readonly Dir[], at: Cell): string {
+/**
+ * How far a world parcel's place is from where the post set off: its nearest
+ * square, in a straight line, in whole squares — however Ember flew, and
+ * wherever in the place she delivered (UX review round 1: a wandering route
+ * was asked as its length; code review round 2: then to the square she landed
+ * on, called the shortest way; UX review round 2: an L counted across and
+ * down, so most were far too long — a map's scale is a ruler's straight line).
+ */
+export function squaresAway(job: Job): number {
+  const { start, wraps } = mapOf(job);
+  return Math.round(Math.hypot(...offset(start, rulerTo(job), wraps)));
+}
+
+/** What a delivery teaches, for the fact card and the reward. */
+export function learnedLine(job: Job, route: readonly Dir[]): string {
   const stamp = STAMP_BY_ID[job.stamp];
   // The world's: its place, and how far (its stamp's note is in the album — with it, the card was too long for a phone).
   if (job.map === 'world') {
-    const n = squaresAway(job, at);
-    return `${REGION_BY_ID[job.to].fact} From Europe it’s ${NUM[n] ?? n} ${n === 1 ? 'square' : 'squares'} — about ${kmWords(n * KM_PER_SQUARE)} by the map’s scale.`;
+    const n = squaresAway(job);
+    return `${REGION_BY_ID[job.to].fact} From Europe it’s about ${NUM[n] ?? n} ${n === 1 ? 'square' : 'squares'} in a straight line — about ${kmWords(n * KM_PER_SQUARE)} by the map’s scale.`;
   }
   const way = route.length ? `Ember flew ${routeWords(route)}.` : '';
   if (job.map === 'town') {
     const ref = gridRef(job.to);
-    return `The house was at ${ref}: ${ref[0]} along, ${ref.slice(1)} up. ${way} ${stamp.note}`;
+    // The map stamp's note says what "B along, 6 up" already has (UX review round 2: the card was seven lines on a phone).
+    return `The house was at ${ref}: ${ref[0]} along, ${ref.slice(1)} up. ${way} ${job.stamp === 'map' ? '' : stamp.note}`.trim();
   }
   return `${way} ${stamp.note}`.trim();
 }

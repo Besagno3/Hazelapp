@@ -13,6 +13,9 @@ export default {
         // Echo's Call's two columns (chimes and steps beside the host): a screen 768 px wide, or a phone on its side
         // from 640 — narrower tall windows stack like a phone (PR 5: its steps were squeezed beside the chimes).
         split: { raw: '(min-width: 768px), (min-width: 640px) and (max-height: 500px)' },
+        // Ember Air Mail's board beside its side panel: from 768 px wide with height, or from 1000 px — a phone held
+        // sideways (844 × 390) gives its map the screen's width (PR 9 review round 2: the world's map was 290 × 145).
+        wide: { raw: '(min-width: 768px) and (min-height: 501px), (min-width: 1000px)' },
       },
       // The mini-games' big pixel titles (docs/DESIGN-MINIGAMES.md), self-hosted in public/fonts.
       fontFamily: {
