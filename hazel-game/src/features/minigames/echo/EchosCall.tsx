@@ -3,13 +3,18 @@ import { useReducedMotion } from 'framer-motion';
 import {
   CHIME,
   ECHOES_PER_ROUND,
+  INTERVALS,
+  INTERVAL_NAME,
   PLACE,
   STAFF_LINES,
   TUNES,
   TUNE_BY_ID,
   echoFor,
   echoWords,
+  asked,
   height,
+  intervalQuestion,
+  intervalWords,
   judge,
   learnedLine,
   noteWords,
@@ -21,6 +26,7 @@ import {
   staffY,
   tapWords,
   type Echo,
+  type Interval,
   type Note,
   type Shape,
   type TuneId,
@@ -36,20 +42,22 @@ import { useSettingsStore } from '../../../store/settingsStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { useSettled } from '../useSettled';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Listening; the tune's shape; which note was wrong; playing it back; echoed. */
-type Step = 'listen' | 'shape' | 'spot' | 'play' | 'done';
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Listening; the tune's shape (on Expert, an interval in it); which note was wrong; playing it back; echoed. */
+type Step = 'listen' | 'shape' | 'interval' | 'spot' | 'play' | 'done';
 
 /** How long a note of Lyra's lasts, and the pause before the first (time to look from the button to the chimes). */
 const BEAT_MS = 650;
 const LEAD_MS = 700;
 
-/** Bard Lyra after a tune's echoed, in turn. */
+/** Bard Lyra after a tune's echoed, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Bravo! That’s just how it goes.', 'La la LAAA — a perfect echo!', 'Wonderful! You have a musician’s ears.'];
+const EXPERT_RIGHT_LINES = ['Right.', 'That’s it.', 'Exactly.'];
 
 const SHAPES: readonly { id: Shape; label: string; arrow: string }[] = [
   { id: 'higher', label: 'Higher', arrow: '↑' },
@@ -62,19 +70,25 @@ const STEP_CHIPS: Record<Echo['mode'], readonly string[]> = {
   staff: ['Read: up or down?', 'Play it'],
   wrong: ['Listen', 'Spot the wrong note', 'Play it right'],
 };
+/** Expert's, an interval asked where the others ask the shape. */
+const EXPERT_CHIPS: Partial<Record<Echo['mode'], readonly string[]>> = {
+  ear: ['Listen', 'The interval', 'Play it back'],
+  staff: ['Read: the interval', 'Play it'],
+};
 
 /**
  * 🎵 Echo's Call (docs/DESIGN-MINIGAMES.md §5.5), in Bard Lyra's Music House:
  * Lyra plays the start of an old tune on five coloured chimes (or three); the
  * kid says whether it ended higher, lower or the same, then plays it back. On
  * Tricky the tune is read from a staff, or Lyra plays one note wrong and the
- * kid finds it on the staff. Three tunes a round, each a note longer; each a
- * page of the Songbook. The chimes light up as they ring, so it's all there
- * with the sound off. No timer. Rules: `lib/minigames/echo.ts`.
+ * kid finds it on the staff. On Expert (§8.5) the kid names the interval
+ * between two of its notes instead of its shape. Three tunes a round, each a
+ * note longer; each a page of the Songbook. The chimes light up as they ring,
+ * so it's all there with the sound off. No timer. Rules:
+ * `lib/minigames/echo.ts`.
  */
-export default function EchosCall({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function EchosCall({ def, band, round, onPage, onFinish }: PlayProps) {
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const soundOn = useSettingsStore((s) => s.sfx);
   const still = useReducedMotion() ?? false;
@@ -83,7 +97,9 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
   const [queue] = useState(() => roundQueue(band, (id) => !!flags[pageFlag(def.id, id)], round));
   const echo = useMemo(() => echoFor(band, round, done, queue), [band, round, done, queue]);
   const tune = TUNE_BY_ID[echo.tune];
-  const first: Step = echo.mode === 'staff' ? 'shape' : 'listen';
+  // What follows the listening (or starts a staff tune): the shape — on Expert, the interval.
+  const ask: Step = expert ? 'interval' : 'shape';
+  const first: Step = echo.mode === 'staff' ? ask : 'listen';
   const [step, setStep] = useState<Step>(first);
   const [heard, setHeard] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -97,6 +113,9 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
   const [newPage, setNewPage] = useState(false);
   const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each tune's interval named at the first pick and played back with no wrong chime.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
   const [read, setRead] = useState<TuneId | null>(null);
   const known = (id: TuneId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts; the listen step's Next as it first appears too, when Lyra's done (review
@@ -104,6 +123,8 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
   // for every button, it swallowed Listen again, and Next tune after a staff tune's first hearing).
   const settled = useSettled(`${step}:${done}`);
   const nextSettled = useSettled(`${step}:${done}:${heard}`);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
   // Every tune the band plays already in the Songbook as the round starts (Gentle's chimes play five of the eight).
   const [knewAll] = useState(() => queue.every((id) => !!flags[pageFlag(def.id, id)]));
 
@@ -122,8 +143,8 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     setLit(null);
   }
 
-  function listen() {
-    if (playing || !settled()) return;
+  function listen(e: { detail: number }) {
+    if (playing || !ready(e)) return;
     stop();
     // In the tap, so a browser lets her notes (rung a moment later) be heard.
     wakeTones();
@@ -179,6 +200,7 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     // red ring say it.
     if (judge(echo, i, n) !== 'right') {
       setShake((s) => ({ at: i, n: (s?.n ?? 0) + 1 }));
+      setMissed(true);
       return;
     }
     setShake(null);
@@ -189,6 +211,7 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     setNewPage(onPage(echo.tune, tune.name));
     setLessons((l) => [...l, learnedLine(echo)]);
     setRights((r) => r + 1);
+    if (!missed) setSpotOn((k) => k + 1);
     setStep('done');
   }
 
@@ -203,8 +226,8 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     timers.current.push(window.setTimeout(() => setLit(null), 380 + echo.chimes.length * 90 + 60));
   }
 
-  function answerShape(s: Shape) {
-    if (step !== 'shape' || !settled()) return;
+  function answerShape(s: Shape, e: { detail: number }) {
+    if (step !== 'shape' || !ready(e)) return;
     halt();
     setRead(null);
     sfx(s === shape(echo.notes) ? 'correct' : 'select');
@@ -212,9 +235,21 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     setStep('play');
   }
 
+  /** Expert: the interval named — said with how it's counted either way; on to playing it. */
+  function answerInterval(iv: Interval, e: { detail: number }) {
+    const q = asked(echo);
+    if (step !== 'interval' || !q || !ready(e)) return;
+    halt();
+    setRead(null);
+    sfx(iv === q.interval ? 'correct' : 'select');
+    if (iv !== q.interval) setMissed(true);
+    setSaid(intervalWords(echo, iv));
+    setStep('play');
+  }
+
   // A note on the staff picked as the wrong one — while she plays, too: it stops her (the kid saw it light).
-  function spot(at: number) {
-    if (step !== 'spot' || echo.mode !== 'wrong' || !settled()) return;
+  function spot(at: number, e: { detail: number }) {
+    if (step !== 'spot' || echo.mode !== 'wrong' || !ready(e)) return;
     halt();
     setRead(null);
     setSaid(spotWords(echo, at));
@@ -224,17 +259,18 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
     } else sfx('wrong');
   }
 
-  function next() {
-    if (step !== 'done' || !settled()) return;
+  function next(ev: { detail: number }) {
+    if (step !== 'done' || !ready(ev)) return;
     stop();
     setRead(null);
     if (done + 1 >= ECHOES_PER_ROUND) {
-      onFinish({ title: 'Three tunes echoed!', learned: lessons[lessons.length - 1] ?? '' });
+      onFinish({ title: 'Three tunes echoed!', learned: lessons[lessons.length - 1] ?? '', spotOn: expert ? { right: spotOn, of: ECHOES_PER_ROUND } : undefined });
       return;
     }
     const e = echoFor(band, round, done + 1, queue);
     setDone((d) => d + 1);
-    setStep(e.mode === 'staff' ? 'shape' : 'listen');
+    setMissed(false);
+    setStep(e.mode === 'staff' ? ask : 'listen');
     setHeard(false);
     setPlaying(false);
     setLit(null);
@@ -280,13 +316,20 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const n = echo.notes.length;
-  const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Ready for the next one?' : 'Take a bow!'}`;
+  const cheerLine = expert
+    ? `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Next tune.' : 'That’s the last.'}`
+    : `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Ready for the next one?' : 'Take a bow!'}`;
   let line: string;
   if (read) line = `${TUNE_BY_ID[read].name}: ${TUNE_BY_ID[read].note}`;
-  else if (playing) line = soundOn ? 'Listen… and watch the chimes!' : 'Watch the chimes light up!';
+  else if (playing) line = expert ? (soundOn ? 'Listen, and watch the chimes.' : 'Watch the chimes.') : soundOn ? 'Listen… and watch the chimes!' : 'Watch the chimes light up!';
   else if (step === 'done') line = cheerLine;
   else if (said && step !== 'listen') line = said;
-  else if (step === 'listen') {
+  else if (expert) {
+    // Expert, plainly (§8.3): what to do, no cheering.
+    if (step === 'listen') line = heard ? 'Again, or on to my question?' : `The start of a tune: ${n} notes. ${soundOn ? 'Press Listen.' : 'My chimes are quiet: tap 🔇 Sounds to hear them, or watch them light.'}`;
+    else if (step === 'interval') line = intervalQuestion(echo);
+    else line = echo.mode === 'staff' ? 'Now play what the staff says.' : 'Now play it back.';
+  } else if (step === 'listen') {
     if (heard) line = echo.mode === 'wrong' ? 'Again, or on to the wrong note?' : 'Again, or on to my question?';
     // The sound's off till it's turned on (review round 1: a kid pressed Listen and heard nothing, never asked).
     else {
@@ -298,8 +341,10 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
   else if (step === 'spot') line = 'Watch the chimes and read the staff: which note did I play wrong?';
   else line = echo.mode === 'staff' ? 'Now play what the staff says!' : echo.mode === 'wrong' ? 'Now play what the staff says — with the right note!' : 'Your turn — play it back!';
 
-  const chips = STEP_CHIPS[echo.mode];
-  const chipAt = step === 'done' ? chips.length : echo.mode === 'staff' ? (step === 'shape' ? 0 : 1) : step === 'listen' ? 0 : step === 'play' ? 2 : 1;
+  const chips = (expert && EXPERT_CHIPS[echo.mode]) || STEP_CHIPS[echo.mode];
+  const chipAt = step === 'done' ? chips.length : echo.mode === 'staff' ? (step === 'shape' || step === 'interval' ? 0 : 1) : step === 'listen' ? 0 : step === 'play' ? 2 : 1;
+  // The two notes Expert asks about, marked on the staff or the slots while it's asked.
+  const marked = step === 'interval' ? (asked(echo)?.at ?? null) : null;
   const showStaff = echo.mode !== 'ear';
   const canListen = echo.mode !== 'staff' || step === 'done';
   const spotting = step === 'spot';
@@ -338,13 +383,23 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
                 nextAt={step === 'play' ? got.length : null}
                 shake={shake}
                 spotting={spotting}
+                marked={marked}
                 describedBy={spotting ? 'ec-spot' : undefined}
                 onSpot={spot}
               />
             ) : (
-              <Slots echo={echo} got={got} litAt={playing && lit ? lit.at : null} playing={step === 'play'} shake={shake} />
+              <Slots echo={echo} got={got} litAt={playing && lit ? lit.at : null} playing={step === 'play'} shake={shake} marked={marked} />
             )}
-            <Chimes ref={chimes} notes={echo.chimes} lit={lit?.note ?? null} busy={playing} still={still} describedBy={step === 'play' ? 'ec-play' : undefined} onTap={tap} />
+            <Chimes
+              ref={chimes}
+              notes={echo.chimes}
+              lit={lit?.note ?? null}
+              busy={playing}
+              still={still}
+              named={!expert}
+              describedBy={step === 'play' ? 'ec-play' : undefined}
+              onTap={tap}
+            />
             {/* Which way is higher, in sight: a higher note is a shorter chime, so a tune going up can look like it's going
                 down (review round 2). Its group is named low to high for a reader. Its room is the chimes' (they're 16 px
                 shorter), so nothing under them moved down. */}
@@ -432,12 +487,12 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
                     <button
                       ref={goRef}
                       type="button"
-                      onClick={() => heard && nextSettled() && setStep(echo.mode === 'wrong' ? 'spot' : 'shape')}
+                      onClick={(e) => heard && (e.detail === 0 || nextSettled()) && setStep(echo.mode === 'wrong' ? 'spot' : ask)}
                       aria-hidden={!heard || undefined}
                       tabIndex={heard ? undefined : -1}
                       className={cn(goldClass, 'min-h-14 py-1.5 text-lg leading-tight [@media(max-height:640px)]:min-h-12 [@media(max-height:640px)]:text-base', !heard && 'invisible')}
                     >
-                      {echo.mode === 'wrong' ? 'Next — which was wrong?' : 'Next — up or down?'}
+                      {echo.mode === 'wrong' ? 'Next — which was wrong?' : expert ? 'Next — the interval' : 'Next — up or down?'}
                     </button>
                   </>
                 )}
@@ -452,13 +507,37 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
                           key={s.id}
                           ref={k === 0 ? goRef : undefined}
                           type="button"
-                          onClick={() => answerShape(s.id)}
+                          onClick={(e) => answerShape(s.id, e)}
                           className={cn('flex min-h-[52px] flex-col items-center justify-center rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1 text-[14px] font-bold hover:bg-[#2f2b70]', focusRing)}
                         >
                           <span aria-hidden="true" className="text-xl leading-none text-amber-200">
                             {s.arrow}
                           </span>
                           {s.label}
+                        </button>
+                      ))}
+                    </div>
+                    {canListen && <ListenAgain onClick={listen} playing={playing} />}
+                  </>
+                )}
+                {step === 'interval' && (
+                  <>
+                    <p id="ec-question" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
+                      {intervalQuestion(echo)}
+                    </p>
+                    <div role="group" aria-labelledby="ec-question" className="grid grid-cols-2 gap-1.5">
+                      {INTERVALS.map((iv, k) => (
+                        <button
+                          key={iv}
+                          ref={k === 0 ? goRef : undefined}
+                          type="button"
+                          onClick={(e) => answerInterval(iv, e)}
+                          className={cn(
+                            'flex min-h-11 items-center justify-center rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1 text-[14px] font-bold hover:bg-[#2f2b70] [@media(max-height:500px)]:min-h-10 [@media(max-height:500px)]:text-[13px]',
+                            focusRing,
+                          )}
+                        >
+                          {cap(INTERVAL_NAME[iv])}
                         </button>
                       ))}
                     </div>
@@ -515,6 +594,7 @@ export default function EchosCall({ def, band: playBand, round, onPage, onFinish
 
 function stepTitle(step: Step, mode: Echo['mode']): string {
   if (step === 'listen') return 'Step 1 · Listen';
+  if (step === 'interval') return mode === 'staff' ? 'Step 1 · Name the interval' : 'Step 2 · Name the interval';
   if (step === 'shape') return mode === 'staff' ? 'Step 1 · Read the staff' : 'Step 2 · Up or down?';
   if (step === 'spot') return 'Step 2 · Which note was wrong?';
   return mode === 'staff' ? 'Step 2 · Play it' : mode === 'wrong' ? 'Step 3 · Play it right' : 'Step 3 · Play it back';
@@ -532,7 +612,7 @@ function Said({ text }: { text: string }) {
   );
 }
 
-function ListenAgain({ onClick, playing, goRef }: { onClick: () => void; playing: boolean; goRef?: Ref<HTMLButtonElement> }) {
+function ListenAgain({ onClick, playing, goRef }: { onClick: (e: { detail: number }) => void; playing: boolean; goRef?: Ref<HTMLButtonElement> }) {
   return (
     <button ref={goRef} type="button" onClick={onClick} aria-disabled={playing || undefined} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
       {playing ? '♪ Listening…' : '↻ Listen again'}
@@ -572,8 +652,8 @@ function SoundToggle() {
  */
 const Chimes = forwardRef<
   HTMLDivElement,
-  { notes: readonly Note[]; lit: Note | null; busy: boolean; still: boolean; describedBy?: string; onTap: (n: Note) => void }
->(({ notes, lit, busy, still, describedBy, onTap }, ref) => {
+  { notes: readonly Note[]; lit: Note | null; busy: boolean; still: boolean; named: boolean; describedBy?: string; onTap: (n: Note) => void }
+>(({ notes, lit, busy, still, named, describedBy, onTap }, ref) => {
   function onKey(e: KeyboardEvent<HTMLButtonElement>) {
     // A held Enter or Space rings once: its repeats would play the tune's next notes.
     if ((e.key === 'Enter' || e.key === ' ') && e.repeat) {
@@ -604,7 +684,7 @@ const Chimes = forwardRef<
             onClick={() => onTap(n)}
             onKeyDown={onKey}
             aria-disabled={busy || undefined}
-            aria-label={`${n}, ${CHIME[n].name}`}
+            aria-label={named ? `${n}, ${CHIME[n].name}` : n}
             className={cn(
               'relative flex min-w-11 max-w-[84px] flex-1 flex-col items-center justify-between rounded-xl border-[3px] border-[#1b0f22] pb-1.5 pt-2 shadow-[0_4px_0_#1b0f22] transition-[filter,transform] duration-100',
               on && 'shadow-[0_0_0_4px_#ffffff,0_0_22px_8px_rgba(255,255,255,0.65)] brightness-125',
@@ -616,9 +696,12 @@ const Chimes = forwardRef<
             <span aria-hidden="true" className={cn('font-pixel text-[26px] leading-none', n === 'G' ? 'text-white' : 'text-[#1b0f22]')}>
               {n}
             </span>
-            <span aria-hidden="true" className="rounded bg-[#1b0f22]/80 px-1 text-[11px] font-bold leading-tight text-white">
-              {CHIME[n].name}
-            </span>
+            {/* Its colour's name — not on Expert, where the letter is what's known (§8.3). */}
+            {named && (
+              <span aria-hidden="true" className="rounded bg-[#1b0f22]/80 px-1 text-[11px] font-bold leading-tight text-white">
+                {CHIME[n].name}
+              </span>
+            )}
             {on && (
               <span aria-hidden="true" className="absolute -top-7 text-2xl text-white">
                 ♪
@@ -636,7 +719,22 @@ Chimes.displayName = 'Chimes';
  * The notes to echo as slots: lit in turn as Lyra plays (played ones too); filled as the kid plays them back. A wrong
  * chime shakes the slot it was for and rings it red, which stays when motion's turned down.
  */
-function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly Note[]; litAt: number | null; playing: boolean; shake: { at: number; n: number } | null }) {
+function Slots({
+  echo,
+  got,
+  litAt,
+  playing,
+  shake,
+  marked,
+}: {
+  echo: Echo;
+  got: readonly Note[];
+  litAt: number | null;
+  playing: boolean;
+  shake: { at: number; n: number } | null;
+  /** Expert: the two notes whose interval is asked. */
+  marked: readonly [number, number] | null;
+}) {
   return (
     <ol aria-label={`${got.length} of ${echo.notes.length} notes played`} className="flex flex-wrap justify-center gap-1.5 [@media(max-height:500px)]:gap-1">
       {echo.notes.map((_, k) => {
@@ -644,6 +742,7 @@ function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly
         const nextUp = playing && k === got.length;
         const shaken = nextUp && shake?.at === k;
         const lit = litAt === k;
+        const asked = !!marked && marked.includes(k);
         return (
           <li
             // A new key each miss restarts the shake.
@@ -654,6 +753,7 @@ function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly
               // Shaken first: lit as Lyra passes it, it keeps its shake (round 2: it restarted) and its red ring.
               shaken ? 'cg-shake border-red-400 bg-[#24215a]' : n || lit ? 'border-[#1b0f22]' : nextUp ? 'border-dashed border-amber-300 bg-[#24215a]' : 'border-[#8f8ad0] bg-[#24215a]',
               lit && 'shadow-[0_0_0_3px_#ffffff]',
+              asked && !lit && 'border-solid border-amber-300 shadow-[0_0_0_3px_#fbbf24]',
             )}
             style={lit ? { background: '#ffffff', color: '#1b0f22' } : n ? { background: CHIME[n].colour, color: n === 'G' ? '#ffffff' : '#1b0f22' } : undefined}
           >
@@ -663,7 +763,10 @@ function Slots({ echo, got, litAt, playing, shake }: { echo: Echo; got: readonly
                 <span className="sr-only">, {CHIME[n].name}</span>
               </>
             ) : (
-              <span className="sr-only">Note {k + 1}, not played yet</span>
+              <span className="sr-only">
+                Note {k + 1}
+                {asked ? ', asked about' : ''}, not played yet
+              </span>
             )}
           </li>
         );
@@ -690,10 +793,12 @@ const Staff = forwardRef<
     nextAt: number | null;
     shake: { at: number; n: number } | null;
     spotting: boolean;
+    /** Expert: the two notes whose interval is asked. */
+    marked: readonly [number, number] | null;
     describedBy?: string;
-    onSpot: (at: number) => void;
+    onSpot: (at: number, e: { detail: number }) => void;
   }
->(({ echo, got, litAt, nextAt, shake, spotting, describedBy, onSpot }, ref) => (
+>(({ echo, got, litAt, nextAt, shake, spotting, marked, describedBy, onSpot }, ref) => (
   <div
     ref={ref}
     role="group"
@@ -722,7 +827,8 @@ const Staff = forwardRef<
       );
       const played = got[k];
       const shaken = nextAt === k && shake?.at === k;
-      const label = `Note ${k + 1}: ${PLACE[n]}${played ? `, played: ${played}` : ''}`;
+      const askedHere = !!marked && marked.includes(k);
+      const label = `Note ${k + 1}: ${PLACE[n]}${askedHere ? ', asked about' : ''}${played ? `, played: ${played}` : ''}`;
       // Lit: an ink ring and a ▼ over it (review round 1: a pale tint on cream was too faint). Tints are see-through,
       // so the lines show.
       const look = cn(
@@ -730,12 +836,14 @@ const Staff = forwardRef<
         on && 'bg-amber-300/50 ring-[3px] ring-inset ring-[#1b0f22]',
         !on && shaken && 'cg-shake ring-[3px] ring-inset ring-red-500',
         !on && !shaken && nextAt === k && 'outline-dashed outline-2 -outline-offset-2 outline-amber-600',
+        // The two Expert asks about: a gold tint and an ink ring.
+        !on && askedHere && 'bg-amber-300/60 ring-[3px] ring-inset ring-amber-700',
       );
       return spotting ? (
         <button
           key={k}
           type="button"
-          onClick={() => onSpot(k)}
+          onClick={(e) => onSpot(k, e)}
           aria-label={label}
           // Dashed and tinted, so they look like what to tap (round 2); the focus ring in ink (cyan on cream was faint).
           className={cn(

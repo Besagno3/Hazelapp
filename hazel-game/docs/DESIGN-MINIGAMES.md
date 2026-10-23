@@ -368,6 +368,21 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   default); Lyra asks for it, and a "Sounds" switch turns sound effects on. Lyra also gives a
   quest, so 🎵 shows quietly over its offer; the first round gives a Rainbow
   Ward.
+- **Expert (§8, PR 15):** intervals, in the tunes. A round reads one tune from
+  the staff, hears one, reads one (five to seven notes on all five chimes),
+  and in each Lyra marks two notes — by their place in the tune, not their
+  names: "From note 1 to note 3: what interval?" — to name from six: a minor
+  or major 2nd, a minor or major 3rd, a perfect 4th or 5th. Whichever is
+  picked, she gives the method: "E down to C: 3 letter names, C D E — a 3rd;
+  4 semitones — major." — then the tune's played back. Each tune asks the
+  intervals its own notes make, in turn round by round (most here make only
+  2nds and 3rds; Ode to Joy a minor 2nd and 3rd, Old MacDonald a perfect 4th,
+  Lightly Row a 4th and, at seven notes, a perfect 5th — asked wherever it's
+  there), so every kind comes up. The chimes keep their letters, not their
+  colours' names; Lyra speaks plainly. Every interval named at the first
+  pick and every tune played back with no wrong chime is the Expert seal. An
+  octave, keys and sharps and flats would need more chimes — not built
+  (§8.5).
 
 ### 5.6 ✨ Vela's Star Charts — Space · Vela, Vela's Observatory, Starfall Coast
 
@@ -602,7 +617,7 @@ world, with the same host.
 | 🥧 Dot's Bakery | Ratios, rates and percentage change, boxed in pie: a share in a ratio, enough for so many people, a percentage more or less than last week's — the amount is the kid's to work out. | "25% less pie than last week's 2 pies"; "the smaller share of 1 pie, split 3 : 5" |
 | ⚙️ Clocktower Gears | Gear ratios in numbers: a machine's turns a minute from the crank's, or the turning force it needs — the kid works out the ratio and picks the crank's gear (8 to 32 teeth); the gears between still set only the way round. (Two pairs in a train — a compound gear — would need a new kind of peg: not built.) | "The crank turns 15 times a minute: make it turn 45"; "four times the crank's turning force" |
 | 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = 3, y = 3, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a point onto its image, then paint the image. | "A (2, 5) maps to A′ (5, 2): which move?" |
-| 🎵 Echo's Call | Intervals and keys: name the interval (a second to an octave), major or minor, which note a scale needs, sharps and flats on the staff. | "C up to G is a…" |
+| 🎵 Echo's Call | Intervals, in the tunes: name the interval between two notes Lyra marks (a 2nd to a 5th on the five chimes), major or minor, read on the staff or heard. (An octave, keys and sharps and flats would need more chimes: not built.) | "From note 1 to note 3: what interval?" — "E down to C: a major 3rd." |
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth; the pole star's altitude as your latitude; right ascension and declination on a chart. | "Polaris is 52° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's rings to a rainfall record, find the dry years in both, date it to the year. | "Thin rings — and the chart's dry years?" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. No wars, battles, disasters or religion (§3.2). | "Paper → printing → …"; "300 BCE to 1450 CE is…" |

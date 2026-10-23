@@ -52,6 +52,22 @@ export function StepShape() {
   );
 }
 
+/** Expert's step 2: two notes on a staff, a bracket between them — an interval to name. */
+export function StepInterval() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="10" y="30" width="180" height="140" rx="12" fill="#fff6dc" stroke={INK} strokeWidth="7" />
+      {[62, 86, 110, 134, 158].map((y) => (
+        <path key={y} d={`M18 ${y} H182`} stroke={INK} strokeWidth="4" />
+      ))}
+      <ellipse cx="62" cy="134" rx="15" ry="11" transform="rotate(-20 62 134)" fill={INK} />
+      <ellipse cx="138" cy="110" rx="15" ry="11" transform="rotate(-20 138 110)" fill={INK} />
+      <path d="M62 112 V98 H138 V88" fill="none" stroke="#d97706" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      <text x="100" y="56" textAnchor="middle" fontSize="34" fontWeight="900" fill="#d97706">3rd?</text>
+    </svg>
+  );
+}
+
 /** Step 3: a mallet on a chime. */
 export function StepPlay() {
   return (

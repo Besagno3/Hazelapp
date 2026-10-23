@@ -21,7 +21,7 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES } = await import('../../../content/minigames');
 const { echoFor, roundQueue } = await import('../../../lib/minigames/echo');
-type Band = import('../../../content/minigames').Band;
+type Band = import('../../../content/minigames').PlayBand;
 
 let now = 0;
 beforeEach(() => {
@@ -37,6 +37,8 @@ afterEach(() => {
 });
 
 const wait = (ms = SETTLE_MS) => act(() => void (now += ms));
+/** A tap: a click with a click count, as a finger's is (a key's has none, and isn't held back — PR 15). */
+const tap = (el: Element) => fireEvent.click(el, { detail: 1 });
 const play = (band: Band = 'gentle') => render(<EchosCall def={MINIGAMES['echos-call']} band={band} round={0} onPage={() => true} onFinish={() => {}} />);
 const chime = (n: string) => screen.getByRole('button', { name: new RegExp(`^${n},`) });
 /** Lyra plays to the end. */
@@ -49,25 +51,25 @@ describe('🎵 a double tap', () => {
   it('a second tap straight after “Next — up or down?” answers nothing; a moment later it does', () => {
     play();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    tap(screen.getByRole('button', { name: '▶ Listen' }));
     toTheEnd();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    tap(screen.getByRole('button', { name: 'Next — up or down?' }));
     expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Higher' }));
+    tap(screen.getByRole('button', { name: 'Higher' }));
     expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toBeInTheDocument();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Higher' }));
+    tap(screen.getByRole('button', { name: 'Higher' }));
     expect(screen.getByRole('heading', { name: 'Step 3 · Play it back' })).toBeInTheDocument();
   });
 
   it('Listen, as a tune starts (a double tap on Next tune), waits a moment', () => {
     play();
-    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    tap(screen.getByRole('button', { name: '▶ Listen' }));
     toTheEnd();
     expect(playTone).not.toHaveBeenCalled();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    tap(screen.getByRole('button', { name: '▶ Listen' }));
     toTheEnd();
     expect(playTone).toHaveBeenCalledTimes(2);
   });
@@ -75,17 +77,17 @@ describe('🎵 a double tap', () => {
   it('Next, the moment Lyra first finishes (a kid tapping Listen again and again), does nothing; Listen again plays at once; a moment later Next goes on', () => {
     play();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: '▶ Listen' }));
+    tap(screen.getByRole('button', { name: '▶ Listen' }));
     toTheEnd();
-    fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    tap(screen.getByRole('button', { name: 'Next — up or down?' }));
     expect(screen.getByRole('heading', { name: 'Step 1 · Listen' })).toBeInTheDocument();
     // Listen again, in the place it was tapped, plays her again — no wait for that (review round 2).
     playTone.mockClear();
-    fireEvent.click(screen.getByRole('button', { name: '↻ Listen again' }));
+    tap(screen.getByRole('button', { name: '↻ Listen again' }));
     toTheEnd();
     expect(playTone).toHaveBeenCalledTimes(2);
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Next — up or down?' }));
+    tap(screen.getByRole('button', { name: 'Next — up or down?' }));
     expect(screen.getByRole('heading', { name: 'Step 2 · Up or down?' })).toBeInTheDocument();
   });
 
@@ -96,16 +98,30 @@ describe('🎵 a double tap', () => {
     play('tricky');
     const read = echoFor('tricky', 0, 0, roundQueue('tricky', () => false, 0));
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Lower' }));
+    tap(screen.getByRole('button', { name: 'Lower' }));
     wait();
-    for (const n of read.notes) fireEvent.click(chime(n));
-    fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+    for (const n of read.notes) tap(chime(n));
+    tap(screen.getByRole('button', { name: 'Next tune' }));
     expect(screen.getByRole('heading', { name: 'Hot Cross Buns!' })).toBeInTheDocument();
     wait();
     // Heard for the first time, as written, at the end: Next tune isn't kept waiting by it (review round 2).
-    fireEvent.click(screen.getByRole('button', { name: '▶ Hear it again' }));
+    tap(screen.getByRole('button', { name: '▶ Hear it again' }));
     toTheEnd();
-    fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+    tap(screen.getByRole('button', { name: 'Next tune' }));
     expect(screen.getByRole('heading', { name: 'Step 1 · Listen' })).toBeInTheDocument();
+  });
+
+  it('Expert (PR 15): an interval tapped as the tune starts isn’t named; a moment later it is; a key isn’t held back', () => {
+    const { unmount } = play('expert');
+    const iv = () => screen.getByRole('button', { name: 'Major 3rd' });
+    tap(iv());
+    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toBeInTheDocument();
+    wait();
+    tap(iv());
+    expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
+    unmount();
+    play('expert');
+    fireEvent.click(iv(), { detail: 0 });
+    expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
   });
 });

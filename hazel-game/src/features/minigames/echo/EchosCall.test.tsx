@@ -30,9 +30,11 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { useSettingsStore } = await import('../../../store/settingsStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { CHIME, STAFF_LINES, TUNE_BY_ID, echoFor, learnedLine, roundQueue, shape, staffY } = await import('../../../lib/minigames/echo');
+const { CHIME, INTERVAL_NAME, STAFF_LINES, TUNE_BY_ID, asked, echoFor, learnedLine, roundQueue, shape, staffY } = await import('../../../lib/minigames/echo');
+const asked_ = (e: Echo) => asked(e)!.interval;
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 type Echo = import('../../../lib/minigames/echo').Echo;
-type Band = import('../../../content/minigames').Band;
+type Band = import('../../../content/minigames').PlayBand;
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
@@ -461,6 +463,81 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(screen.getByRole('heading', { name: 'Step 1 · Read the staff' })).toHaveFocus();
     expect(screen.queryByRole('button', { name: /Listen/ })).toBeNull();
     expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('Read: up or down?');
+  });
+
+  it('Expert: read the staff and name the interval between the two notes marked — the method either way; hear one and name it; no colour names on the chimes; spot on 2 of 3', () => {
+    vi.useFakeTimers();
+    setUp(9);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const [buns, mary, frere] = [0, 1, 2].map((i) => echoFor('expert', 0, i, queue));
+    const key = (n: string) => within(chimes()).getByRole('button', { name: n });
+    // A staff tune: the interval first, by its notes' places — Hot Cross Buns, E D C E D, notes 1 and 3.
+    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toHaveAccessibleDescription(
+      'Read the five notes on the staff: name the interval Lyra asks about, then play them on the chimes.',
+    );
+    expect(screen.getAllByText('From note 1 to note 3: what interval? Count the lines and spaces from one to the other.').length).toBeGreaterThan(0);
+    const staff = within(screen.getByRole('group', { name: 'The staff' }));
+    expect(staff.getAllByRole('img').map((x) => x.getAttribute('aria-label'))).toEqual([
+      'Note 1: on the bottom line, asked about',
+      'Note 2: just under the staff',
+      'Note 3: on a little line below the staff, asked about',
+      'Note 4: on the bottom line',
+      'Note 5: just under the staff',
+    ]);
+    // The chimes say their letters only (§8.3: less handed over).
+    expect(within(chimes()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['C', 'D', 'E', 'F', 'G']);
+    expect(within(chimes()).queryByText('red')).toBeNull();
+    const ivs = within(screen.getByRole('group', { name: /^From note 1 to note 3/ }));
+    expect(ivs.getAllByRole('button').map((b) => b.textContent)).toEqual(['Minor 2nd', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th']);
+    // A wrong one: the method, the answer — and on to playing it.
+    fireEvent.click(ivs.getByRole('button', { name: 'Minor 3rd' }));
+    expect(screen.getAllByText('Not a minor 3rd. E down to C: 3 letter names, C D E — a 3rd; 4 semitones — major. A major 3rd.').length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
+    for (const n of buns.notes) fireEvent.click(key(n));
+    expect(screen.getByRole('heading', { name: 'Hot Cross Buns!' })).toHaveAccessibleDescription(`${learnedLine(buns)} Hot Cross Buns is in the Songbook!`);
+    expect(learnedLine(buns)).toMatch(/E to C is a major 3rd, 4 semitones/);
+    expect(lyra()).toMatch(/Right\. Next tune\.$/);
+    fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+
+    // Heard: listen, then the interval — Mary, notes 1 and 2 marked in the slots.
+    listen();
+    fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Name the interval' })).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: /notes played$/ })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Note 1, asked about, not played yet', 'Note 2, asked about, not played yet', 'Note 3, not played yet', 'Note 4, not played yet', 'Note 5, not played yet', 'Note 6, not played yet']);
+    expect(asked_(mary)).toBe('M2');
+    fireEvent.click(screen.getByRole('button', { name: 'Major 2nd' }));
+    expect(screen.getAllByText('Yes, a major 2nd. E down to D: 2 letter names, D E — a 2nd; 2 semitones — major.').length).toBeGreaterThan(0);
+    for (const n of mary.notes) fireEvent.click(key(n));
+    fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+
+    // Read again, right first time.
+    fireEvent.click(screen.getByRole('button', { name: cap(INTERVAL_NAME[asked_(frere)]) }));
+    for (const n of frere.notes) fireEvent.click(key(n));
+    fireEvent.click(screen.getByRole('button', { name: 'Take a bow!' }));
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(frere) }));
+  });
+
+  it('Expert: a wrong chime as it’s played back costs the seal too', () => {
+    vi.useFakeTimers();
+    setUp(9);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const key = (n: string) => within(chimes()).getByRole('button', { name: n });
+    for (let i = 0; i < 3; i++) {
+      const e = echoFor('expert', 0, i, queue);
+      if (e.mode === 'ear') {
+        listen();
+        fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
+      }
+      fireEvent.click(screen.getByRole('button', { name: cap(INTERVAL_NAME[asked_(e)]) }));
+      // On the first tune, a wrong chime first.
+      if (i === 0) fireEvent.click(key(e.notes[0] === 'G' ? 'C' : 'G'));
+      for (const n of e.notes) fireEvent.click(key(n));
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next tune' : 'Take a bow!' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
   });
 
   it('each step on a phone scrolls the page back to the board’s top — as little as shows its gold button; a tune’s result, to its Next', () => {

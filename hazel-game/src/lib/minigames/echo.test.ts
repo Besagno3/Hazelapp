@@ -2,6 +2,16 @@ import { describe, it, expect } from 'vitest';
 import {
   CHIME,
   CHIMES,
+  EXPERT_ASKS,
+  INTERVALS,
+  INTERVAL_NAME,
+  SEMITONES,
+  asked,
+  intervalOf,
+  intervalQuestion,
+  intervalWords,
+  pairFor,
+  pairMaking,
   PLACE,
   STAFF_LINES,
   ECHOES_PER_ROUND,
@@ -22,9 +32,9 @@ import {
   staffY,
   tapWords,
 } from './echo';
-import { BANDS, type Band } from '../../content/minigames';
+import { BANDS, type PlayBand } from '../../content/minigames';
 
-const echoes = (band: Band) => Array.from({ length: 24 }, (_, k) => echoFor(band, Math.floor(k / ECHOES_PER_ROUND), k % ECHOES_PER_ROUND));
+const echoes = (band: PlayBand) => Array.from({ length: 24 }, (_, k) => echoFor(band, Math.floor(k / ECHOES_PER_ROUND), k % ECHOES_PER_ROUND));
 
 describe('the chimes (docs/DESIGN-MINIGAMES.md §5.5)', () => {
   it('five, C to G, low to high; each its own colour and name', () => {
@@ -179,5 +189,63 @@ describe('the checks and the words', () => {
     expect(learnedLine(echoFor('tricky', 0, 0))).toMatch(/E sits on the bottom line/);
     expect(learnedLine(echoFor('gentle', 0, 1))).toBe('Mary Had a Little Lamb starts E D C: it ends lower than it starts. A higher note is a shorter chime.');
     expect(learnedLine(echoFor('medium', 0, 0))).toBe('Hot Cross Buns starts E D C E: it ends on the note it started on. A higher note is a shorter chime.');
+  });
+});
+
+describe('Expert: intervals (§8.5)', () => {
+  it('every pair of the five chimes makes the interval a piano says — letter names for the number, semitones for its kind', () => {
+    const want: Record<string, string> = {
+      'C D': 'M2', 'D E': 'M2', 'E F': 'm2', 'F G': 'M2',
+      'C E': 'M3', 'D F': 'm3', 'E G': 'm3',
+      'C F': 'P4', 'D G': 'P4',
+      'C G': 'P5',
+    };
+    for (const [pair, iv] of Object.entries(want)) {
+      const [a, b] = pair.split(' ') as ['C', 'D'];
+      expect(intervalOf(a, b), pair).toBe(iv);
+      expect(intervalOf(b, a), pair).toBe(iv);
+    }
+    for (const n of NOTES) expect(intervalOf(n, n)).toBeNull();
+    expect(SEMITONES).toEqual({ C: 0, D: 2, E: 4, F: 5, G: 7 });
+    expect(INTERVALS.map((iv) => INTERVAL_NAME[iv])).toEqual(['minor 2nd', 'major 2nd', 'minor 3rd', 'major 3rd', 'perfect 4th', 'perfect 5th']);
+  });
+
+  it('read, heard, read; five to seven notes on all five chimes; each asks about two of its notes that make an interval', () => {
+    const all = echoes('expert');
+    for (const [k, e] of all.entries()) {
+      expect(e.mode).toBe(['staff', 'ear', 'staff'][k % 3]);
+      expect(e.notes).toHaveLength([5, 6, 7][k % 3]);
+      expect(e.chimes).toEqual(NOTES);
+      const q = asked(e)!;
+      expect(q, e.tune).not.toBeNull();
+      expect(q.at[0]).toBeLessThan(q.at[1]);
+      expect(intervalOf(e.notes[q.at[0]], e.notes[q.at[1]])).toBe(q.interval);
+    }
+    // The rarest a tune makes: every kind comes up over the rounds; a fifth only where one's in the tune.
+    expect(new Set(all.map((e) => asked(e)!.interval))).toEqual(new Set(INTERVALS));
+    // Each tune's asks are made by its first five notes; a fifth wherever the notes make one.
+    for (const t of TUNES) for (const iv of EXPERT_ASKS[t.id]) expect(pairMaking(t.opening.slice(0, 5), iv), `${t.id} ${iv}`).not.toBeNull();
+    expect(pairFor('lightly-row', ['G', 'E', 'E', 'F', 'D', 'D', 'C'], 0)).toEqual([0, 6]);
+    expect(pairFor('hot-cross-buns', ['E', 'D', 'C', 'E', 'D'], 0)).toEqual([0, 2]);
+    expect(pairFor('hot-cross-buns', ['E', 'D', 'C', 'E', 'D'], 1)).toEqual([0, 1]);
+    expect(pairFor('old-macdonald', ['G', 'G', 'G', 'D', 'E', 'E'], 1)).toEqual([0, 4]);
+    // The younger bands ask the shape, as ever.
+    for (const band of BANDS) for (const e of echoes(band)) expect(e.pair).toBeNull();
+  });
+
+  it('the question by the notes’ places, not their names; the answer, the method either way', () => {
+    const e = echoFor('expert', 0, 0, ['ode-to-joy', 'mary', 'au-clair']); // E E F G G — staff
+    expect(asked(e)).toEqual({ a: 'E', b: 'F', at: [0, 2], interval: 'm2' });
+    expect(intervalQuestion(e)).toBe('From note 1 to note 3: what interval? Count the lines and spaces from one to the other.');
+    expect(intervalQuestion(e)).not.toMatch(/[A-G]\b(?! interval)/);
+    expect(intervalWords(e, 'm2')).toBe('Yes, a minor 2nd. E up to F: 2 letter names, E F — a 2nd; 1 semitone — minor.');
+    expect(intervalWords(e, 'M2')).toBe('Not a major 2nd. E up to F: 2 letter names, E F — a 2nd; 1 semitone — minor. A minor 2nd.');
+    expect(echoWords(e)).toBe('Read the five notes on the staff: name the interval Lyra asks about, then play them on the chimes.');
+    expect(learnedLine(e)).toBe('Ode to Joy starts E E F G G: E to F is a minor 2nd, 1 semitone — a 2nd of 1 semitone is minor (E to F has no black key between).');
+    const heard = echoFor('expert', 0, 1, ['ode-to-joy', 'old-macdonald', 'au-clair']); // G G G D E E — ear
+    expect(asked(heard)?.interval).toBe('P4');
+    expect(intervalQuestion(heard)).toBe('From note 1 to note 4: what interval? Count the chimes from one to the other.');
+    expect(intervalWords(heard, 'P4')).toBe('Yes, a perfect 4th. G down to D: 4 letter names, D E F G — a 4th; 5 semitones.');
+    expect(echoWords(heard)).toMatch(/^Listen to Lyra’s six notes: name the interval/);
   });
 });
