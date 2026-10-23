@@ -1,4 +1,4 @@
-import { MINIGAMES, pageFlag, starFlag, type Band, type MiniGameId } from '../content/minigames';
+import { MINIGAMES, pageFlag, starFlag, type Band, type MiniGameId, type PlayBand } from '../content/minigames';
 import { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP, type ConsumableId } from '../content/items';
 import type { SaveData } from '../types';
 
@@ -8,12 +8,31 @@ import type { SaveData } from '../types';
  * stage (`features/minigames/MiniGameStage`) saves and pays what these return.
  */
 
-/** The band picked from the topic's question level (§3.3): 1–3 Gentle, 4–6 Medium, 7–10 Tricky. */
-export function bandFor(level: number): Band {
-  if (level <= 3) return 'gentle';
-  if (level <= 6) return 'medium';
-  return 'tricky';
+const RANK: Record<PlayBand, number> = { gentle: 0, medium: 1, tricky: 2, expert: 3 };
+
+/**
+ * The band suggested (§3.3, §8.2). From the topic's question level: 1–3
+ * Gentle, 4–6 Medium, 7–10 Tricky. But a level is relative to the kid's age
+ * (4–6 is right for a typical kid of it) and a band's content isn't (Medium
+ * is for about 8–9, whoever plays it) — so, given the age, it's the higher of
+ * that and the band for the kid's content age, their age plus half how far
+ * their level is from typical: under 8 Gentle, 8–9 Medium, 10–11 Tricky, 12
+ * and up Expert where the game has it (else Tricky). A new 12-year-old is
+ * offered Expert, not Medium; a young kid's suggestion never drops.
+ */
+export function bandFor(level: number, age?: number, expert = false): PlayBand {
+  const byLevel: Band = level <= 3 ? 'gentle' : level <= 6 ? 'medium' : 'tricky';
+  if (age === undefined) return byLevel;
+  const content = age + (level - 5) / 2;
+  const byAge: PlayBand = content < 8 ? 'gentle' : content < 10 ? 'medium' : content < 12 || !expert ? 'tricky' : 'expert';
+  return RANK[byAge] > RANK[byLevel] ? byAge : byLevel;
 }
+
+/**
+ * The band a game without Expert yet plays (§8.6): Tricky, if it's ever
+ * handed Expert — the stage never offers it to such a game.
+ */
+export const upToTricky = (band: PlayBand): Band => (band === 'expert' ? 'tricky' : band);
 
 /** The collection's pages found so far (their keys, in no order). */
 export function pagesFound(flags: Record<string, boolean>, id: MiniGameId): string[] {
@@ -96,10 +115,14 @@ export function claimRound(save: SaveData, id: MiniGameId): Claim {
   };
 }
 
-/** The band a kid last picked for a game, on this device (§3.3); null when they haven't, or storage can't be read. */
-export function rememberedBand(kidId: string | null, id: MiniGameId): Band | null {
+/**
+ * The band a kid last picked for a game, on this device (§3.3); null when they
+ * haven't, or storage can't be read — or it's Expert and the game hasn't it.
+ */
+export function rememberedBand(kidId: string | null, id: MiniGameId): PlayBand | null {
   try {
     const v = localStorage.getItem(bandKey(kidId, id));
+    if (v === 'expert') return MINIGAMES[id].expert ? v : null;
     return v === 'gentle' || v === 'medium' || v === 'tricky' ? v : null;
   } catch {
     return null;
@@ -107,7 +130,7 @@ export function rememberedBand(kidId: string | null, id: MiniGameId): Band | nul
 }
 
 /** Remember the band picked (storage that can't be written just forgets it). */
-export function rememberBand(kidId: string | null, id: MiniGameId, band: Band): void {
+export function rememberBand(kidId: string | null, id: MiniGameId, band: PlayBand): void {
   try {
     localStorage.setItem(bandKey(kidId, id), band);
   } catch {

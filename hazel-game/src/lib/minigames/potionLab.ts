@@ -1,12 +1,14 @@
-import type { Band } from '../../content/minigames';
+import type { Band, PlayBand } from '../../content/minigames';
 
 /**
  * 🧪 Potion Lab (docs/DESIGN-MINIGAMES.md §5.1): a real experiment. Red cabbage
  * juice is purple; an acid turns it pink (a strong one red), a base turns it
  * blue and then green. Trader Tadpole has an order — a potion of one colour —
  * and the kid pours one jar at a time into fresh cabbage juice, guesses what
- * will happen, then stirs and sees. Pure: the jars, the colours, the guesses
- * and the orders.
+ * will happen, then stirs and sees. On Expert (§8.5) the pH is a number, and
+ * the scale counts in tens: an order asks for "a thousand times as acidic as
+ * pure water", and the kid guesses the jar's pH. Pure: the jars, the colours,
+ * the guesses and the orders.
  */
 
 export type Kind = 'acid' | 'base' | 'neutral';
@@ -53,10 +55,10 @@ export const JARS: readonly Jar[] = [
 
 export const JAR_BY_ID = Object.fromEntries(JARS.map((j) => [j.id, j])) as Record<JarId, Jar>;
 
-const BAND_ORDER: Record<Band, number> = { gentle: 0, medium: 1, tricky: 2 };
+const BAND_ORDER: Record<PlayBand, number> = { gentle: 0, medium: 1, tricky: 2, expert: 3 };
 
-/** The jars on the counter at a band: Gentle 6, Medium 9, Tricky all 12. */
-export function jarsFor(band: Band): Jar[] {
+/** The jars on the counter at a band: Gentle 6, Medium 9, Tricky and Expert all 12. */
+export function jarsFor(band: PlayBand): Jar[] {
   return JARS.filter((j) => BAND_ORDER[j.from] <= BAND_ORDER[band]);
 }
 
@@ -101,15 +103,35 @@ export function stripLabel({ lo, hi }: { lo: number; hi: number }): string {
   return lo === hi ? `pH ${lo}` : `pH ${lo}–${hi}`;
 }
 
+/** Tricky and Expert read the five-colour strip. */
+const onStrip = (band: PlayBand) => band === 'tricky' || band === 'expert';
+
+/** Where a pH sits on the strip. */
+const stripShade = (ph: number): Shade => (TRICKY_STRIP.find((s) => Math.round(ph) <= s.hi) ?? TRICKY_STRIP[TRICKY_STRIP.length - 1]).shade;
+
 /**
  * What colour a jar turns the juice. Gentle and Medium in three colours (acids
- * pink, neutral purple, bases blue-green); Tricky in five, by where its pH sits
- * on the strip.
+ * pink, neutral purple, bases blue-green); Tricky and Expert in five, by where
+ * its pH sits on the strip.
  */
-export function shadeOf(jar: Jar, band: Band): Shade {
-  if (band !== 'tricky') return jar.kind === 'acid' ? 'pink' : jar.kind === 'base' ? 'teal' : 'purple';
-  const ph = Math.round(jar.ph);
-  return (TRICKY_STRIP.find((s) => ph <= s.hi) ?? TRICKY_STRIP[TRICKY_STRIP.length - 1]).shade;
+export function shadeOf(jar: Jar, band: PlayBand): Shade {
+  if (!onStrip(band)) return jar.kind === 'acid' ? 'pink' : jar.kind === 'base' ? 'teal' : 'purple';
+  return stripShade(jar.ph);
+}
+
+/** "ten times", "a hundred times" … "a hundred thousand times": the scale's steps from 7. */
+const TIMES = ['', 'ten times', 'a hundred times', 'a thousand times', 'ten thousand times', 'a hundred thousand times', 'a million times', 'ten million times'];
+
+const STEPS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
+
+/**
+ * Where a pH sits against pure water's 7, counted in tens (Expert, §8.5):
+ * "three steps below 7, so a thousand times as acidic as pure water".
+ */
+export function scaleWords(ph: number): string {
+  const steps = Math.abs(ph - 7);
+  if (steps === 0) return 'neutral, like pure water';
+  return `${STEPS[steps]} step${steps > 1 ? 's' : ''} ${ph < 7 ? 'below' : 'above'} 7, so ${TIMES[steps]} as ${ph < 7 ? 'acidic' : 'alkaline'} as pure water`;
 }
 
 export const KIND_LABEL: Record<Kind, string> = { acid: 'Acid', base: 'Base', neutral: 'Neutral' };
@@ -128,9 +150,11 @@ export interface GuessOption {
 /**
  * What the kid guesses: Gentle the colour (pink, stays purple, blue-green);
  * Medium what kind of thing it is (acid, neutral, base — the colour follows);
- * Tricky where it lands on the five-colour strip.
+ * Tricky where it lands on the five-colour strip; Expert its pH, 0–14, as a
+ * number — no colours by it: the colour's what happens.
  */
-export function guessOptions(band: Band): GuessOption[] {
+export function guessOptions(band: PlayBand): GuessOption[] {
+  if (band === 'expert') return Array.from({ length: 15 }, (_, n) => ({ id: String(n), label: String(n) }));
   if (band === 'gentle') {
     return (['pink', 'purple', 'teal'] as const).map((s) => ({
       id: s,
@@ -143,7 +167,8 @@ export function guessOptions(band: Band): GuessOption[] {
 }
 
 /** The question the step card asks. */
-export function guessPrompt(band: Band): string {
+export function guessPrompt(band: PlayBand): string {
+  if (band === 'expert') return 'What’s its pH, 0 to 14?';
   if (band === 'gentle') return 'What colour will the potion turn?';
   if (band === 'medium') return 'Is it an acid, a base, or neutral?';
   return 'Where will it land on the colour strip?';
@@ -153,30 +178,41 @@ export function guessPrompt(band: Band): string {
  * Medium's key, under its guesses: the order asks for a colour but the guess is
  * a kind, so this says which colour each kind makes (review round 1).
  */
-export function guessKey(band: Band): string | null {
+export function guessKey(band: PlayBand): string | null {
+  if (band === 'expert') return '7 is neutral. Each step down is ten times as acidic; each step up, ten times as alkaline.';
   return band === 'medium' ? 'Acids turn it pink, neutral things leave it purple, bases turn it blue-green.' : null;
 }
 
-/** What the kid guessed, in words: "pink", "an acid", "blue". */
-export function guessWords(guess: string, band: Band): string {
+/** What the kid guessed, in words: "pink", "an acid", "blue", "pH 4". */
+export function guessWords(guess: string, band: PlayBand): string {
+  if (band === 'expert') return `pH ${guess}`;
   if (band === 'medium') return KIND_A[guess as Kind] ?? guess;
   return guess === 'purple' ? 'it stays purple' : (SHADES[guess as Shade]?.label.toLowerCase() ?? guess);
 }
 
-/** A Brew Book page read out: what the jar does, then its fact. */
-export function pageLine(jar: Jar, band: Band): string {
+/** A Brew Book page read out: what the jar does (on Expert, its pH on the scale), then its fact. */
+export function pageLine(jar: Jar, band: PlayBand): string {
+  if (band === 'expert') return `${jar.name}: about pH ${jar.ph} — ${scaleWords(jar.ph)}. ${jar.fact}`;
   const shade = shadeOf(jar, band);
   const does = shade === CABBAGE ? 'leaves it purple' : `turns it ${SHADES[shade].label.toLowerCase()}`;
   return `${jar.name} ${does} — it’s ${KIND_A[jar.kind]}. ${jar.fact}`;
 }
 
-/** Was the guess right? Medium guesses the kind; the others the colour. */
-export function guessedRight(guess: string, jar: Jar, band: Band): boolean {
+/** Was the guess right? Medium guesses the kind; Expert the pH, exactly; the others the colour. */
+export function guessedRight(guess: string, jar: Jar, band: PlayBand): boolean {
+  if (band === 'expert') return Number(guess) === jar.ph;
   return band === 'medium' ? guess === jar.kind : guess === shadeOf(jar, band);
 }
 
-/** Why it turned that colour (and, on Tricky, the pH). */
-export function whyLine(jar: Jar, band: Band): string {
+/** On Expert, how many steps of the scale a pH guess was out. */
+export const stepsOut = (guess: string, jar: Jar) => Math.abs(Number(guess) - jar.ph);
+
+/** Why it turned that colour (and, on Tricky, the pH; on Expert, where that sits on the scale, and what neutralises it). */
+export function whyLine(jar: Jar, band: PlayBand): string {
+  if (band === 'expert') {
+    const fix = jar.kind === 'acid' ? ' A base neutralises it.' : jar.kind === 'base' ? ' An acid neutralises it.' : '';
+    return `${jar.name} is about pH ${jar.ph}: ${scaleWords(jar.ph)}.${fix}`;
+  }
   const what = `${jar.name} is ${KIND_A[jar.kind]}${band === 'tricky' ? `, about pH ${jar.ph}` : ''}.`;
   if (band !== 'tricky') {
     if (jar.kind === 'acid') return `${what} Acids turn cabbage juice pink.`;
@@ -188,11 +224,13 @@ export function whyLine(jar: Jar, band: Band): string {
   return `${what} Neutral things leave cabbage juice purple.`;
 }
 
-/** An order: a potion of one colour, for someone in Verdara. */
+/** An order: a potion of one colour, for someone in Verdara — on Expert, of one pH. */
 export interface Order {
   shade: Shade;
   potion: string;
   customer: string;
+  /** Expert: the pH it must be, said in tens from pure water's 7. */
+  ph?: number;
 }
 
 export const POTION_NAME: Record<Shade, string> = {
@@ -214,15 +252,25 @@ const ORDER_SHADES: Record<Band, readonly Shade[]> = {
   tricky: ['red', 'blue', 'green', 'pink', 'purple'],
 };
 
-/** The order for the kid's `round`th round at a band (0 = the first: pink, or red on Tricky). */
-export function orderFor(band: Band, round: number): Order {
+/** Expert's orders, in turn, by pH: each one some jar's, and never neutral (that's no counting). */
+const EXPERT_PH = [4, 10, 2, 8, 3, 9] as const;
+
+/** The order for the kid's `round`th round at a band (0 = the first: pink, or red on Tricky, or pH 4 on Expert). */
+export function orderFor(band: PlayBand, round: number): Order {
+  const customer = CUSTOMERS[round % CUSTOMERS.length];
+  if (band === 'expert') {
+    const ph = EXPERT_PH[round % EXPERT_PH.length];
+    const shade = stripShade(ph);
+    return { shade, potion: POTION_NAME[shade], customer, ph };
+  }
   const shades = ORDER_SHADES[band];
   const shade = shades[round % shades.length];
-  return { shade, potion: POTION_NAME[shade], customer: CUSTOMERS[round % CUSTOMERS.length] };
+  return { shade, potion: POTION_NAME[shade], customer };
 }
 
-/** Did this jar fill the order? */
-export function fillsOrder(jar: Jar, band: Band, order: Order): boolean {
+/** Did this jar fill the order? On Expert, its pH is the one asked for. */
+export function fillsOrder(jar: Jar, band: PlayBand, order: Order): boolean {
+  if (order.ph !== undefined) return jar.ph === order.ph;
   return shadeOf(jar, band) === order.shade;
 }
 
@@ -231,7 +279,8 @@ export function aPotion(order: Order): string {
   return `${/^[AEIOU]/.test(order.potion) ? 'an' : 'a'} ${order.potion}`;
 }
 
-/** The colour's word for an order ("glows pink", "stays purple"). */
+/** The colour's word for an order ("glows pink", "stays purple"); on Expert, its pH in tens ("is a thousand times as acidic as pure water"). */
 export function orderWords(order: Order): string {
+  if (order.ph !== undefined) return `is ${TIMES[Math.abs(order.ph - 7)]} as ${order.ph < 7 ? 'acidic' : 'alkaline'} as pure water`;
   return order.shade === 'purple' ? 'stays purple' : `glows ${SHADES[order.shade].label.toLowerCase()}`;
 }

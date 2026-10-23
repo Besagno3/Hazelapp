@@ -37,7 +37,7 @@ import {
   type PatternId,
   type Pot,
 } from '../../../lib/minigames/mural';
-import { BAND_LABEL, mineFlag, pageFlag } from '../../../content/minigames';
+import { BAND_LABEL, mineFlag, pageFlag, type Band } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { CharacterPortrait } from '../../../components/CharacterPortrait';
 import { sfx } from '../../../lib/audio';
@@ -46,6 +46,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { PixelPicture } from './art';
 import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
@@ -109,7 +110,9 @@ const MIRROR_HINT: Record<Kind, string> = {
  * mirror the rest, and it hangs in the Gallery. No timer. Rules:
  * `lib/minigames/mural.ts`.
  */
-export default function MirrorMural({ def, band, round, onPage, onFinish, onClaim }: PlayProps) {
+export default function MirrorMural({ def, band: playBand, round, onPage, onFinish, onClaim }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const update = useSaveStore((s) => s.update);
   const still = useReducedMotion() ?? false;
@@ -918,7 +921,7 @@ function GalleryScene({
   done: number;
   matched: boolean;
   finished: Partial<Record<PatternId, Grid>>;
-  band: PlayProps['band'];
+  band: Band;
   round: number;
 }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);

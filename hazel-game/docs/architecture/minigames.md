@@ -36,10 +36,19 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
   `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
   ★ all of it) and the game's `firstItem` once — replays pay nothing but
-  still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
-  Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
-  kid and game on this device (`rememberBand`; picking the suggested band
-  again forgets it, `forgetBand`, so it grows with the level); the stage's
+  still `recordActivity`. **Bands:** `bandFor(level, age, !!def.expert)` —
+  from the level, 1–3 Gentle, 4–6 Medium, 7–10 Tricky, raised where the
+  kid's content age (`age + (level − 5) / 2`) calls for more: 10–11 Tricky,
+  12 and up **Expert** (DESIGN §8) on a game with it (`def.expert`, its line
+  under the chooser; `PlayBand` is the three bands and `expert`,
+  `PLAY_BANDS`); a game without Expert yet plays Tricky if handed it
+  (`upToTricky`). The kid may pick another, remembered per kid and game on
+  this device (`rememberBand`, Expert only where the game has it; picking
+  the suggested band again forgets it, `forgetBand`, so it grows with the
+  level). On Expert a game says how many answers were spot on
+  (`RoundOutcome.spotOn`); all of them is the **Expert seal**
+  (`mg:<game>:seal`, `sealFlag`): shown on the title card and the reward,
+  never paid; the stage's
   `round` starts at the rounds this kid has finished in the game on this
   device (`roundsPlayed`, `noteRoundPlayed` as a round ends), so a visit
   picks up a game's orders where the last left off rather than at the same
@@ -67,7 +76,12 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   screen the order is in the step card too), the Brew Book (a page per jar
   with its name, read back by Tadpole and under the book, `pageLine`; a jar
   in it says "📖 In book" on the counter, never its kind), `STIR_MS` before
-  the colour shows. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
+  the colour shows. On Expert: all twelve jars and the strip, an order of one
+  pH said in tens from pure water (`orderFor` → `Order.ph`, `orderWords`),
+  the pH guessed as a number (fifteen buttons; `guessedRight` exact,
+  `stepsOut`), `scaleWords` in the why and the page, the round's guesses
+  spot on as `spotOn`. Up to 620 px high (from `sm`) the jars are in the step
+  card, first in the side panel, not on the counter. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
   Village — she also gives a quest, so the game shows over its offer;
   `lib/minigames/bakery.ts`, `features/minigames/bakery/`): fractions with
   pie — three orders a morning (`orderFor(band, round, i, queue)`,

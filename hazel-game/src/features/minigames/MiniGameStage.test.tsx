@@ -23,7 +23,7 @@ const { default: MiniGameStage } = await import('./MiniGameStage');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
-const { openedFlag, pageFlag, starFlag } = await import('../../content/minigames');
+const { openedFlag, pageFlag, sealFlag, starFlag } = await import('../../content/minigames');
 const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } = await import('../../content/items');
 const { rememberedBand, roundsPlayed } = await import('../../lib/minigames');
 const { JAR_IDS } = await import('../../lib/minigames/potionLab');
@@ -31,12 +31,12 @@ const { JAR_IDS } = await import('../../lib/minigames/potionLab');
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
     profile: {
       id: 'kid-1',
-      birthYear: new Date().getFullYear() - 9,
+      birthYear: new Date().getFullYear() - age,
       birthMonth: 1,
       skillLevels: { science: level },
       xp: 0,
@@ -137,6 +137,71 @@ describe('the stage (docs/DESIGN-MINIGAMES.md §2)', () => {
     const play = screen.getByRole('button', { name: 'Let’s brew!' });
     expect(fireEvent.keyDown(play, { key: 'Enter', repeat: true })).toBe(false); // its default (the click) is stopped
     expect(fireEvent.keyDown(play, { key: 'Enter' })).toBe(true);
+  });
+});
+
+describe('the Expert band (§8)', () => {
+  it('a teen is offered Expert where the game has it, from the level and the age; a game without it shows three', () => {
+    // A new 14-year-old: level 6, which alone suggests Medium.
+    setUp(6, {}, 14);
+    const { unmount } = render(<MiniGameStage game="potion-lab" />);
+    const bands = within(screen.getByRole('group', { name: 'How tricky?' }));
+    expect(bands.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky', 'Expert']);
+    expect(bands.getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Picked from your Science level \(6\) and your age\. Expert: the pH scale in numbers/)).toBeInTheDocument();
+    // Another band said against what's suggested.
+    fireEvent.click(bands.getByRole('button', { name: 'Medium' }));
+    expect(screen.getByText(/Your Science level \(6\) and age suggest Expert\. More jars on Medium and Tricky\./)).toBeInTheDocument();
+    unmount();
+
+    render(<MiniGameStage game="dots-bakery" />);
+    const three = within(screen.getByRole('group', { name: 'How tricky?' }));
+    expect(three.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky']);
+    expect(three.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('🧪 Potion Lab on Expert: an order in tens from pure water, the pH guessed as a number; spot on every time, the seal — shown, never paid', async () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    expect(screen.getByText('Fern needs a Berry Potion that is a thousand times as acidic as pure water. Which jar?')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Step 1 · Pick a jar' })).toHaveAccessibleDescription('One Berry Potion that is a thousand times as acidic as pure water. 7 is neutral. Each step down is ten times as acidic; each step up, ten times as alkaline.');
+    fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Orange juice/ }));
+    expect(screen.getByText(/is in\. What’s its pH, 0 to 14\?/)).toBeInTheDocument();
+    expect(within(screen.getByRole('group', { name: 'Your guess' })).getAllByRole('button')).toHaveLength(15);
+    fireEvent.click(screen.getByRole('button', { name: 'pH 4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stir and brew!' }));
+    expect(screen.getByText(/You said pH 4 — spot on\./)).toBeInTheDocument();
+    expect(screen.getByText('Orange juice is about pH 4: three steps below 7, so a thousand times as acidic as pure water. A base neutralises it.')).toBeInTheDocument();
+    const coins = save().coins;
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(within(screen.getByRole('region', { name: 'You got' })).getByText('The Expert seal: spot on every time')).toBeInTheDocument();
+    expect(save().flags[sealFlag('potion-lab')]).toBe(true);
+    // Never paid: the coins are star 1's alone.
+    expect(save().coins).toBe(coins + MINIGAME_STAR_COINS);
+
+    // The next: a miss, then the jar — one of two spot on, no seal again.
+    fireEvent.click(screen.getByRole('button', { name: 'Brew another' }));
+    await screen.findByText('Beekeeper Hilda needs a Leaf Elixir that is a thousand times as alkaline as pure water. Which jar?');
+    await brew(/Lemon juice/, 'pH 3');
+    expect(screen.getByText(/You said pH 3; it’s pH 2 — one step, ten times\./)).toBeInTheDocument();
+    expect(screen.getByText(/One step out — that’s ten times\. Not what Beekeeper Hilda needs — try another jar\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try another jar' }));
+    await brew(/Soapy water/, 'pH 10');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Beekeeper Hilda' }));
+    expect(screen.getByText('Spot on: 1 of 2. Spot on every time wins the Expert seal.')).toBeInTheDocument();
+  });
+
+  it('the seal won shows on the title card; a round on another band says nothing of it', async () => {
+    setUp(2, { [sealFlag('potion-lab')]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByText('Expert seal')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    await brew(/Lemon juice/, 'Pink');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(screen.queryByText(/Spot on|Expert seal/)).toBeNull();
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { bandFor, claimPage, claimRound, noteRoundPlayed, pagesFound, rememberBand, rememberedBand, roundsPlayed, starsEarned, starsFor } from './minigames';
+import { bandFor, claimPage, claimRound, noteRoundPlayed, pagesFound, rememberBand, rememberedBand, roundsPlayed, starsEarned, starsFor, upToTricky } from './minigames';
 import { MINIGAMES, pageFlag, starFlag } from '../content/minigames';
 import { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } from '../content/items';
 import { defaultSave } from './save';
@@ -19,11 +19,29 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('bandFor (docs/DESIGN-MINIGAMES.md §3.3)', () => {
-  it('1–3 Gentle, 4–6 Medium, 7–10 Tricky', () => {
-    expect([1, 2, 3].map(bandFor)).toEqual(['gentle', 'gentle', 'gentle']);
-    expect([4, 5, 6].map(bandFor)).toEqual(['medium', 'medium', 'medium']);
-    expect([7, 8, 9, 10].map(bandFor)).toEqual(['tricky', 'tricky', 'tricky', 'tricky']);
+describe('bandFor (docs/DESIGN-MINIGAMES.md §3.3, §8.2)', () => {
+  it('from the level alone: 1–3 Gentle, 4–6 Medium, 7–10 Tricky', () => {
+    expect([1, 2, 3].map((l) => bandFor(l))).toEqual(['gentle', 'gentle', 'gentle']);
+    expect([4, 5, 6].map((l) => bandFor(l))).toEqual(['medium', 'medium', 'medium']);
+    expect([7, 8, 9, 10].map((l) => bandFor(l))).toEqual(['tricky', 'tricky', 'tricky', 'tricky']);
+  });
+
+  it('with the age: the higher of that and the band for the kid’s content age (age + (level − 5) / 2) — Expert from 12 where the game has it', () => {
+    // A new kid's start level is the age less 5, at most 6 (lib/age.ts).
+    const fresh = (age: number, expert = true) => bandFor(Math.min(6, Math.max(1, age - 5)), age, expert);
+    expect([6, 7, 8, 9, 10, 11, 12, 14, 18].map((a) => fresh(a))).toEqual(['gentle', 'gentle', 'gentle', 'medium', 'tricky', 'tricky', 'expert', 'expert', 'expert']);
+    // No Expert on the game: Tricky.
+    expect(fresh(14, false)).toBe('tricky');
+    // A young kid's suggestion never drops: a 7-year-old at level 10 keeps Tricky.
+    expect(bandFor(10, 7, true)).toBe('tricky');
+    // A teen far behind is offered less: 14 at level 1 → content age 12 → Expert; 12 at level 1 → 10 → Tricky.
+    expect(bandFor(1, 14, true)).toBe('expert');
+    expect(bandFor(1, 12, true)).toBe('tricky');
+  });
+
+  it('a game without Expert yet plays Tricky if handed it (§8.6)', () => {
+    expect(upToTricky('expert')).toBe('tricky');
+    expect(upToTricky('medium')).toBe('medium');
   });
 });
 
@@ -115,6 +133,14 @@ describe('the band remembered on this device', () => {
     rememberBand('kid-a', ID, 'tricky');
     expect(rememberedBand('kid-a', ID)).toBe('tricky');
     expect(rememberedBand('kid-b', ID)).toBeNull();
+  });
+
+  it('Expert, on a game that has it; not on one that hasn’t (§8.2)', () => {
+    rememberBand('kid-a', ID, 'expert');
+    expect(rememberedBand('kid-a', ID)).toBe('expert');
+    localStorage.setItem('hazel-mg-band-kid-a-dots-bakery', 'expert');
+    expect(MINIGAMES['dots-bakery'].expert).toBeUndefined();
+    expect(rememberedBand('kid-a', 'dots-bakery')).toBeNull();
   });
 
   it('a junk value or storage that throws is "not remembered", never an error', () => {

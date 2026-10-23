@@ -5,7 +5,7 @@ import ModalLayer from '../../components/ModalLayer';
 import LazyBoundary from '../../components/LazyBoundary';
 import ErrorDetails from '../../components/ErrorDetails';
 import { CharacterPortrait } from '../../components/CharacterPortrait';
-import { BANDS, BAND_LABEL, MINIGAMES, openedFlag, type Band, type MiniGameDef, type MiniGameId } from '../../content/minigames';
+import { BAND_LABEL, MINIGAMES, PLAY_BANDS, openedFlag, sealFlag, type MiniGameDef, type MiniGameId, type PlayBand } from '../../content/minigames';
 import { CONSUMABLES, type ConsumableId } from '../../content/items';
 import { NPC_DEFS, npcEmoji, npcName, npcSpriteId } from '../../content/npcs';
 import { topicInfo } from '../../content/topics';
@@ -40,6 +40,9 @@ interface Earned {
 }
 const NOTHING: Earned = { pages: [], xp: 0, coins: 0, stars: [], item: null };
 
+/** A round on Expert spot on every time (§8.3): the seal, the first time or again. */
+type Seal = 'new' | 'again' | null;
+
 function join(a: Earned, b: Earned): Earned {
   return { pages: [...a.pages, ...b.pages], xp: a.xp + b.xp, coins: a.coins + b.coins, stars: [...a.stars, ...b.stars], item: a.item ?? b.item };
 }
@@ -73,13 +76,15 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
   const addXp = useProfileStore((s) => s.addXp);
   const recordActivity = useProfileStore((s) => s.recordActivity);
   const kidId = profile?.id ?? null;
-  const level = skillLevelFor(profile?.skillLevels ?? {}, def.topic, playerAge(profile));
-  const suggested = bandFor(level);
-  const [band, setBand] = useState<Band>(() => rememberedBand(kidId, game) ?? suggested);
+  const age = playerAge(profile);
+  const level = skillLevelFor(profile?.skillLevels ?? {}, def.topic, age);
+  // From the level and the age (§8.2): a teen is offered Expert where the game has it, not Medium.
+  const suggested = bandFor(level, age, !!def.expert);
+  const [band, setBand] = useState<PlayBand>(() => rememberedBand(kidId, game) ?? suggested);
   const [phase, setPhase] = useState<Phase>('title');
   // Where this kid's orders pick up: a visit doesn't start over on the same first round (review round 2).
   const [round, setRound] = useState(() => roundsPlayed(kidId, game));
-  const [reward, setReward] = useState<(RoundOutcome & Earned) | null>(null);
+  const [reward, setReward] = useState<(RoundOutcome & Earned & { seal: Seal }) | null>(null);
   const earned = useRef<Earned>(NOTHING);
   const still = useReducedMotion() ?? false;
 
@@ -97,7 +102,7 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
 
   const leave = useCallback(() => sendFlow({ type: 'CLOSE' }), []);
 
-  function pickBand(b: Band) {
+  function pickBand(b: PlayBand) {
     setBand(b);
     // The suggested band isn't a choice to keep: it follows the kid's level as that grows.
     if (b === suggested) forgetBand(kidId, game);
@@ -144,12 +149,17 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
       const total = join(claimed.current ?? NOTHING, earned.current);
       claimed.current = null;
       earned.current = NOTHING;
-      setReward({ ...outcome, ...total });
+      // The Expert seal (§8.3): a save flag, shown, never paid.
+      const spot = band === 'expert' ? outcome.spotOn : undefined;
+      const sealed = !!spot && spot.of > 0 && spot.right === spot.of;
+      const first = sealed && !useSaveStore.getState().save?.flags[sealFlag(game)];
+      if (first) setFlag(sealFlag(game));
+      setReward({ ...outcome, spotOn: spot, ...total, seal: sealed ? (first ? 'new' : 'again') : null });
       setPhase('reward');
       sfx('victory');
       if (!still) confetti({ particleCount: 90, spread: 75, origin: { y: 0.35 }, disableForReducedMotion: true });
     },
-    [onClaim, still],
+    [onClaim, still, band, game, setFlag],
   );
 
   // The reward's confetti doesn't fall on into the next round, or over the map (review round 2).
@@ -193,9 +203,11 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
             def={def}
             band={band}
             suggested={suggested}
+            byLevel={bandFor(level)}
             level={level}
             found={found}
             stars={stars}
+            sealed={!!flags[sealFlag(game)]}
             onBand={pickBand}
             onPlay={() => setPhase('play')}
             onBack={leave}
@@ -232,7 +244,7 @@ function PlayArea({
   onBack,
 }: {
   def: MiniGameDef;
-  band: Band;
+  band: PlayBand;
   round: number;
   onPage: (page: string, label: string) => boolean;
   onFinish: (o: RoundOutcome) => void;
@@ -340,20 +352,26 @@ function TitleCard({
   def,
   band,
   suggested,
+  byLevel,
   level,
   found,
   stars,
+  sealed,
   onBand,
   onPlay,
   onBack,
 }: {
   def: MiniGameDef;
-  band: Band;
-  suggested: Band;
+  band: PlayBand;
+  suggested: PlayBand;
+  /** The band the level alone suggests: where the age raised it, the note says so. */
+  byLevel: PlayBand;
   level: number;
   found: number;
   stars: number;
-  onBand: (b: Band) => void;
+  /** The Expert seal won (§8.3). */
+  sealed: boolean;
+  onBand: (b: PlayBand) => void;
   onPlay: () => void;
   onBack: () => void;
 }) {
@@ -416,7 +434,8 @@ function TitleCard({
             <span id="mg-band-label" className="mr-1 font-bold">
               How tricky?
             </span>
-            {BANDS.map((b) => (
+            {/* Expert where the game has it (§8). */}
+            {PLAY_BANDS.filter((b) => b !== 'expert' || def.expert).map((b) => (
               <button
                 key={b}
                 type="button"
@@ -433,9 +452,9 @@ function TitleCard({
             ))}
             <p className="basis-full text-sm text-[#c9c5f2]">
               {band === suggested
-                ? `Picked from your ${topic.label} level (${level}).`
-                : `Your ${topic.label} level (${level}) suggests ${BAND_LABEL[suggested]}.`}
-              {def.bandNote ? ` ${def.bandNote}` : ''}
+                ? `Picked from your ${topic.label} level (${level})${suggested === byLevel ? '' : ' and your age'}.`
+                : `Your ${topic.label} level (${level})${suggested === byLevel ? '' : ' and age'} suggest${suggested === byLevel ? 's' : ''} ${BAND_LABEL[suggested]}.`}
+              {band === 'expert' ? ` ${def.expert}` : def.bandNote ? ` ${def.bandNote}` : ''}
             </p>
           </div>
 
@@ -446,6 +465,11 @@ function TitleCard({
             <span className="flex h-10 items-center gap-2 rounded-full border-2 border-[#4b4799] bg-[#2a2766] px-3 text-[15px]">
               <Stars count={stars} size={20} />
             </span>
+            {sealed && (
+              <span className="flex h-10 items-center gap-1.5 rounded-full border-2 border-amber-300 bg-[#3d3a8a] px-3 text-[15px] font-bold">
+                <span aria-hidden="true">🏅</span> Expert seal
+              </span>
+            )}
             {/* What a star is for (review round 2: star 2 came with no word of why). */}
             <p className="text-sm text-[#c9c5f2]">
               <span aria-hidden="true">🌟 </span>Stars: your first round · half the {def.collection} · the whole {def.collection}.
@@ -502,7 +526,7 @@ function RewardScreen({
   onBack,
 }: {
   def: MiniGameDef;
-  reward: RoundOutcome & Earned;
+  reward: RoundOutcome & Earned & { seal: Seal };
   stars: number;
   still: boolean;
   onAgain: () => void;
@@ -529,6 +553,9 @@ function RewardScreen({
   }
   if (reward.coins > 0) got.push({ emoji: '🪙', text: `${reward.coins} coins`, short: String(reward.coins) });
   if (reward.xp > 0) got.push({ emoji: '⭐', text: `${reward.xp} XP`, short: `${reward.xp} XP` });
+  // The Expert seal won (§8.3): with what's new, so on a phone it's in the line by the buttons, not a line of its own pushing
+  // them down (bench: Brew another went under the fold at 320 × 568).
+  if (reward.seal === 'new') got.push({ emoji: '🏅', text: 'The Expert seal: spot on every time', short: 'Expert seal' });
   for (const n of reward.stars)
     got.push({
       emoji: '🌟',
@@ -610,6 +637,18 @@ function RewardScreen({
                 {allFound
                   ? `You’ve found every page! Now it’s just for fun — and ${host ? npcName(host, flags) : 'everyone'} is always glad of the help.`
                   : `No new page this time. Try something you haven’t tried yet — it adds a page to your ${def.collection}!`}
+              </p>
+            )}
+            {/* On Expert, how many were spot on (§8.3) — the seal won is in the list. */}
+            {reward.spotOn && reward.seal !== 'new' && (
+              <p className="text-[15px] font-semibold leading-snug text-amber-200">
+                {reward.seal === 'again' ? (
+                  <>
+                    <span aria-hidden="true">🏅 </span>Spot on every time — the Expert seal again.
+                  </>
+                ) : (
+                  `Spot on: ${reward.spotOn.right} of ${reward.spotOn.of}. Spot on every time wins the Expert seal.`
+                )}
               </p>
             )}
           </section>
