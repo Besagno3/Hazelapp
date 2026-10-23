@@ -49,6 +49,28 @@ export function StepGuess() {
   );
 }
 
+/** Step 2 on Expert: the scale, 0 to 14 with 7 marked — no colours, as the guesses have none (code and UX review round 2). */
+export function StepPh() {
+  return (
+    <svg width="60" height="56" viewBox="0 0 60 56" aria-hidden="true">
+      <text x="30" y="24" textAnchor="middle" fontFamily="'Jersey 15', sans-serif" fontSize="24" fill="#fcd34d" stroke={INK} strokeWidth="1.5">
+        pH
+      </text>
+      <rect x="4" y="31" width="52" height="12" rx="3" fill="#dfe7ee" stroke={INK} strokeWidth="3" />
+      <line x1="30" y1="28" x2="30" y2="46" stroke={INK} strokeWidth="3" />
+      <text x="5" y="55" fontFamily="'Jersey 15', sans-serif" fontSize="10" fill="#d8d5f5">
+        0
+      </text>
+      <text x="30" y="55" textAnchor="middle" fontFamily="'Jersey 15', sans-serif" fontSize="10" fill="#d8d5f5">
+        7
+      </text>
+      <text x="55" y="55" textAnchor="end" fontFamily="'Jersey 15', sans-serif" fontSize="10" fill="#d8d5f5">
+        14
+      </text>
+    </svg>
+  );
+}
+
 /** Step 3: a sparkling cauldron. */
 export function StepStir() {
   return (

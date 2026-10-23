@@ -153,9 +153,9 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
       const total = join(claimed.current ?? NOTHING, earned.current);
       claimed.current = null;
       earned.current = NOTHING;
-      // The Expert seal (§8.3): a save flag, shown, never paid.
-      const spot = band === 'expert' ? outcome.spotOn : undefined;
-      const sealed = !!spot && spot.of > 0 && spot.right === spot.of;
+      // The Expert seal (§8.3): a save flag, shown, never paid — and only on Expert, from a round with something in it.
+      const spot = band === 'expert' && outcome.spotOn && outcome.spotOn.of > 0 ? outcome.spotOn : undefined;
+      const sealed = !!spot && spot.right === spot.of;
       const had = !!useSaveStore.getState().save?.flags[sealFlag(game)];
       if (sealed && !had) setFlag(sealFlag(game));
       setReward({ ...outcome, spotOn: spot, ...total, seal: sealed ? (had ? 'again' : 'new') : spot && had ? 'held' : null });
@@ -379,7 +379,9 @@ function TitleCard({
   onPlay: () => void;
   onBack: () => void;
 }) {
-  const { Logo, steps } = GAME_SCREENS[def.id];
+  const { Logo, steps, expertSteps } = GAME_SCREENS[def.id];
+  // On Expert, the game's own pictures where it has them (code and UX review round 2: the Potion Lab's colour guess).
+  const arts = band === 'expert' && expertSteps ? expertSteps : steps;
   const topic = topicInfo(def.topic);
   // Play has focus, so Enter starts the game as the talk's button opened it —
   // set after the talk's layer has let go, and without scrolling the card down
@@ -416,7 +418,7 @@ function TitleCard({
               <h2 className={cn(pixelHeadClass, 'text-[28px]')}>How to play</h2>
               <ol id="mg-how" className="flex flex-col gap-2.5">
                 {(band === 'expert' && def.expert ? def.expert.steps : def.steps).map((step, i) => {
-                  const Art = steps[i];
+                  const Art = arts[i];
                   return (
                     <li key={step.title} className="flex items-center gap-3 rounded-lg border-[3px] border-[#4b4799] bg-[#2a2766] p-2.5">
                       <span className="flex h-16 w-16 flex-none items-center justify-center rounded-md border-[3px] border-[#1b0f22] bg-[#24215a]">
@@ -457,15 +459,15 @@ function TitleCard({
               </button>
             ))}
             <p className="basis-full text-sm text-[#c9c5f2]">
-              {/* Where the age lifted it, said so — the level alone suggesting less (PR 11 UX review round 1: "Picked from your
-                  level (1) and your age" for Expert read oddly). */}
+              {/* Where the age lifted it, said so (PR 11 UX review round 1) — without the level, which a new teen starts at 6
+                  at most: "your level alone suggests Medium" read as a verdict on a 17-year-old (round 2). */}
               {suggested === byLevel
                 ? band === suggested
                   ? `Picked from your ${topic.label} level (${level}).`
                   : `Your ${topic.label} level (${level}) suggests ${BAND_LABEL[suggested]}.`
                 : band === suggested
-                  ? `Picked for your age — your ${topic.label} level (${level}) alone suggests ${BAND_LABEL[byLevel]}.`
-                  : `For your age, ${BAND_LABEL[suggested]} — your ${topic.label} level (${level}) alone suggests ${BAND_LABEL[byLevel]}.`}
+                  ? 'Picked for your age.'
+                  : `${BAND_LABEL[suggested]} is suggested for your age.`}
               {band === 'expert' && def.expert ? ` ${def.expert.note}` : def.bandNote ? ` ${def.bandNote}` : ''}
             </p>
           </div>
@@ -565,7 +567,7 @@ function RewardScreen({
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
   }, []);
-  // What's new, each with its emoji (hidden from a reader) and a short form for the line by the buttons.
+  // What's new, each with its emoji (hidden from a reader) and a short form for the line over the cards on a phone.
   const got: { emoji: string; text: string; short: string }[] = [];
   const from = host ? npcName(host, flags) : null;
   if (reward.item) {
@@ -577,7 +579,7 @@ function RewardScreen({
   // The Expert seal won (§8.3): with what's new, so on a phone it's in the line by the buttons, not a line of its own pushing
   // them down (bench: Brew another went under the fold at 320 × 568).
   if (reward.seal === 'new') got.push({ emoji: '🏅', text: 'The Expert seal: spot on every time', short: 'Expert seal' });
-  // On Expert otherwise, how many were spot on: in what was found out, and short by the buttons on a phone.
+  // On Expert otherwise, how many were spot on: in what was found out, and short over the cards on a phone.
   const spot = reward.spotOn;
   const tally =
     spot && reward.seal !== 'new'
@@ -596,7 +598,7 @@ function RewardScreen({
       short: 'A star',
     });
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto bg-[#1e1b4b] px-3 pb-6 pt-6 sm:pt-8 [@media(max-height:500px)]:pt-3">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-[#1e1b4b]">
       <svg aria-hidden="true" viewBox="-100 -100 200 200" className={cn('pointer-events-none fixed left-1/2 top-[38%] h-[160vmax] w-[160vmax] -translate-x-1/2 -translate-y-1/2', !still && 'motion-safe:animate-[spin_60s_linear_infinite]')}>
         {Array.from({ length: 12 }, (_, i) => {
           const a = (i * 30 * Math.PI) / 180;
@@ -605,93 +607,96 @@ function RewardScreen({
           return <path key={i} d={`M0 0 L${160 * Math.cos(a)} ${160 * Math.sin(a)} L${160 * Math.cos(b)} ${160 * Math.sin(b)} Z`} fill="#26236a" />;
         })}
       </svg>
-      <div className="relative flex w-full max-w-4xl flex-col items-center gap-4 [@media(max-height:500px)]:gap-2">
-        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'text-center text-5xl focus:outline-none sm:text-7xl [@media(max-height:500px)]:text-5xl')}>
-          {reward.title}
-        </h1>
-        <div className="flex items-end gap-6" aria-hidden="true">
-          <span className={cn(!still && 'motion-safe:animate-bounce')}>
-            <EmberSprite anim="cheer" scale={scale} />
-          </span>
-          {reward.swatch && (
-            <span className="mb-4 h-20 w-20 rounded-full border-4 border-[#1b0f22] shadow-[inset_-10px_-10px_0_rgba(0,0,0,0.2)]" style={{ background: reward.swatch }} />
-          )}
-          {reward.picture && <span className="mb-2">{reward.picture}</span>}
-          {host && (
-            <span className={cn(!still && 'motion-safe:animate-bounce [animation-delay:150ms]')}>
-              <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={scale} className="text-5xl" />
+      <div className="relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-3 pb-6 pt-6 sm:pt-8 [@media(max-height:500px)]:pt-3">
+        <div className="relative flex w-full max-w-4xl flex-col items-center gap-4 [@media(max-height:500px)]:gap-2">
+          <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'text-center text-5xl focus:outline-none sm:text-7xl [@media(max-height:500px)]:text-5xl')}>
+            {reward.title}
+          </h1>
+          <div className="flex items-end gap-6" aria-hidden="true">
+            <span className={cn(!still && 'motion-safe:animate-bounce')}>
+              <EmberSprite anim="cheer" scale={scale} />
             </span>
-          )}
-        </div>
-        <Stars count={stars} size={52} className="[@media(max-height:500px)]:[&>svg]:h-10 [@media(max-height:500px)]:[&>svg]:w-10" />
-        {/* On a phone or a short screen the cards are below the fold: what was found out, and what's new, by the buttons (PR 1 / PR 2 review round 2). */}
-        <p aria-hidden="true" className="max-w-xl text-center text-[17px] leading-snug sm:[@media(min-height:501px)]:hidden">
-          💡 {reward.learned}
-        </p>
-        {(got.length > 0 || tally) && (
-          <p aria-hidden="true" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[17px] font-bold text-amber-200 sm:[@media(min-height:501px)]:hidden">
-            {[...got, ...(tally ? [tally] : [])].map((g) => (
-              <span key={g.text}>
-                {g.emoji} {g.short}
+            {reward.swatch && (
+              <span className="mb-4 h-20 w-20 rounded-full border-4 border-[#1b0f22] shadow-[inset_-10px_-10px_0_rgba(0,0,0,0.2)]" style={{ background: reward.swatch }} />
+            )}
+            {reward.picture && <span className="mb-2">{reward.picture}</span>}
+            {host && (
+              <span className={cn(!still && 'motion-safe:animate-bounce [animation-delay:150ms]')}>
+                <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={scale} className="text-5xl" />
               </span>
-            ))}
+            )}
+          </div>
+          <Stars count={stars} size={52} className="[@media(max-height:500px)]:[&>svg]:h-10 [@media(max-height:500px)]:[&>svg]:w-10" />
+          {/* On a phone or a short screen the cards are below the fold: what was found out, and what’s new, above them (PR 1 / PR 2 review round 2). */}
+          <p aria-hidden="true" className="max-w-xl text-center text-[17px] leading-snug sm:[@media(min-height:501px)]:hidden">
+            💡 {reward.learned}
           </p>
-        )}
-        {/* On a phone or a short screen the cards come after the buttons, so Play again is in view. */}
-        <div className="order-last grid w-full gap-4 sm:order-none md:grid-cols-[1.35fr_1fr] [@media(max-height:500px)]:order-last">
-          <section aria-labelledby="mg-learned" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
-            <h2 id="mg-learned" className={cn(pixelHeadClass, 'text-[28px]')}>
-              What you found out
-            </h2>
-            <p className="text-lg leading-snug">{reward.learned}</p>
-            {/* New pages on their own line: one may not be the jar that filled the order (review round 2). */}
-            {reward.pages.length > 0 && (
-              <p className="text-[15px] font-semibold text-amber-200">
-                <span aria-hidden="true">📖 </span>
-                New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(', ')}.
-              </p>
-            )}
-            {/* On Expert, how many were spot on (§8.3) — here, where there's room, not under what's new (PR 11 UX review round 1:
-                it pushed the buttons off at 1366 × 650); the seal won is in that list. */}
-            {tally && (
-              <p className="text-[15px] font-semibold leading-snug text-amber-200">
-                {tally.emoji === '🏅' && <span aria-hidden="true">🏅 </span>}
-                {tally.text}
-              </p>
-            )}
-          </section>
-          <section aria-labelledby="mg-got" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
-            <h2 id="mg-got" className={cn(pixelHeadClass, 'text-[28px]')}>
-              {got.length > 0 ? 'You got' : 'Just for fun'}
-            </h2>
-            {got.length > 0 ? (
-              <ul className="flex flex-col gap-1.5 text-[17px]">
-                {got.map((g) => (
-                  <li key={g.text}>
-                    <span aria-hidden="true">{g.emoji} </span>
-                    {g.text}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-[15px] leading-snug text-[#d8d5f5]">
-                {allFound
-                  ? `You’ve found every page! Now it’s just for fun — and ${host ? npcName(host, flags) : 'everyone'} is always glad of the help.`
-                  : `No new page this time. Try something you haven’t tried yet — it adds a page to your ${def.collection}!`}
-              </p>
-            )}
-          </section>
+          {(got.length > 0 || tally) && (
+            <p aria-hidden="true" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[17px] font-bold text-amber-200 sm:[@media(min-height:501px)]:hidden">
+              {[...got, ...(tally ? [tally] : [])].map((g) => (
+                <span key={g.text}>
+                  {g.emoji} {g.short}
+                </span>
+              ))}
+            </p>
+          )}
+          <div className="grid w-full gap-4 md:grid-cols-[1.35fr_1fr]">
+            <section aria-labelledby="mg-learned" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
+              <h2 id="mg-learned" className={cn(pixelHeadClass, 'text-[28px]')}>
+                What you found out
+              </h2>
+              <p className="text-lg leading-snug">{reward.learned}</p>
+              {/* New pages on their own line: one may not be the jar that filled the order (review round 2). */}
+              {reward.pages.length > 0 && (
+                <p className="text-[15px] font-semibold text-amber-200">
+                  <span aria-hidden="true">📖 </span>
+                  New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(', ')}.
+                </p>
+              )}
+              {/* On Expert, how many were spot on (§8.3) — here, where there's room, not under what's new (PR 11 UX review round 1:
+                  it pushed the buttons off at 1366 × 650); the seal won is in that list. */}
+              {tally && (
+                <p className="text-[15px] font-semibold leading-snug text-amber-200">
+                  {tally.emoji === '🏅' && <span aria-hidden="true">🏅 </span>}
+                  {tally.text}
+                </p>
+              )}
+            </section>
+            <section aria-labelledby="mg-got" className={cn(windowClass, 'flex flex-col gap-2 p-4')}>
+              <h2 id="mg-got" className={cn(pixelHeadClass, 'text-[28px]')}>
+                {got.length > 0 ? 'You got' : 'Just for fun'}
+              </h2>
+              {got.length > 0 ? (
+                <ul className="flex flex-col gap-1.5 text-[17px]">
+                  {got.map((g) => (
+                    <li key={g.text}>
+                      <span aria-hidden="true">{g.emoji} </span>
+                      {g.text}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-[15px] leading-snug text-[#d8d5f5]">
+                  {allFound
+                    ? `You’ve found every page! Now it’s just for fun — and ${host ? npcName(host, flags) : 'everyone'} is always glad of the help.`
+                    : `No new page this time. Try something you haven’t tried yet — it adds a page to your ${def.collection}!`}
+                </p>
+              )}
+            </section>
+          </div>
         </div>
-        {/* The buttons kept in view, on a tray at the foot where the cards run past it: Brew another was below the fold at
-            1366 × 650, 1280 × 600 and 1024 × 600, the cards first there (PR 11 review round 1 bench; older than Expert). */}
-        <div className="sticky bottom-0 z-10 flex w-fit max-w-full flex-wrap justify-center gap-3 rounded-2xl bg-[#1e1b4b]/90 p-2">
-          <button type="button" onClick={onBack} aria-label="Back to the map" className={outlineClass}>
-            <span aria-hidden="true">🗺️ Map</span>
-          </button>
-          <button type="button" onClick={onAgain} className={cn(goldClass, 'text-xl')}>
-            {def.againLabel}
-          </button>
-        </div>
+      </div>
+      {/* The buttons in a footer of their own, under what scrolls: always in view, and over nothing (round 1's tray floated
+          over the cards and the seal's line on most short screens, UX review round 2; before it, Brew another was below the
+          fold at 1366 × 650, 1280 × 600 and 1024 × 600). The cards follow what's new, so a phone sees that first. */}
+      {/* One row, a 320 px phone too (narrower padding there: "Another morning" is the longest). */}
+      <div className="relative flex flex-none justify-center gap-3 border-t-2 border-[#4b4799] bg-[#1e1b4b] px-3 py-2.5">
+        <button type="button" onClick={onBack} aria-label="Back to the map" className={cn(outlineClass, '[@media(max-width:359px)]:px-3')}>
+          <span aria-hidden="true">🗺️ Map</span>
+        </button>
+        <button type="button" onClick={onAgain} className={cn(goldClass, 'text-xl [@media(max-width:359px)]:px-3')}>
+          {def.againLabel}
+        </button>
       </div>
     </div>
   );

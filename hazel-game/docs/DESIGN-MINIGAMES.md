@@ -193,16 +193,23 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   as pure water" (pH 10), never neutral, the potions named for the band, not
   for a colour, and the bottle on the ticket colourless; the kid guesses the
   jar's pH as a number (fifteen buttons, 0–14, no colours by them), and
-  Tadpole says it plainly, in tens: "Spot on: lemon juice is about pH 2.", or
-  "pH 9 is alkaline. Lemon juice is about pH 2 — seven steps below your 9:
-  ten million times more acidic." A jar that varies has a range (vinegar
-  pH 2–3, soap 9–12): any pH in it is spot on. Every guess spot on in a round
-  is the Expert seal. A Brew Book page keeps the jar's pH back till it's
-  brewed this round. Where the counter's rows would run under the scene (a
-  short window, or one too narrow for the round's jars on the counter — the
-  `jars-6/9/12` screens), the jars are in the step card, first in the side
-  panel; Stir stays at the foot of the card, so the pH buttons don't move
-  under the finger.
+  Tadpole says it plainly, in tens, and in the jar's own words — an acid more
+  or less acidic than the guess, a base more or less alkaline: "Spot on:
+  lemon juice is about pH 2.", "pH 9 is alkaline. Lemon juice is about pH 2 —
+  seven steps below your 9: ten million times more acidic.", "Lemon juice is
+  about pH 2 — two steps above your 0: a hundred times less acidic." A jar
+  that varies has a range (vinegar pH 2–3, soap 9–12): any pH in it is spot
+  on, and a miss counts to both ends ("five or six steps"). A jar that doesn't
+  fill the order says which way to look ("try a more alkaline jar"). Every
+  guess spot on in a round is the Expert seal. A Brew Book page waits till
+  its jar's brewed this round — no colour, kind or fact, which gave the pH
+  away. Where the counter's rows would run under the scene, or leave it too
+  small to see the cauldron's colour (a short window, or one too narrow for
+  the round's jars on the counter — the `jars-6/9/12` screens), the jars are
+  in the step card, first in the side panel; Stir stays at the foot of the
+  card, so the pH buttons don't move under the finger, and a step's buttons
+  wait a moment as it starts, so a double tap's second doesn't press what
+  came under it.
 
 ### 5.2 🥧 Dot's Bakery — Math · Baker Dot, Lumina Village
 
@@ -479,11 +486,14 @@ world, with the same host.
   before); a 9-year-old at level 3, Medium (Gentle before); a young kid's
   suggestion never drops (a 7-year-old at level 10 keeps Tricky). Any band
   can still be picked, and the pick is remembered as now. Where the age
-  lifted it, the title card says so: "For your age, Tricky — your Science
-  level (5) alone suggests Medium."
+  lifted it, the title card says so — "Picked for your age.", or "Tricky is
+  suggested for your age." — and not what the level alone suggests: a new
+  teen starts at level 6 at most, so it read as a verdict.
 - **The title card on Expert** speaks to a teen: the game's own Expert hello,
   its three steps and a line on what Expert is (`MiniGameDef.expert`: `note`,
-  `hello`, `steps`).
+  `hello`, `steps`), and its own pictures where the younger bands' would
+  mislead (`GameScreens.expertSteps`: the Potion Lab's guess is a scale, not
+  colours).
 - A mini-game still never moves the question level (§3.3).
 
 ### 8.3 What changes on Expert

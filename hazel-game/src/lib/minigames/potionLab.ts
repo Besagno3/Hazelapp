@@ -121,10 +121,29 @@ export function shadeOf(jar: Jar, band: PlayBand): Shade {
   return stripShade(jar.ph);
 }
 
-/** "ten times", "a hundred times" … "a hundred thousand times": the scale's steps from 7. */
-const TIMES = ['', 'ten times', 'a hundred times', 'a thousand times', 'ten thousand times', 'a hundred thousand times', 'a million times', 'ten million times'];
+/**
+ * "ten times", "a hundred times" … "a hundred trillion times": a number of steps on the scale, up to its whole width
+ * (code and UX review round 2: they stopped at seven, and a guess of 10 for lemon juice read "undefined steps").
+ */
+const TIMES = [
+  '',
+  'ten times',
+  'a hundred times',
+  'a thousand times',
+  'ten thousand times',
+  'a hundred thousand times',
+  'a million times',
+  'ten million times',
+  'a hundred million times',
+  'a billion times',
+  'ten billion times',
+  'a hundred billion times',
+  'a trillion times',
+  'ten trillion times',
+  'a hundred trillion times',
+];
 
-const STEPS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
+const STEPS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen'];
 const steps = (n: number) => `${STEPS[n]} step${n === 1 ? '' : 's'}`;
 
 /**
@@ -237,23 +256,56 @@ export function stepsOut(guess: string, jar: Jar): number {
 }
 
 const kindAt = (ph: number) => (ph < 7 ? 'acidic' : ph > 7 ? 'alkaline' : 'neutral');
-const KIND_IS: Record<Kind, string> = { acid: 'acidic', base: 'alkaline', neutral: 'neutral' };
+
+/** "a hundred times": how far a guess was, for the result's line. */
+export const timesWords = (n: number) => TIMES[n];
+
+/** "two steps", "four or five steps", "two to five steps" — from the near end of a range to the far. */
+function stepsBetween(near: number, far: number): string {
+  return near === far ? steps(near) : `${STEPS[near]} ${far - near === 1 ? 'or' : 'to'} ${STEPS[far]} steps`;
+}
+function timesBetween(near: number, far: number): string {
+  return near === far ? TIMES[near] : `${TIMES[near].replace(/ times$/, '')} to ${TIMES[far]}`;
+}
 
 /**
  * Expert's guess said back, in tens and which way (UX review round 1: "Not
  * quite" said nothing of how far, or which side of 7): "Spot on: lemon juice
  * is about pH 2."; "pH 9 is alkaline. Lemon juice is about pH 2 — seven steps
- * below your 9: ten million times more acidic."
+ * below your 9: ten million times more acidic." The jar is said in its own
+ * words — an acid more or less acidic than the guess, a base more or less
+ * alkaline, a neutral one less of whichever the guess was — and a range from
+ * end to end (code and UX review round 2: lemon juice "a hundred times more
+ * alkaline" than a guess of 0; vinegar "five steps" below 8, which is five or
+ * six).
  */
 export function guessVerdict(guess: string, jar: Jar): string {
   const g = Number(guess);
-  const n = stepsOut(guess, jar);
+  const [lo, hi] = phRange(jar);
   const name = jar.name.charAt(0).toLowerCase() + jar.name.slice(1);
-  if (n === 0) return `Spot on: ${name} is about ${phWords(jar)}.`;
-  const below = g > phRange(jar)[1];
-  // A guess on the other side of 7 says so first.
-  const side = kindAt(g) !== KIND_IS[jar.kind] ? `pH ${g} is ${kindAt(g)}. ` : '';
-  return `${side}${jar.name} is about ${phWords(jar)} — ${steps(n)} ${below ? 'below' : 'above'} your ${g}: ${TIMES[n]} more ${below ? 'acidic' : 'alkaline'}.`;
+  if (g >= lo && g <= hi) return `Spot on: ${name} is about ${phWords(jar)}.`;
+  // The jar below the guess, or above it.
+  const below = g > hi;
+  const near = below ? g - hi : lo - g;
+  const far = below ? g - lo : hi - g;
+  // A guess on a side of 7 the jar is never on says so first (milk, 6–7, guessed 5: no — milk can be acidic).
+  const sides = new Set(Array.from({ length: hi - lo + 1 }, (_, k) => kindAt(lo + k)));
+  const side = sides.has(kindAt(g)) ? '' : `pH ${g} is ${kindAt(g)}. `;
+  const than = jar.kind === 'acid' ? (below ? 'more acidic' : 'less acidic') : jar.kind === 'base' ? (below ? 'less alkaline' : 'more alkaline') : below ? 'less alkaline' : 'less acidic';
+  return `${side}${jar.name} is about ${phWords(jar)} — ${stepsBetween(near, far)} ${below ? 'below' : 'above'} your ${g}: ${timesBetween(near, far)} ${than}.`;
+}
+
+/**
+ * Which way to look after a jar that doesn't fill an Expert order — the order's
+ * pH against the jar's, in the order's own words: "more acidic", "less
+ * alkaline"… (UX review round 2: "try another jar" said nothing of which).
+ */
+export function orderNudge(order: Order, jar: Jar): string | null {
+  if (order.ph === undefined) return null;
+  const [lo, hi] = phRange(jar);
+  if (order.ph < lo) return order.ph < 7 ? 'more acidic' : 'less alkaline';
+  if (order.ph > hi) return order.ph > 7 ? 'more alkaline' : 'less acidic';
+  return null;
 }
 
 /** Why it turned that colour (and, on Tricky, the pH; on Expert, where that sits on the scale, and what neutralises it). */

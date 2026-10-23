@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react';
 import type { MiniGameId } from '../../content/minigames';
 import { retryableLazy, type RetryableLazy } from '../../lib/lazyRetry';
-import { PotionLabLogo, StepGuess, StepPour, StepStir } from './potionLab/art';
+import { PotionLabLogo, StepGuess, StepPh, StepPour, StepStir } from './potionLab/art';
 import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import { GearsLogo, StepCrank, StepJoin, StepPeg } from './gears/art';
 import { MuralLogo, StepMirror, StepMix, StepPaint } from './mural/art';
@@ -22,6 +22,8 @@ export interface GameScreens {
   Play: RetryableLazy<PlayProps>;
   Logo: ComponentType<{ size?: number }>;
   steps: readonly [ComponentType, ComponentType, ComponentType];
+  /** The title card's pictures on Expert, where a game's own differ (§8.3: the Potion Lab's guess has no colours). */
+  expertSteps?: readonly [ComponentType, ComponentType, ComponentType];
 }
 
 export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
@@ -29,6 +31,7 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./potionLab/PotionLab')),
     Logo: PotionLabLogo,
     steps: [StepPour, StepGuess, StepStir],
+    expertSteps: [StepPour, StepPh, StepStir],
   },
   'dots-bakery': {
     Play: retryableLazy(() => import('./bakery/DotsBakery')),

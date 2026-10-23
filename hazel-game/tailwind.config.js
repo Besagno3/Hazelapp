@@ -17,11 +17,12 @@ export default {
         // sideways (844 × 390) gives its map the screen's width (PR 9 review round 2: the world's map was 290 × 145).
         wide: { raw: '(min-width: 768px) and (min-height: 501px), (min-width: 1000px)' },
         // The Potion Lab's counter of jars, under its scene, where its jars fit (PR 11 review round 1): from 501 px high
-        // where they're one row (6 from 780 px wide, 9 from 924, 12 from 1280), else from 621 px high (12 at 1024 px from
-        // 541) — under that, two rows ran under the scene (640 × 505), so the jars are in the step card.
+        // where they're one row (6 from 780 px wide, 9 from 924, 12 from 1280), else from 621 px high — under that, two
+        // rows ran under the scene (640 × 505), or left it 80–120 px with the cauldron's colour out of sight (1024 × 541
+        // to 600, review round 2), so the jars are in the step card.
         'jars-6': { raw: '(min-width: 780px) and (min-height: 501px), (min-width: 640px) and (min-height: 621px)' },
         'jars-9': { raw: '(min-width: 924px) and (min-height: 501px), (min-width: 640px) and (min-height: 621px)' },
-        'jars-12': { raw: '(min-width: 1280px) and (min-height: 501px), (min-width: 1024px) and (min-height: 541px), (min-width: 640px) and (min-height: 621px)' },
+        'jars-12': { raw: '(min-width: 1280px) and (min-height: 501px), (min-width: 640px) and (min-height: 621px)' },
       },
       // The mini-games' big pixel titles (docs/DESIGN-MINIGAMES.md), self-hosted in public/fonts.
       fontFamily: {

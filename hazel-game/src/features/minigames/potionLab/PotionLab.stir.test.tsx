@@ -6,6 +6,8 @@ vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => false,
 }));
+// The main tests stand in an always-ready wait (a step's buttons wait a moment as it starts — PotionLab.taps.test).
+vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 vi.mock('../../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../../machines/gameFlow')>()),
@@ -155,8 +157,10 @@ describe('🧪 the stir, with motion (review round 1)', () => {
       fireEvent.click(counter().getByRole('button', { name: /Lemon juice/ }));
       const guesses = screen.getByRole('group', { name: 'Your guess' });
       expect(into.mock.contexts).toContain(guesses);
-      // The panel's scroll padding keeps them above Stir while it's sticky.
-      expect(screen.getByRole('complementary', { name: /The job and/ })).toHaveClass('scroll-pb-20');
+      // Stir is sticky, and the panel's scroll padding keeps them above it (code review round 2: untested; UX: 80 px left
+      // the last row's foot under it).
+      expect(screen.getByRole('button', { name: 'Make a guess first' }).parentElement).toHaveClass('sticky');
+      expect(screen.getByRole('complementary', { name: /The job and/ })).toHaveClass('scroll-pb-24');
       into.mockClear();
       fireEvent.click(within(guesses).getByRole('button', { name: 'Pink' }));
       fireEvent.click(within(guesses).getByRole('button', { name: 'Stays purple' }));
