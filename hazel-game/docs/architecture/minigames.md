@@ -276,38 +276,54 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   stay in place, unseen, while mixing and after a match so the canvas never
   changes size; on a phone the mirror's rule sits over the canvas. A step's
   buttons wait `SETTLE_MS` as it starts (`useSettled`, shared): a double
-  tap's second tap does nothing to what came under the finger; the mirror held
-  up before a square is painted marks nothing; a held Enter paints once. The
+  tap's second tap does nothing to what came under the finger — the paints
+  and the canvas's pointer too (a key paints at once); the mirror held up
+  before a square is painted marks nothing, and says so on the gold button
+  ("Paint a square first", `aria-disabled`); a held Enter paints once. The
+  in-board scroll runs as a step starts, once the canvas has its fit, not at
+  a check, and on the free canvas (its paints stand taller) Hang it wins
+  over the canvas's top. The
   mark is sized from the canvas (container units), so a square's letter shows
   in it; the focus ring is drawn over it. On a tall enough screen Madame
   Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
   Clocktower Gears' board). The room above (this round's three frames) from
-  `sm` up. On Expert (`Job.expert`) the kinds are its six moves (`MOVES`:
+  `sm` up, but not where it's narrow and short too (up to 767 × 620: the
+  board needs the height). The canvas is described by how the keys work it
+  (`mm-keys`). On Expert (`Job.expert`) the kinds are its six moves (`MOVES`:
   `across`, `down`, `diag` — y = x, `turn`, `quarter` — quarter turns
   clockwise, `shift` — by (3, 0); `source` for each, tested corner for
   corner against `mapPoint`), two rounds of three; step 1 (`'name'`, no
   pots) names the move from `Job.p` (A, inside every move's painted part,
-  each move taking it somewhere else; the two take turns by the pair of
-  rounds) and `pImage` (A′): `nameAsk`, `nameWords`, `MOVE_NAME`; the ticket
+  each move taking it somewhere else) and `pImage` (A′): `nameAsk` (each A
+  kept with its point), `nameWords`, `MOVE_NAME`; each pair of rounds turns
+  the order of a round's three moves on one and gives each move the other A,
+  so a picture's number doesn't give its move away; the ticket
   and the phone's line hide the move till then (`jobWords(job, named)`), and
   the canvas is bare (`BARE`: the painted part's shape gave the move away).
   On Expert the goal is `unfaked`: the first of `SWAPS` (the given part's
   two colours swapped in one place) that leaves no other way of copying it
   (`fakes`, against `OTHER_MAPS` — every kind's `source`, the square's turns
-  and mirrors, two slides, the quarter turns anticlockwise) — every pattern
-  is the same across and down, so a half turn had painted x = 3's picture.
+  and mirrors, two slides, the quarter turned the wrong way in place — a
+  quarter turn anticlockwise about (3, 3) makes the same picture as the
+  clockwise ones) — every pattern is the same across and down, so a half
+  turn had painted x = 3's picture; the test writes the ways out apart from
+  `OTHER_MAPS`, and paints each picture by every move through `mapPoint`.
   Expressions are said on one line (`tie`: no-break spaces). `marks.tsx`:
   `Axes` puts 0–6 round the canvas inside its fitted size (`AXIS`), and
   `MoveMarks` (an SVG in the canvas's coordinates) draws A and A′, or —
-  once a check has marked squares — the move's line, centre or vector, with
-  its rule (`ruleWords`, `markWords(n, job)`; over the canvas on a phone
+  once a check has marked squares — the move's line, centre (with an arc
+  for how far round, clockwise) or vector, its arrowhead its own (`useId`),
+  with its rule (`ruleWords`, `markWords(n, job)`; over the canvas on a phone
   too); `AskPicture` draws A and A′ small beside the moves on a phone (on
   one on its side, the moves three across beside it), and Step 1 scrolls it
-  into sight with That's the move (`stepScroll`, the picture winning). The squares are said by their corners ("Square (3, 5)
+  into sight with That's the move (`stepScroll`, the picture winning; from
+  `sm` the side panel, the ask winning, under a stuck bubble). The squares
+  are said by their corners ("Square (3, 5)
   to (4, 6): bare."); while painting the given ones are in the arrow keys'
   grid too ("…: purple, given.", `aria-disabled`), and a kid's square says
   what it's the image of only once it's marked. The letters are drawn over
-  the line (`z-[1]`); the free canvas has its x = 3. Its lessons are the
+  the line (`z-[1]`); the free canvas has its x = 3 (its lines `tie`d too);
+  Expert's title card paints with no line (`StepImage`). Its lessons are the
   moves' (`learnedLine`; the reward's the first missed picture's), Madame
   Hue speaks plainly, and the pictures right at their first naming and
   first check are `spotOn`, passed to `onClaim` (typed as the game's own

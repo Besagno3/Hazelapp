@@ -27,6 +27,7 @@ import {
   mirrored,
   mismatches,
   mix,
+  nameAsk,
   mixWords,
   nameWords,
   num,
@@ -315,39 +316,103 @@ describe('Expert: transformations on a coordinate grid (§8.5)', () => {
     for (const w of said) expect(w, w).not.toMatch(/ [=−+] |\([^()]*, [^()]*\)/);
   });
 
-  it('A takes turns by the pair of rounds, so the third round doesn’t ask the first’s again (UX review round 1)', () => {
-    for (let round = 0; round < 2; round++)
-      for (let i = 0; i < JOBS_PER_ROUND; i++) {
-        const [now, later] = [jobFor('expert', round, i), jobFor('expert', round + 2, i)];
-        expect(later.kind).toBe(now.kind);
-        expect(later.p).not.toEqual(now.p);
-      }
+  it('each pair of rounds turns the moves’ order on one and gives each move the other A, so the third round isn’t the first again (UX review rounds 1 and 2)', () => {
+    const pair = (n: number) => Array.from({ length: 6 }, (_, s) => jobFor('expert', 2 * n + Math.floor(s / 3), s % 3));
+    for (let n = 0; n < 3; n++) {
+      const [now, next] = [pair(n), pair(n + 1)];
+      // All six, each once, in every pair; each round's three the same three.
+      expect(now.map((j) => j.kind).sort()).toEqual([...MOVES].sort());
+      for (const half of [0, 3]) expect(next.slice(half, half + 3).map((j) => j.kind).sort()).toEqual(now.slice(half, half + 3).map((j) => j.kind).sort());
+      // Picture 1 of each round asks another move, and each move another A.
+      expect(next[0].kind).not.toBe(now[0].kind);
+      expect(next[3].kind).not.toBe(now[3].kind);
+      for (const m of MOVES) expect(next.find((j) => j.kind === m)!.p, m).not.toEqual(now.find((j) => j.kind === m)!.p);
+    }
+    // The first two rounds as they were.
+    expect(pair(0).map((j) => j.kind)).toEqual(['across', 'diag', 'quarter', 'shift', 'turn', 'down']);
+    expect(pair(1).map((j) => j.kind)).toEqual(['diag', 'quarter', 'across', 'turn', 'down', 'shift']);
   });
 
-  it('no other move paints an Expert picture right: every pattern under every move (code review round 1)', () => {
-    // Every pattern is the same across and down, and five are the same corner to corner, so as they come a half turn
-    // painted x = 3's picture, and two mirrors a quarter turn's.
-    const others: readonly Kind[] = ['across', 'down', 'four', 'turn', 'diag', 'quarter', 'shift'];
+  it('A is kept with its point (UX review round 2: "A / (1, 4)" broke across lines)', () => {
+    expect(nameAsk(jobFor('expert', 0, 0))).toBe('A\u00a0(1,\u00a04) maps to A′\u00a0(5,\u00a04).');
+  });
+
+  it('no other way of copying the painted part paints an Expert picture right: every pattern under every move (code review rounds 1 and 2)', () => {
+    // Every pattern is the same across and down, and five are the same corner to corner, so as they came a half turn
+    // painted x = 3's picture, and two mirrors a quarter turn's. The ways are written out here, apart from the game's
+    // own list (code review round 2: the test read the list it checked). Each gives the square a kid's square is copied
+    // from; rows go down, so y = x runs from the bottom-left corner.
+    const M = SIZE - 1;
+    const H = SIZE / 2;
+    type Way = (r: number, c: number) => readonly [number, number];
+    const ways: Record<string, Way> = {
+      ...Object.fromEntries((['across', 'down', 'four', 'turn', 'diag', 'quarter', 'shift'] as const).map((k) => [k, (r: number, c: number) => source(k, r, c)])),
+      'a quarter turn clockwise, whole': (r, c) => [M - c, r],
+      'a half turn, whole': (r, c) => [M - r, M - c],
+      'a quarter turn anticlockwise, whole': (r, c) => [c, M - r],
+      'a mirror across': (r, c) => [r, M - c],
+      'a mirror down': (r, c) => [M - r, c],
+      'a mirror in y = x': (r, c) => [M - c, M - r],
+      'a mirror in y = 6 − x': (r, c) => [c, r],
+      'slid across': (r, c) => [r, c - H],
+      'slid down': (r, c) => [r - H, c],
+      'the quarter tiled': (r, c) => [r % H, c % H],
+      'the quarter turned the wrong way in place': (r, c) => (r < H ? (c < H ? [r, c] : [c - H, M - H - r]) : c < H ? [M - H - c, r - H] : [M - r, M - c]),
+    };
+    /** A way fits if it copies only painted squares onto the kid's, each the colour the picture wants — and isn't the move's own. */
+    const fits = (job: ReturnType<typeof jobFor>, way: Way) => {
+      let other = false;
+      for (const [r, c] of toPaint(job.kind)) {
+        const [sr, sc] = way(r, c);
+        if (sr < 0 || sc < 0 || sr >= SIZE || sc >= SIZE || !given(job.kind, sr, sc) || job.goal[sr][sc] !== job.goal[r][c]) return false;
+        const [kr, kc] = source(job.kind, r, c);
+        if (sr !== kr || sc !== kc) other = true;
+      }
+      return other;
+    };
+    /** The kid's part painted by a move from what's shown: each painted square carried where the move takes it (a quarter turn's three times). */
+    const paintedBy = (job: ReturnType<typeof jobFor>, m: Move) => {
+      const painted: Cell[][] = start(job);
+      for (let r = 0; r < SIZE; r++)
+        for (let c = 0; c < SIZE; c++) {
+          if (!given(job.kind, r, c) || !job.goal[r][c]) continue;
+          let ends: Point[] = [[c, M - r], [c + 1, SIZE - r]];
+          for (let n = 0; n < (m === 'quarter' ? 3 : 1); n++) {
+            ends = ends.map((p) => mapPoint(m, p));
+            const [tr, tc] = [M - Math.min(ends[0][1], ends[1][1]), Math.min(ends[0][0], ends[1][0])];
+            if (tr >= 0 && tr < SIZE && tc >= 0 && tc < SIZE && !given(job.kind, tr, tc)) painted[tr][tc] = job.goal[r][c];
+          }
+        }
+      return painted;
+    };
+    // Unswapped, as the younger bands paint them, the ways are there to find: x = 3's butterfly is also a half turn
+    // and two mirrors.
+    const butterfly = jobFor('gentle', 0, 0, ['butterfly', 'butterfly', 'butterfly']);
+    expect(Object.keys(ways).filter((w) => fits(butterfly, ways[w])).sort()).toEqual(['a half turn, whole', 'four']);
+    expect(fakes('across', butterfly.goal)).toBe(2);
     for (const pattern of PATTERN_IDS)
       for (let s = 0; s < 6; s++) {
         const job = jobFor('expert', Math.floor(s / 3), s % 3, [pattern, pattern, pattern]);
+        expect(Object.keys(ways).filter((w) => fits(job, ways[w])), `${job.kind} ${pattern}`).toEqual([]);
         expect(fakes(job.kind, job.goal), `${job.kind} ${pattern}`).toBe(0);
         // Both colours still in the painted part.
-        const shown = new Set(start(job).flat().filter(Boolean));
-        expect(shown.size, `${job.kind} ${pattern}`).toBe(2);
-        // The kid's part painted by another move's rule from what's shown (following it back to a painted square)
-        // has a square marked.
-        for (const k of others) {
-          if (k === job.kind) continue;
-          const painted: Cell[][] = start(job);
-          for (const [r, c] of toPaint(job.kind)) {
-            let [sr, sc] = [r, c];
-            for (let n = 0; n < 4 && !given(job.kind, sr, sc); n++) [sr, sc] = source(k, sr, sc);
-            painted[r][c] = given(job.kind, sr, sc) ? job.goal[sr][sc] : null;
-          }
-          expect(mismatches(job, painted).length, `${job.kind} ${pattern} painted as ${k}`).toBeGreaterThan(0);
-        }
+        expect(new Set(start(job).flat().filter(Boolean)).size, `${job.kind} ${pattern}`).toBe(2);
+        // Painted by its own move it's exact; by any other, a square is marked.
+        for (const m of MOVES) expect(mismatches(job, paintedBy(job, m)).length === 0, `${job.kind} ${pattern} painted by ${m}`).toBe(m === job.kind);
       }
+  });
+
+  it('the game finds the quarter turned the wrong way in place (code review round 2: its way never fitted anything)', () => {
+    // A top-left quarter with no symmetry, the others it turned anticlockwise into the top right, half round into the
+    // bottom right, clockwise into the bottom left.
+    const q = [['red', 'red', null], [null, 'blue', null], ['blue', null, null]] as const;
+    const g: Cell[][] = Array.from({ length: SIZE }, (_, r) =>
+      Array.from({ length: SIZE }, (_, c) => {
+        const [i, j] = [r % 3, c % 3];
+        return r < 3 ? (c < 3 ? q[i][j] : q[j][2 - i]) : c < 3 ? q[2 - j][i] : q[2 - i][2 - j];
+      }),
+    );
+    expect(fakes('quarter', g)).toBe(1);
   });
 });
 

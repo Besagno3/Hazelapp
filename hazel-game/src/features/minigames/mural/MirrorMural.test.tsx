@@ -57,6 +57,8 @@ afterEach(() => {
 
 const save = () => useSaveStore.getState().save!;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Expert's ask as it's said: its expressions on one line, and A and A′ each kept with its point. */
+const said = (s: string) => tie(s).replace(/\b(A′?) \(/g, '$1\u00a0(');
 const cell = (r: number, c: number) => screen.getByRole('button', { name: new RegExp(`^Row ${r + 1}, square ${c + 1}:`) });
 // By its place: quick, for the many clicks a whole picture takes (review round 2: role queries timed the tests out).
 const square = (r: number, c: number) => document.querySelector<HTMLElement>(`[data-cell="${r},${c}"]`)!;
@@ -140,8 +142,10 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(screen.getByRole('heading', { name: 'Step 2 · Paint the other half' })).toBeInTheDocument();
     expect(cell(0, 3)).toHaveFocus();
     expect(paints().getByRole('button', { name: 'Purple' })).toHaveAttribute('aria-pressed', 'true');
-    // Held up before a square is painted: nothing to mark — paint first.
-    mirror();
+    // Held up before a square is painted: the button says to paint first (UX review round 2, PR 14), and nothing's
+    // marked.
+    expect(screen.getByRole('button', { name: 'Paint a square first' })).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Paint a square first' }));
     expect(marked()).toHaveLength(0);
     expect(screen.getByText('Paint the right half first, darling — then hold up the mirror!')).toBeInTheDocument();
     expect(cell(0, 3)).toHaveFocus();
@@ -460,7 +464,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     const across = jobFor('expert', 0, 0, queue);
     expect(across.kind).toBe('across');
     const head = screen.getByRole('heading', { name: 'Step 1 · Name the move' });
-    expect(head).toHaveAccessibleDescription(tie('A (1, 4) maps to A′ (5, 4). Name the move, then paint the image.'));
+    expect(head).toHaveAccessibleDescription(said('A (1, 4) maps to A′ (5, 4). Name the move, then paint the image.'));
     expect(screen.queryByRole('group', { name: 'Paint pots' })).toBeNull();
     expect(screen.getByText('Name', { selector: 'li *, li' })).toBeInTheDocument();
     expect(moves().getAllByRole('button').map((b) => b.textContent)).toEqual(
@@ -485,7 +489,10 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(canvas().querySelector('[class*="left-1/2"]')).toBeNull();
     expect(canvas().previousElementSibling).toHaveTextContent('0123456');
     expect(canvas().parentElement!.lastElementChild).toHaveTextContent('0123456');
-    const small = screen.getByText(/maps to/, { selector: 'p:not([aria-hidden])' }).previousElementSibling!;
+    const askLine = screen.getByText(/maps to/, { selector: 'p:not([aria-hidden])' });
+    // Each point kept with its name (UX review round 2: "A′ / (5, 4)" broke across lines).
+    expect(Array.from(askLine.querySelectorAll('b')).map((b) => b.textContent)).toEqual(['A\u00a0(1,\u00a04)', 'A′\u00a0(5,\u00a04)']);
+    const small = askLine.previousElementSibling!;
     expect(small).toHaveClass('sm:hidden');
     expect(small.querySelectorAll('svg circle')).toHaveLength(2);
 
@@ -494,7 +501,10 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(screen.getByRole('status')).toHaveTextContent('Reflect in y = x: A goes to (4, 1), not (5, 4). Try another.');
     expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pick a move' })).toBeInTheDocument();
-    named('Reflect in x = 3');
+    // Another pick: the wrong move's line goes (code review round 2).
+    fireEvent.click(moves().getByRole('button', { name: tie('Reflect in x = 3') }));
+    expect(screen.getByRole('status')).toHaveTextContent(/^Reflect in x = 3\.$/);
+    fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }));
 
     // Step 2: the picture, and the image; the squares said by their corners. The painted ones are read in the grid
     // too, not painted; the kid's say only their own, till a check marks them.
@@ -508,6 +518,9 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(square(0, 2)).toHaveAttribute('aria-disabled', 'true');
     expect(square(0, 3)).toHaveAccessibleName(tie('Square (3, 5) to (4, 6): bare.'));
     expect(canvas().querySelector('svg')).toBeNull();
+    expect(canvas()).toHaveAccessibleDescription(/The arrow keys move between the squares, the painted part too; Enter or Space paints\.$/);
+    // Nothing painted yet: the gold button says so (UX review round 2).
+    expect(screen.getByRole('button', { name: 'Paint the image first' })).toHaveAttribute('aria-disabled', 'true');
     // The arrow keys go through the painted part too; a press there paints nothing.
     square(0, 3).focus();
     fireEvent.keyDown(square(0, 3), { key: 'ArrowLeft' });
@@ -541,7 +554,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     paintGoal(across);
     expect(screen.getByText('All fixed? Check it again.')).toBeInTheDocument();
     check();
-    expect(screen.getByRole('heading', { name: 'An exact image' })).toHaveAccessibleDescription(`${learnedLine(across)} The Butterfly is in the Gallery!`);
+    expect(screen.getByRole('heading', { name: 'An exact image' })).toHaveAccessibleDescription(`${learnedLine(across)} The Butterfly is in the Gallery.`);
     expect(screen.getByText('Exact. Next picture.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
     await screen.findByText('Picture 2 of 3');
@@ -562,7 +575,7 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
       if (i === 1) {
         fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
         await screen.findByText('Picture 3 of 3');
-        expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toHaveAccessibleDescription(tie('A (1, 4) maps to A′ (4, 5). Name the move, then paint the image.'));
+        expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toHaveAccessibleDescription(said('A (1, 4) maps to A′ (4, 5). Name the move, then paint the image.'));
       }
     }
     // Two of three spot on: claimed with the pay, before the free canvas — which has its mirror line, x = 3.
@@ -570,6 +583,8 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Next — paint your own' }));
     expect(screen.getByRole('heading', { name: 'Your turn' })).toBeInTheDocument();
     expect(screen.getByRole('group', { name: 'Your picture' }).querySelector('[class*="left-1/2"]')).not.toBeNull();
+    // Madame Hue's x = 3 on one line (code review round 2).
+    for (const el of screen.getAllByText(/its reflection in x/)) expect(el.textContent).toContain('x\u00a0=\u00a03');
     fireEvent.click(screen.getByRole('button', { name: 'Not this time' }));
     // The lesson is the picture missed: x = 3's, not the last one's.
     expect(onFinish).toHaveBeenCalledWith({ spotOn: { right: 2, of: 3 }, title: 'Three pictures finished!', learned: learnedLine(across) });
@@ -616,12 +631,12 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 1, of: 3 }, learned: learnedLine(jobs[0]) }));
   }, 20_000);
 
-  it('Expert: the third round asks the first’s moves from the other A; all three spot on, the lesson the last', async () => {
+  it('Expert: the third round asks the first’s moves in another order, each from the other A; all three spot on, the lesson the last (UX review rounds 1 and 2)', async () => {
     setUp(9);
     const { onFinish, onClaim } = play('expert', { round: 2 });
     const queue = roundQueue(() => false, 2);
-    const names = ['Reflect in x = 3', 'Reflect in y = x', 'Rotate 90° clockwise about (3, 3)'];
-    expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toHaveAccessibleDescription(tie('A (2, 5) maps to A′ (4, 5). Name the move, then paint the image.'));
+    const names = ['Reflect in y = x', 'Rotate 90° clockwise about (3, 3)', 'Reflect in x = 3'];
+    expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toHaveAccessibleDescription(said('A (1, 4) maps to A′ (4, 1). Name the move, then paint the image.'));
     for (let i = 0; i < 3; i++) {
       const job = jobFor('expert', 2, i, queue);
       fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie(names[i]) }));

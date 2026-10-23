@@ -300,9 +300,13 @@ export function roundQueue(known: (id: PatternId) => boolean, round: number): Pa
 export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly PatternId[]): Job {
   const slot = round * JOBS_PER_ROUND + i;
   const expert = band === 'expert';
-  // The two As take turns by the pair of rounds too, so a third round isn't the first again (UX review round 1).
-  const p = POINTS[(slot + Math.floor(slot / ASKS.expert.length)) % POINTS.length];
-  const ask = ASKS[band][slot % ASKS[band].length];
+  // On Expert each pair of rounds turns the order of a round's three moves on one, and gives each move the other A
+  // (UX review rounds 1 and 2: from the third round, the picture's number and A gave the move away).
+  const k = slot % ASKS[band].length;
+  const pair = Math.floor(slot / ASKS.expert.length);
+  const at = expert ? k - (k % JOBS_PER_ROUND) + (((k % JOBS_PER_ROUND) + pair) % JOBS_PER_ROUND) : k;
+  const p = POINTS[(at + pair) % POINTS.length];
+  const ask = ASKS[band][at];
   const pattern = queue?.[i] ?? PATTERN_IDS[slot % PATTERN_IDS.length];
   // Every pattern is its own mirror, so a half turn of one is the top half flipped down too (review round 1): for a
   // turn, the top-right quarter's two colours swap — a pinwheel, the same after half a turn but not in a mirror.
@@ -343,8 +347,9 @@ const OTHER_MAPS: readonly SourceMap[] = [
   // Slid across, or down.
   (r, c) => [r, c - HALF],
   (r, c) => [r - HALF, c],
-  // The quarter turns the other way round.
-  (r, c) => (r < HALF ? (c < HALF ? [r, c] : [c, M - r]) : c < HALF ? [M - c, r] : [M - r, M - c]),
+  // The quarter turned the wrong way in place: anticlockwise into the top right, clockwise into the bottom left (code
+  // review round 2: it pointed into the bottom right). Turned the other way about (3, 3), the picture's the same.
+  (r, c) => (r < HALF ? (c < HALF ? [r, c] : [c - HALF, M - HALF - r]) : c < HALF ? [M - HALF - c, r - HALF] : [M - r, M - c]),
 ];
 
 /**
@@ -464,9 +469,9 @@ export function ruleWords(kind: Kind): string {
 /** A′: where the job's move takes A. */
 export const pImage = (job: Job): Point => (isMove(job.kind) ? mapPoint(job.kind, job.p) : job.p);
 
-/** Expert's ask before the move's named: A and its image, A′. */
+/** Expert's ask before the move's named: A and its image, A′ — each kept with its point (UX review round 2). */
 export function nameAsk(job: Job): string {
-  return `A ${pointWords(job.p)} maps to A′ ${pointWords(pImage(job))}.`;
+  return `A\u00a0${pointWords(job.p)} maps to A′\u00a0${pointWords(pImage(job))}.`;
 }
 
 /** The job, as its ticket says it — on Expert, A and A′ till the move's named, then the move. */

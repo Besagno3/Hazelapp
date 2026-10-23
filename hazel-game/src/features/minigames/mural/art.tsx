@@ -73,18 +73,23 @@ export function StepMove() {
   );
 }
 
-/** Step 2: half a picture, a brush painting the other half. */
-export function StepPaint() {
+/** Step 2: half a picture, a brush painting the other half — with the mirror line, but on Expert (`StepImage`). */
+export function StepPaint({ line = true }: { line?: boolean }) {
   return (
     <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
       <rect x="20" y="20" width="160" height="160" fill="#f4ecdc" stroke={INK} strokeWidth="8" />
       <rect x="20" y="20" width="80" height="80" fill={HEX.purple} />
       <rect x="100" y="20" width="80" height="80" fill={HEX.purple} opacity="0.45" />
-      <path d="M100 14 V186" stroke="#22d3ee" strokeWidth="7" strokeDasharray="10 7" />
+      {line && <path d="M100 14 V186" stroke="#22d3ee" strokeWidth="7" strokeDasharray="10 7" />}
       <path d="M150 160 L190 120" stroke="#a8692e" strokeWidth="14" strokeLinecap="round" />
       <path d="M150 160 L136 174" stroke={HEX.purple} strokeWidth="16" strokeLinecap="round" />
     </svg>
   );
+}
+
+/** Expert's step 2: the image painted, no line drawn — it shows only after a miss (UX review round 2). */
+export function StepImage() {
+  return <StepPaint line={false} />;
 }
 
 /** Step 3: a hand mirror with a tick. */

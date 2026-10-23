@@ -34,6 +34,7 @@ import {
   ruleWords,
   source,
   start,
+  tie,
   toPaint,
   type Cell,
   type Colour,
@@ -200,6 +201,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
   const board = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
   const ask = useRef<HTMLDivElement>(null);
+  const aside = useRef<HTMLElement>(null);
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
     const sc = page.current;
@@ -213,17 +215,15 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
       // (UX review round 1: the canvas with A and A′ was scrolled away above them).
       const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: ask.current?.getBoundingClientRect() ?? null, view: sc.getBoundingClientRect(), cover: 0, keepWins: true });
       sc.scrollTo({ top: sc.scrollTop + by, behavior });
-    } else if (step === 'paint' || step === 'free') {
-      b?.scrollIntoView?.({ block: 'nearest', behavior });
-      // A canvas held at its floor scrolls in the board (`tight`): the gold button into sight there too, the canvas's
-      // top kept (UX review round 1: Check the image was under the footer at 683 × 600).
-      if (b && goRef.current && canvas.current && typeof b.scrollTo === 'function' && b.scrollHeight > b.clientHeight) {
-        const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: canvas.current.getBoundingClientRect(), view: b.getBoundingClientRect(), cover: 0, keepWins: true });
-        b.scrollTo({ top: b.scrollTop + by, behavior });
-      }
-    }
+    } else if (step === 'paint' || step === 'free') b?.scrollIntoView?.({ block: 'nearest', behavior });
     else if (step === 'matched') card.current?.scrollIntoView?.({ block: 'nearest', behavior });
-    else goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
+    else if (step === 'name' && aside.current && goRef.current && typeof aside.current.scrollTo === 'function') {
+      // Expert's ask with the moves and That's the move in the side panel, the ask first where they don't all fit (UX
+      // review round 2: on a short screen its first line was cut at the panel's top), under the bubble if it sticks.
+      const sp = aside.current;
+      const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: ask.current?.getBoundingClientRect() ?? null, view: sp.getBoundingClientRect(), cover: hueH ?? 0, keepWins: true });
+      sp.scrollTo({ top: sp.scrollTop + by, behavior });
+    } else goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done, checks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function pickPot(p: Pot, e: { detail: number }) {
@@ -293,7 +293,9 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
     });
   }
 
-  function pickBrush(b: Brush) {
+  function pickBrush(b: Brush, e: { detail: number }) {
+    // A double tap's second, on Check or Next, mustn't pick what's under it (UX review round 2: it picked Rub out).
+    if (!ready(e)) return;
     sfx('select');
     setRead(null);
     setBrush(b);
@@ -395,13 +397,14 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
 
   const stepIndex = step === 'mix' || step === 'name' ? 0 : step === 'paint' ? 1 : step === 'matched' ? 2 : 3;
   const freeEmpty = !free.some((row) => row.some(Boolean));
+  const blank = step === 'paint' && toPaint(job.kind).every(([r, c]) => grid[r][c] === null);
   const hint = MIRROR_HINT[job.kind];
 
   // Madame Hue's line is the one live region: steady through the mix (its result is the step card's status, read
   // once — review round 1), then what to do, what the mirror found, a match.
   let line: string;
   const readPage = read === 'mine' ? null : read ? PATTERN_BY_ID[read] : null;
-  if (read === 'mine') line = expert ? 'Your own picture — the right half is the left half’s reflection in x = 3. Paint another after three pictures and it takes its place.' : 'Your own picture, darling — the mirror painted the right half. Paint another after three pictures and it takes its place.';
+  if (read === 'mine') line = expert ? tie('Your own picture — the right half is the left half’s reflection in x = 3. Paint another after three pictures and it takes its place.') : 'Your own picture, darling — the mirror painted the right half. Paint another after three pictures and it takes its place.';
   else if (readPage) line = `${readPage.name}: ${readPage.note}`;
   else if (expert) {
     // Expert, plainly (§8.3): what to do, what's wrong and one thing to try — no cheering.
@@ -411,7 +414,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
     else if (step === 'paint' && fixing) line = 'All fixed? Check it again.';
     else if (step === 'paint') line = nameSaid ? `${nameSaid} Now paint the image.` : mirrorWords(job.kind, true);
     else if (matched) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next picture.' : 'Now one of your own.'}`;
-    else line = 'Your turn. Paint the left half; its reflection in x = 3 paints itself, and it hangs in the Gallery.';
+    else line = tie('Your turn. Paint the left half; its reflection in x = 3 paints itself, and it hangs in the Gallery.');
   } else if (step === 'mix') line = `The ${pattern.name} needs ${NAME[job.mixColour]}. Pick two pots and mix them, darling!`;
   else if (step === 'paint' && tooSoon) line = paintFirstWords(job.kind);
   // The marks left, counted as they're fixed (review round 2: the count went stale); then a nudge.
@@ -430,11 +433,24 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
   const { beside, compact, tight } = fit ?? { beside: false, compact: true, tight: false };
   const size = fit?.size ?? null;
 
+  // A canvas held at its floor scrolls in the board (`tight`): the gold button into sight there too, the canvas's top
+  // kept (UX review round 1: Check the image was under the footer at 683 × 600) — on the free canvas, whose paints
+  // stand taller, Hang it and Not this time first. As a step starts and once the canvas has its size for it (its fit
+  // comes a render later), never at a check (round 2: after a miss it pulled Check away and slid the paints under the
+  // pointer).
+  useEffect(() => {
+    const b = board.current;
+    if ((step !== 'paint' && step !== 'free') || !b || !goRef.current || !canvas.current || typeof b.scrollTo !== 'function' || b.scrollHeight <= b.clientHeight) return;
+    const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: canvas.current.getBoundingClientRect(), view: b.getBoundingClientRect(), cover: 0, keepWins: step !== 'free' });
+    b.scrollTo({ top: b.scrollTop + by, behavior: still ? 'auto' : 'smooth' });
+  }, [step, done, size, beside, compact]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
-      {/* The Gallery above the canvas from `sm` up; a phone and a short screen keep just the canvas. */}
-      <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,32fr)_minmax(0,68fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-cols-[minmax(0,1fr)_260px] sm:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)]">
-        <section aria-label="This round’s frames" className="relative hidden overflow-hidden sm:col-start-1 sm:row-start-1 sm:block [@media(max-height:500px)]:hidden">
+      {/* The Gallery above the canvas from `sm` up; a phone, a short screen and a narrow one not much taller (UX review
+          round 2: at 640 × 505 the board had no room for Check) keep just the canvas. */}
+      <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,32fr)_minmax(0,68fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-cols-[minmax(0,1fr)_260px] sm:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)] [@media(max-width:767px)_and_(max-height:620px)]:grid-rows-[minmax(0,1fr)]">
+        <section aria-label="This round’s frames" className="relative hidden overflow-hidden sm:col-start-1 sm:row-start-1 sm:block [@media(max-height:500px)]:hidden [@media(max-width:767px)_and_(max-height:620px)]:hidden">
           <GalleryScene queue={queue} done={done} matched={matched} finished={finished} band={band} round={round} />
         </section>
 
@@ -443,6 +459,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
           aria-labelledby="mm-canvas"
           className={cn(
             'flex flex-col gap-2 bg-[#3b2a4a] px-2 pb-2 pt-1.5 sm:col-start-1 sm:row-start-2 sm:min-h-0 sm:border-t-4 sm:border-[#1b0f22] sm:p-4 [@media(max-height:500px)]:row-start-1 [@media(max-height:500px)]:border-t-0 [@media(max-height:500px)]:p-2',
+            '[@media(max-width:767px)_and_(max-height:620px)]:row-start-1 [@media(max-width:767px)_and_(max-height:620px)]:border-t-0',
             // Too small a space to tap in: the canvas keeps a size to tap, and this scrolls (review round 2). Its
             // scrollbar's room is always kept, so one coming and going can't change the space it's fitted to.
             'sm:overflow-y-auto sm:[scrollbar-gutter:stable]',
@@ -464,7 +481,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                     key={step === 'free' ? 'free' : done}
                     ref={canvas}
                     label={step === 'free' ? 'Your picture' : 'The picture'}
-                    describedBy={step === 'free' ? 'mm-free' : 'mm-job'}
+                    describedBy={step === 'free' ? 'mm-free mm-keys' : 'mm-job mm-keys'}
                     grid={shown}
                     kind={step === 'free' ? 'across' : job.kind}
                     editable={(r, c) => (step === 'free' ? c < SIZE / 2 : step === 'paint' && !given(job.kind, r, c))}
@@ -475,9 +492,14 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                     job={step === 'free' ? null : job}
                     coords={expert}
                     overlay={overlay}
+                    ready={settled}
                     onPaint={paintAt}
                   />
                 </Axes>
+                {/* How the keys work the canvas, for a reader (UX review round 2: nothing said so). */}
+                <span id="mm-keys" className="sr-only">
+                  {expert && step === 'paint' ? 'The arrow keys move between the squares, the painted part too; Enter or Space paints.' : 'The arrow keys move between the squares; Enter or Space paints.'}
+                </span>
               </div>
               {/* Kept in place (unseen) while mixing and after a match, so the canvas never changes size under the
                   kid; on a phone, only while painting. */}
@@ -493,19 +515,26 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                     {pairs
                       ? PAIRS.map(([a, b]) => (
                           <span key={a} role="group" aria-label={`${cap(NAME[a])} and ${NAME[b]}: opposites`} className="flex items-center gap-0.5">
-                            <PaintButton colour={a} on={brush === a} compact={compact} onPick={() => pickBrush(a)} />
+                            <PaintButton colour={a} on={brush === a} compact={compact} onPick={(e) => pickBrush(a, e)} />
                             <span aria-hidden="true" className="w-3.5 text-center font-black text-[#fde68a]">
                               ↔
                             </span>
-                            <PaintButton colour={b} on={brush === b} compact={compact} onPick={() => pickBrush(b)} />
+                            <PaintButton colour={b} on={brush === b} compact={compact} onPick={(e) => pickBrush(b, e)} />
                           </span>
                         ))
-                      : palette.map((c) => <PaintButton key={c} colour={c} on={brush === c} compact={compact} onPick={() => pickBrush(c)} />)}
-                    <RubButton on={brush === 'rub'} compact={compact} onPick={() => pickBrush('rub')} />
+                      : palette.map((c) => <PaintButton key={c} colour={c} on={brush === c} compact={compact} onPick={(e) => pickBrush(c, e)} />)}
+                    <RubButton on={brush === 'rub'} compact={compact} onPick={(e) => pickBrush('rub', e)} />
                   </div>
                   {step !== 'free' ? (
-                    <button ref={step === 'paint' ? goRef : undefined} type="button" onClick={check} className={cn(goldClass, 'h-14', beside ? 'px-3 text-base leading-tight' : 'text-lg')}>
-                      {expert ? '🪞 Check the image' : '🪞 Hold up the mirror'}
+                    // Nothing painted yet: it says so (UX review round 2: on a small phone the line saying it was out of sight).
+                    <button
+                      ref={step === 'paint' ? goRef : undefined}
+                      type="button"
+                      onClick={check}
+                      aria-disabled={blank || undefined}
+                      className={cn(goldClass, 'h-14', beside ? 'px-3 text-base leading-tight' : 'text-lg')}
+                    >
+                      {blank ? (expert ? 'Paint the image first' : 'Paint a square first') : expert ? '🪞 Check the image' : '🪞 Hold up the mirror'}
                     </button>
                   ) : (
                     // Side by side under the canvas, so it keeps its size (review round 1).
@@ -532,6 +561,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
 
         {/* Nothing in here is anchored to the scroll: a longer line never moves the pots under a finger (review round 1). */}
         <aside
+          ref={aside}
           aria-label={`The job and the ${def.collection}`}
           style={hueH ? { scrollPaddingTop: hueH } : undefined}
           className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4"
@@ -615,7 +645,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                 <div ref={ask} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:grid-cols-1 [@media(max-height:500px)]:gap-y-1.5">
                   <AskPicture job={job} />
                   <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
-                    <b>A {pointWords(job.p)}</b> maps to <b>A′ {pointWords(pImage(job))}</b>.<span className="[@media(max-height:500px)]:hidden"> Which move does that?</span>
+                    <b>A{'\u00a0'}{pointWords(job.p)}</b> maps to <b>A′{'\u00a0'}{pointWords(pImage(job))}</b>.<span className="[@media(max-height:500px)]:hidden"> Which move does that?</span>
                   </p>
                   <div
                     role="group"
@@ -703,7 +733,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                 </h2>
                 <p id="mm-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
                   {learnedLine(job)}
-                  {newPage && ` The ${pattern.name} is in the Gallery!`}
+                  {newPage && ` The ${pattern.name} is in the Gallery${expert ? '.' : '!'}`}
                 </p>
                 <button ref={goRef} type="button" onClick={next} className={cn(goldClass, 'text-lg [@media(max-height:500px)]:px-3 [@media(max-height:500px)]:text-base')}>
                   {done + 1 < JOBS_PER_ROUND ? 'Next picture' : expert ? 'Next — paint your own' : 'Next — paint your own!'}
@@ -823,7 +853,7 @@ const paintClass = (on: boolean, compact: boolean) =>
   );
 
 /** A paint in the palette: its colour, its letter and its name — compact (the name under it) beside the canvas. */
-function PaintButton({ colour, on, compact, onPick }: { colour: Colour; on: boolean; compact: boolean; onPick: () => void }) {
+function PaintButton({ colour, on, compact, onPick }: { colour: Colour; on: boolean; compact: boolean; onPick: (e: { detail: number }) => void }) {
   return (
     <button type="button" onClick={onPick} aria-pressed={on} className={paintClass(on, compact)}>
       <Swatch colour={colour} className={cn('rounded-full', compact ? 'h-5 w-5 text-[9px]' : 'h-6 w-6 text-[10px]')} />
@@ -832,7 +862,7 @@ function PaintButton({ colour, on, compact, onPick }: { colour: Colour; on: bool
   );
 }
 
-function RubButton({ on, compact, onPick }: { on: boolean; compact: boolean; onPick: () => void }) {
+function RubButton({ on, compact, onPick }: { on: boolean; compact: boolean; onPick: (e: { detail: number }) => void }) {
   return (
     <button type="button" onClick={onPick} aria-pressed={on} className={paintClass(on, compact)}>
       <span aria-hidden="true" className={cn('flex-none rounded border-2 border-dashed border-[#c9c5f2] bg-[#f4ecdc]', compact ? 'h-5 w-5' : 'h-6 w-6')} />
@@ -955,9 +985,11 @@ const Canvas = forwardRef<
     /** Expert: squares said by their corners' coordinates, no mirror line till a miss (`overlay`) — but the free canvas's. */
     coords: boolean;
     overlay: Overlay;
+    /** A press is a paint once the step has settled (a key's always is): a double tap's second mustn't paint. */
+    ready: () => boolean;
     onPaint: (r: number, c: number) => void;
   }
->(function Canvas({ label, describedBy, grid, kind, editable, isGiven, echo, marks, painting, job, coords, overlay, onPaint }, ref) {
+>(function Canvas({ label, describedBy, grid, kind, editable, isGiven, echo, marks, painting, job, coords, overlay, ready, onPaint }, ref) {
   // The square in the tab order (roving): the first editable one until the kid moves (a new picture starts afresh: keyed).
   const [at, setAt] = useState<[number, number] | null>(null);
   const firstEditable = useMemo(() => {
@@ -1009,8 +1041,10 @@ const Canvas = forwardRef<
       aria-describedby={describedBy}
       className={cn('relative grid aspect-square w-full grid-cols-6 overflow-hidden rounded-md border-4 border-[#1b0f22] bg-[#f4ecdc] [container-type:inline-size]', painting && 'touch-none')}
       onPointerDown={(e) => {
-        // The main button only; a new pointer while one paints only if it's the primary (the last one's lift was lost).
-        if (!painting || e.button !== 0 || (dragging.current !== null && !e.isPrimary)) return;
+        // The main button only; a new pointer while one paints only if it's the primary (the last one's lift was lost);
+        // not a double tap's second as the step starts (UX review round 2: on a phone on its side, That's the move's
+        // second tap painted the square the canvas brought under it).
+        if (!painting || e.button !== 0 || (dragging.current !== null && !e.isPrimary) || !ready()) return;
         dragging.current = e.pointerId;
         const at = cellFrom(e);
         if (at && editable(at[0], at[1])) onPaint(at[0], at[1]);

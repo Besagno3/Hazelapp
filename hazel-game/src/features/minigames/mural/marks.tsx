@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { SIZE, pImage, type Job, type Point } from '../../../lib/minigames/mural';
 import { cn } from '../../../lib/utils';
 
@@ -48,6 +48,9 @@ export function Axes({ on, children }: { on: boolean; children: ReactNode }) {
   );
 }
 
+/** A turn's arc about (3, 3), clockwise from straight up: half round, or a quarter (the SVG's y runs down). */
+const turnArc = (kind: 'turn' | 'quarter') => (kind === 'turn' ? 'M3 1.9 A1.1 1.1 0 0 1 3 4.1' : 'M3 1.9 A1.1 1.1 0 0 1 4.1 3');
+
 /**
  * Expert's mark on the canvas, drawn in its coordinates (y up): A and A′
  * with an arrow while the move's named; once the mirror's found something to
@@ -55,6 +58,8 @@ export function Axes({ on, children }: { on: boolean; children: ReactNode }) {
  * vector. Cyan and white with ink edges, clear on any paint.
  */
 export function MoveMarks({ job, overlay }: { job: Job; overlay: Exclude<Overlay, null> }) {
+  // Its own arrowhead: the small picture by the moves draws one too (code review round 2: two shared an id).
+  const head = `mm-head${useId().replace(/:/g, '')}`;
   const y = (v: number) => SIZE - v;
   const line = (x1: number, y1: number, x2: number, y2: number) => (
     <>
@@ -80,13 +85,13 @@ export function MoveMarks({ job, overlay }: { job: Job; overlay: Exclude<Overlay
   return (
     <svg aria-hidden="true" viewBox={`0 0 ${SIZE} ${SIZE}`} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
       <defs>
-        <marker id="mm-head" viewBox="0 0 4 4" refX="3.2" refY="2" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+        <marker id={head} viewBox="0 0 4 4" refX="3.2" refY="2" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
           <path d="M0 0 L4 2 L0 4 Z" fill="#1b0f22" />
         </marker>
       </defs>
       {overlay === 'points' ? (
         <>
-          <line x1={job.p[0]} y1={y(job.p[1])} x2={pImage(job)[0]} y2={y(pImage(job)[1])} stroke="#1b0f22" strokeWidth={0.07} strokeDasharray="0.2 0.12" markerEnd="url(#mm-head)" />
+          <line x1={job.p[0]} y1={y(job.p[1])} x2={pImage(job)[0]} y2={y(pImage(job)[1])} stroke="#1b0f22" strokeWidth={0.07} strokeDasharray="0.2 0.12" markerEnd={`url(#${head})`} />
           {dot(job.p, '#ffffff', 'A')}
           {dot(pImage(job), '#22d3ee', 'A′')}
         </>
@@ -95,11 +100,19 @@ export function MoveMarks({ job, overlay }: { job: Job; overlay: Exclude<Overlay
           {kind === 'across' && line(3, 0, 3, 6)}
           {kind === 'down' && line(0, 3, 6, 3)}
           {kind === 'diag' && line(0, 0, 6, 6)}
-          {(kind === 'turn' || kind === 'quarter') && centre}
+          {(kind === 'turn' || kind === 'quarter') && (
+            <>
+              {/* How far round, and which way: half a turn or a quarter, clockwise (UX review round 2: the two turns
+                  drew the same dot). */}
+              <path d={turnArc(kind)} fill="none" stroke="#ffffff" strokeWidth={0.22} />
+              <path d={turnArc(kind)} fill="none" stroke="#1b0f22" strokeWidth={0.1} markerEnd={`url(#${head})`} />
+              {centre}
+            </>
+          )}
           {kind === 'shift' && (
             <>
               <line x1={1.5} y1={3} x2={4.5} y2={3} stroke="#ffffff" strokeWidth={0.22} />
-              <line x1={1.5} y1={3} x2={4.4} y2={3} stroke="#1b0f22" strokeWidth={0.1} markerEnd="url(#mm-head)" />
+              <line x1={1.5} y1={3} x2={4.4} y2={3} stroke="#1b0f22" strokeWidth={0.1} markerEnd={`url(#${head})`} />
             </>
           )}
         </>

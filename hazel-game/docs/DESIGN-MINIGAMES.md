@@ -338,9 +338,10 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   a square says what it's the image of) and Madame Hue gives the rule ("A
   reflection in y = x swaps the coordinates: (x, y) goes to (y, x)."); the
   lesson is the rule and one thing more (a half turn is two reflections;
-  the quarter turns, rotational symmetry of order 4) — on the reward, the
-  first missed picture's. The two As take turns, so the third round isn't
-  the first again. Every move named at the first try and every image exact
+  the quarter turns, rotational symmetry of order 4; turned the other way
+  about (3, 3), the picture's the same) — on the reward, the
+  first missed picture's. Each pair of rounds turns the moves' order and
+  gives each move the other A, so the third round isn't the first again. Every move named at the first try and every image exact
   at the first check is the Expert seal — claimed with the round's pay as
   the third matches, so leaving from the free canvas keeps it too.
 

@@ -84,12 +84,49 @@ describe('🪞 a double tap', () => {
     tap(move());
     tap(screen.getByRole('button', { name: 'That’s the move' }));
     expect(screen.getByRole('heading', { name: 'Step 2 · Paint the image' })).toBeInTheDocument();
-    const check = () => screen.getByRole('button', { name: '🪞 Check the image' });
+    const check = () => screen.getByRole('button', { name: 'Paint the image first' });
     tap(check());
-    expect(screen.queryByText(/^Paint the image first/)).toBeNull();
+    expect(screen.queryByText(/^Paint the image first —/)).toBeNull();
     wait();
     tap(check());
     expect(screen.getByText('Paint the image first — the right half — then check it.')).toBeInTheDocument();
+  });
+
+  it('That’s the move’s second tap doesn’t paint the square the canvas brings under it; a moment later a tap paints (UX review round 2, PR 14)', () => {
+    render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    tap(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie('Reflect in x = 3') }));
+    wait();
+    tap(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie('Reflect in x = 3') }));
+    tap(screen.getByRole('button', { name: 'That’s the move' }));
+    const grid = screen.getByRole('group', { name: 'The picture' });
+    const sq = document.querySelector<HTMLElement>('[data-cell="2,4"]')!;
+    const was = document.elementFromPoint;
+    document.elementFromPoint = () => sq;
+    try {
+      fireEvent.pointerDown(grid, { clientX: 1, clientY: 1, button: 0, pointerId: 1, isPrimary: true });
+      fireEvent.pointerUp(grid, { pointerId: 1 });
+      expect(sq.getAttribute('style')).toBeNull();
+      wait();
+      fireEvent.pointerDown(grid, { clientX: 1, clientY: 1, button: 0, pointerId: 1, isPrimary: true });
+      expect(sq.getAttribute('style')).not.toBeNull();
+    } finally {
+      document.elementFromPoint = was;
+    }
+  });
+
+  it('after a miss, a double tap’s second on a paint doesn’t pick it (UX review round 2, PR 14: it picked Rub out)', () => {
+    render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie('Reflect in x = 3') }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }), { detail: 0 });
+    fireEvent.click(document.querySelector('[data-cell="0,3"]')!, { detail: 0 });
+    wait();
+    tap(screen.getByRole('button', { name: '🪞 Check the image' }));
+    const rub = () => within(screen.getByRole('group', { name: 'Paints' })).getByRole('button', { name: 'Rub out' });
+    tap(rub());
+    expect(rub()).toHaveAttribute('aria-pressed', 'false');
+    wait();
+    tap(rub());
+    expect(rub()).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('a key isn’t held back (PR 14, as the other games): pots and Mix them from the keyboard as the picture starts', () => {
