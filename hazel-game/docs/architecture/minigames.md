@@ -177,7 +177,17 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   jam; Medium's and Tricky's offer both ways round (tested by trying every
   filling, `solve`); four or five boards a band, so a round's three change.
   Tricky's crank starts with no gear (`Pick the crank's gear first`) and its
-  ticket says the machine's teeth. Each peg is an SVG `role="button"` (Enter /
+  ticket says the machine's teeth. On Expert a job is said in numbers
+  (`Job.rpm`: the crank's turns a minute; `Job.force`: turning force, the
+  speed's inverse — `forceWords`), the crank's gear is one of
+  `EXPERT_TEETH` (8, 16, 24, 32; each job made by exactly one, and the
+  board's frame holds the 32, `biggestFor`), a miss is said in the job's
+  numbers with the rule and a right run with the ratio (`ratioWords`), and
+  the machines right at their first run are `spotOn`. On every band a
+  step's buttons wait `SETTLE_MS` as it starts (`useSettled`: the pegs, the
+  crank's gears, Turn the crank, Change the gears, Next machine — gears
+  placed one after another aren't held back, nor is a key), so a double
+  tap's second doesn't press what came under the finger. Each peg is an SVG `role="button"` (Enter /
   Space, a held key once; a drawn focus ring) named by row and place, what it
   touches and, after a run, what its gear did ("Middle row, peg 1: a gear,
   turning anticlockwise ↺. Take it off. Touches the crank, top row peg 1 and

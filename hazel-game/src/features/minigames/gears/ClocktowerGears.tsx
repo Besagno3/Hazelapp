@@ -6,6 +6,7 @@ import {
   JOBS_PER_ROUND,
   MACHINES,
   MACHINE_BY_ID,
+  biggestFor,
   boardBox,
   check,
   ends,
@@ -28,7 +29,7 @@ import {
   type Turn,
   type Verdict,
 } from '../../../lib/minigames/gears';
-import { BAND_LABEL, pageFlag, type Band } from '../../../content/minigames';
+import { BAND_LABEL, pageFlag, type PlayBand } from '../../../content/minigames';
 import { sfx } from '../../../lib/audio';
 import { cn } from '../../../lib/utils';
 import { useSaveStore } from '../../../store/saveStore';
@@ -37,15 +38,16 @@ import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { useFitWidth } from '../useFitWidth';
+import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
 import { GearShape } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Tock after a machine comes back to life, in turn. */
+/** Tock after a machine comes back to life, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Tick… TOCK! Listen to it go!', 'Splendid! Right on time.', 'Ha! The old thing hasn’t run that well in years.'];
+const EXPERT_RIGHT_LINES = ['Right.', 'That’s it.', 'Exactly that.'];
 
 const HEADS: Record<Verdict, string> = {
   right: 'It works!',
@@ -60,7 +62,7 @@ const HEADS: Record<Verdict, string> = {
 };
 
 /** The crank's gear sizes, by name (not "Medium": that's a band, review round 1). */
-const SIZE_NAME: Record<Teeth, string> = { 8: 'Small', 16: 'Middle', 24: 'Big' };
+const SIZE_NAME: Record<Teeth, string> = { 8: 'Small', 16: 'Middle', 24: 'Big', 32: 'Biggest' };
 
 const ARROW: Record<Turn, string> = { cw: '↻', ccw: '↺' };
 
@@ -76,9 +78,8 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * right shows what turned and says why; nothing is lost. No timer. Rules:
  * `lib/minigames/gears.ts`.
  */
-export default function ClocktowerGears({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function ClocktowerGears({ def, band, round, onPage, onFinish }: PlayProps) {
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const tricky = CRANK_TEETH[band].length > 1;
@@ -95,6 +96,9 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
   const [newPage, setNewPage] = useState(false);
   const [read, setRead] = useState<MachineId | null>(null);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each machine right at its first turn of the crank; a run that isn't means it isn't.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
   // Bumped when the kid goes back to change the gears: focus goes back to the board.
   const [again, setAgain] = useState(0);
   const known = (id: MachineId) => !!flags[pageFlag(def.id, id)];
@@ -134,8 +138,15 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
     goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
   }, [done, again, !!result]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function peg(i: number) {
-    if (right) return;
+  // A step's buttons wait a moment as it starts (§2.4): a double tap's second tap pressed what came under it — Turn the
+  // crank's second on Change the gears or Next machine (what happened unseen), Next's on a peg of the next board.
+  // Taps within a step aren't held back: placing gears one after another is quick.
+  const settled = useSettled(`${done}:${again}:${result ? 'ran' : 'set'}`);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
+  const pressOk = (e: { detail: number }) => e.detail === 0 || settled();
+
+  function peg(i: number, e: { detail: number }) {
+    if (right || !pressOk(e)) return;
     sfx('select');
     setRead(null);
     setResult(null);
@@ -147,24 +158,24 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
     });
   }
 
-  function clear() {
-    if (right) return;
+  function clear(e: { detail: number }) {
+    if (right || !pressOk(e)) return;
     setResult(null);
     setPlaced(new Set());
     // Its button goes with the gears: focus back to the crank's peg (review round 2: it fell to the page).
     setAgain((n) => n + 1);
   }
 
-  function pickCrank(t: Teeth) {
-    if (right) return;
+  function pickCrank(t: Teeth, e: { detail: number }) {
+    if (right || !pressOk(e)) return;
     sfx('select');
     setRead(null);
     setResult(null);
     setCrank(t);
   }
 
-  function turn() {
-    if (result || !ready || crank === null) return;
+  function turn(e: { detail: number }) {
+    if (result || !ready || crank === null || !pressOk(e)) return;
     setRead(null);
     const r = run(job.board, placed, crank, job.teeth);
     const v = check(job, r);
@@ -174,22 +185,28 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
       setNewPage(onPage(job.machine, machine.short));
       setLessons((l) => [...l, learnedLine(job, r, crank)]);
       setRights((n) => n + 1);
-    } else sfx('wrong');
+      if (!missed) setSpotOn((n) => n + 1);
+    } else {
+      sfx('wrong');
+      setMissed(true);
+    }
   }
 
-  function change() {
+  function change(e: { detail: number }) {
+    if (!pressOk(e)) return;
     setResult(null);
     setAgain((n) => n + 1);
   }
 
-  function next() {
-    if (!right) return;
+  function next(e: { detail: number }) {
+    if (!right || !pressOk(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      onFinish({ title: 'The Clocktower ticks again!', learned: lessons[lessons.length - 1] ?? '' });
+      onFinish({ title: 'The Clocktower ticks again!', learned: lessons[lessons.length - 1] ?? '', spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
       return;
     }
     setDone((n) => n + 1);
+    setMissed(false);
     setPlaced(new Set());
     setCrank(tricky ? null : 16);
     setResult(null);
@@ -202,7 +219,12 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
   let line: string;
   const readMachine = read ? MACHINE_BY_ID[read] : null;
   if (readMachine) line = `${readMachine.short}: ${readMachine.note}`;
-  else if (right) line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'On to the next machine!' : 'That’s the last one!'}`;
+  else if (expert) {
+    // Expert, plainly (§8.3): the job and what to do, no cheering.
+    if (right) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next machine.' : 'That’s the last one.'}`;
+    else if (result) line = 'Not yet. Look at what turned, then change the gears.';
+    else line = `${jobWords(job)} Work out the crank’s gear, then join them.`;
+  } else if (right) line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'On to the next machine!' : 'That’s the last one!'}`;
   else if (result) line = 'Tick… tock… not quite! Look at what turned, then change the gears and try again.';
   else if (!job.turn) line = `${cap(machine.name)} has stopped! Put gears on the pegs from the crank to it — gears that touch turn each other.`;
   else if (job.speed === undefined) line = `${cap(machine.name)} must turn ${turnWords(job.turn)}. Each gear turns the other way from the one before — count them!`;
@@ -275,12 +297,12 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
                 <JobLine job={job} />
                 <p className="text-[15px] leading-snug text-[#e4e1ff]">Tap a peg to put a gear on it — tap again to take it off. Gears that touch turn each other.</p>
                 {tricky && (
-                  <div role="group" aria-label="The crank’s gear" className="grid grid-cols-3 gap-2">
+                  <div role="group" aria-label="The crank’s gear" className={cn('grid gap-2', expert ? 'grid-cols-4 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-3')}>
                     {CRANK_TEETH[band].map((t) => (
                       <button
                         key={t}
                         type="button"
-                        onClick={() => pickCrank(t)}
+                        onClick={(e) => pickCrank(t, e)}
                         aria-pressed={crank === t}
                         className={cn(
                           'flex min-h-[64px] flex-col items-center justify-center rounded-lg border-[3px] px-1 text-center text-[13px] font-bold leading-tight',
@@ -289,7 +311,8 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
                         )}
                       >
                         <svg width="34" height="34" viewBox="-40 -40 80 80" aria-hidden="true">
-                          <GearShape teeth={t} r={radius(t) * 64} spokes={false} />
+                          {/* Each its size against the others; Expert's 32 too, inside its button. */}
+                          <GearShape teeth={t} r={radius(t) * (expert ? 40 : 64)} spokes={false} />
                         </svg>
                         {SIZE_NAME[t]}
                         <span className="block font-semibold text-[#c9c5f2]">{t} teeth</span>
@@ -315,7 +338,7 @@ export default function ClocktowerGears({ def, band: playBand, round, onPage, on
               <>
                 {/* Heard with what happened, as focus lands. */}
                 <h2 ref={resultHead} tabIndex={-1} aria-describedby="cg-result" className={cn(pixelHeadClass, 'self-start rounded text-[28px] text-white', focusRing)}>
-                  {HEADS[verdict]}
+                  {expert && verdict === 'jammed' ? 'Jammed' : HEADS[verdict]}
                 </h2>
                 <p id="cg-result" className={cn('rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22]', right ? 'bg-amber-300' : 'bg-[#d4d0f5]')}>
                   {right ? learnedLine(job, result.run, result.crank) : verdictWords(job, result.run, verdict)}
@@ -407,13 +430,13 @@ const GearBoard = forwardRef<
   SVGGElement,
   {
     job: Job;
-    band: Band;
+    band: PlayBand;
     placed: ReadonlySet<number>;
     crank: Teeth | null;
     ran: Run | null;
     still: boolean;
     locked: boolean;
-    onPeg: (i: number) => void;
+    onPeg: (i: number, e: { detail: number }) => void;
   }
 >(function GearBoard({ job, band, placed, crank, ran, still, locked, onPeg }, entryRef) {
   const b = job.board;
@@ -505,12 +528,12 @@ const GearBoard = forwardRef<
             tabIndex={locked ? -1 : 0}
             aria-disabled={locked || undefined}
             aria-label={`${cap(name.replace(' peg', ', peg'))}: ${on ? `a gear${did} Take it off.` : 'empty. Put a gear on.'} Touches ${listWords(touches)}.`}
-            onClick={() => onPeg(i)}
+            onClick={(e) => onPeg(i, e)}
             onKeyDown={(e: KeyboardEvent<SVGGElement>) => {
               if (e.key !== 'Enter' && e.key !== ' ') return;
               e.preventDefault();
               // A held key doesn't flick the gear on and off (review round 1).
-              if (!e.repeat) onPeg(i);
+              if (!e.repeat) onPeg(i, { detail: 0 });
             }}
             className={cn('group outline-none', !locked && 'cursor-pointer')}
           >
@@ -545,11 +568,8 @@ const GearBoard = forwardRef<
   );
 });
 
-/** The biggest gear at either end on a band: Tricky's 24 teeth, else 16 (Gentle and Medium never change them). */
-const biggestFor = (band: Band): Teeth => (band === 'tricky' ? 24 : 16);
-
 /** The board's width over its height. */
-function boardRatio(b: Board, band: Band): number {
+function boardRatio(b: Board, band: PlayBand): number {
   const { w, h } = boardBox(b, biggestFor(band));
   return w / h;
 }

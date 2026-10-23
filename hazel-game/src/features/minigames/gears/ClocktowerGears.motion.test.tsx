@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 // Motion on: the gears that turn spin (review round 1: the drawing had no tests).
+// The main tests stand in an always-ready wait (a step's buttons wait a moment as it starts — ClocktowerGears.taps.test).
+vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => false,

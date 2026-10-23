@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 // Reduced motion: no zoom and no spinning, so a round plays straight through.
+// The main tests stand in an always-ready wait (a step's buttons wait a moment as it starts — ClocktowerGears.taps.test).
+vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => true,
@@ -57,7 +59,7 @@ async function open() {
 }
 
 /** Plays a band's game on its own, at a round. */
-function play(band: 'gentle' | 'medium' | 'tricky', round = 0) {
+function play(band: 'gentle' | 'medium' | 'tricky' | 'expert', round = 0) {
   const onPage = vi.fn(() => true);
   const onFinish = vi.fn();
   render(<ClocktowerGears def={MINIGAMES['clocktower-gears']} band={band} round={round} onPage={onPage} onFinish={onFinish} />);
@@ -314,3 +316,60 @@ describe('⚙️ Clocktower Gears, a whole round (docs/DESIGN-MINIGAMES.md §5.3
     expect(screen.queryByText(/is in your book/)).toBeNull();
   });
 });
+
+describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', () => {
+  const sizes = () => within(screen.getByRole('group', { name: 'The crank’s gear' }));
+
+  it('turns a minute: four crank gears, a miss said in numbers with the rule, the ratio on a right run; a miss, then two right — spot on 2 of 3', () => {
+    const { onFinish } = play('expert');
+    expect(screen.getByText('Make the Great Hands turn clockwise ↻, 45 times a minute. The crank turns 15 times a minute; the machine’s gear has 8 teeth.', { selector: '#cg-job' })).toBeInTheDocument();
+    // Tock, plainly (§8.3).
+    expect(screen.getAllByText(/Work out the crank’s gear, then join them\./).length).toBeGreaterThan(0);
+    expect(sizes().getAllByRole('button').map((b) => b.textContent)).toEqual(['Small8 teeth', 'Middle16 teeth', 'Big24 teeth', 'Biggest32 teeth']);
+    expect(sizes().getAllByRole('button').every((b) => b.getAttribute('aria-pressed') === 'false')).toBe(true);
+    // Up and over the top: five between, so it turns the crank's way.
+    place(/^Middle row, peg 1:/, /^Top row, peg 1:/, /^Top row, peg 2:/, /^Top row, peg 3:/, /^Middle row, peg 4:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Middle/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'Too slow' })).toHaveAccessibleDescription(
+      'The Great Hands turned 30 times a minute, not 45. Turns out = turns in × crank teeth ÷ machine teeth.',
+    );
+    expect(screen.getByText('Not yet. Look at what turned, then change the gears.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(sizes().getByRole('button', { name: /^Big(?!gest)/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'It works!' })).toHaveAccessibleDescription(
+      /^24 teeth turning 8 is 3 : 1 — 15 turns a minute became 45, with a third of the crank’s turning force\. The gears between change only the way\./,
+    );
+    expect(screen.getByText('Right. Next machine.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+
+    // Turning force, right first time: four times the force is a quarter of the speed.
+    expect(screen.getByText('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. Its gear has 32 teeth.', { selector: '#cg-job' })).toBeInTheDocument();
+    place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 3:/, /^Middle row, peg 4:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'It works!' })).toHaveAccessibleDescription(/^8 teeth turning 32 is 1 : 4 — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+
+    // 20 a minute to 40, on a 16: the biggest crank gear.
+    place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 3:/, /^Middle row, peg 4:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Biggest/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'It works!' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
+  });
+
+  it('a jam on Expert is said plainly, and is a miss', () => {
+    // Round 1's first job: the Weathervane, on a board with a top row.
+    const { onFinish } = play('expert', 1);
+    // Three that all touch: the crank's peg, the one after it, and the one above both.
+    place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Top row, peg 1:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'Jammed' })).toHaveAccessibleDescription('Jammed: three gears that all touch push each other both ways. Take out one marked !.');
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+});
+
