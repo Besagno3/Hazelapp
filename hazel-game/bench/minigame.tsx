@@ -21,7 +21,7 @@
 import { createRoot } from 'react-dom/client';
 import MiniGameStage from '../src/features/minigames/MiniGameStage';
 import { MINIGAMES, MINIGAME_IDS, PLAY_BANDS, pageFlag, type MiniGameId, type PlayBand } from '../src/content/minigames';
-import { rememberBand } from '../src/lib/minigames';
+import { forgetBand, rememberBand } from '../src/lib/minigames';
 import { JAR_IDS } from '../src/lib/minigames/potionLab';
 import { REGULAR_IDS } from '../src/lib/minigames/bakery';
 import { MACHINE_IDS } from '../src/lib/minigames/gears';
@@ -80,8 +80,10 @@ useProfileStore.setState({
   xp: () => useProfileStore.getState().profile?.xp,
 };
 
-// A band picked before, on this device (`rememberedBand` keeps Expert only where the game has it).
+// A band picked before, on this device (`rememberedBand` keeps Expert only where the game has it); without `band=`, none —
+// a page loaded with it doesn't pin the next without (PR 11 code review round 1).
 const band = q.get('band');
 if (band && (PLAY_BANDS as readonly string[]).includes(band)) rememberBand('bench-kid', game, band as PlayBand);
+else forgetBand('bench-kid', game);
 
 createRoot(document.getElementById('root')!).render(<MiniGameStage game={game} />);

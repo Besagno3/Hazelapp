@@ -40,8 +40,12 @@ interface Earned {
 }
 const NOTHING: Earned = { pages: [], xp: 0, coins: 0, stars: [], item: null };
 
-/** A round on Expert spot on every time (§8.3): the seal, the first time or again. */
-type Seal = 'new' | 'again' | null;
+/**
+ * The Expert seal on a round's reward (§8.3): won this round — the first time,
+ * or again — or won before and not this time (PR 11 code review round 1: "spot
+ * on every time wins the seal" to a kid who held it).
+ */
+type Seal = 'new' | 'again' | 'held' | null;
 
 function join(a: Earned, b: Earned): Earned {
   return { pages: [...a.pages, ...b.pages], xp: a.xp + b.xp, coins: a.coins + b.coins, stars: [...a.stars, ...b.stars], item: a.item ?? b.item };
@@ -152,9 +156,9 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
       // The Expert seal (§8.3): a save flag, shown, never paid.
       const spot = band === 'expert' ? outcome.spotOn : undefined;
       const sealed = !!spot && spot.of > 0 && spot.right === spot.of;
-      const first = sealed && !useSaveStore.getState().save?.flags[sealFlag(game)];
-      if (first) setFlag(sealFlag(game));
-      setReward({ ...outcome, spotOn: spot, ...total, seal: sealed ? (first ? 'new' : 'again') : null });
+      const had = !!useSaveStore.getState().save?.flags[sealFlag(game)];
+      if (sealed && !had) setFlag(sealFlag(game));
+      setReward({ ...outcome, spotOn: spot, ...total, seal: sealed ? (had ? 'again' : 'new') : spot && had ? 'held' : null });
       setPhase('reward');
       sfx('victory');
       if (!still) confetti({ particleCount: 90, spread: 75, origin: { y: 0.35 }, disableForReducedMotion: true });
@@ -405,12 +409,13 @@ function TitleCard({
 
           <div className="flex flex-col gap-5 sm:flex-row sm:gap-7">
             <div className="sm:w-[300px] sm:flex-none">
-              <HostBubble npcId={def.host} line={def.hello} id="mg-hello" />
+              {/* On Expert, a teen's hello and how it's played (PR 11 UX review round 1). */}
+              <HostBubble npcId={def.host} line={band === 'expert' && def.expert ? def.expert.hello : def.hello} id="mg-hello" />
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-2.5">
               <h2 className={cn(pixelHeadClass, 'text-[28px]')}>How to play</h2>
               <ol id="mg-how" className="flex flex-col gap-2.5">
-                {def.steps.map((step, i) => {
+                {(band === 'expert' && def.expert ? def.expert.steps : def.steps).map((step, i) => {
                   const Art = steps[i];
                   return (
                     <li key={step.title} className="flex items-center gap-3 rounded-lg border-[3px] border-[#4b4799] bg-[#2a2766] p-2.5">
@@ -431,7 +436,8 @@ function TitleCard({
           </div>
 
           <div role="group" aria-labelledby="mg-band-label" className="flex flex-wrap items-center gap-2">
-            <span id="mg-band-label" className="mr-1 font-bold">
+            {/* Its own line on a phone, so four bands sit two by two (PR 11 UX review round 1: 1/2/1 at 320 px). */}
+            <span id="mg-band-label" className="mr-1 basis-full font-bold sm:basis-auto">
               How tricky?
             </span>
             {/* Expert where the game has it (§8). */}
@@ -451,10 +457,16 @@ function TitleCard({
               </button>
             ))}
             <p className="basis-full text-sm text-[#c9c5f2]">
-              {band === suggested
-                ? `Picked from your ${topic.label} level (${level})${suggested === byLevel ? '' : ' and your age'}.`
-                : `Your ${topic.label} level (${level})${suggested === byLevel ? '' : ' and age'} suggest${suggested === byLevel ? 's' : ''} ${BAND_LABEL[suggested]}.`}
-              {band === 'expert' ? ` ${def.expert}` : def.bandNote ? ` ${def.bandNote}` : ''}
+              {/* Where the age lifted it, said so — the level alone suggesting less (PR 11 UX review round 1: "Picked from your
+                  level (1) and your age" for Expert read oddly). */}
+              {suggested === byLevel
+                ? band === suggested
+                  ? `Picked from your ${topic.label} level (${level}).`
+                  : `Your ${topic.label} level (${level}) suggests ${BAND_LABEL[suggested]}.`
+                : band === suggested
+                  ? `Picked for your age — your ${topic.label} level (${level}) alone suggests ${BAND_LABEL[byLevel]}.`
+                  : `For your age, ${BAND_LABEL[suggested]} — your ${topic.label} level (${level}) alone suggests ${BAND_LABEL[byLevel]}.`}
+              {band === 'expert' && def.expert ? ` ${def.expert.note}` : def.bandNote ? ` ${def.bandNote}` : ''}
             </p>
           </div>
 
@@ -462,17 +474,26 @@ function TitleCard({
             <span className="flex h-10 items-center rounded-full border-2 border-[#4b4799] bg-[#2a2766] px-4 text-[15px]">
               {def.collection}: {found} of {def.pages}
             </span>
+            {/* The seal with the stars, not a pill of its own that pushed the line under the card's foot (PR 11 UX review
+                round 1); what it is, said with what the stars are. */}
             <span className="flex h-10 items-center gap-2 rounded-full border-2 border-[#4b4799] bg-[#2a2766] px-3 text-[15px]">
               <Stars count={stars} size={20} />
+              {sealed && (
+                <>
+                  <span aria-hidden="true">🏅</span>
+                  <span className="sr-only">and the Expert seal</span>
+                </>
+              )}
             </span>
-            {sealed && (
-              <span className="flex h-10 items-center gap-1.5 rounded-full border-2 border-amber-300 bg-[#3d3a8a] px-3 text-[15px] font-bold">
-                <span aria-hidden="true">🏅</span> Expert seal
-              </span>
-            )}
             {/* What a star is for (review round 2: star 2 came with no word of why). */}
             <p className="text-sm text-[#c9c5f2]">
               <span aria-hidden="true">🌟 </span>Stars: your first round · half the {def.collection} · the whole {def.collection}.
+              {sealed && (
+                <>
+                  {' '}
+                  <span aria-hidden="true">🏅 </span>The Expert seal: an Expert round spot on every time.
+                </>
+              )}
             </p>
           </div>
           {/* Back / Play stay in view at the card's foot while a phone scrolls it. */}
@@ -556,6 +577,18 @@ function RewardScreen({
   // The Expert seal won (§8.3): with what's new, so on a phone it's in the line by the buttons, not a line of its own pushing
   // them down (bench: Brew another went under the fold at 320 × 568).
   if (reward.seal === 'new') got.push({ emoji: '🏅', text: 'The Expert seal: spot on every time', short: 'Expert seal' });
+  // On Expert otherwise, how many were spot on: in what was found out, and short by the buttons on a phone.
+  const spot = reward.spotOn;
+  const tally =
+    spot && reward.seal !== 'new'
+      ? reward.seal === 'again'
+        ? { emoji: '🏅', text: 'Spot on every time — the Expert seal again.', short: 'Seal again' }
+        : {
+            emoji: '🎯',
+            text: `Spot on: ${spot.right} of ${spot.of}. ${reward.seal === 'held' ? 'You won the Expert seal before — it’s yours to keep.' : 'Spot on every time wins the Expert seal.'}`,
+            short: `Spot on ${spot.right} of ${spot.of}`,
+          }
+      : null;
   for (const n of reward.stars)
     got.push({
       emoji: '🌟',
@@ -595,9 +628,9 @@ function RewardScreen({
         <p aria-hidden="true" className="max-w-xl text-center text-[17px] leading-snug sm:[@media(min-height:501px)]:hidden">
           💡 {reward.learned}
         </p>
-        {got.length > 0 && (
+        {(got.length > 0 || tally) && (
           <p aria-hidden="true" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[17px] font-bold text-amber-200 sm:[@media(min-height:501px)]:hidden">
-            {got.map((g) => (
+            {[...got, ...(tally ? [tally] : [])].map((g) => (
               <span key={g.text}>
                 {g.emoji} {g.short}
               </span>
@@ -616,6 +649,14 @@ function RewardScreen({
               <p className="text-[15px] font-semibold text-amber-200">
                 <span aria-hidden="true">📖 </span>
                 New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(', ')}.
+              </p>
+            )}
+            {/* On Expert, how many were spot on (§8.3) — here, where there's room, not under what's new (PR 11 UX review round 1:
+                it pushed the buttons off at 1366 × 650); the seal won is in that list. */}
+            {tally && (
+              <p className="text-[15px] font-semibold leading-snug text-amber-200">
+                {tally.emoji === '🏅' && <span aria-hidden="true">🏅 </span>}
+                {tally.text}
               </p>
             )}
           </section>
@@ -639,21 +680,11 @@ function RewardScreen({
                   : `No new page this time. Try something you haven’t tried yet — it adds a page to your ${def.collection}!`}
               </p>
             )}
-            {/* On Expert, how many were spot on (§8.3) — the seal won is in the list. */}
-            {reward.spotOn && reward.seal !== 'new' && (
-              <p className="text-[15px] font-semibold leading-snug text-amber-200">
-                {reward.seal === 'again' ? (
-                  <>
-                    <span aria-hidden="true">🏅 </span>Spot on every time — the Expert seal again.
-                  </>
-                ) : (
-                  `Spot on: ${reward.spotOn.right} of ${reward.spotOn.of}. Spot on every time wins the Expert seal.`
-                )}
-              </p>
-            )}
           </section>
         </div>
-        <div className="flex flex-wrap justify-center gap-3">
+        {/* The buttons kept in view, on a tray at the foot where the cards run past it: Brew another was below the fold at
+            1366 × 650, 1280 × 600 and 1024 × 600, the cards first there (PR 11 review round 1 bench; older than Expert). */}
+        <div className="sticky bottom-0 z-10 flex w-fit max-w-full flex-wrap justify-center gap-3 rounded-2xl bg-[#1e1b4b]/90 p-2">
           <button type="button" onClick={onBack} aria-label="Back to the map" className={outlineClass}>
             <span aria-hidden="true">🗺️ Map</span>
           </button>

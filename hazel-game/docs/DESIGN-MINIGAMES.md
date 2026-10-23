@@ -189,12 +189,20 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Collection:** the Brew Book, a page per jar. First order filled: a Berry
   Potion for the bag.
 - **Expert (§8, PR 11):** all twelve jars and the strip; an order asks for a
-  pH in tens from pure water ("a thousand times as acidic") — never neutral;
-  the kid guesses the jar's pH as a number (fifteen buttons, no colours by
-  them), and Tadpole says it plainly: "Spot on.", "One step out — that's ten
-  times." Every guess spot on is the Expert seal. Up to 620 px high the jars
-  are in the step card, first in the side panel (under that the counter's two
-  rows ran under the scene).
+  pH in tens from pure water — a Thunder Draught "a thousand times as alkaline
+  as pure water" (pH 10), never neutral, the potions named for the band, not
+  for a colour, and the bottle on the ticket colourless; the kid guesses the
+  jar's pH as a number (fifteen buttons, 0–14, no colours by them), and
+  Tadpole says it plainly, in tens: "Spot on: lemon juice is about pH 2.", or
+  "pH 9 is alkaline. Lemon juice is about pH 2 — seven steps below your 9:
+  ten million times more acidic." A jar that varies has a range (vinegar
+  pH 2–3, soap 9–12): any pH in it is spot on. Every guess spot on in a round
+  is the Expert seal. A Brew Book page keeps the jar's pH back till it's
+  brewed this round. Where the counter's rows would run under the scene (a
+  short window, or one too narrow for the round's jars on the counter — the
+  `jars-6/9/12` screens), the jars are in the step card, first in the side
+  panel; Stir stays at the foot of the card, so the pH buttons don't move
+  under the finger.
 
 ### 5.2 🥧 Dot's Bakery — Math · Baker Dot, Lumina Village
 
@@ -468,9 +476,14 @@ world, with the same host.
   (`age + (level − 5) / 2`): under 8 Gentle, 8–9 Medium, 10–11 Tricky, 12 and
   up Expert (Tricky where a game hasn't Expert yet). A new 12-year-old (level
   6) is offered Expert; a 10-year-old at a typical level 5, Tricky (Medium
-  before); a young kid's suggestion never drops (a 7-year-old at level 10
-  keeps Tricky). Any band can still be picked, and the pick is remembered as
-  now.
+  before); a 9-year-old at level 3, Medium (Gentle before); a young kid's
+  suggestion never drops (a 7-year-old at level 10 keeps Tricky). Any band
+  can still be picked, and the pick is remembered as now. Where the age
+  lifted it, the title card says so: "For your age, Tricky — your Science
+  level (5) alone suggests Medium."
+- **The title card on Expert** speaks to a teen: the game's own Expert hello,
+  its three steps and a line on what Expert is (`MiniGameDef.expert`: `note`,
+  `hello`, `steps`).
 - A mini-game still never moves the question level (§3.3).
 
 ### 8.3 What changes on Expert
@@ -483,12 +496,16 @@ world, with the same host.
   meaning, a colour's name, a map's labels — is the thing to know on Expert:
   a hint after a miss, not a label before.
 - **An optional challenge, no clock — the Expert seal:** a round on Expert
-  with every answer right first time. Each game says whether its round was
-  clean (`onFinish({ …, clean })`); the stage records the seal
-  (`mg:<game>:seal`, a save flag) and the title card and the reward show it
-  ("Expert seal: every one right first time" — or "Right first time: 2 of
-  3"). It pays nothing (§3.4) and no star needs it. A miss is still the
-  lesson, and a round still can't be lost.
+  with every answer spot on. Each game says how many of its round's answers
+  were (`onFinish({ …, spotOn: { right, of } })`); the stage records the seal
+  (`mg:<game>:seal`, a save flag, `sealFlag`), the title card shows it with
+  the stars ("🏅 The Expert seal: an Expert round spot on every time."), and
+  the reward says how the round went: won, with what's new ("The Expert
+  seal: spot on every time"); won again ("Spot on every time — the Expert
+  seal again."); or "Spot on: 2 of 3." and "Spot on every time wins the
+  Expert seal." (or, held from before, "it's yours to keep"). It pays
+  nothing (§3.4) and no star needs it. A miss is still the lesson, and a
+  round still can't be lost.
 - The look stays the game's: the same world, host and stage.
 
 ### 8.4 Rewards
@@ -518,7 +535,7 @@ Each game's §5 section gets its Expert note as its PR lands.
 ### 8.6 The PRs
 - **PR 11:** this section, and the plumbing: `PlayBand` (the three bands and
   `expert`), `MiniGameDef.expert`, the suggestion from age and level, the
-  title card's fourth band, the remembered band, the seal (`clean`,
+  title card's fourth band, the remembered band, the seal (`spotOn`,
   `mg:<game>:seal`), the bench's `band=`; a game without Expert yet plays
   Tricky if handed it (never offered); and 🧪 Potion Lab's Expert.
 - **PRs 12–20:** one game each, in §5's order.

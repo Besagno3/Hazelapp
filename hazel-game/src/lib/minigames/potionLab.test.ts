@@ -10,7 +10,9 @@ import {
   jarsFor,
   orderFor,
   orderWords,
+  guessVerdict,
   pageLine,
+  phRange,
   scaleWords,
   shadeOf,
   stepsOut,
@@ -96,11 +98,12 @@ describe('guesses', () => {
     expect(guessOptions('tricky').every((o) => o.sub?.startsWith('pH'))).toBe(true);
   });
 
-  it('every jar has exactly one right guess at every band', () => {
+  it('every jar has exactly one right guess at every band — on Expert, each whole number of its pH range', () => {
     for (const band of PLAY_BANDS) {
       for (const j of jarsFor(band)) {
         const right = guessOptions(band).filter((o) => guessedRight(o.id, j, band));
-        expect(right, `${j.id} ${band}`).toHaveLength(1);
+        const [lo, hi] = phRange(j);
+        expect(right, `${j.id} ${band}`).toHaveLength(band === 'expert' ? hi - lo + 1 : 1);
       }
     }
   });
@@ -144,36 +147,61 @@ describe('orders', () => {
 });
 
 describe('Expert: the pH scale in numbers, counted in tens (§8.5)', () => {
-  it('guesses the pH, 0–14, with no colours by them; only the exact pH is right; how many steps out', () => {
+  it('guesses the pH, 0–14, with no colours by them; right anywhere in the jar’s range — real ones vary (UX review round 1); how many steps out', () => {
     expect(guessOptions('expert').map((o) => o.id)).toEqual(Array.from({ length: 15 }, (_, n) => String(n)));
     expect(guessOptions('expert').every((o) => !o.hex && !o.sub)).toBe(true);
     expect(guessedRight('2', jar('lemon'), 'expert')).toBe(true);
     expect(guessedRight('3', jar('lemon'), 'expert')).toBe(false);
+    // Charts print vinegar 2 or 3, soap 9 to 12: each spot on.
+    expect(['2', '3'].map((g) => guessedRight(g, jar('vinegar'), 'expert'))).toEqual([true, true]);
+    expect(['9', '10', '11', '12', '13'].map((g) => guessedRight(g, jar('soap'), 'expert'))).toEqual([true, true, true, true, false]);
     expect(stepsOut('3', jar('lemon'))).toBe(1);
-    expect(stepsOut('7', jar('soap'))).toBe(3);
-    // The colours are the strip's, as on Tricky.
-    for (const j of JARS) expect(shadeOf(j, 'expert'), j.id).toBe(shadeOf(j, 'tricky'));
+    expect(stepsOut('7', jar('soap'))).toBe(2);
+    expect(stepsOut('5', jar('vinegar'))).toBe(2);
+    // Tricky's one number sits in Expert's range; the colours are the strip's.
+    for (const j of JARS) {
+      const [lo, hi] = phRange(j);
+      expect(j.ph, j.id).toBeGreaterThanOrEqual(lo);
+      expect(j.ph, j.id).toBeLessThanOrEqual(hi);
+      expect(shadeOf(j, 'expert'), j.id).toBe(shadeOf(j, 'tricky'));
+    }
   });
 
-  it('each step from 7 is ten times: said in words', () => {
+  it('each step from 7 is ten times, in words — a range from end to end', () => {
     expect(scaleWords(7)).toBe('neutral, like pure water');
     expect(scaleWords(8)).toBe('one step above 7, so ten times as alkaline as pure water');
     expect(scaleWords(4)).toBe('three steps below 7, so a thousand times as acidic as pure water');
     expect(scaleWords(2)).toBe('five steps below 7, so a hundred thousand times as acidic as pure water');
+    expect(scaleWords(2, 3)).toBe('four or five steps below 7, so ten thousand to a hundred thousand times as acidic as pure water');
+    expect(scaleWords(9, 12)).toBe('two to five steps above 7, so a hundred to a hundred thousand times as alkaline as pure water');
+    expect(scaleWords(6, 7)).toBe('neutral, or up to one step below — up to ten times as acidic as pure water');
     expect(whyLine(jar('lemon'), 'expert')).toBe('Lemon juice is about pH 2: five steps below 7, so a hundred thousand times as acidic as pure water. A base neutralises it.');
-    expect(whyLine(jar('soap'), 'expert')).toBe('Soapy water is about pH 10: three steps above 7, so a thousand times as alkaline as pure water. An acid neutralises it.');
+    expect(whyLine(jar('soap'), 'expert')).toBe('Soapy water is about pH 9–12: two to five steps above 7, so a hundred to a hundred thousand times as alkaline as pure water. An acid neutralises it.');
     expect(whyLine(jar('water'), 'expert')).toBe('Plain water is about pH 7: neutral, like pure water.');
+    // Milk: "a tiny bit on the acid side", as its page says.
+    expect(whyLine(jar('milk'), 'expert')).toBe('Milk is about pH 6–7: neutral, or up to one step below — up to ten times as acidic as pure water.');
     expect(pageLine(jar('sea'), 'expert')).toBe(`Sea water: about pH 8 — one step above 7, so ten times as alkaline as pure water. ${jar('sea').fact}`);
   });
 
-  it('an order asks for a pH in tens from pure water — never neutral; the jar of that pH fills it', () => {
-    expect(orderFor('expert', 0)).toEqual({ shade: 'pink', potion: 'Berry Potion', customer: 'Fern', ph: 4 });
+  it('a guess said back in tens, and which way — the other side of 7 said first (UX review round 1: "Not quite" said nothing)', () => {
+    expect(guessVerdict('2', jar('lemon'))).toBe('Spot on: lemon juice is about pH 2.');
+    expect(guessVerdict('3', jar('vinegar'))).toBe('Spot on: vinegar is about pH 2–3.');
+    expect(guessVerdict('3', jar('lemon'))).toBe('Lemon juice is about pH 2 — one step below your 3: ten times more acidic.');
+    expect(guessVerdict('9', jar('lemon'))).toBe('pH 9 is alkaline. Lemon juice is about pH 2 — seven steps below your 9: ten million times more acidic.');
+    expect(guessVerdict('7', jar('soap'))).toBe('pH 7 is neutral. Soapy water is about pH 9–12 — two steps above your 7: a hundred times more alkaline.');
+    expect(guessVerdict('10', jar('egg'))).toBe('Egg white is about pH 8–9 — one step below your 10: ten times more acidic.');
+  });
+
+  it('an order asks for a pH in tens from pure water — never neutral, named apart from the colours (UX review round 1); each jar whose range holds it fills it', () => {
+    expect(orderFor('expert', 0)).toEqual({ shade: 'pink', potion: 'Owl Tonic', customer: 'Fern', ph: 4 });
     expect(orderWords(orderFor('expert', 0))).toBe('is a thousand times as acidic as pure water');
     expect(orderWords(orderFor('expert', 1))).toBe('is a thousand times as alkaline as pure water');
-    const phs = Array.from({ length: 6 }, (_, r) => orderFor('expert', r).ph);
-    expect(new Set(phs).size).toBe(6);
-    expect(phs).not.toContain(7);
-    const order = orderFor('expert', 0);
-    expect(JARS.filter((j) => fillsOrder(j, 'expert', order)).map((j) => j.id)).toEqual(['orange', 'tomato']);
+    const fills = Array.from({ length: 6 }, (_, r) => {
+      const order = orderFor('expert', r);
+      return `${order.ph}: ${JARS.filter((j) => fillsOrder(j, 'expert', order)).map((j) => j.id).join(',')}`;
+    });
+    // Code review round 1: the exact-pH fill was untested (a colour fill passed every test).
+    expect(fills).toEqual(['4: orange,tomato', '10: soap', '2: lemon,vinegar', '8: soda,egg,sea', '3: vinegar,orange', '9: soda,soap,egg']);
+    expect(new Set(Array.from({ length: 6 }, (_, r) => orderFor('expert', r).potion)).size).toBe(6);
   });
 });

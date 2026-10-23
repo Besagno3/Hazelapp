@@ -52,8 +52,13 @@ export interface MiniGameDef {
   pages: number;
   /** A line under the band chooser (the Potion Lab: more jars on the harder bands). */
   bandNote?: string;
-  /** Its Expert band (§8), once it has one: the line under the chooser on Expert. A game without one shows three bands. */
-  expert?: string;
+  /**
+   * Its Expert band (§8), once it has one — a game without one shows three
+   * bands. On Expert the title card is a teen's: the line under the chooser,
+   * a plainer hello, and how Expert's played, the seal in it (PR 11 UX review
+   * round 1: Expert picked, the card still greeted a young kid).
+   */
+  expert?: { note: string; hello: string; steps: readonly [HowToStep, HowToStep, HowToStep] };
   /** Its music, while the stage is up (`App` steps aside, as for the Spire); null: quiet, so a game's own notes are heard. */
   music: MusicTrack | null;
   /** The picture behind the title card and the reward (a zone's battle backdrop). */
@@ -82,7 +87,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Brew Book',
     pages: 12,
     bandNote: 'More jars on Medium and Tricky.',
-    expert: 'Expert: the pH scale in numbers — and each step on it is ten times the last.',
+    expert: {
+      note: 'Expert: the pH scale in numbers — and each step on it is ten times the last.',
+      hello: 'Today’s orders come as a pH, counted in tens from pure water. Pick the jar that fits — and say its pH first.',
+      steps: [
+        { title: 'Pick a jar', text: 'Twelve on the counter, from lemon juice to soap. One goes into fresh cabbage juice.' },
+        { title: 'Say its pH, 0–14', text: '7 is neutral. Each step away is ten times as acidic — or as alkaline.' },
+        { title: 'Stir and see', text: 'Every pH spot on in a round wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'shrine',
     backdrop: '/backgrounds/verdara.png',
     firstItem: 'potion',

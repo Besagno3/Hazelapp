@@ -32,6 +32,11 @@ describe('bandFor (docs/DESIGN-MINIGAMES.md §3.3, §8.2)', () => {
     expect([6, 7, 8, 9, 10, 11, 12, 14, 18].map((a) => fresh(a))).toEqual(['gentle', 'gentle', 'gentle', 'medium', 'tricky', 'tricky', 'expert', 'expert', 'expert']);
     // No Expert on the game: Tricky.
     expect(fresh(14, false)).toBe('tricky');
+    // The boundaries (code review round 1: 8 untested): content age 8 is Medium, 10 Tricky, 12 Expert.
+    expect(bandFor(3, 9, true)).toBe('medium');
+    expect(bandFor(3, 8.5, true)).toBe('gentle');
+    expect(bandFor(5, 10, true)).toBe('tricky');
+    expect(bandFor(5, 12, true)).toBe('expert');
     // A young kid's suggestion never drops: a 7-year-old at level 10 keeps Tricky.
     expect(bandFor(10, 7, true)).toBe('tricky');
     // A teen far behind is offered less: 14 at level 1 → content age 12 → Expert; 12 at level 1 → 10 → Tricky.

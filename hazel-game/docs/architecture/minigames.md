@@ -38,17 +38,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   ★ all of it) and the game's `firstItem` once — replays pay nothing but
   still `recordActivity`. **Bands:** `bandFor(level, age, !!def.expert)` —
   from the level, 1–3 Gentle, 4–6 Medium, 7–10 Tricky, raised where the
-  kid's content age (`age + (level − 5) / 2`) calls for more: 10–11 Tricky,
-  12 and up **Expert** (DESIGN §8) on a game with it (`def.expert`, its line
-  under the chooser; `PlayBand` is the three bands and `expert`,
-  `PLAY_BANDS`); a game without Expert yet plays Tricky if handed it
+  kid's content age (`age + (level − 5) / 2`) calls for more: 8–9 Medium,
+  10–11 Tricky, 12 and up **Expert** (DESIGN §8) on a game with it
+  (`def.expert`: its `note` under the chooser, and on Expert its own `hello`
+  and three `steps` on the title card; `PlayBand` is the three bands and
+  `expert`, `PLAY_BANDS`); where the age lifted it the card's note says so,
+  with what the level alone suggests (`bandFor(level)`); a game without
+  Expert yet plays Tricky if handed it
   (`upToTricky`). The kid may pick another, remembered per kid and game on
   this device (`rememberBand`, Expert only where the game has it; picking
   the suggested band again forgets it, `forgetBand`, so it grows with the
   level). On Expert a game says how many answers were spot on
   (`RoundOutcome.spotOn`); all of them is the **Expert seal**
-  (`mg:<game>:seal`, `sealFlag`): shown on the title card and the reward,
-  never paid; the stage's
+  (`mg:<game>:seal`, `sealFlag`): shown on the title card with the stars and
+  on the reward (won, in what's new; won again; or "Spot on: r of n", with
+  "yours to keep" where it was held before — `Seal`), never paid; the
+  reward's buttons sit on a sticky tray at its foot, so they're in view
+  wherever its cards run past the fold; the stage's
   `round` starts at the rounds this kid has finished in the game on this
   device (`roundsPlayed`, `noteRoundPlayed` as a round ends), so a visit
   picks up a game's orders where the last left off rather than at the same
@@ -77,11 +83,20 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   with its name, read back by Tadpole and under the book, `pageLine`; a jar
   in it says "📖 In book" on the counter, never its kind), `STIR_MS` before
   the colour shows. On Expert: all twelve jars and the strip, an order of one
-  pH said in tens from pure water (`orderFor` → `Order.ph`, `orderWords`),
-  the pH guessed as a number (fifteen buttons; `guessedRight` exact,
-  `stepsOut`), `scaleWords` in the why and the page, the round's guesses
-  spot on as `spotOn`. Up to 620 px high (from `sm`) the jars are in the step
-  card, first in the side panel, not on the counter. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
+  pH said in tens from pure water (`orderFor` → `Order.ph` from
+  `EXPERT_ORDERS`, `orderWords`; `fillsOrder` when the order's pH is in the
+  jar's), the pH guessed as a number (fifteen buttons; `guessedRight` when
+  it's in the jar's range — `Jar.range`, `phRange`, `phWords` — `stepsOut`
+  how far from it), Tadpole's verdict in tens (`guessVerdict`, `TIMES`,
+  `kindAt`), `scaleWords` in the why and the page — a Brew Book page as
+  Tricky's till the jar's brewed this round (`pageOf`) — and the round's
+  guesses spot on as `spotOn`. The counter shows only where its rows clear
+  the scene — `jars-6`, `jars-9`, `jars-12` in `tailwind.config.js`, by the
+  round's jars (`JARS_AT`, literal classes) — else the jars are in the step
+  card, first in the side panel; Stir sticks to the card's foot while a
+  guess is made (`scroll-pb-20` on the panel then, and the guesses scrolled
+  clear of it as the step starts, never on a tap), and the card scrolls to
+  the result only once it's brewed. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
   Village — she also gives a quest, so the game shows over its offer;
   `lib/minigames/bakery.ts`, `features/minigames/bakery/`): fractions with
   pie — three orders a morning (`orderFor(band, round, i, queue)`,

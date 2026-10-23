@@ -144,4 +144,25 @@ describe('🧪 the stir, with motion (review round 1)', () => {
     expect(screen.queryAllByText(/That’s part of why it feels slippery/)).toHaveLength(0);
     expect(screen.getByText(/You guessed it before you saw it.*just what Fern ordered/)).toBeInTheDocument();
   });
+
+  it('the guesses come into view as the step starts, clear of the sticky Stir — never as one is tapped (PR 11 review round 1 bench)', async () => {
+    const into = vi.fn();
+    const was = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = into;
+    try {
+      await open();
+      into.mockClear();
+      fireEvent.click(counter().getByRole('button', { name: /Lemon juice/ }));
+      const guesses = screen.getByRole('group', { name: 'Your guess' });
+      expect(into.mock.contexts).toContain(guesses);
+      // The panel's scroll padding keeps them above Stir while it's sticky.
+      expect(screen.getByRole('complementary', { name: /The job and/ })).toHaveClass('scroll-pb-20');
+      into.mockClear();
+      fireEvent.click(within(guesses).getByRole('button', { name: 'Pink' }));
+      fireEvent.click(within(guesses).getByRole('button', { name: 'Stays purple' }));
+      expect(into).not.toHaveBeenCalled();
+    } finally {
+      Element.prototype.scrollIntoView = was;
+    }
+  });
 });
