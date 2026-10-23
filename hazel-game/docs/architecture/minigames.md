@@ -141,10 +141,14 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   high the step card comes first, with the order in it (`OrderLine`; who
   it's for left off on a phone on its side, and the order there after a miss
   too), so the cuts start in view; in the 300 px panel (`sm` to `lg`) and on a 320 px
-  phone each cut has its word under its picture (`narrowCuts`). A step's
-  buttons wait `SETTLE_MS` as it starts (`useSettled`: a cut, a slice tapped
-  on the board, Close, Fix, Cut it another way, Hand it to; not − / +), and
-  the last order is served once. The gold button scrolls into
+  phone each cut has its word under its picture (`narrowCuts`); up to 600 px
+  high the order line sticks at the top of the card (`scroll-pt-24` keeps
+  its room), and on a short side panel the closed card leaves the pies and
+  what's in the box to the board. A step's buttons wait `SETTLE_MS` for a
+  tap as it starts (`useSettled`, `ready`: a cut, a slice tapped on the
+  board, Close, Fix, Cut it another way, Hand it to, and − / + for a tap's
+  second — a key, with no click count, isn't held back, here and in the
+  Potion Lab), and the last order is served once. The gold button scrolls into
   view as a step starts, never on a slice tap, and what's in the box has a
   fixed height above − / +, so nothing moves under a kid's finger. On the
   board a slice in the box keeps its filling, lifted with a gold outline and

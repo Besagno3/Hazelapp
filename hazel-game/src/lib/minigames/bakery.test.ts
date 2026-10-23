@@ -219,12 +219,12 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
 
   it('each order’s words work out to its amount — a percentage up or down, a share in a ratio, a rate', () => {
     for (const o of orders) {
-      const pct = /^(\d+)% (more|less) pie than last week’s (1 pie|2 pies|half a pie)$/.exec(o.words);
+      const pct = /^(\d+)% (more|less) pie than last week’s (1 pie|2 pies|half pie)$/.exec(o.words);
       const share = /^the (bigger|smaller) share of 1 pie, split (\d+) : (\d+)$/.exec(o.words);
       // The unit said both times (code and UX review round 1: "2 pies serve 3" read as 3 people).
       const rate = /^enough for (\d+) (people|tables), when (\d+) pies? (?:feeds (\d+)|serve (\d+) tables)$/.exec(o.words);
       let worked: number | null = null;
-      if (pct) worked = { '1 pie': 1, '2 pies': 2, 'half a pie': 0.5 }[pct[3]]! * (1 + (pct[2] === 'more' ? 1 : -1) * (Number(pct[1]) / 100));
+      if (pct) worked = { '1 pie': 1, '2 pies': 2, 'half pie': 0.5 }[pct[3]]! * (1 + (pct[2] === 'more' ? 1 : -1) * (Number(pct[1]) / 100));
       else if (share) {
         const [a, b] = [Number(share[2]), Number(share[3])];
         worked = (share[1] === 'bigger' ? Math.max(a, b) : Math.min(a, b)) / (a + b);
@@ -253,7 +253,8 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
   it('a cut that can’t make it is said after a miss, not as it’s picked; a miss gives one way in (too little or too much is the heading’s)', () => {
     const quarter = orders[0]; // 25% more than 1 pie: one and a quarter pies
     expect(cutHint(3, quarter)).toBeNull();
-    expect(verdictWords(4, 3, quarter)).toBe('Thirds can’t make this order exactly — cut it another way.');
+    // With the way in too (UX review round 2): a kid who guessed the cut most needs the maths.
+    expect(verdictWords(4, 3, quarter)).toBe('Thirds can’t make this order exactly. Work out 25% of 1 pie, then add it on.');
     expect(cantMakeWords(3)).toBe('Thirds can’t make this order exactly — cut it another way.');
     expect(verdictWords(4, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
     expect(verdictWords(6, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
@@ -291,6 +292,20 @@ describe('Expert: ratios, rates and percentage change (§8.5)', () => {
         expect(how, o.words).toBe(`Work out one ${rate![2] === 'people' ? 'person' : 'table'}’s share of ${rate![2] === 'people' ? 'a pie' : 'the 2 pies'} first.`);
       }
     }
+  });
+
+  it('each way in and working, word for word — the numbers worked by hand (code review round 2: a wrong base or sum passed)', () => {
+    expect(orders.map((o) => [o.words, o.expert!.how, o.expert!.working])).toEqual([
+      ['25% more pie than last week’s 1 pie', 'Work out 25% of 1 pie, then add it on.', '25% of 1 pie is a quarter, so 25% more than 1 pie is one and a quarter pies.'],
+      ['the bigger share of 1 pie, split 5 : 1', 'Count the parts in 5 : 1, then take the bigger share.', '5 : 1 splits a pie into 6 equal parts, and the bigger share is 5 of them: five sixths of a pie.'],
+      ['enough for 4 people, when 1 pie feeds 6', 'Work out one person’s share of a pie first.', '1 pie feeds 6, so each person gets a sixth: 4 people need four sixths — two thirds of a pie.'],
+      ['25% less pie than last week’s 2 pies', 'Work out 25% of 2 pies, then take it away.', '25% of 2 pies is half a pie, so 25% less than 2 pies is one and a half pies.'],
+      ['enough for 2 tables, when 2 pies serve 3 tables', 'Work out one table’s share of the 2 pies first.', '2 pies for 3 tables is two thirds of a pie a table, so 2 tables need four thirds: one and a third pies.'],
+      ['the smaller share of 1 pie, split 3 : 5', 'Count the parts in 3 : 5, then take the smaller share.', '3 : 5 splits a pie into 8 equal parts, and the smaller share is 3 of them: three eighths of a pie.'],
+      ['50% more pie than last week’s half pie', 'Work out 50% of half a pie, then add it on.', '50% of half a pie is a quarter, so 50% more than half a pie is three quarters of a pie.'],
+      ['75% less pie than last week’s 2 pies', 'Work out 75% of 2 pies, then take it away.', '75% of 2 pies is one and a half pies, so 75% less than 2 pies leaves half a pie.'],
+      ['enough for 5 people, when 1 pie feeds 3', 'Work out one person’s share of a pie first.', '1 pie feeds 3, so each person gets a third: 5 people need five thirds — one and two thirds pies.'],
+    ]);
   });
 
   it('a morning’s regulars come from its queue, those not in the book first, with the slot’s orders', () => {

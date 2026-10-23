@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   CUTS,
@@ -44,7 +44,7 @@ const cutName = (cut: number) => SLICE[cut].many.charAt(0).toUpperCase() + SLICE
 
 /** Dot after a right box, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Perfect — fair and square!', 'Just what they ordered. You’ve got a baker’s eye!', 'Spot on! The regulars will be back tomorrow.'];
-const EXPERT_RIGHT_LINES = ['Right.', 'Exactly that.', 'That’s it.'];
+const EXPERT_RIGHT_LINES = ['Right.', 'Exactly that.', 'Correct.'];
 
 /**
  * 🥧 Dot's Bakery (docs/DESIGN-MINIGAMES.md §5.2), in Baker Dot's shop: three
@@ -82,7 +82,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   // Expert's cuts said not to make this order, after a miss: said again as the box is fixed (code and UX review round 1:
   // "Fix the box" went back to the same cut with nothing said, and the same miss for ever).
   const [told, setTold] = useState<number[]>([]);
-  // The morning's lessons, each with whether its order had a miss: Expert keeps the one the kid had to learn.
+  // The workings of the morning's orders that had a miss, in turn: Expert keeps the first, the one the kid had to learn.
   const missedLessons = useRef<string[]>([]);
   // The last order's served once, whatever presses it twice (code review round 1).
   const finished = useRef(false);
@@ -107,6 +107,9 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   // to, the next order's cut, Cut it another way — skipping the working or the verdict (code and UX review round 1).
   // − / + aren't held: a quick second press is a second slice.
   const settled = useSettled(`${step}:${served}`);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back, UX review round 2), a
+  // tap's once the step's settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
 
   // The step's gold button comes into view as the step starts, with the pies above it (a cut that can't make the
   // order: "Cut it another way") — never on a slice tap, which slid the pie under the kid's finger and put the
@@ -116,8 +119,8 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     if (step === 'fill' || step === 'closed') goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
   }, [step, !!hint, still]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function pickCut(c: number) {
-    if (!settled()) return;
+  function pickCut(c: number, e: { detail: number }) {
+    if (!ready(e)) return;
     sfx('select');
     setCut(c);
     setTaken(Array(c * pies).fill(false));
@@ -137,20 +140,23 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     if (settled()) toggle(i);
   }
 
-  /** − / +: take the last slice out, or put the next one in. */
-  function more() {
-    if (step !== 'fill') return;
+  /**
+   * − / +: take the last slice out, or put the next one in. A quick second press is a second slice — but not a tap as
+   * the step starts: Fix's second landed on + (UX review round 2).
+   */
+  function more(e: { detail: number }) {
+    if (step !== 'fill' || (e.detail > 0 && !settled())) return;
     const i = taken.indexOf(false);
     if (i >= 0) toggle(i);
   }
-  function less() {
-    if (step !== 'fill') return;
+  function less(e: { detail: number }) {
+    if (step !== 'fill' || (e.detail > 0 && !settled())) return;
     const i = taken.lastIndexOf(true);
     if (i >= 0) toggle(i);
   }
 
-  function close() {
-    if (step !== 'fill' || cut === null || count === 0 || !settled()) return;
+  function close(e: { detail: number }) {
+    if (step !== 'fill' || cut === null || count === 0 || !ready(e)) return;
     setRead(null);
     const v = check(count, cut, order);
     setVerdict(v);
@@ -170,15 +176,15 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
   }
 
   /** Back to the box as it was, to fix it. */
-  function fix() {
-    if (!settled()) return;
+  function fix(e: { detail: number }) {
+    if (!ready(e)) return;
     setRead(null);
     setVerdict(null);
     setStep('fill');
   }
 
-  function recut() {
-    if (!settled()) return;
+  function recut(e: { detail: number }) {
+    if (!ready(e)) return;
     setRead(null);
     setCut(null);
     setTaken([]);
@@ -186,8 +192,8 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
     setStep('cut');
   }
 
-  function serve() {
-    if (verdict !== 'right' || !settled() || finished.current) return;
+  function serve(e: { detail: number }) {
+    if (verdict !== 'right' || !ready(e) || finished.current) return;
     setRead(null);
     if (served + 1 >= ORDERS_PER_ROUND) {
       finished.current = true;
@@ -218,27 +224,38 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
       : `${pies > 1 ? `Two pies, each cut into ${cut} ${SLICE[cut].many}` : `One pie, cut into ${cut} ${SLICE[cut].many}`}. ${boxWords(count, cut)}`;
   const question = `How many equal slices should ${eachPie} be cut into?`;
 
-  let line: string;
+  let line: ReactNode;
   const readRegular = read ? REGULAR_BY_ID[read] : null;
   // A page's note names the regular and their pie already (review round 1: said twice).
   if (readRegular) line = readRegular.note;
   else if (expert) {
     // Expert, plainly (§8.3): the order and what to do, no cheering.
     if (step === 'cut') line = `${who} wants ${order.words}. How will you cut the pies?`;
-    else if (step === 'fill') line = `Box it: ${order.words}.`;
+    // A cut already said not to make it, said here too — Dot's bubble is what's heard (code review round 2: "Box it" under
+    // a gold "Cut it another way").
+    else if (step === 'fill') line = hint ?? `Box it: ${order.words}.`;
     else if (verdict === 'right') line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Next customer.' : 'That’s the last order.'}`;
     else line = cut !== null && !cutMakes(cut, order.amount) ? 'Not quite. Cut it another way.' : 'Not quite. Fix the box, or cut it another way.';
-  } else if (step === 'cut') line = `${who} wants ${order.words}. ${question}`;
+  } else if (step === 'cut')
+    line = (
+      <>
+        {who} wants {order.words}.{' '}
+        {/* Not twice: where the card asks it, the bubble gives just the order (UX review round 2). */}
+        <span className="sm:[@media(min-height:541px)_and_(max-height:800px)]:hidden">{question}</span>
+      </>
+    );
   else if (step === 'fill') line = hint ?? `Now tap slices into the box: ${who} wants ${order.words}.`;
   else if (verdict === 'right') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Hand it over, then the next customer!' : 'That’s the last order of the morning!'}`;
-  else line = 'Not quite! Have another look — you can change the slices, or cut it another way.';
+  // A cut that can't make it, whatever's boxed: said, as its gold button is "Cut it another way" (code review round 2).
+  else line = cut !== null && !cutMakes(cut, order.amount) ? `Not quite! ${capFirst(SLICE[cut].many)} can’t make it — cut it another way!` : 'Not quite! Have another look — you can change the slices, or cut it another way.';
 
   const board = (compact: boolean) => (
     <PieBoard pies={pies} cut={cut ?? 1} taken={taken} filling={regular.filling} onSlice={step === 'fill' ? tapSlice : undefined} compact={compact} />
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden">
+    // The sticky order line's room kept when something's scrolled to (a short screen).
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden [@media(max-height:600px)]:scroll-pt-24">
       {/* From `sm` up the pies get more of the left side than the scene (review round 2: on a tablet they were the
           smallest thing on it), and on a short screen nearly all of it. */}
       <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,45fr)_minmax(0,55fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-rows-[88px_minmax(0,1fr)]">
@@ -257,7 +274,10 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
           <div className="min-h-0 flex-1">{board(false)}</div>
         </div>
 
-        <aside aria-label={`The job and the ${def.collection}`} className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
+        <aside
+          aria-label={`The job and the ${def.collection}`}
+          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4 [@media(max-height:600px)]:scroll-pt-24"
+        >
           <HostBubble npcId={def.host} line={line} phoneStrip />
           {/* On a phone the ticket follows the step card (Dot's line says the order too), so the pies come up sooner. */}
           <div className="order-1 sm:order-none">
@@ -270,7 +290,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
               (all five even at 1366 × 650, PR 12 bench; Expert's longer lines to 780, code and UX review round 1) — with
               the order in it (`OrderLine`). */}
           <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first sm:[@media(max-height:800px)]:order-first')}>
-            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">
+            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
               Order {served + 1} of {ORDERS_PER_ROUND}
             </p>
             {/* Who it's for, heard with each step (review round 2: "Half a pie." alone). */}
@@ -298,7 +318,7 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                     <button
                       key={c}
                       type="button"
-                      onClick={() => pickCut(c)}
+                      onClick={(e) => pickCut(c, e)}
                       className={cn('flex min-h-[64px] items-center gap-2 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-2 text-left font-bold hover:bg-[#2f2b70]', narrowCuts.button, focusRing)}
                     >
                       <span className="flex-none [@media(max-height:500px)]:hidden">
@@ -376,7 +396,9 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                 {/* After a miss, the order in sight with what went wrong (UX review round 1: off-screen at 844 × 390). */}
                 {verdict !== 'right' && <OrderLine order={order} />}
                 <div className="flex items-center gap-3">
-                  <span aria-hidden="true" className="flex flex-none gap-1">
+                  {/* On a short side panel the board beside shows the pies, and what's in the box: the card keeps the order (sticky),
+                      the heading, the way in and the buttons in sight (PR 12 UX review round 2, 740 × 360). */}
+                  <span aria-hidden="true" className="flex flex-none gap-1 sm:[@media(max-height:500px)]:hidden">
                     {Array.from({ length: pies }, (_, p) => (
                       <PieArt key={p} cut={cut} taken={taken.slice(p * cut, (p + 1) * cut)} filling={regular.filling} size={pies > 1 ? 44 : 56} amount />
                     ))}
@@ -386,36 +408,37 @@ export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayP
                     <h2 ref={resultHead} tabIndex={-1} aria-describedby="bk-box bk-verdict" className={cn(pixelHeadClass, 'rounded text-[28px] text-white', focusRing)}>
                       {expert ? (verdict === 'right' ? 'Right' : verdict === 'too-little' ? 'Too little' : 'Too much') : verdict === 'right' ? 'Just right!' : verdict === 'too-little' ? 'Not quite enough' : 'A bit too much'}
                     </h2>
-                    <p id="bk-box" className="mt-1 text-[15px] leading-snug text-[#e4e1ff]">
+                    <p id="bk-box" className="mt-1 text-[15px] leading-snug text-[#e4e1ff] sm:[@media(max-height:500px)]:hidden">
                       {boxWords(count, cut)}
                     </p>
                   </div>
                 </div>
                 <p id="bk-verdict" className={cn('rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22]', verdict === 'right' ? 'bg-amber-300' : 'bg-[#d4d0f5]')}>
-                  {verdict === 'right' ? learnedLine(count, cut, order) : verdictWords(count, cut, order)}
-                  {verdict === 'right' && newPage && ` ${regular.name}’s page is in your book!`}
+                  {/* A cut that can't make it says so on every band, not "a little more" (code review round 2). */}
+                  {verdict === 'right' ? learnedLine(count, cut, order) : (cutHint(cut, order) ?? verdictWords(count, cut, order))}
+                  {verdict === 'right' && newPage && <span className="mt-1 block font-semibold">{regular.name}’s page is in your book!</span>}
                 </p>
                 {verdict === 'right' ? (
                   <button ref={goRef} type="button" onClick={serve} className={cn(goldClass, 'text-lg')}>
-                    {served + 1 < ORDERS_PER_ROUND ? `Hand it to ${who}` : `Hand it to ${who} — the last one!`}
+                    {served + 1 < ORDERS_PER_ROUND ? `Hand it to ${who}` : expert ? `Hand it to ${who} — the last order` : `Hand it to ${who} — the last one!`}
                   </button>
                 ) : cutMakes(cut, order.amount) ? (
-                  <div className="flex flex-col gap-2 lg:flex-row">
-                    <button ref={goRef} type="button" onClick={fix} className={cn(goldClass, 'flex-1')}>
+                  <div className="flex flex-col gap-2 lg:flex-row [@media(max-height:500px)]:flex-row">
+                    <button ref={goRef} type="button" onClick={fix} className={cn(goldClass, 'flex-1 [@media(max-height:500px)]:px-2')}>
                       Fix the box
                     </button>
-                    <button type="button" onClick={recut} className={cn(outlineClass, 'flex-1')}>
+                    <button type="button" onClick={recut} className={cn(outlineClass, 'flex-1 [@media(max-height:500px)]:px-2')}>
                       Cut it another way
                     </button>
                   </div>
                 ) : (
                   // This cut can't make it, whatever's boxed: the way on is another cut (code and UX review round 1: gold
                   // "Fix the box" went round in a loop).
-                  <div className="flex flex-col gap-2 lg:flex-row">
-                    <button ref={goRef} type="button" onClick={recut} className={cn(goldClass, 'flex-1')}>
+                  <div className="flex flex-col gap-2 [@media(max-height:500px)]:flex-row">
+                    <button ref={goRef} type="button" onClick={recut} className={cn(goldClass, 'flex-1 [@media(max-height:500px)]:px-2')}>
                       Cut it another way
                     </button>
-                    <button type="button" onClick={fix} className={cn(outlineClass, 'flex-1')}>
+                    <button type="button" onClick={fix} className={cn(outlineClass, 'flex-1 [@media(max-height:500px)]:px-2')}>
                       Fix the box
                     </button>
                   </div>
@@ -467,7 +490,12 @@ function capFirst(s: string): string {
 /** The order, in the step card on a phone or a short screen — up to 800 px high (the ticket is further down there). */
 function OrderLine({ order }: { order: Order }) {
   return (
-    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:801px)]:hidden">
+    // Sticky on a short screen, so a miss's way in and the box are read with the order in sight (UX review round 2: at
+    // 844 × 390 the scroll to the gold button took it off the top).
+    <p
+      aria-hidden="true"
+      className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:801px)]:hidden [@media(max-height:600px)]:sticky [@media(max-height:600px)]:top-0 [@media(max-height:600px)]:z-10 [@media(max-height:600px)]:shadow-[0_2px_0_#1b0f22]"
+    >
       <span className="flex-none">
         <AmountIcon order={order} />
       </span>

@@ -223,7 +223,7 @@ const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Ord
   },
   {
     amount: A(3, 4),
-    words: '50% more pie than last week’s half a pie',
+    words: '50% more pie than last week’s half pie',
     badge: '+50%',
     how: 'Work out 50% of half a pie, then add it on.',
     working: '50% of half a pie is a quarter, so 50% more than half a pie is three quarters of a pie.',
@@ -331,7 +331,8 @@ export function verdictWords(count: number, cut: number, order: Order): string {
   // Too little or too much is the heading's (UX review round 1: said twice).
   if (order.expert) {
     if (v === 'right') return 'Right.';
-    if (!cutMakes(cut, order.amount)) return cantMakeWords(cut);
+    // The cut, and the way in too: a kid who guessed the cut most needs the maths (UX review round 2).
+    if (!cutMakes(cut, order.amount)) return `${cap(SLICE[cut].many)} can’t make this order exactly. ${order.expert.how}`;
     return order.expert.how;
   }
   if (v === 'right') return 'Just right!';

@@ -236,11 +236,13 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   3 tables"). Always two pies on the board, so it doesn't say whether the
   order is more than one; the ticket shows the order's numbers ("+25%",
   "5 : 1", "4 people"), never its pie; a cut that can't make it is said after
-  a miss, not as it's picked — and then "Cut it another way" is the gold
-  button, and the cut is said again if the box is fixed anyway. A miss gets a
-  plain heading and one way in ("Too little" — "Work out 25% of 1 pie, then
-  add it on."; a share, "Count the parts in 5 : 1, then take the bigger
-  share."), with the order in sight. A right box shows the working ("25% of 1
+  a miss, not as it's picked, with the way in ("Thirds can't make this order
+  exactly. Work out 25% of 1 pie, then add it on.") — and then "Cut it another
+  way" is the gold button, and the cut is said again if the box is fixed
+  anyway. A miss gets a plain heading and one way in ("Too little" — "Work
+  out 25% of 1 pie, then add it on."; a share, "Count the parts in 5 : 1,
+  then take the bigger share."), with the order in sight (on a short screen
+  it sticks at the top of the card). A right box shows the working ("25% of 1
   pie is a quarter, so 25% more than 1 pie is one and a quarter pies."), and
   the reward keeps the working of an order the kid missed first; every box
   right at its first close is the Expert seal.

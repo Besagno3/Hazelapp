@@ -138,9 +138,12 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
   // finger: a jar's second tap picked a guess, Stir's (no stir with reduced motion) gave the potion or wiped the result
   // with "Try another jar" (UX review round 2). Stir itself needs a guess first.
   const settled = useSettled(step);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back, PR 12 UX review round 2),
+  // a tap's once the step's settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
 
-  function pick(id: JarId) {
-    if (!settled()) return;
+  function pick(id: JarId, e: { detail: number }) {
+    if (!ready(e)) return;
     sfx('select');
     setJarId(id);
     setGuess(null);
@@ -182,8 +185,8 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
     }
   }
 
-  function another() {
-    if (step === 'stirring' || !settled()) return; // the stir finishes first
+  function another(e: { detail: number }) {
+    if (step === 'stirring' || !ready(e)) return; // the stir finishes first
     stopStir();
     setRead(null);
     setJarId(null);
@@ -192,8 +195,8 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
     setStep('pick');
   }
 
-  function deliver() {
-    if (!brewed?.fills || !settled()) return;
+  function deliver(e: { detail: number }) {
+    if (!brewed?.fills || !ready(e)) return;
     setRead(null);
     onFinish({
       title: `${order.potion} brewed!`,
@@ -247,7 +250,7 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
         artSize={compact ? 38 : counter.length >= 9 ? 44 : 52}
         on={jarId === j.id && step !== 'pick'}
         inBook={known(j.id)}
-        onPick={() => pick(j.id)}
+        onPick={(e) => pick(j.id, e)}
         disabled={step === 'stirring'}
       />
     ));
@@ -335,8 +338,8 @@ export default function PotionLab({ def, band, round, onPage, onFinish }: PlayPr
                       type="button"
                       aria-pressed={guess === o.id}
                       aria-disabled={step === 'stirring' || undefined}
-                      onClick={() => {
-                        if (step !== 'guess' || !settled()) return;
+                      onClick={(e) => {
+                        if (step !== 'guess' || !ready(e)) return;
                         sfx('select');
                         setGuess(o.id);
                       }}
@@ -467,7 +470,7 @@ function JarButton({
   jar: Jar;
   on: boolean;
   inBook: boolean;
-  onPick: () => void;
+  onPick: (e: { detail: number }) => void;
   disabled: boolean;
   compact: boolean;
   artSize: number;

@@ -102,7 +102,9 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     expect(screen.getByText('Two quarters — that’s half a pie.', { selector: '[role=status]' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
     expect(screen.getByRole('heading', { name: 'Just right!' })).toHaveFocus();
-    expect(screen.getByText(/Two quarters is the same as half a pie\. Grandmother Wick’s page is in your book!/)).toBeInTheDocument();
+    // The working, and the new page on a line of its own (PR 12 UX review round 2).
+    expect(screen.getByText('Two quarters is the same as half a pie.', { exact: false, selector: '#bk-verdict' })).toBeInTheDocument();
+    expect(screen.getByText('Grandmother Wick’s page is in your book!')).toBeInTheDocument();
     // Dot's line after a right box, in turn (the next is different).
     expect(screen.getByText(/^Perfect — fair and square!/)).toBeInTheDocument();
     expect(save().flags[pageFlag('dots-bakery', 'wick')]).toBe(true);
@@ -342,7 +344,7 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     for (let k = 0; k < 4; k++) fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
     fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
     expect(screen.getByRole('heading', { name: 'Too much' })).toBeInTheDocument();
-    expect(screen.getByText('Thirds can’t make this order exactly — cut it another way.')).toBeInTheDocument();
+    expect(screen.getByText('Thirds can’t make this order exactly. Work out 25% of 1 pie, then add it on.')).toBeInTheDocument();
     // The way on is another cut — gold, and what Dot says (code and UX review round 1: gold "Fix the box" looped).
     expect(screen.getByText('Not quite. Cut it another way.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Cut it another way' }).className).toMatch(/bg-amber-300/);
@@ -377,7 +379,7 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     expect(screen.getByRole('heading', { name: 'Step 1 · Cut the pies' })).toBeInTheDocument();
     expect(screen.getByText(/wants enough for 4 people, when 1 pie feeds 6\./)).toBeInTheDocument();
     boxUp('Thirds', 2);
-    expect(screen.getByText('That’s it. That’s the last order.')).toBeInTheDocument();
+    expect(screen.getByText('Correct. That’s the last order.')).toBeInTheDocument();
     last();
     expect(await screen.findByText('Spot on: 2 of 3. Spot on every time wins the Expert seal.')).toBeInTheDocument();
     expect(save().flags[sealFlag('dots-bakery')]).toBeUndefined();
@@ -399,6 +401,64 @@ describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§
     boxUp('Sixths', 4);
     last();
     expect(await screen.findByText('Spot on: 2 of 3. Spot on every time wins the Expert seal.')).toBeInTheDocument();
+  });
+
+  it('the reward keeps the working of the first order missed — not the first right, not the last missed (code review round 2: untested)', async () => {
+    await openExpert();
+    boxUp('Eighths', 10);
+    last();
+    await screen.findByText('Order 2 of 3');
+    boxUp('Sixths', 4);
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
+    last();
+    await screen.findByText('Order 3 of 3');
+    boxUp('Thirds', 1);
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
+    last();
+    const found = within(await screen.findByRole('region', { name: 'What you found out' }));
+    expect(found.getByText(/^5 : 1 splits a pie into 6 equal parts/)).toBeInTheDocument();
+  });
+
+  it('a cut said not to make one order says nothing of the next’s; Dot says it as the box is fixed (code review round 2)', async () => {
+    await openExpert();
+    boxUp('Thirds', 4);
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    // Dot's bubble, what's heard, says it too — not "Box it" under a gold "Cut it another way".
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toMatch(/Thirds can’t make this order exactly — cut it another way\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
+    boxUp('Eighths', 10);
+    last();
+    await screen.findByText('Order 2 of 3');
+    boxUp('Sixths', 5);
+    last();
+    // 2/3: thirds make it — nothing said against them.
+    await screen.findByText('Order 3 of 3');
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Thirds/ }));
+    expect(screen.queryByText(/can’t make/)).toBeNull();
+  });
+
+  it('the order in the step card as a morning starts and after a miss; who it’s for off on a phone on its side; Dot’s question in the card on the younger bands only (code review round 2: untested)', async () => {
+    await openExpert();
+    const line = () => screen.getAllByText((_, el) => el?.tagName === 'P' && /^\+25%For Grandmother Wick: 25% more pie than last week’s 1 pie$/.test(el.textContent ?? ''));
+    expect(line()).toHaveLength(1);
+    expect(screen.getAllByText(/^For Grandmother Wick:/).some((el) => el.className.includes('[@media(max-height:500px)]:hidden'))).toBe(true);
+    expect(screen.queryByText(/How many equal slices/)).toBeNull();
+    boxUp('Quarters', 4);
+    expect(line()).toHaveLength(1);
+  });
+
+  it('on the younger bands the card asks Dot’s question where it comes first; a cut that can’t make it says so when closed (code review round 2)', async () => {
+    setUp(9);
+    await open();
+    expect(screen.getAllByText(/How many equal slices should the pie be cut into\?/).some((p) => p.className.includes('min-height:541px'))).toBe(true);
+    // Tricky's 75% of a pie, in thirds: why the gold button's "Cut it another way" (not "a little more").
+    boxUp('Thirds', 1);
+    expect(screen.getByText('Thirds can’t make 75% of a pie exactly. Try another cut!', { selector: '#bk-verdict' })).toBeInTheDocument();
+    expect(document.querySelector('[aria-live="polite"]')?.textContent).toMatch(/Not quite! Thirds can’t make it — cut it another way!/);
   });
 
   it('regulars in the book come later: the first order goes to one not in it yet, with the slot’s order', async () => {

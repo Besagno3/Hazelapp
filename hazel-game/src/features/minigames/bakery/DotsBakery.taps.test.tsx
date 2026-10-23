@@ -9,9 +9,10 @@ vi.mock('framer-motion', async (orig) => ({
   useReducedMotion: () => true,
 }));
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
+const sendFlow = vi.fn();
 vi.mock('../../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../../machines/gameFlow')>()),
-  sendFlow: () => {},
+  sendFlow: (...args: unknown[]) => sendFlow(...args),
 }));
 vi.mock('../../../lib/audio', async (orig) => ({
   ...(await orig<typeof import('../../../lib/audio')>()),
@@ -59,7 +60,7 @@ async function boxFirst() {
 }
 
 describe('🥧 a double tap', () => {
-  it('a cut’s second tap doesn’t put a slice in the box that came under it; − / + aren’t held back', async () => {
+  it('a cut’s second tap doesn’t put a slice in the box that came under it — nor on + (UX review round 2: Fix’s second landed there); then − / + aren’t held back', async () => {
     render(<MiniGameStage game="dots-bakery" />);
     fireEvent.click(screen.getByRole('button', { name: 'Let’s bake!' }));
     await screen.findByRole('heading', { name: 'Step 1 · Cut the pies' });
@@ -70,10 +71,13 @@ describe('🥧 a double tap', () => {
     tap(cut(/^Quarters/));
     const slices = screen.getByRole('group', { name: 'The pies on the board' }).querySelectorAll('g[style]');
     fireEvent.click(slices[0]);
+    tap(screen.getByRole('button', { name: 'Put a slice in' }));
     expect(screen.getByText('The box is empty.')).toBeInTheDocument();
+    wait();
+    // A quick second press is a second slice.
     tap(screen.getByRole('button', { name: 'Put a slice in' }));
     tap(screen.getByRole('button', { name: 'Put a slice in' }));
-    expect(screen.getByText(/^Two quarters/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Two quarters — that’s half a pie\./).length).toBeGreaterThan(0);
   });
 
   it('Close’s second tap doesn’t hand the box over before its working is seen', async () => {
@@ -84,6 +88,27 @@ describe('🥧 a double tap', () => {
     wait();
     tap(screen.getByRole('button', { name: /^Hand it to/ }));
     expect(await screen.findByText('Order 2 of 3')).toBeInTheDocument();
+  });
+
+  it('Close and Fix wait as their step starts too (code review round 2: untested)', async () => {
+    render(<MiniGameStage game="dots-bakery" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s bake!' }));
+    await screen.findByRole('heading', { name: 'Step 1 · Cut the pies' });
+    wait();
+    tap(cut(/^Quarters/));
+    // + from the keyboard at once (a key isn't held back), then Close tapped at once: held — the fill step's only just
+    // started.
+    for (let k = 0; k < 4; k++) fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }), { detail: 0 });
+    tap(screen.getByRole('button', { name: 'Close the box' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Fill the box' })).toBeInTheDocument();
+    wait();
+    tap(screen.getByRole('button', { name: 'Close the box' }));
+    expect(screen.getByRole('heading', { name: 'Too little' })).toBeInTheDocument();
+    tap(screen.getByRole('button', { name: 'Fix the box' }));
+    expect(screen.getByRole('heading', { name: 'Too little' })).toBeInTheDocument();
+    wait();
+    tap(screen.getByRole('button', { name: 'Fix the box' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Fill the box' })).toBeInTheDocument();
   });
 
   it('a miss’s second tap doesn’t wipe it with “Cut it another way”', async () => {
@@ -126,8 +151,33 @@ describe('🥧 a double tap', () => {
     // The double's second, on the reward's button: nothing.
     tap(screen.getByRole('button', { name: 'Another morning' }));
     expect(screen.getByRole('heading', { name: 'Morning served!' })).toBeInTheDocument();
+    // Map too (code review round 2: untested).
+    sendFlow.mockClear();
+    tap(screen.getByRole('button', { name: 'Back to the map' }));
+    expect(sendFlow).not.toHaveBeenCalled();
     // A key (no click count) at once: not held back.
     fireEvent.click(screen.getByRole('button', { name: 'Another morning' }), { detail: 0 });
     expect(screen.queryByRole('heading', { name: 'Morning served!' })).toBeNull();
+  });
+
+  it('the reward’s Map, tapped a moment after it comes up, goes back to the map', async () => {
+    await boxFirst();
+    wait();
+    tap(screen.getByRole('button', { name: /^Hand it to/ }));
+    await screen.findByText('Order 2 of 3');
+    for (const [c, n] of [[/^Sixths/, 5], [/^Thirds/, 2]] as const) {
+      wait();
+      tap(cut(c));
+      wait();
+      for (let k = 0; k < n; k++) tap(screen.getByRole('button', { name: 'Put a slice in' }));
+      tap(screen.getByRole('button', { name: 'Close the box' }));
+      wait();
+      tap(screen.getByRole('button', { name: /^Hand it to/ }));
+    }
+    await screen.findByRole('heading', { name: 'Morning served!' });
+    sendFlow.mockClear();
+    wait();
+    tap(screen.getByRole('button', { name: 'Back to the map' }));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
   });
 });
