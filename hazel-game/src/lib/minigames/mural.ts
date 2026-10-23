@@ -224,8 +224,15 @@ const POINTS: readonly Point[] = [
   [2, 5],
 ];
 
-/** A point, said: "(1, 4)". */
-export const pointWords = ([x, y]: Point) => `(${x}, ${y})`;
+/**
+ * Keeps an expression on one line (UX review round 1, PR 14: "x / = 3" and
+ * "(3, / 3)" broke across lines): no-break spaces round =, − and +, and
+ * after a comma inside brackets.
+ */
+export const tie = (s: string) => s.replace(/ ([=−+]) /g, '\u00a0$1\u00a0').replace(/\([^()]*\)/g, (m) => m.replace(/, /g, ',\u00a0'));
+
+/** A point, said: "(1, 4)", on one line. */
+export const pointWords = ([x, y]: Point) => `(${x},\u00a0${y})`;
 
 /** A colour's opposite, if it has one (the wheel's six). */
 export const opposite = (c: Colour): Colour | null => (c in OPPOSITE ? OPPOSITE[c as Wheel] : null);
@@ -293,27 +300,86 @@ export function roundQueue(known: (id: PatternId) => boolean, round: number): Pa
 export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly PatternId[]): Job {
   const slot = round * JOBS_PER_ROUND + i;
   const expert = band === 'expert';
-  const p = POINTS[slot % POINTS.length];
+  // The two As take turns by the pair of rounds too, so a third round isn't the first again (UX review round 1).
+  const p = POINTS[(slot + Math.floor(slot / ASKS.expert.length)) % POINTS.length];
   const ask = ASKS[band][slot % ASKS[band].length];
   const pattern = queue?.[i] ?? PATTERN_IDS[slot % PATTERN_IDS.length];
   // Every pattern is its own mirror, so a half turn of one is the top half flipped down too (review round 1): for a
   // turn, the top-right quarter's two colours swap — a pinwheel, the same after half a turn but not in a mirror.
-  const base = paint(PATTERN_BY_ID[pattern], ask.a, ask.b).map((row, r) =>
+  const painted = paint(PATTERN_BY_ID[pattern], ask.a, ask.b).map((row, r) =>
     row.map((v, c) => (ask.kind === 'turn' && r < HALF && c >= HALF && v ? (v === ask.a ? ask.b : ask.a) : v)),
   );
-  const goal = base.map((row, r) =>
-    row.map((_, c) => {
-      const [sr, sc] = source(ask.kind, r, c);
-      const v = base[sr][sc];
-      return ask.kind === 'opposite' && c >= HALF && v ? (opposite(v) ?? v) : v;
-    }),
-  );
+  const made = (base: Grid): Cell[][] =>
+    base.map((row, r) =>
+      row.map((_, c) => {
+        const [sr, sc] = source(ask.kind, r, c);
+        const v = base[sr][sc];
+        return ask.kind === 'opposite' && c >= HALF && v ? (opposite(v) ?? v) : v;
+      }),
+    );
+  // On Expert the move is the lesson: a picture no other move paints right (code review round 1).
+  const goal = expert ? unfaked(ask.kind, painted, ask.a, ask.b, made) : made(painted);
   if (ask.kind === 'opposite') {
     const need = [OPPOSITE[ask.a], OPPOSITE[ask.b]];
     const mixColour = need.find((c) => recipe(c)) ?? need[0];
     return { pattern, kind: ask.kind, goal, mixColour, palette: [mixColour, ...WHEEL.filter((c) => c !== mixColour)], expert, p };
   }
   return { pattern, kind: ask.kind, goal, mixColour: ask.a, palette: [ask.a, ask.b], expert, p };
+}
+
+/** A square to the one it's copied from — the ways a given part could be copied onto the rest. */
+type SourceMap = (r: number, c: number) => readonly [number, number];
+const M = SIZE - 1;
+const OTHER_MAPS: readonly SourceMap[] = [
+  ...(['across', 'down', 'four', 'turn', 'diag', 'quarter', 'shift'] as const).map((k): SourceMap => (r, c) => source(k, r, c)),
+  // The square's turns and mirrors, whole.
+  (r, c) => [c, M - r],
+  (r, c) => [M - r, M - c],
+  (r, c) => [M - c, r],
+  (r, c) => [r, M - c],
+  (r, c) => [M - r, c],
+  (r, c) => [c, r],
+  (r, c) => [M - c, M - r],
+  // Slid across, or down.
+  (r, c) => [r, c - HALF],
+  (r, c) => [r - HALF, c],
+  // The quarter turns the other way round.
+  (r, c) => (r < HALF ? (c < HALF ? [r, c] : [c, M - r]) : c < HALF ? [M - c, r] : [M - r, M - c]),
+];
+
+/**
+ * How many other ways of copying the given part onto the kid's paint `goal`
+ * too — a reflection where a rotation's asked, or two mirrors for quarter
+ * turns (code review round 1, PR 14: every pattern is the same across and
+ * down, five corner to corner too). None on Expert (tested).
+ */
+export function fakes(kind: Kind, goal: Grid): number {
+  const kid = toPaint(kind);
+  return OTHER_MAPS.filter((f) => {
+    let other = false;
+    for (const [r, c] of kid) {
+      const [sr, sc] = f(r, c);
+      if (sr < 0 || sc < 0 || sr >= SIZE || sc >= SIZE || !given(kind, sr, sc) || goal[sr][sc] !== goal[r][c]) return false;
+      const [kr, kc] = source(kind, r, c);
+      if (sr !== kr || sc !== kc) other = true;
+    }
+    return other;
+  }).length;
+}
+
+/** Colour swaps in the given part, tried in turn on Expert: none, the top-left quarter, one side of the diagonal or the other, the top row, the left column. */
+const SWAPS: readonly ((r: number, c: number) => boolean)[] = [() => false, (r, c) => r < HALF && c < HALF, (r, c) => r < c, (r, c) => r > c, (r) => r === 0, (_, c) => c === 0];
+
+/** Expert's picture: the first swap of its given part's two colours that leaves both in it and no other move painting it right. */
+function unfaked(kind: Kind, base: Grid, a: Colour, b: Colour, made: (g: Grid) => Cell[][]): Cell[][] {
+  let last = made(base);
+  for (const swap of SWAPS) {
+    const g = base.map((row, r) => row.map((v, c) => (given(kind, r, c) && swap(r, c) && v ? (v === a ? b : a) : v)));
+    const shown = new Set(g.flatMap((row, r) => row.filter((v, c) => v && given(kind, r, c))));
+    last = made(g);
+    if (shown.size === 2 && fakes(kind, last) === 0) return last;
+  }
+  return last;
 }
 
 /** The squares the kid paints, in reading order. */
@@ -350,35 +416,38 @@ const MIRROR_WORDS: Record<Kind, string> = {
   shift: 'Paint the right half as a copy of the left half, slid across.',
 };
 
+/** Each of a table's words kept on one line where they're an expression (`tie`). */
+const tied = <K extends string>(t: Record<K, string>) => Object.fromEntries(Object.entries<string>(t).map(([k, v]) => [k, tie(v)])) as Record<K, string>;
+
 /** Expert's moves as its job says them (§8.5): in coordinates, x across and y up from the bottom-left corner. */
-const MOVE_WORDS: Record<Move, string> = {
+const MOVE_WORDS: Record<Move, string> = tied({
   across: 'Reflect the left half in the line x = 3.',
   down: 'Reflect the top half in the line y = 3.',
   diag: 'Reflect the top-left triangle in the line y = x.',
   turn: 'Rotate the top half 180° about the point (3, 3).',
   quarter: 'Rotate the top-left quarter 90°, 180° and 270° clockwise about (3, 3).',
   shift: 'Translate the left half by the vector (3, 0).',
-};
+});
 
 /** Expert's moves, as their buttons name them. */
-export const MOVE_NAME: Record<Move, string> = {
+export const MOVE_NAME: Record<Move, string> = tied({
   across: 'Reflect in x = 3',
   down: 'Reflect in y = 3',
   diag: 'Reflect in y = x',
   turn: 'Rotate 180° about (3, 3)',
   quarter: 'Rotate 90° clockwise about (3, 3)',
   shift: 'Translate by (3, 0)',
-};
+});
 
 /** Expert's rule for a move, given after a miss (§8.3: a hint after a miss, not a label before). */
-const RULE: Record<Move, string> = {
+const RULE: Record<Move, string> = tied({
   across: 'A reflection in x = 3 takes (x, y) to (6 − x, y).',
   down: 'A reflection in y = 3 takes (x, y) to (x, 6 − y).',
   diag: 'A reflection in y = x swaps the coordinates: (x, y) goes to (y, x).',
   turn: 'A rotation of 180° about (3, 3) takes (x, y) to (6 − x, 6 − y).',
   quarter: 'A quarter turn clockwise about (3, 3) takes (x, y) to (y, 6 − x); do it again for 180° and 270°.',
   shift: 'A translation by (3, 0) takes (x, y) to (x + 3, y).',
-};
+});
 
 const isMove = (k: Kind): k is Move => (MOVES as readonly Kind[]).includes(k);
 
@@ -430,7 +499,7 @@ export function markWords(n: number, job?: Job): string {
 /** After the mirror's held up. */
 export function checkWords(job: Job, painted: Grid): string {
   const n = mismatches(job, painted).length;
-  return n === 0 ? (job.expert ? 'An exact image.' : 'A perfect match!') : markWords(n, job);
+  return n === 0 ? 'A perfect match!' : markWords(n, job);
 }
 
 const PART: Record<Kind, string> = {
@@ -450,14 +519,14 @@ export function paintFirstWords(kind: Kind, expert = false): string {
 }
 
 /** What Expert's move teaches, for the reward: its rule, and one thing more. */
-const MOVE_LEARNED: Record<Move, string> = {
-  across: 'A reflection in x = 3 takes (x, y) to (6 − x, y): each point lands as far the other side of the line, straight across.',
-  down: 'A reflection in y = 3 takes (x, y) to (x, 6 − y): the line y = 3 is the perpendicular bisector of each point and its image.',
+const MOVE_LEARNED: Record<Move, string> = tied({
+  across: 'A reflection in x = 3 takes (x, y) to (6 − x, y): each point lands as far on the other side of the line, straight across.',
+  down: 'A reflection in y = 3 takes (x, y) to (x, 6 − y): the line y = 3 is the perpendicular bisector of the segment from each point to its image.',
   diag: 'A reflection in y = x swaps the coordinates: (x, y) goes to (y, x), so the points on the line stay put.',
   turn: 'A rotation of 180° about (3, 3) takes (x, y) to (6 − x, 6 − y) — the same as reflecting in x = 3 and then in y = 3.',
-  quarter: 'A quarter turn clockwise about (3, 3) takes (x, y) to (y, 6 − x); four quarter turns make a whole one — rotational symmetry of order 4.',
+  quarter: 'A quarter turn clockwise about (3, 3) takes (x, y) to (y, 6 − x); the picture looks the same after each quarter turn — rotational symmetry of order 4.',
   shift: 'A translation by (3, 0) adds the vector to every point: (x, y) goes to (x + 3, y), and nothing turns or flips.',
-};
+});
 
 /** What a finished picture teaches, for the reward. */
 export function learnedLine(job: Job): string {

@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   FREE_PALETTE,
@@ -42,7 +42,6 @@ import {
   type Kind,
   type Move,
   type PatternId,
-  type Point,
   type Pot,
 } from '../../../lib/minigames/mural';
 import { BAND_LABEL, mineFlag, pageFlag, type PlayBand } from '../../../content/minigames';
@@ -57,9 +56,13 @@ import type { PlayProps } from '../types';
 import { PixelPicture } from './art';
 import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
+import { stepScroll } from '../stepScroll';
 import { fitCanvas, type Controls, type Fit } from './layout';
+import { AXIS, AskPicture, Axes, MoveMarks, type Overlay } from './marks';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
+/** Expert's canvas while the move's named: bare, but for A and A′ (review round 1: the painted part's shape gave the move away). */
+const BARE: Grid = Array.from({ length: SIZE }, () => Array<Cell>(SIZE).fill(null));
 
 /**
  * Mixing (on Expert, naming the move), painting (the mirror's marks stay on the canvas till they're fixed), a perfect
@@ -102,10 +105,6 @@ const key = (r: number, c: number) => `${r},${c}`;
 
 /** `gap-2` under the heading. */
 const GAP_UNDER = 8;
-/** The canvas's frame (`border-4`): the grid's lines are inside it. */
-const FRAME = 4;
-/** The room Expert's axis numbers take, left and under the canvas (inside the size `layout.ts` fits). */
-const AXIS = 16;
 
 const MIRROR_HINT: Record<Kind, string> = {
   across: 'Each square on the right copies the square across the mirror line.',
@@ -155,10 +154,12 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
   const [checks, setChecks] = useState(0);
   const [tooSoon, setTooSoon] = useState(false);
   const [lessons, setLessons] = useState<string[]>([]);
+  // Expert's reward teaches the first picture missed, not the last (UX review round 1, as Clocktower Gears).
+  const [missedLesson, setMissedLesson] = useState<string | null>(null);
   const [newPage, setNewPage] = useState(false);
   const [read, setRead] = useState<PatternId | 'mine' | null>(null);
   const [rights, setRights] = useState(0);
-  // Expert's seal (§8.3): each picture's move named at the first pick and its image exact at the first check.
+  // Expert's seal (§8.3): each picture's move named at the first try and its image exact at the first check.
   const [missed, setMissed] = useState(false);
   const [spotOn, setSpotOn] = useState(0);
   // This round's finished pictures, as painted: the Gallery shows them in the kid's colours.
@@ -172,7 +173,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
   }, [flags, def.id]);
   const painting = step === 'paint' || step === 'free';
   const matched = step === 'matched';
-  const shown = step === 'free' ? mirrored(free) : grid;
+  const shown = step === 'free' ? mirrored(free) : step === 'name' ? BARE : grid;
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}:${checks}`);
   // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
@@ -198,14 +199,29 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
   const [hue, hueH] = useStickyHeight<HTMLDivElement>();
   const board = useRef<HTMLElement>(null);
   const card = useRef<HTMLDivElement>(null);
+  const ask = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
     const sc = page.current;
     const b = board.current;
-    if ((step === 'paint' || step === 'free') && window.matchMedia?.('(max-width: 639px)').matches && sc && b && typeof sc.scrollTo === 'function') {
+    const phone = !!window.matchMedia?.('(max-width: 639px)').matches && !!sc && typeof sc.scrollTo === 'function';
+    if ((step === 'paint' || step === 'free') && phone && sc && b) {
       // A phone scrolls just the game (scrollIntoView's "start" scrolled the stage under its header too).
       sc.scrollTo({ top: sc.scrollTop + b.getBoundingClientRect().top - sc.getBoundingClientRect().top, behavior });
-    } else if (step === 'paint' || step === 'free') b?.scrollIntoView?.({ block: 'nearest', behavior });
+    } else if (step === 'name' && phone && sc && goRef.current) {
+      // Expert's ask, A and A′ drawn small, with the moves and That's the move: the ask first where they don't all fit
+      // (UX review round 1: the canvas with A and A′ was scrolled away above them).
+      const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: ask.current?.getBoundingClientRect() ?? null, view: sc.getBoundingClientRect(), cover: 0, keepWins: true });
+      sc.scrollTo({ top: sc.scrollTop + by, behavior });
+    } else if (step === 'paint' || step === 'free') {
+      b?.scrollIntoView?.({ block: 'nearest', behavior });
+      // A canvas held at its floor scrolls in the board (`tight`): the gold button into sight there too, the canvas's
+      // top kept (UX review round 1: Check the image was under the footer at 683 × 600).
+      if (b && goRef.current && canvas.current && typeof b.scrollTo === 'function' && b.scrollHeight > b.clientHeight) {
+        const by = stepScroll({ go: goRef.current.getBoundingClientRect(), keep: canvas.current.getBoundingClientRect(), view: b.getBoundingClientRect(), cover: 0, keepWins: true });
+        b.scrollTo({ top: b.scrollTop + by, behavior });
+      }
+    }
     else if (step === 'matched') card.current?.scrollIntoView?.({ block: 'nearest', behavior });
     else goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done, checks]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -309,6 +325,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
     setFixing(false);
     setNewPage(onPage(job.pattern, pattern.name));
     setLessons((l) => [...l, learnedLine(job)]);
+    if (missed) setMissedLesson((l) => l ?? learnedLine(job));
     setRights((n) => n + 1);
     const spot = spotOn + (missed ? 0 : 1);
     setSpotOn(spot);
@@ -343,7 +360,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
     setStep(first);
   }
 
-  const learned = lessons[lessons.length - 1] ?? '';
+  const learned = (expert && missedLesson) || (lessons[lessons.length - 1] ?? '');
   function finish(hung: boolean, e: { detail: number }) {
     if (!ready(e)) return;
     const spot = expert ? { spotOn: { right: spotOn, of: JOBS_PER_ROUND } } : {};
@@ -433,7 +450,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
         >
           {/* On a phone the job is over the canvas, so painting needs no scroll down to read it (review round 1); the
               free canvas has none, so its Hang it fits on a small phone too. */}
-          {step !== 'free' && <PhoneLine job={job} step={step} />}
+          {step !== 'free' && <PhoneLine job={job} step={step} fixing={fixing} />}
           {/* The canvas as big as its space allows, with its paints and the mirror beside it or under it — whichever
               leaves it bigger — so they always fit (`layout.ts`, review rounds 1 and 2). */}
           <div ref={area} className={cn('flex w-full justify-center sm:min-h-0 sm:flex-1', tight ? 'sm:items-start' : 'sm:items-center')}>
@@ -451,7 +468,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                     grid={shown}
                     kind={step === 'free' ? 'across' : job.kind}
                     editable={(r, c) => (step === 'free' ? c < SIZE / 2 : step === 'paint' && !given(job.kind, r, c))}
-                    isGiven={(r, c) => step !== 'free' && given(job.kind, r, c)}
+                    isGiven={(r, c) => step !== 'free' && step !== 'name' && given(job.kind, r, c)}
                     echo={(_, c) => step === 'free' && c >= SIZE / 2}
                     marks={step === 'paint' ? marks : EMPTY_MARKS}
                     painting={painting}
@@ -593,31 +610,43 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                 <h2 ref={mixHead} tabIndex={-1} aria-describedby="mm-job" className={cn(pixelHeadClass, 'self-start rounded text-[26px] [@media(max-height:500px)]:text-[22px]', focusRing)}>
                   Step 1 · Name the move
                 </h2>
-                <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
-                  <b>A {pointWords(job.p)}</b> maps to <b>A′ {pointWords(pImage(job))}</b>.<span className="[@media(max-height:500px)]:hidden"> Which move does that?</span>
-                </p>
-                <div role="group" aria-label="Moves" className="grid grid-cols-2 gap-2 [@media(max-height:500px)]:gap-1.5">
-                  {MOVES.map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={(e) => pickMove(m, e)}
-                      aria-pressed={move === m}
-                      className={cn(
-                        'flex min-h-[52px] items-center rounded-lg border-[3px] px-2 py-1 text-left text-[14px] font-bold leading-tight',
-                        '[@media(max-height:500px)]:min-h-[40px] [@media(max-height:500px)]:text-[12px]',
-                        move === m ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a] hover:bg-[#2f2b70]',
-                        focusRing,
-                      )}
-                    >
-                      {MOVE_NAME[m]}
-                    </button>
-                  ))}
+                {/* On a phone, A and A′ drawn small beside the ask — the canvas is above, out of sight — and on a phone on its
+                    side the moves beside them too, three across (UX review round 1). */}
+                <div ref={ask} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-3 sm:grid-cols-1 [@media(max-height:500px)]:gap-y-1.5">
+                  <AskPicture job={job} />
+                  <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
+                    <b>A {pointWords(job.p)}</b> maps to <b>A′ {pointWords(pImage(job))}</b>.<span className="[@media(max-height:500px)]:hidden"> Which move does that?</span>
+                  </p>
+                  <div
+                    role="group"
+                    aria-label="Moves"
+                    className={cn(
+                      'col-span-2 grid grid-cols-2 gap-2 sm:col-span-1 [@media(max-height:500px)]:gap-1.5',
+                      '[@media(max-width:639px)_and_(max-height:500px)]:col-span-1 [@media(max-width:639px)_and_(max-height:500px)]:grid-cols-3',
+                    )}
+                  >
+                    {MOVES.map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={(e) => pickMove(m, e)}
+                        aria-pressed={move === m}
+                        className={cn(
+                          'flex min-h-[52px] items-center rounded-lg border-[3px] px-2 py-1 text-left text-[14px] font-bold leading-tight',
+                          '[@media(max-height:500px)]:min-h-[40px] [@media(max-height:500px)]:text-[12px]',
+                          move === m ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a] hover:bg-[#2f2b70]',
+                          focusRing,
+                        )}
+                      >
+                        {MOVE_NAME[m]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {/* Room for the longest said, so Name it never moves. */}
                 <p
                   role="status"
-                  className="flex min-h-[4.25rem] items-center justify-center text-center text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.75rem] [@media(max-height:500px)]:text-[13px]"
+                  className="flex min-h-[4.25rem] items-center justify-center text-center text-[15px] font-bold leading-snug sm:[@media(max-height:500px)]:min-h-[3.75rem] [@media(max-height:500px)]:text-[13px] [@media(max-width:639px)_and_(max-height:500px)]:min-h-[2.5rem]"
                 >
                   {nameSaid ?? (move ? `${MOVE_NAME[move]}.` : 'No move picked yet.')}
                 </p>
@@ -638,7 +667,7 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
                 <h2 className={cn(pixelHeadClass, 'text-[26px] [@media(max-height:500px)]:text-[22px]')}>Step 2 · Paint the image</h2>
                 <JobLine job={job} />
                 <p className="text-[15px] leading-snug text-[#e4e1ff]">
-                  Pick a paint, then tap or drag across the squares: each is the image of a painted one.
+                  Pick a paint, then tap or drag across the squares: each is the image of a square in the painted part — leave it bare where that one is bare.
                   {fixing && ` ${ruleWords(job.kind)} It’s marked on the canvas.`}
                 </p>
                 {marks.size > 0 && (
@@ -716,104 +745,8 @@ export default function MirrorMural({ def, band, round, onPage, onFinish, onClai
 
 const EMPTY_MARKS: ReadonlySet<string> = new Set();
 
-/** Expert's mark on the canvas: A and A′, or the move's line or centre. */
-type Overlay = 'points' | 'move' | null;
-
-/**
- * Expert's coordinate grid round the canvas (§8.5): x along the bottom and y
- * up the left, 0 to 6 at the grid's lines from the bottom-left corner. It
- * takes the canvas's own room, so the canvas fits as before.
- */
-function Axes({ on, children }: { on: boolean; children: ReactNode }) {
-  if (!on) return <>{children}</>;
-  const at = (i: number) => `calc(${FRAME}px + (100% - ${2 * FRAME}px) * ${i / SIZE})`;
-  const ticks = Array.from({ length: SIZE + 1 }, (_, i) => i);
-  const num = 'absolute text-[11px] font-bold leading-none text-[#fde68a]';
-  return (
-    <div className="grid" style={{ gridTemplateColumns: `${AXIS}px minmax(0, 1fr)`, gridTemplateRows: `minmax(0, 1fr) ${AXIS}px` }}>
-      <div aria-hidden="true" className="relative">
-        {ticks.map((i) => (
-          <span key={i} className={cn(num, 'right-1 -translate-y-1/2')} style={{ top: at(SIZE - i) }}>
-            {i}
-          </span>
-        ))}
-      </div>
-      {children}
-      <span aria-hidden="true" />
-      <div aria-hidden="true" className="relative">
-        {ticks.map((i) => (
-          <span key={i} className={cn(num, 'top-1 -translate-x-1/2')} style={{ left: at(i) }}>
-            {i}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 /** A square's corners in Expert's coordinates: "(1, 4) to (2, 5)". */
 const squareWords = (r: number, c: number) => `${pointWords([c, SIZE - 1 - r])} to ${pointWords([c + 1, SIZE - r])}`;
-
-/**
- * Expert's mark on the canvas, drawn in its coordinates (y up): A and A′
- * with an arrow while the move's named; once the mirror's found something to
- * fix, the move's line — x = 3, y = 3, y = x — its centre (3, 3), or its
- * vector. Cyan and white with ink edges, clear on any paint.
- */
-function MoveMarks({ job, overlay }: { job: Job; overlay: Exclude<Overlay, null> }) {
-  const y = (v: number) => SIZE - v;
-  const line = (x1: number, y1: number, x2: number, y2: number) => (
-    <>
-      <line x1={x1} y1={y(y1)} x2={x2} y2={y(y2)} stroke="#1b0f22" strokeWidth={0.2} strokeLinecap="round" />
-      <line x1={x1} y1={y(y1)} x2={x2} y2={y(y2)} stroke="#22d3ee" strokeWidth={0.11} strokeDasharray="0.3 0.18" strokeLinecap="round" />
-    </>
-  );
-  const dot = ([px, py]: Point, fill: string, name: string) => (
-    <>
-      <circle cx={px} cy={y(py)} r={0.17} fill={fill} stroke="#1b0f22" strokeWidth={0.07} />
-      <text x={px + 0.2} y={y(py) - 0.2} fontSize={0.46} fontWeight={900} fill="#1b0f22" stroke="#ffffff" strokeWidth={0.12} paintOrder="stroke">
-        {name}
-      </text>
-    </>
-  );
-  const kind = job.kind;
-  const centre = (
-    <>
-      <circle cx={3} cy={3} r={0.24} fill="#ffffff" stroke="#1b0f22" strokeWidth={0.08} />
-      <circle cx={3} cy={3} r={0.08} fill="#0e7490" />
-    </>
-  );
-  return (
-    <svg aria-hidden="true" viewBox={`0 0 ${SIZE} ${SIZE}`} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
-      <defs>
-        <marker id="mm-head" viewBox="0 0 4 4" refX="3.2" refY="2" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
-          <path d="M0 0 L4 2 L0 4 Z" fill="#1b0f22" />
-        </marker>
-      </defs>
-      {overlay === 'points' ? (
-        <>
-          <line x1={job.p[0]} y1={y(job.p[1])} x2={pImage(job)[0]} y2={y(pImage(job)[1])} stroke="#1b0f22" strokeWidth={0.07} strokeDasharray="0.2 0.12" markerEnd="url(#mm-head)" />
-          {dot(job.p, '#ffffff', 'A')}
-          {dot(pImage(job), '#22d3ee', 'A′')}
-        </>
-      ) : (
-        <>
-          {kind === 'across' && line(3, 0, 3, 6)}
-          {kind === 'down' && line(0, 3, 6, 3)}
-          {kind === 'diag' && line(0, 0, 6, 6)}
-          {(kind === 'turn' || kind === 'quarter') && centre}
-          {kind === 'shift' && (
-            <>
-              <line x1={1.5} y1={3} x2={4.5} y2={3} stroke="#ffffff" strokeWidth={0.22} />
-              <line x1={1.5} y1={3} x2={4.4} y2={3} stroke="#1b0f22" strokeWidth={0.1} markerEnd="url(#mm-head)" />
-            </>
-          )}
-        </>
-      )}
-    </svg>
-  );
-}
-
 /**
  * The canvas's fit from `sm` up (`layout.ts`): the space measured, the rest
  * worked out — so nothing it draws can change what it measures. On a phone the
@@ -955,14 +888,17 @@ function JobLine({ job }: { job: Job }) {
   );
 }
 
-/** On a phone, over the canvas: the mirror's rule (the ticket and the step card are below it). Said there too. */
-function PhoneLine({ job, step }: { job: Job; step: Step }) {
+/**
+ * On a phone, over the canvas: the mirror's rule (the ticket and the step card are below it) — on Expert after a
+ * miss, the move's (UX review round 1: it was only below the fold). Said there too.
+ */
+function PhoneLine({ job, step, fixing }: { job: Job; step: Step; fixing: boolean }) {
   return (
     <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[14px] font-bold leading-snug text-[#1b0f22] sm:hidden">
       <span className="flex-none">
         <KindBadge kind={step === 'name' ? null : job.kind} />
       </span>
-      {step === 'mix' || step === 'name' ? jobWords(job, step !== 'name') : mirrorWords(job.kind, job.expert)}
+      {step === 'mix' || step === 'name' ? jobWords(job, step !== 'name') : job.expert && fixing ? ruleWords(job.kind) : mirrorWords(job.kind, job.expert)}
     </p>
   );
 }
@@ -991,9 +927,18 @@ function Mark() {
  * squares are buttons — one in the tab order at a time, arrow keys move
  * between them, Enter / Space paints — named by place, colour, the square
  * they copy and a mark; a press or a drag across them paints (one finger, the
- * main button). Given squares are pictures; on the free canvas, the mirror's
- * half is hatched (`echo`).
+ * main button). Given squares are pictures — on Expert, while painting, read
+ * in the arrow keys' grid too, but not painted, and the kid's squares say the
+ * square they're the image of only once the mirror's marked them (review
+ * round 1: it gave the image away). On the free canvas, the mirror's half is
+ * hatched (`echo`).
  */
+/** A square in the arrow keys' grid. Two-tone focus, cyan over ink, so it shows on any paint (review round 1) — drawn over the mark too (round 2: the mark hid it). */
+const squareClass =
+  'relative border-[0.5px] border-[#1b0f22]/25 outline-none after:pointer-events-none after:absolute after:inset-0 after:z-10 focus-visible:z-10 focus-visible:after:shadow-[inset_0_0_0_4px_#67e8f9,inset_0_0_0_7px_#1b0f22]';
+/** A given square left bare. */
+const HATCH = 'bg-[repeating-linear-gradient(45deg,#efe4cf_0_4px,#f4ecdc_4px_8px)]';
+
 const Canvas = forwardRef<
   HTMLDivElement,
   {
@@ -1007,7 +952,7 @@ const Canvas = forwardRef<
     marks: ReadonlySet<string>;
     painting: boolean;
     job: Job | null;
-    /** Expert: squares said by their corners' coordinates, no mirror line till a miss (`overlay`). */
+    /** Expert: squares said by their corners' coordinates, no mirror line till a miss (`overlay`) — but the free canvas's. */
     coords: boolean;
     overlay: Overlay;
     onPaint: (r: number, c: number) => void;
@@ -1019,7 +964,12 @@ const Canvas = forwardRef<
     for (let r = 0; r < SIZE; r++) for (let c = 0; c < SIZE; c++) if (editable(r, c)) return [r, c] as [number, number];
     return null;
   }, [editable]);
-  const focusAt = at && editable(at[0], at[1]) ? at : firstEditable;
+  // In the arrow keys' grid: the kid's squares — and on Expert, while painting, the given ones, to read.
+  const reading = coords && painting && job !== null;
+  const inGrid = (r: number, c: number) => editable(r, c) || (reading && isGiven(r, c));
+  const focusAt = at && inGrid(at[0], at[1]) ? at : firstEditable;
+  // No line till a miss on Expert — but the free canvas has its mirror.
+  const lines = !coords || !job;
   // The pointer painting, by id: a second finger or another button never starts or ends it (review round 1).
   const dragging = useRef<number | null>(null);
   const lift = (e: PointerEvent) => {
@@ -1041,7 +991,7 @@ const Canvas = forwardRef<
     e.preventDefault();
     let rr = r + d[0];
     let cc = c + d[1];
-    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && !editable(rr, cc)) {
+    while (rr >= 0 && rr < SIZE && cc >= 0 && cc < SIZE && !inGrid(rr, cc)) {
       rr += d[0];
       cc += d[1];
     }
@@ -1079,17 +1029,48 @@ const Canvas = forwardRef<
           const style = { background: v ? HEX[v] : undefined };
           const marked = marks.has(key(r, c));
           const glyph = v && (
-            <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center text-[length:max(10px,4cqw)] font-black leading-none" style={{ color: glyphInk(v) }}>
+            // Over Expert's line (UX review round 1: y = x hid the letters on it).
+            <span
+              aria-hidden="true"
+              className={cn('pointer-events-none absolute inset-0 flex items-center justify-center text-[length:max(10px,4cqw)] font-black leading-none', coords && 'z-[1]')}
+              style={{ color: glyphInk(v) }}
+            >
               {GLYPH[v]}
             </span>
           );
+          const tab = focusAt && focusAt[0] === r && focusAt[1] === c ? 0 : -1;
+          const keys = (e: KeyboardEvent<HTMLButtonElement>) => {
+            // A held Enter or Space presses once: its repeats would paint the square focus just came to (review
+            // round 2: holding Enter on Mix them painted the first square).
+            if ((e.key === 'Enter' || e.key === ' ') && e.repeat) e.preventDefault();
+            else onKey(e, r, c);
+          };
+          if (!editable(r, c) && inGrid(r, c)) {
+            // Expert's given square, to read: in the grid, not painted.
+            return (
+              <button
+                key={key(r, c)}
+                type="button"
+                data-cell={key(r, c)}
+                tabIndex={tab}
+                aria-disabled="true"
+                aria-label={`Square ${squareWords(r, c)}: ${v ? NAME[v] : 'bare'}, given.`}
+                onFocus={() => setAt([r, c])}
+                onKeyDown={keys}
+                className={cn(squareClass, !v && HATCH)}
+                style={style}
+              >
+                {glyph}
+              </button>
+            );
+          }
           if (!editable(r, c)) {
             return (
               <div
                 key={key(r, c)}
                 data-cell={key(r, c)}
                 aria-hidden="true"
-                className={cn('relative border-[0.5px] border-[#1b0f22]/15', !v && 'bg-[#f4ecdc]', isGiven(r, c) && !v && 'bg-[repeating-linear-gradient(45deg,#efe4cf_0_4px,#f4ecdc_4px_8px)]')}
+                className={cn('relative border-[0.5px] border-[#1b0f22]/15', !v && 'bg-[#f4ecdc]', isGiven(r, c) && !v && HATCH)}
                 style={style}
               >
                 {echo(r, c) && <span className="absolute inset-0 bg-[repeating-linear-gradient(45deg,rgba(255,255,255,0.5)_0_3px,transparent_3px_8px)]" />}
@@ -1100,11 +1081,13 @@ const Canvas = forwardRef<
           }
           const [sr, sc] = source(kind, r, c);
           const from = grid[sr][sc];
-          // Expert's says which square it's the image of — the given squares aren't read out on their own.
+          // Expert's says which square it's the image of only once it's marked — the hint after a miss, as the line is.
           const copy = !job
             ? ''
             : coords
-              ? `It’s the image of the square ${squareWords(sr, sc)}: ${from ? NAME[from] : 'bare'}.`
+              ? marked
+                ? `It’s the image of the square ${squareWords(sr, sc)}: ${from ? NAME[from] : 'bare'}.`
+                : ''
               : `It copies the square at row ${sr + 1}, square ${sc + 1}: ${from ? NAME[from] : 'bare'}${kind === 'opposite' && from ? ` — paint its opposite` : ''}.`;
           const place = coords ? `Square ${squareWords(r, c)}` : `Row ${r + 1}, square ${c + 1}`;
           return (
@@ -1113,22 +1096,15 @@ const Canvas = forwardRef<
               type="button"
               data-cell={key(r, c)}
               data-marked={marked || undefined}
-              tabIndex={focusAt && focusAt[0] === r && focusAt[1] === c ? 0 : -1}
+              tabIndex={tab}
               aria-label={`${place}: ${v ? NAME[v] : 'bare'}.${copy ? ` ${copy}` : ''}${marked ? ' Doesn’t match yet.' : ''}`}
               onClick={(e) => {
                 // A press from the keyboard (a pointer press paints on pointer down).
                 if (e.detail === 0) onPaint(r, c);
               }}
               onFocus={() => setAt([r, c])}
-              onKeyDown={(e) => {
-                // A held Enter or Space presses once: its repeats would paint the square focus just came to (review
-                // round 2: holding Enter on Mix them painted the first square).
-                if ((e.key === 'Enter' || e.key === ' ') && e.repeat) e.preventDefault();
-                else onKey(e, r, c);
-              }}
-              // Two-tone focus, cyan over ink, so it shows on any paint (review round 1) — drawn over the mark too
-              // (round 2: the mark hid it).
-              className="relative border-[0.5px] border-[#1b0f22]/25 outline-none after:pointer-events-none after:absolute after:inset-0 after:z-10 focus-visible:z-10 focus-visible:after:shadow-[inset_0_0_0_4px_#67e8f9,inset_0_0_0_7px_#1b0f22]"
+              onKeyDown={keys}
+              className={squareClass}
               style={style}
             >
               {glyph}
@@ -1141,20 +1117,20 @@ const Canvas = forwardRef<
       {/* Expert's mark (A and A′, or the move after a miss). */}
       {coords && job && overlay && <MoveMarks job={job} overlay={overlay} />}
       {/* The mirror line(s), and a half turn's middle — cyan and white with ink edges, clear on any paint. */}
-      {!coords && (kind === 'across' || kind === 'four' || kind === 'opposite') && (
+      {lines && (kind === 'across' || kind === 'four' || kind === 'opposite') && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 left-1/2 w-1.5 -translate-x-1/2 bg-[repeating-linear-gradient(180deg,#22d3ee_0_8px,#ffffff_8px_13px)] shadow-[0_0_0_1.5px_#1b0f22]"
         />
       )}
-      {!coords && (kind === 'down' || kind === 'four') && (
+      {lines && (kind === 'down' || kind === 'four') && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 bg-[repeating-linear-gradient(90deg,#22d3ee_0_8px,#ffffff_8px_13px)] shadow-[0_0_0_1.5px_#1b0f22]"
         />
       )}
-      {!coords && kind === 'turn' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-[#22d3ee] shadow-[0_0_0_1.5px_#1b0f22]" />}
-      {!coords && kind === 'turn' && (
+      {lines && kind === 'turn' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-[#22d3ee] shadow-[0_0_0_1.5px_#1b0f22]" />}
+      {lines && kind === 'turn' && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-[#1b0f22] bg-white text-xl font-black text-[#0e7490]"

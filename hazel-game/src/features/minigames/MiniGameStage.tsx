@@ -21,7 +21,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { GAME_SCREENS } from './games';
 import { EmberSprite, HostBubble, Stars } from './parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
-import type { RoundOutcome } from './types';
+import type { PlayProps, RoundOutcome } from './types';
 import { useSettled } from './useSettled';
 // Listening for the last input from the stage's load, so a key on the title card counts (`lastInputWasKey`).
 import './lastInput';
@@ -258,7 +258,8 @@ function PlayArea({
   round: number;
   onPage: (page: string, label: string) => boolean;
   onFinish: (o: RoundOutcome) => void;
-  onClaim: () => void;
+  // The game's own type: a narrower one would drop Expert's seal unseen (code review round 1, PR 14).
+  onClaim: NonNullable<PlayProps['onClaim']>;
   onBack: () => void;
 }) {
   const screens = GAME_SCREENS[def.id];

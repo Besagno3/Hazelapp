@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag } = await import('../../../content/minigames');
-const { jobFor, roundQueue, toPaint } = await import('../../../lib/minigames/mural');
+const { jobFor, roundQueue, tie, toPaint } = await import('../../../lib/minigames/mural');
 
 let now = 0;
 beforeEach(() => {
@@ -77,7 +77,7 @@ describe('🪞 a double tap', () => {
 
   it('Expert (PR 14): a move tapped as the picture starts isn’t picked; That’s the move’s second tap doesn’t check the image; a key isn’t held back', () => {
     render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
-    const move = () => within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: 'Reflect in x = 3' });
+    const move = () => within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie('Reflect in x = 3') });
     tap(move());
     expect(move()).toHaveAttribute('aria-pressed', 'false');
     wait();
@@ -101,7 +101,7 @@ describe('🪞 a double tap', () => {
 
   it('Expert: from the keyboard, a move and That’s the move at once', () => {
     render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
-    fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: 'Reflect in x = 3' }), { detail: 0 });
+    fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: tie('Reflect in x = 3') }), { detail: 0 });
     fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }), { detail: 0 });
     expect(screen.getByRole('heading', { name: 'Step 2 · Paint the image' })).toBeInTheDocument();
   });

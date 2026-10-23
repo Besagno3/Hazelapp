@@ -15,6 +15,7 @@ import {
   SIZE,
   checkWords,
   decodeMine,
+  fakes,
   encodeMine,
   given,
   jobFor,
@@ -34,9 +35,12 @@ import {
   paintFirstWords,
   recipe,
   roundQueue,
+  ruleWords,
   source,
   start,
+  tie,
   toPaint,
+  type Cell,
   type Grid,
   type Kind,
   type Move,
@@ -46,6 +50,8 @@ import { BANDS, MINIGAMES, PLAY_BANDS, type PlayBand } from '../../content/minig
 
 const jobs = (band: PlayBand) => Array.from({ length: 36 }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 const KINDS: readonly Kind[] = ['across', 'down', 'four', 'turn', 'opposite'];
+/** Words as read: Expert keeps an expression on one line with no-break spaces (`tie`). */
+const sp = (s: string) => s.replace(/\u00a0/g, ' ');
 
 describe('paint (docs/DESIGN-MINIGAMES.md §5.4)', () => {
   it('two pots mix as paint does', () => {
@@ -225,12 +231,10 @@ describe('Expert: transformations on a coordinate grid (§8.5)', () => {
     for (const move of MOVES) {
       for (const [r, c] of toPaint(move)) {
         const [sr, sc] = source(move, r, c);
-        // The quarter turns' three other quarters: the painted one turned once, twice, three times.
-        const times = move === 'quarter' ? [1, 2, 3] : [1];
-        expect(
-          times.some((n) => same(corners(sr, sc).map((p) => turned(move, p, n)), corners(r, c))),
-          `${move} ${r},${c}`,
-        ).toBe(true);
+        // The quarter turns' three other quarters, clockwise (code review round 1: any number of turns passed): the
+        // painted one turned once to the top right, twice to the bottom right, three times to the bottom left.
+        const n = move !== 'quarter' ? 1 : r < SIZE / 2 ? 1 : c >= SIZE / 2 ? 2 : 3;
+        expect(same(corners(sr, sc).map((p) => turned(move, p, n)), corners(r, c)), `${move} ${r},${c}`).toBe(true);
       }
     }
     // The painted part: half; a triangle with the squares on y = x (their own image); a quarter.
@@ -266,20 +270,84 @@ describe('Expert: transformations on a coordinate grid (§8.5)', () => {
   it('the words: A and A′ till the move’s named, then the move; a wrong move says where it takes A; a miss gives the rule; the lesson', () => {
     const job = jobFor('expert', 0, 1); // reflect in y = x, A (2, 5)
     expect(job.kind).toBe('diag');
-    expect(jobWords(job, false)).toBe('A (2, 5) maps to A′ (5, 2). Name the move, then paint the image.');
-    expect(jobWords(job)).toBe('Reflect the top-left triangle in the line y = x.');
+    expect(sp(jobWords(job, false))).toBe('A (2, 5) maps to A′ (5, 2). Name the move, then paint the image.');
+    expect(sp(jobWords(job))).toBe('Reflect the top-left triangle in the line y = x.');
     expect(jobWords(job, false)).not.toMatch(/Reflect|Rotate|Translate|Mix/);
-    expect(nameWords(job, 'diag')).toBe('Reflect in y = x: A goes to (5, 2).');
-    expect(nameWords(job, 'turn')).toBe('Rotate 180° about (3, 3): A goes to (4, 1), not (5, 2). Try another.');
-    expect(markWords(2, job)).toBe('Two squares don’t match yet — they’re marked. A reflection in y = x swaps the coordinates: (x, y) goes to (y, x).');
+    expect(sp(nameWords(job, 'diag'))).toBe('Reflect in y = x: A goes to (5, 2).');
+    expect(sp(nameWords(job, 'turn'))).toBe('Rotate 180° about (3, 3): A goes to (4, 1), not (5, 2). Try another.');
+    expect(sp(markWords(2, job))).toBe('Two squares don’t match yet — they’re marked. A reflection in y = x swaps the coordinates: (x, y) goes to (y, x).');
     expect(paintFirstWords(job.kind, true)).toBe('Paint the image first — the bottom-right triangle — then check it.');
-    expect(learnedLine(job)).toMatch(/^A reflection in y = x swaps the coordinates/);
-    expect(mirrorWords('quarter', true)).toBe('Rotate the top-left quarter 90°, 180° and 270° clockwise about (3, 3).');
+    expect(sp(learnedLine(job))).toMatch(/^A reflection in y = x swaps the coordinates/);
+    expect(sp(mirrorWords('quarter', true))).toBe('Rotate the top-left quarter 90°, 180° and 270° clockwise about (3, 3).');
     // Every move has its button and its own lesson; none says "darling" or mixes paint.
     expect(new Set(MOVES.map((m) => MOVE_NAME[m])).size).toBe(6);
     const lessons = jobs('expert').map(learnedLine);
     expect(new Set(lessons).size).toBe(6);
     for (const l of lessons) expect(l).not.toMatch(/darling|make (purple|orange|green|pink)/i);
+  });
+
+  it('each move’s rule, lesson and wrong-move line agree with where the move takes a point (code review round 1)', () => {
+    /** "6 − x", "x + 3", "y" at a point. */
+    const at = (e: string, [x, y]: Point) => {
+      const v = (t: string) => (t === 'x' ? x : t === 'y' ? y : Number(t));
+      const [a, op, b] = e.split(' ');
+      return op === undefined ? v(a) : op === '−' ? v(a) - v(b) : v(a) + v(b);
+    };
+    for (const m of MOVES) {
+      const job = jobs('expert').find((j) => j.kind === m)!;
+      // The rule after a miss, and the lesson: "(x, y) to (6 − x, y)".
+      for (const words of [ruleWords(m), learnedLine(job)]) {
+        const [, ex, ey] = /\(x, y\) (?:goes )?to \(([^,]+), ([^)]+)\)/.exec(sp(words))!;
+        for (const p of [[1, 4], [2, 5], [0, 0], [6, 2]] as Point[]) expect([at(ex, p), at(ey, p)], `${m} ${p}: ${words}`).toEqual(mapPoint(m, p));
+      }
+      // A wrong move says where it takes A.
+      const other = MOVES.find((o) => o !== m)!;
+      expect(sp(nameWords(job, other))).toContain(`A goes to (${mapPoint(other, job.p).join(', ')}), not (${pImage(job).join(', ')}).`);
+    }
+  });
+
+  it('an expression never breaks across lines: no-break spaces round =, −, + and in a pair (UX review round 1)', () => {
+    expect(tie('x = 3, (6 − x, y) and (x + 3, y)')).toBe('x\u00a0=\u00a03, (6\u00a0−\u00a0x,\u00a0y) and (x\u00a0+\u00a03,\u00a0y)');
+    const said = [
+      ...MOVES.flatMap((m) => [MOVE_NAME[m], mirrorWords(m, true), ruleWords(m)]),
+      ...jobs('expert').flatMap((j) => [learnedLine(j), jobWords(j, false), ...MOVES.map((m) => nameWords(j, m))]),
+    ];
+    for (const w of said) expect(w, w).not.toMatch(/ [=−+] |\([^()]*, [^()]*\)/);
+  });
+
+  it('A takes turns by the pair of rounds, so the third round doesn’t ask the first’s again (UX review round 1)', () => {
+    for (let round = 0; round < 2; round++)
+      for (let i = 0; i < JOBS_PER_ROUND; i++) {
+        const [now, later] = [jobFor('expert', round, i), jobFor('expert', round + 2, i)];
+        expect(later.kind).toBe(now.kind);
+        expect(later.p).not.toEqual(now.p);
+      }
+  });
+
+  it('no other move paints an Expert picture right: every pattern under every move (code review round 1)', () => {
+    // Every pattern is the same across and down, and five are the same corner to corner, so as they come a half turn
+    // painted x = 3's picture, and two mirrors a quarter turn's.
+    const others: readonly Kind[] = ['across', 'down', 'four', 'turn', 'diag', 'quarter', 'shift'];
+    for (const pattern of PATTERN_IDS)
+      for (let s = 0; s < 6; s++) {
+        const job = jobFor('expert', Math.floor(s / 3), s % 3, [pattern, pattern, pattern]);
+        expect(fakes(job.kind, job.goal), `${job.kind} ${pattern}`).toBe(0);
+        // Both colours still in the painted part.
+        const shown = new Set(start(job).flat().filter(Boolean));
+        expect(shown.size, `${job.kind} ${pattern}`).toBe(2);
+        // The kid's part painted by another move's rule from what's shown (following it back to a painted square)
+        // has a square marked.
+        for (const k of others) {
+          if (k === job.kind) continue;
+          const painted: Cell[][] = start(job);
+          for (const [r, c] of toPaint(job.kind)) {
+            let [sr, sc] = [r, c];
+            for (let n = 0; n < 4 && !given(job.kind, sr, sc); n++) [sr, sc] = source(k, sr, sc);
+            painted[r][c] = given(job.kind, sr, sc) ? job.goal[sr][sc] : null;
+          }
+          expect(mismatches(job, painted).length, `${job.kind} ${pattern} painted as ${k}`).toBeGreaterThan(0);
+        }
+      }
   });
 });
 

@@ -323,20 +323,26 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Expert (§8, PR 14):** transformations on a coordinate grid. The canvas
   has axes, 0 to 6 at its lines, x across and y up from the bottom-left
   corner, and no paint to mix: step 1 names the move from a point and its
-  image, marked on the canvas — "A (1, 4) maps to A′ (5, 4)." — from six
+  image, marked on the canvas — bare till then, as the painted part's shape
+  would give the move away; on a phone drawn small beside the moves too —
+  "A (1, 4) maps to A′ (5, 4)." — from six
   (reflect in x = 3, in y = 3 or in y = x; rotate 180° or 90° clockwise
   about (3, 3); translate by (3, 0)), each taking A somewhere else; a wrong
   one says where it takes A ("Reflect in y = x: A goes to (4, 1), not
   (5, 4)."). Then the kid paints the image ("Reflect the top-left triangle
-  in the line y = x.") — the squares said by their corners' coordinates —
-  and checks it. No mirror line is drawn till a check finds a square to fix:
-  then the line, the centre or the vector shows and Madame Hue gives the
-  rule ("A reflection in y = x swaps the coordinates: (x, y) goes to (y,
-  x)."); the lesson is the rule and one thing more (a half turn is two
-  reflections; four quarter turns, rotational symmetry of order 4). Every
-  move named at the first pick and every image exact at the first check is
-  the Expert seal — claimed with the round's pay as the third matches, so
-  leaving from the free canvas keeps it too.
+  in the line y = x.") — the squares said by their corners' coordinates,
+  the painted part read too — and checks it. No other move paints the
+  picture right (its painted part's colours swap in one place where the
+  pattern's own mirrors would let one). No mirror line is drawn till a check
+  finds a square to fix: then the line, the centre or the vector shows (and
+  a square says what it's the image of) and Madame Hue gives the rule ("A
+  reflection in y = x swaps the coordinates: (x, y) goes to (y, x)."); the
+  lesson is the rule and one thing more (a half turn is two reflections;
+  the quarter turns, rotational symmetry of order 4) — on the reward, the
+  first missed picture's. The two As take turns, so the third round isn't
+  the first again. Every move named at the first try and every image exact
+  at the first check is the Expert seal — claimed with the round's pay as
+  the third matches, so leaving from the free canvas keeps it too.
 
 ### 5.5 🎵 Echo's Call — Music · Bard Lyra, the Music House, Chromaria
 

@@ -189,7 +189,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
       hello: 'The Gallery’s pictures are on a coordinate grid now: x across, y up, from the bottom-left corner. Name the move from a point and its image, then paint the image.',
       steps: [
         { title: 'Name the move', text: 'A and its image A′: which reflection, rotation or translation takes one to the other?' },
-        { title: 'Paint the image', text: 'Tap or drag across the squares. The line or the centre shows on the canvas only after a miss.' },
+        { title: 'Paint the image', text: 'Tap or drag across the squares. The line, centre or vector shows on the canvas only after a miss.' },
         { title: 'Check the image', text: 'Every move named and every image exact first time wins the Expert seal. No clock.' },
       ],
     },
