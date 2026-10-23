@@ -408,6 +408,14 @@ Old Ringwood is the tree who loses count of his rings.
   else (telegraph), -s for -es, or no word at all is each said kindly, with a
   hint. Dot has no quest, so 🔨 is her gold offer; the first round gives a
   Focus Tea.
+- **Review round 1:** every pair of parts a tray can make is a real word
+  Dot names and explains ("Unless is a real word…") or a looked-at not-word
+  — she'd told kids "suns" and "photography" weren't words. Hints build on
+  what the try got right; both -s and -es are always in the tray; Tricky's
+  meanings are in everyday words ("what a scientist peers into to see
+  germs"), so a root is worked out, not matched — the Expert band (§3.3)
+  takes the tiles' meanings away. The family is named, with its mark, only
+  once its word is forged.
 
 ## 6. The PRs
 

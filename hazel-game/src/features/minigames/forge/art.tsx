@@ -1,8 +1,8 @@
-import { FAMILY_BY_ID, type FamilyId } from '../../../lib/minigames/forge';
+import type { FamilyId } from '../../../lib/minigames/forge';
 
 /**
- * Word Forge's pictures (docs/DESIGN-MINIGAMES.md §2.1): a family's tile drawn
- * small (`FamilyTile`, for the ticket and the word wall), the title card's logo
+ * Word Forge's pictures (docs/DESIGN-MINIGAMES.md §2.1): a family's mark
+ * (`FamilyMark`, for the ticket and the word wall), the title card's logo
  * and its three "how to play" steps. Loaded with the stage; the game itself
  * loads when it's played (`WordForge`).
  */
@@ -12,16 +12,22 @@ const IRON = '#4b5563';
 const GLOW = '#fb923c';
 const PAPER = '#fff6dc';
 
-/** A family's tile: the first word's first letters, glowing from the forge. Decorative (`aria-hidden`). */
-export function FamilyTile({ id, size = 48 }: { id: FamilyId; size?: number }) {
-  const first = FAMILY_BY_ID[id].words[0].parts[0];
+/** Each family's mark, on its page of the wall and on the ticket once its word's forged. */
+const MARKS: Record<FamilyId, string> = { sun: '☀️', rain: '🌧️', more: '➕', help: '🤝', kind: '💛', view: '👀', tele: '🔭', micro: '🔬', graph: '✍️' };
+
+/**
+ * A family's mark: a round stamp — not a tile like the tray's parts (code and
+ * UX review round 1: the family's first part on an orange tile, "un" on the
+ * ticket for kinder, read as a part to pick). Decorative (`aria-hidden`).
+ */
+export function FamilyMark({ id, size = 48 }: { id: FamilyId | null; size?: number }) {
   return (
     <span
       aria-hidden="true"
-      className="flex flex-none items-center justify-center rounded-md border-2 border-[#1b0f22] bg-[#fdba74] font-black text-[#1b0f22] shadow-[2px_2px_0_#1b0f22]"
-      style={{ width: size, height: size * 0.8, fontSize: size * (first.length > 4 ? 0.26 : 0.34) }}
+      className="flex flex-none items-center justify-center rounded-full border-2 border-[#1b0f22] bg-[#fde68a] leading-none"
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
-      {first}
+      {id ? MARKS[id] : '🔨'}
     </span>
   );
 }

@@ -2,15 +2,15 @@ import type { Band } from '../../content/minigames';
 
 /**
  * 🔨 Word Forge (docs/DESIGN-MINIGAMES.md §5.10): how words are built, with
- * Scrivener Dot at Inkwell Cove. Dot reads out a meaning ("full of help"); the
- * kid puts two word parts from the tray on the anvil, in order, and hammers
- * them into a word — the real one meant goes on Dot's word wall. Gentle joins
- * two words into one (sun + flower) and makes more than one (fox + es); Medium
- * builds on a root word with parts at its front and back (un-, re-, pre-;
- * -ful, -less, -er, -est); Tricky joins Greek and Latin roots, each tile
- * saying what it means (tele "far" + scope "look"). Three words a round; each
- * word's family is a page of the wall. Pure: the families, the jobs, the
- * checks and the words.
+ * Scrivener Dot at Inkwell Cove. Dot reads out a meaning ("a tall flower with
+ * a big round face like the sun"); the kid puts two word parts from the tray
+ * on the anvil, in order, and hammers them into a word — the real one meant
+ * goes on Dot's word wall. Gentle joins two words into one (sun + flower) and
+ * makes more than one (fox + es); Medium builds on a root word with parts at
+ * its front and back (un-, re-, pre-; -ful, -less, -er, -est); Tricky joins
+ * Greek and Latin roots, each tile saying what it means (tele "far" + scope
+ * "look"). Three words a round; each word's family is a page of the wall.
+ * Pure: the families, the jobs, the checks and the words.
  */
 
 export const FAMILY_IDS = ['sun', 'rain', 'more', 'help', 'kind', 'view', 'tele', 'micro', 'graph'] as const;
@@ -35,12 +35,19 @@ export interface Family {
 
 const w = (word: string, a: string, b: string, meaning: string): Word => ({ word, parts: [a, b], meaning });
 
+/**
+ * Tricky's meanings are said in everyday words, not the tiles' (UX review
+ * round 1: "a tube for looking at things far away" beside tiles saying "far"
+ * and "look" was matching words, not working out a root).
+ */
 export const FAMILIES: readonly Family[] = [
   {
     id: 'sun',
     name: 'Sun words',
-    note: 'Two words joined into one make a compound word. Its meaning comes from both: sun + flower = sunflower.',
-    words: [w('sunflower', 'sun', 'flower', 'a tall flower that turns to face the sun'), w('sunshine', 'sun', 'shine', 'the light that shines from the sun'), w('sunrise', 'sun', 'rise', 'when the sun comes up in the morning')],
+    // Not one of its words: the note's said with each of them (UX review round 1: "sun + flower" with sunrise).
+    note: 'Two words joined into one make a compound word. Its meaning comes from both of them.',
+    // Only a young sunflower turns to face the sun (UX review round 1).
+    words: [w('sunflower', 'sun', 'flower', 'a tall flower with a big round face like the sun'), w('sunshine', 'sun', 'shine', 'the light that shines from the sun'), w('sunrise', 'sun', 'rise', 'when the sun comes up in the morning')],
   },
   {
     id: 'rain',
@@ -58,7 +65,7 @@ export const FAMILIES: readonly Family[] = [
     id: 'help',
     name: 'Help words',
     note: 'One root word grows many: help → helpful (full of help), helpless (without help), helper (one who helps).',
-    words: [w('helpful', 'help', 'ful', 'always ready to help — full of help'), w('helpless', 'help', 'less', 'not able to help yourself — without help'), w('helper', 'help', 'er', 'someone who helps')],
+    words: [w('helpful', 'help', 'ful', 'always ready to help, full of help'), w('helpless', 'help', 'less', 'without help, not able to help yourself'), w('helper', 'help', 'er', 'someone who helps')],
   },
   {
     id: 'kind',
@@ -76,19 +83,33 @@ export const FAMILIES: readonly Family[] = [
     id: 'tele',
     name: 'Tele, “far”',
     note: 'Tele comes from Greek and means far: telescope (far + look), telephone (far + sound), television (far + seeing).',
-    words: [w('telescope', 'tele', 'scope', 'a tube for looking at things far away'), w('telephone', 'tele', 'phone', 'a way to hear a voice from far away'), w('television', 'tele', 'vision', 'a way to see pictures sent from far away')],
+    words: [
+      w('telescope', 'tele', 'scope', 'what you peer through to see the Moon’s craters'),
+      w('telephone', 'tele', 'phone', 'what you use to talk to someone in another town'),
+      w('television', 'tele', 'vision', 'a screen showing pictures sent from miles away'),
+    ],
   },
   {
     id: 'micro',
     name: 'Micro, “small”',
     note: 'Micro comes from Greek and means small: microscope (small + look), microphone (small + sound), microwave (small + wave).',
-    words: [w('microscope', 'micro', 'scope', 'a tool for looking at very small things'), w('microphone', 'micro', 'phone', 'it picks up small sounds and makes them louder'), w('microwave', 'micro', 'wave', 'an oven that cooks with tiny waves')],
+    // A microphone turns sound into a signal (code review round 1: "makes them louder"); a microwave's are about 12 cm, short
+    // for radio waves, not tiny.
+    words: [
+      w('microscope', 'micro', 'scope', 'what a scientist peers into to see germs'),
+      w('microphone', 'micro', 'phone', 'what makes a quiet voice fill a hall'),
+      w('microwave', 'micro', 'wave', 'an oven that heats food with short, invisible waves'),
+    ],
   },
   {
     id: 'graph',
     name: 'Graph, “write”',
     note: 'Graph comes from Greek and means write or draw: photograph (light + write), autograph (self + write), biography (life + writing).',
-    words: [w('photograph', 'photo', 'graph', 'a picture made with light'), w('autograph', 'auto', 'graph', 'your own name, written by yourself'), w('biography', 'bio', 'graphy', 'the story of someone’s life, written down')],
+    words: [
+      w('photograph', 'photo', 'graph', 'a picture a camera takes in a flash'),
+      w('autograph', 'auto', 'graph', 'a famous person’s name, signed in their own hand'),
+      w('biography', 'bio', 'graphy', 'a book telling a real person’s true story'),
+    ],
   },
 ];
 
@@ -101,7 +122,7 @@ export const BAND_FAMILIES: Record<Band, readonly FamilyId[]> = {
   tricky: ['tele', 'micro', 'graph'],
 };
 
-/** What a word part means — said on Tricky's tiles, and in Medium's and Tricky's hints. */
+/** What a word part means — said on Tricky's tiles, and in Medium's and Tricky's hints. -er has two: `meansIn`. */
 export const PART_MEANS: Record<string, string> = {
   un: 'not',
   re: 'again',
@@ -122,9 +143,59 @@ export const PART_MEANS: Record<string, string> = {
   graphy: 'writing',
 };
 
-/** Words the tiles can make that aren't asked for, said so when they're made. */
-const ALSO: Record<string, string> = {
-  telegraph: 'a way to send writing far away',
+/** Parts that go at a word's front, and at its back: shown with their hyphen ("un-", "-ful"). */
+const FRONT = ['un', 're', 'pre'];
+const BACK = ['ful', 'less', 'er', 'est', 's', 'es'];
+
+/** A part as its tile shows it: an add-on with its hyphen; Tricky's roots plain (each says what it means). */
+export function partText(p: string, band: Band): string {
+  if (band === 'tricky') return p;
+  return FRONT.includes(p) ? `${p}-` : BACK.includes(p) ? `-${p}` : p;
+}
+
+/** What a part means in this word: -er is "more" (kinder) or "one who" (helper). */
+function meansIn(job: Job, p: string): string {
+  if (p === 'er') return job.word.meaning.startsWith('more') ? 'more' : 'one who';
+  return PART_MEANS[p] ?? p;
+}
+
+/**
+ * Every real word two tiles of a band's tray can make that isn't asked for,
+ * and what it means (code and UX review round 1: "Unless isn't a word",
+ * "Suns isn't a word", "Photography isn't a word"). Every pair a tray can
+ * make is held to these or a reviewed list of not-words (`forge.test`).
+ */
+export const ALSO: Record<string, string> = {
+  // Gentle.
+  suns: 'more than one sun',
+  flowers: 'more than one flower',
+  bows: 'more than one bow',
+  coats: 'more than one coat',
+  drops: 'more than one drop',
+  rains: 'as in “it rains”',
+  shines: 'as in “the sun shines”',
+  rises: 'as in “the sun rises”',
+  scat: '“go away!”, said to a cat',
+  swish: 'the sound of something swung fast',
+  ess: 'the name of the letter S',
+  sunbow: 'a rainbow in a waterfall’s spray',
+  // Medium.
+  unless: 'as in “not unless it’s sunny”',
+  lesser: 'smaller, or not as important',
+  ester: 'a chemical that often smells of fruit',
+  kindless: 'an old, old word for heartless',
+  viewless: 'an old word for “unseen”',
+  // Tricky.
+  telegraph: 'an old machine that sent messages by wire',
+  telegraphy: 'sending messages far away by wire',
+  telephoto: 'a camera lens for faraway things',
+  photography: 'taking pictures with a camera',
+  micrograph: 'a photo taken through a microscope',
+  micrography: 'writing in very, very tiny letters',
+  photophone: 'an 1880 machine that sent sound on light',
+  biograph: 'an old name for a film projector',
+  bioscope: 'an old name for a cinema',
+  autography: 'something written in your own hand',
 };
 
 export const JOBS_PER_ROUND = 3;
@@ -137,10 +208,14 @@ export interface Job {
   tiles: readonly string[];
 }
 
-/** Which families come up in a round: those not on the wall first, then the rest in turn. */
+/**
+ * Which families come up in a round: each round starts at the next (code
+ * review round 1: every round started at the same one), those not on the wall
+ * first.
+ */
 export function roundQueue(band: Band, known: (id: FamilyId) => boolean, round: number): FamilyId[] {
   const can = BAND_FAMILIES[band];
-  const start = (round * JOBS_PER_ROUND) % can.length;
+  const start = round % can.length;
   const turn = [...can.slice(start), ...can.slice(0, start)];
   return [...turn.filter((id) => !known(id)), ...turn.filter((id) => known(id))];
 }
@@ -157,14 +232,19 @@ function rand(seed: number): () => number {
 /** How many other parts are in the tray, by band. */
 const OTHERS: Record<Band, number> = { gentle: 2, medium: 3, tricky: 4 };
 
-/** The `i`th word of a round: the family's word for the round, and a tray of its parts and the band's others. */
+/**
+ * The `i`th word of a round: the family's word for the round, and a tray of
+ * its parts and the band's others — for more than one, always the other
+ * ending, so -s or -es is the kid's to pick (UX review round 1: in 11 rounds
+ * of 12 the tray held only the right one).
+ */
 export function jobFor(band: Band, round: number, i: number, queue?: readonly FamilyId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
   const family = FAMILY_BY_ID[q[i % q.length]];
   const word = family.words[round % family.words.length];
   const r = rand(round * JOBS_PER_ROUND + i + 1);
   const pool = [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))].filter((p) => !word.parts.includes(p));
-  const others: string[] = [];
+  const others = family.id === 'more' ? pool.splice(pool.indexOf(word.parts[1] === 's' ? 'es' : 's'), 1) : [];
   while (others.length < OTHERS[band] && pool.length) others.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   const tiles = [...word.parts, ...others];
   for (let k = tiles.length - 1; k > 0; k--) {
@@ -174,51 +254,82 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Fa
   return { band, family: family.id, word, tiles };
 }
 
-/** Every word the forge knows, by its spelling. */
+/** Every word the forge knows, by its spelling, and what it means. */
 const KNOWN: Record<string, string> = { ...Object.fromEntries(FAMILIES.flatMap((f) => f.words.map((x) => [x.word, x.meaning]))), ...ALSO };
+
+/** What the word two parts make means, if it's a real word the forge knows. */
+export const realWord = (made: string): string | undefined => KNOWN[made];
 
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const quoted = (p: string) => `“${p}”`;
 
-/** A hint for the word: which parts to look for. */
-export function hintFor(job: Job): string {
+/**
+ * A hint for the word: which parts to look for — after a try, building on
+ * what it got right (UX review round 1: "Sundrop isn't a word. It starts with
+ * “sun”" told a kid to do what they'd done).
+ */
+export function hintFor(job: Job, tried?: readonly [string, string]): string {
   const [a, b] = job.word.parts;
-  if (job.band === 'tricky') return `You need a part meaning ${quoted(PART_MEANS[a])} and one meaning ${quoted(PART_MEANS[b])}.`;
+  const show = (p: string) => quoted(partText(p, job.band));
+  if (tried?.[0] === a) {
+    if (job.band === 'tricky') return `${show(a)} first is right — now a part meaning ${quoted(meansIn(job, b))}.`;
+    if (job.band === 'medium') return FRONT.includes(a) ? `${show(a)} first is right — now the root word.` : `${show(a)} first is right — now an end part meaning ${quoted(meansIn(job, b))}.`;
+    return job.family === 'more' ? `${show(a)} first is right — now make it more than one.` : `${show(a)} first is right — the meaning tells you the rest.`;
+  }
+  if (tried?.[1] === b) {
+    if (job.band === 'tricky') return `${show(b)} second is right — now a part meaning ${quoted(meansIn(job, a))} first.`;
+    if (job.band === 'medium') return FRONT.includes(a) ? `${show(b)} second is right — now a front part meaning ${quoted(meansIn(job, a))}.` : `${show(b)} at the end is right — now the root word.`;
+    return `${show(b)} second is right — now the first part.`;
+  }
+  if (tried && (tried[0] === b || tried[1] === a)) {
+    const p = tried[0] === b ? b : a;
+    return `${show(p)} is in it — but ${p === a ? 'first' : 'second'}!`;
+  }
+  if (job.band === 'tricky') return `You need a part meaning ${quoted(meansIn(job, a))} and one meaning ${quoted(meansIn(job, b))}.`;
   if (job.band === 'medium') {
-    const affix = PART_MEANS[a] ? a : b;
-    const where = affix === a ? 'starts' : 'ends';
-    return PART_MEANS[affix] ? `It ${where} with a part meaning ${quoted(PART_MEANS[affix])}.` : `It ${where} with -${affix}.`;
+    const affix = FRONT.includes(a) ? a : b;
+    return `It ${affix === a ? 'starts' : 'ends'} with a part meaning ${quoted(meansIn(job, affix))}.`;
   }
   if (job.family === 'more') return `Start with ${quoted(a)}, then make it more than one.`;
   return `It starts with ${quoted(a)}.`;
 }
 
 /**
- * The anvil's two parts hammered: right, or why not — the other way round, a
- * real word meaning something else, -s for -es, or no word at all — with a
- * hint. Never scolded.
+ * The anvil's two parts hammered: right, or why not — a real word that means
+ * something else (the other way round too: scat), the other way round, the
+ * wrong one of -s and -es, an end part first or a front part second, or no
+ * word at all, with a hint. Never scolded, and short, for the bar on a phone
+ * (code and UX review round 1: "Dot wants …" again, under the meaning, was
+ * cut off at 320 × 568).
  */
 export function forgeWords(job: Job, parts: readonly [string, string]): { right: boolean; said: string } {
   const made = parts.join('');
+  const [x, y] = parts;
   if (made === job.word.word) return { right: true, said: `${cap(made)}! ${cap(job.word.meaning)}.` };
-  if (parts[1] + parts[0] === job.word.word) return { right: false, said: `${cap(made)} isn’t a word — try them the other way round!` };
-  if (KNOWN[made]) return { right: false, said: `${cap(made)} is a real word — it means ${KNOWN[made]}. Dot wants ${quoted(job.word.meaning)}.` };
-  if (job.family === 'more' && (parts[1] === 's' || parts[1] === 'es') && parts[0] === job.word.parts[0]) {
-    const end = /(ch|sh|s|x|z)$/.exec(parts[0])?.[1];
-    return { right: false, said: end ? `After ${quoted(end)} it’s -es — easier to say: ${parts[0]}es.` : `Just -s here: ${parts[0]}s.` };
+  const reversed = y + x === job.word.word;
+  const real = realWord(made);
+  if (real) return { right: false, said: `${cap(made)} is a real word: ${real}. ${reversed ? 'Try them the other way round!' : 'Not this one!'}` };
+  if (reversed) return { right: false, said: `${cap(made)} isn’t a word — try them the other way round!` };
+  if ((y === 's' || y === 'es') && !BACK.includes(x)) {
+    const end = /(ch|sh|s|x|z)$/.exec(x)?.[1];
+    const plural = x + (end ? 'es' : 's');
+    const rule = end ? `After ${quoted(end)} it’s -es — easier to say: ${plural}.` : `Just -s here: ${plural}.`;
+    return { right: false, said: plural === job.word.word ? rule : `${rule} Not this one, though!` };
   }
-  return { right: false, said: `${cap(made)} isn’t a word. ${hintFor(job)}` };
+  if (BACK.includes(x)) return { right: false, said: `${quoted(partText(x, job.band))} goes at the end of a word — try it second!` };
+  if (FRONT.includes(y)) return { right: false, said: `${quoted(partText(y, job.band))} goes at the front of a word — try it first!` };
+  return { right: false, said: `${cap(made)} isn’t a word. ${hintFor(job, parts)}` };
 }
 
 /** The ticket: what to forge. */
 export function jobWords(job: Job): string {
-  return `Forge a word that means ${quoted(job.word.meaning)}: put two parts on the anvil, in order, and hammer!`;
+  return `Forge a word that means “${job.word.meaning}”: put two parts on the anvil, in order, and hammer!`;
 }
 
 /** What a word teaches, for its card and the reward: how it's built, and its family's page. */
 export function learnedLine(job: Job): string {
   const [a, b] = job.word.parts;
-  const built = job.band === 'tricky' ? `${a} (${quoted(PART_MEANS[a])}) + ${b} (${quoted(PART_MEANS[b])})` : `${a} + ${b}`;
+  const built = job.band === 'tricky' ? `${a} (${quoted(PART_MEANS[a])}) + ${b} (${quoted(PART_MEANS[b])})` : `${partText(a, job.band)} + ${partText(b, job.band)}`;
   return `${cap(job.word.word)}: ${built}. ${FAMILY_BY_ID[job.family].note}`;
 }
 

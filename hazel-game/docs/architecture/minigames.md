@@ -369,14 +369,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Forge** (`ink-dot`, Scrivener Dot, Inkwell Cove — no quest of her own, so
   🔨 is her gold offer; `lib/minigames/forge.ts`, `features/minigames/
   forge/`): how words are built. Nine families of three words (`FAMILIES`,
-  each word its two parts and a meaning; three a band, `BAND_FAMILIES`);
-  a job (`jobFor`) is a word and a tray of its parts and two to four others,
-  shuffled the same each time; Tricky's tiles say what each part means
-  (`PART_MEANS`). Each part tapped goes on the anvil in the next place (one
-  on the anvil tapped comes back); Hammer checks it (`forgeWords`: right,
-  the other way round, a real word meaning something else, -s for -es, or
-  no word, with `hintFor`). The tray keeps each part's spot; the step's card
-  is beside the board held sideways from 560 px, and on a short screen — or
-  a small phone held upright — a bar kept in sight under it. The
+  each word its two parts and a meaning — Tricky's in everyday words, not
+  its tiles'; three a band, `BAND_FAMILIES`); a job (`jobFor`) is a word and
+  a tray of its parts and two to four others, shuffled the same each time
+  (more than one: always both endings); each round starts at the next family
+  (`roundQueue`); Tricky's tiles say what each part means (`PART_MEANS`), an
+  add-on its hyphen (`partText`). Each part tapped goes on the anvil in the
+  next place (one on the anvil tapped comes back); Hammer checks it
+  (`forgeWords`: right; a real word that means something else — `realWord`,
+  the asked words and `ALSO`, every pair a tray can make held by
+  `forge.test` to those or a looked-at list of not-words; the other way
+  round; -s for -es; an add-on in the wrong place; or no word, with
+  `hintFor`, which builds on what the try got right). The tray keeps each
+  part's spot; the step's card is beside the board held sideways from 560
+  px, Hammer above what Dot said so a long line never moves it, and on a
+  short screen — or a small phone held upright — a bar kept in sight under
+  it (on a short split screen one row, the meaning and Hammer: what Dot
+  said is in her bubble beside the board). From the keyboard, focus goes on from a part placed to the next, then
+  Hammer; from a tap, to the tray. The games' keyboard guards are shared
+  (`features/minigames/keys.ts`: `noRepeat` for a held Enter, `useFocusMoved`
+  for a double Enter on what focus moved to, `keyed`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

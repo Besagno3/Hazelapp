@@ -273,7 +273,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     againLabel: 'Forge more',
     hello: 'Words are made of parts, the way a key is made of teeth! I’ll say what a word means — you forge it from its parts. Mind the sparks!',
     steps: [
-      { title: 'Read the meaning', text: 'Dot says what the word means: “full of help”, “far + look”…' },
+      { title: 'Read the meaning', text: 'Dot says what a word means, like “a coat that keeps the rain off”.' },
       { title: 'Pick two parts', text: 'Tap them in the tray — each goes on the anvil, in order.' },
       { title: 'Hammer!', text: 'The word meant? It goes on Dot’s word wall, with its family.' },
     ],

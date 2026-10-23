@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   BCE_WORDS,
@@ -26,7 +26,8 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { SETTLE_MS, useSettled } from '../useSettled';
+import { noRepeat, useFocusMoved } from '../keys';
+import { useSettled } from '../useSettled';
 import { SetCard } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -42,31 +43,6 @@ const HOW_TO = 'Tap the cards in the order they happened, oldest first — each 
 
 /** The steps, along the footer. */
 const STEP_CHIPS = ['Tap the oldest card', 'Then the next, in order', 'Check the order'];
-
-/** A click from a key or a reader, not a pointer: its pointer type where the browser gives one, else no click count. */
-function keyed(e: MouseEvent) {
-  const type = (e.nativeEvent as { pointerType?: unknown }).pointerType;
-  return typeof type === 'string' ? type === '' : e.detail === 0;
-}
-
-/** Enter or Space held down: its repeats press nothing (code review round 2: they pressed what focus moved on to). */
-function noRepeat(e: KeyboardEvent) {
-  if ((e.key === 'Enter' || e.key === ' ') && e.repeat) e.preventDefault();
-}
-
-/**
- * Where focus was moved on to (a card's id, or 'check'), and when: a key's
- * press there within `SETTLE_MS` is a double Enter's second (code review round
- * 2: it placed two cards, or checked). A pointer's taps aren't held back.
- */
-function useFocusMoved() {
-  const moved = useRef<{ to: string; at: number } | null>(null);
-  const mark = useCallback((to: string) => {
-    moved.current = { to, at: performance.now() };
-  }, []);
-  const tooSoon = useCallback((to: string, e: MouseEvent) => keyed(e) && moved.current?.to === to && performance.now() - moved.current.at < SETTLE_MS, []);
-  return { mark, tooSoon };
-}
 
 /**
  * 📜 Index's Timeline (docs/DESIGN-MINIGAMES.md §5.8), in the Sunken Archive's
