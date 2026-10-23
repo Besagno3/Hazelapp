@@ -25,8 +25,8 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { PICTURE_BY_ID, jobFor, learnedLine, roundQueue } = await import('../../../lib/minigames/stars');
-type Band = import('../../../content/minigames').Band;
+const { PICTURE_BY_ID, coordsWords, jobFor, learnedLine, roundQueue, starCoords } = await import('../../../lib/minigames/stars');
+type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/stars').Job;
 
 const addXp = vi.fn(async () => {});
@@ -364,5 +364,91 @@ describe('✨ Vela’s Star Charts, a round (docs/DESIGN-MINIGAMES.md §5.6)', (
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Three star pictures!' })).toBeInTheDocument());
     expect(save().flags[starFlag('star-charts', 1)]).toBe(true);
     expect(save().items.candle).toBe(defaultSave().items.candle + 1);
+  });
+});
+
+describe('✨ Expert: sky coordinates (§8.5)', () => {
+  it('a star found from its altitude and azimuth (a wrong one says where it is and which way to look), then joined; the Little Dipper’s latitude from the North Star; spot on counted', async () => {
+    setUp(6);
+    const { onFinish } = play('expert', 1);
+    const queue = roundQueue('expert', () => false, 1);
+    const jobs = [0, 1, 2].map((i) => jobFor('expert', 1, i, queue));
+    expect(jobs.map((j) => j.picture)).toEqual(['cassiopeia', 'big-dipper', 'little-dipper']);
+    const [cas, dip, ld] = jobs;
+    const sky = () => screen.getByRole('group', { name: 'The sky' });
+
+    // Picture 1: Caph, by its coordinates — the ticket and Vela say them; the grid's numbers round the sky; the stars said
+    // by theirs; no hint button.
+    const at = coordsWords(starCoords(cas, cas.find!)!);
+    expect(screen.getByRole('heading', { name: 'Find Caph' })).toBeInTheDocument();
+    expect(sky()).toHaveAccessibleDescription(`Find Caph at ${at}, then join the five stars of Cassiopeia.`);
+    expect(screen.getAllByText(`Caph is at ${at}. Find it on the grid and tap it.`).length).toBeGreaterThan(0);
+    expect(sky().parentElement!.firstElementChild).toHaveTextContent(/^(\d+°)+$/);
+    expect(star('caph')).toHaveAccessibleName(`A star at ${at}`);
+    expect(screen.queryByRole('button', { name: /Show me/ })).toBeNull();
+    // A wrong star: where it is, which way Caph is; still finding.
+    press('segin');
+    expect(screen.getAllByText(new RegExp(`^That star is at ${coordsWords(starCoords(cas, 'segin')!)}\\. Caph is .+\\. Try again\\.$`)).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Find Caph' })).toBeInTheDocument();
+    press('caph');
+    // Found: joining, from Caph.
+    expect(screen.getByRole('heading', { name: 'Cassiopeia' })).toBeInTheDocument();
+    expect(star('caph')).toHaveAttribute('aria-pressed', 'true');
+    joinAll(cas);
+    // The fact card: where it is in the sky; plainly.
+    expect(screen.getByRole('heading', { name: 'Cassiopeia' })).toHaveAccessibleDescription(`${learnedLine(cas, 'expert')} Cassiopeia is on Vela’s chart!`);
+    expect(screen.getAllByText(/^That’s it\. Next picture\.$/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    await screen.findByText('Picture 2 of 3');
+
+    // Picture 2: found first time.
+    press(dip.find!);
+    joinAll(dip);
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    await screen.findByText('Picture 3 of 3');
+
+    // Picture 3: the Little Dipper — the North Star's altitude is the latitude.
+    expect(screen.getByRole('heading', { name: 'How far north?' })).toBeInTheDocument();
+    expect(star('polaris')).toHaveAccessibleName(`A bright star at altitude ${ld.latitude}°, azimuth 0°`);
+    const choices = within(screen.getByRole('group', { name: 'Our latitude' }));
+    expect(choices.getAllByRole('button')).toHaveLength(4);
+    fireEvent.click(choices.getByRole('button', { name: `${ld.latitude}° N` }));
+    expect(screen.getAllByText(new RegExp(`^Yes — ${ld.latitude}° N\\. The North Star is over the Earth’s North Pole`)).length).toBeGreaterThan(0);
+    expect(star('polaris')).toHaveAttribute('aria-pressed', 'true');
+    joinAll(ld);
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the night' }));
+    // Two of three right first time; the reward teaches the one missed (a wrong star), not the last.
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(cas, 'expert') }));
+  }, 20_000);
+
+  it('a wrong latitude says why, goes on to the joining, and costs the seal', () => {
+    setUp(6);
+    const { onFinish } = play('expert', 1);
+    const queue = roundQueue('expert', () => false, 1);
+    for (let i = 0; i < 3; i++) {
+      const job = jobFor('expert', 1, i, queue);
+      if (job.find) press(job.find);
+      else {
+        fireEvent.click(within(screen.getByRole('group', { name: 'Our latitude' })).getByRole('button', { name: `${90 - job.latitude!}° N` }));
+        expect(screen.getAllByText(new RegExp(`^Not ${90 - job.latitude!}° N\\. The North Star is over the Earth’s North Pole, so its altitude is your latitude: it’s ${job.latitude}° up`)).length).toBeGreaterThan(0);
+      }
+      joinAll(job);
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next picture' : 'Finish the night' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(jobFor('expert', 1, 2, queue), 'expert') }));
+  });
+
+  it('a round with every star found and the latitude read first time: spot on 3 of 3, the last lesson', () => {
+    setUp(6);
+    const { onFinish } = play('expert', 1);
+    const queue = roundQueue('expert', () => false, 1);
+    for (let i = 0; i < 3; i++) {
+      const job = jobFor('expert', 1, i, queue);
+      if (job.find) press(job.find);
+      else fireEvent.click(within(screen.getByRole('group', { name: 'Our latitude' })).getByRole('button', { name: `${job.latitude}° N` }));
+      joinAll(job);
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next picture' : 'Finish the night' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 3, of: 3 }, learned: learnedLine(jobFor('expert', 1, 2, queue), 'expert') }));
   });
 });

@@ -410,7 +410,24 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   (`useSkySize`: on a phone, the screen's height under the header, the
   card's top kept in sight; the same card width all through a picture, so
   the sky doesn't change at the payoff), the whole column up to 700 px high;
-  a fact card taller than its room scrolls to its Next. **🌳 Ringwood's Rings**
+  a fact card taller than its room scrolls to its Next. On Expert
+  (`Job.view`, §8.5) each picture has a `view` — the azimuth and altitude at
+  the sky's middle and its degrees a sky unit, as big as it is in the real
+  sky — and `altAz` / `starCoords` give a star's altitude and azimuth;
+  `gridLines` the grid at `gridStep` (1°, 2°, 5° or 10°, lines at least 15
+  sky units apart), drawn on the sky (`SkyGrid`, the ground under 0°) with
+  its numbers round it (`SkyAxes`, room taken from the fit: `AXIS_L`,
+  `AXIS_B`). `Job.find` is a bright star to find by its coordinates (another
+  each lap of the pictures; `findWords`, `foundWords` — where a wrong one is
+  and which way to look), then the join starts from it; on the Little Dipper
+  `Job.latitude` (`LATITUDES`, by lap; `viewFor` puts the North Star due
+  north at that altitude) is picked from `latitudeChoices`, the reason said
+  either way (`latitudeWords`), then the join starts from Polaris. Stars are
+  said by their coordinates on Expert; the lesson is `Picture.sky`; the
+  seal's `spotOn` counts pictures with the star found (or the latitude
+  read) first time. On every band a step's buttons and stars wait for a
+  tap's second, not a key's (`e.detail`; a star's key press comes through
+  its own click). **🌳 Ringwood's Rings**
   (`elder-ringwood`, Old Ringwood, Eldergrove — no quest of his own, so 🌳
   is his gold offer; `lib/minigames/rings.ts`, `features/minigames/rings/`):
   reading tree rings. The grove's weather (`weather`) is one for every tree,

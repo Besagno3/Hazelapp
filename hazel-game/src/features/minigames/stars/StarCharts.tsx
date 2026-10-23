@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type RefObject } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   GUIDE_BOWL,
@@ -8,11 +8,19 @@ import {
   PICTURES,
   PICTURE_BY_ID,
   POINTERS,
+  coordsWords,
+  findWords,
+  foundWords,
+  gridLines,
+  gridStep,
   isLine,
   isTiny,
   jobFor,
   jobWords,
   joinWords,
+  latitudeAsk,
+  latitudeChoices,
+  latitudeWords,
   learnedLine,
   lineKey,
   looksWords,
@@ -21,9 +29,12 @@ import {
   pointerArrow,
   roundQueue,
   shortName,
+  starCoords,
   starName,
+  type Job,
   type PictureId,
   type SkyStar,
+  type View,
 } from '../../../lib/minigames/stars';
 import { BAND_LABEL, pageFlag } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
@@ -34,17 +45,25 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { useSettled } from '../useSettled';
 import { PictureCard } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Finding the North Star (Medium's Little Dipper); joining the stars; the fact card. */
-type Step = 'north' | 'join' | 'done';
+/**
+ * Finding the North Star (Medium's Little Dipper); on Expert, finding a star from its coordinates, or the latitude
+ * from the North Star's altitude (the Little Dipper); joining the stars; the fact card.
+ */
+type Step = 'north' | 'find' | 'latitude' | 'join' | 'done';
+const firstStep = (job: Job): Step => (job.findNorth ? 'north' : job.find ? 'find' : job.latitude !== null ? 'latitude' : 'join');
 
-/** Vela after a picture's joined, in turn. */
+/** Vela after a picture's joined, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['There it is — just like the old star-watchers saw it!', 'Beautiful. The sky remembers that one now.', 'You’re a natural star-finder!'];
+const EXPERT_RIGHT_LINES = ['That’s it.', 'Joined.', 'All there.'];
+
+/** Expert's grid numbers round the sky (px): the altitudes' column on the left, the azimuths' row under it. */
+const AXIS_L = 26;
+const AXIS_B = 16;
 
 /** How near (in sky units, of 100) a tap must land to a star to be that star — and at least this many px, on a small sky. */
 const TAP_REACH = 7;
@@ -84,7 +103,7 @@ function cardMin(width: number, short: boolean) {
  * round 2: squarish windows put the card under a small sky). Null where it
  * can't be measured (tests): the sky takes the width.
  */
-function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTMLElement | null>) {
+function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTMLElement | null>, axes: boolean) {
   const [fit, setFit] = useState<{ size: number; beside: boolean } | null>(null);
   useLayoutEffect(() => {
     const p = page.current;
@@ -93,9 +112,10 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
     const fit = () => {
       const cs = getComputedStyle(b);
       const px = (v: string) => parseFloat(v) || 0;
-      const w = b.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight);
+      // Expert's grid numbers take their room beside and under the sky.
+      const w = b.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight) - (axes ? AXIS_L : 0);
       const split = window.matchMedia(SPLIT).matches;
-      const h = (split ? b.clientHeight : window.innerHeight - p.getBoundingClientRect().top) - px(cs.paddingTop) - px(cs.paddingBottom);
+      const h = (split ? b.clientHeight : window.innerHeight - p.getBoundingClientRect().top) - px(cs.paddingTop) - px(cs.paddingBottom) - (axes ? AXIS_B : 0);
       const beside = Math.min(h, w - cardMin(w, window.innerHeight <= 500) - px(cs.columnGap));
       const keep = split ? (window.innerHeight > 700 ? UPRIGHT_KEEP.splitTall : UPRIGHT_KEEP.split) : UPRIGHT_KEEP.phone;
       const under = Math.min(w, h - keep, split ? Infinity : 360);
@@ -110,7 +130,7 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
       ro.disconnect();
       window.removeEventListener('resize', fit);
     };
-  }, [page, board]);
+  }, [page, board, axes]);
   return fit;
 }
 
@@ -120,13 +140,15 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
  * kid joins its stars — tap one, then another; a line appears if they're
  * joined in the picture — till it's whole, then reads its fact card. Gentle
  * shows the outline dotted; Medium finds the North Star from the Big Dipper's
- * pointers first; Tricky turns the sky and says how long the light took. Three
- * pictures a round, each a page of Vela's chart. No timer. Rules:
- * `lib/minigames/stars.ts`.
+ * pointers first; Tricky turns the sky and says how long the light took;
+ * Expert puts the sky on an altitude–azimuth grid, a star found from its
+ * coordinates first (the Little Dipper: the latitude from the North Star's
+ * altitude). Three pictures a round, each a page of Vela's chart. No timer.
+ * Rules: `lib/minigames/stars.ts`.
  */
-export default function StarCharts({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function StarCharts({ def, band, round, onPage, onFinish }: PlayProps) {
+  // Expert (§8.5): sky coordinates — altitude and azimuth, and the North Star's altitude as the latitude.
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);
@@ -134,7 +156,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
   const [queue] = useState(() => roundQueue(band, (id) => !!flags[pageFlag(def.id, id)], round));
   const job = useMemo(() => jobFor(band, round, done, queue), [band, round, done, queue]);
   const picture = PICTURE_BY_ID[job.picture];
-  const [step, setStep] = useState<Step>(job.findNorth ? 'north' : 'join');
+  const [step, setStep] = useState<Step>(firstStep(job));
   const [joined, setJoined] = useState<ReadonlySet<string>>(() => new Set());
   const [picked, setPicked] = useState<string | null>(null);
   const [pointed, setPointed] = useState(0);
@@ -146,9 +168,16 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
   const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
   const [read, setRead] = useState<PictureId | null>(null);
+  // Expert's seal (§8.3): each picture's star found at the first tap (the Little Dipper: the latitude at the first pick).
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
+  // Expert's reward teaches the first picture missed, not the last (as the other games' Expert).
+  const [missedLesson, setMissedLesson] = useState<string | null>(null);
   const known = (id: PictureId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}`);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
   const sky = useMemo(() => (job.findNorth && step !== 'north' ? job.sky.filter((st) => !st.id.endsWith('-g')) : job.sky), [job, step]);
   const total = picture.lines.length;
 
@@ -168,10 +197,29 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
     return `${again ? `You’ve picked ${name}.` : `${name}!`} Now tap ${next}.`;
   }
 
-  /** A star tapped (or pressed): the North Star's hunt, or a join. */
-  function tapStar(id: string) {
-    if (step === 'done' || !settled()) return;
+  /** A star tapped (or pressed — `key`, not held back): the North Star's hunt, Expert's star to find, or a join. */
+  function tapStar(id: string, key = false) {
+    if (step === 'done' || !(key || settled())) return;
     setRead(null);
+    if (step === 'find') {
+      // Expert: the star at the coordinates Vela gave (§8.5) — another says where it is, and which way to look.
+      setSaid(foundWords(job, id));
+      if (id === job.find) {
+        sfx('chest');
+        setStep('join');
+        setPicked(id);
+      } else {
+        sfx('wrong');
+        setMissed(true);
+      }
+      return;
+    }
+    if (step === 'latitude') {
+      // Where a star is, said: the North Star's altitude is read off the grid (or heard).
+      const at = starCoords(job, id);
+      if (at) setSaid(`${starName(picture, id) ? 'That star' : 'That tiny dot'} is at ${coordsWords(at)}.`);
+      return;
+    }
     if (step === 'north') {
       if (pointed < POINTERS.length) {
         if (id === POINTERS[pointed]) {
@@ -221,6 +269,8 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
         setNewPage(onPage(job.picture, picture.name));
         setLessons((l) => [...l, learnedLine(job, band)]);
         setRights((n) => n + 1);
+        if (expert && !missed) setSpotOn((n) => n + 1);
+        if (expert && missed) setMissedLesson((l) => l ?? learnedLine(job, band));
         setStep('done');
       }
       return;
@@ -237,6 +287,18 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
     setSaid(joinWords(picture, picked, id, already, job.outline));
   }
 
+  /** Expert's Little Dipper: the latitude from the North Star's altitude — the reason said either way, then its stars joined. */
+  function pickLatitude(choice: string, e: { detail: number }) {
+    if (step !== 'latitude' || job.latitude === null || !ready(e)) return;
+    setRead(null);
+    const right = choice === `${job.latitude}° N`;
+    sfx(right ? 'chest' : 'wrong');
+    if (!right) setMissed(true);
+    setSaid(latitudeWords(job.latitude, choice));
+    setStep('join');
+    setPicked('polaris');
+  }
+
   /** A tap on empty sky, far from any star (UX review round 2: it said nothing). */
   function tapSky() {
     if (step === 'done' || !settled()) return;
@@ -248,8 +310,8 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
    * it: its two stars glow, and one's picked. In the North Star's hunt, the
    * star to tap next glows (UX review round 2: the hunt had no hint).
    */
-  function showMe() {
-    if (step === 'done' || !settled()) return;
+  function showMe(e: { detail: number }) {
+    if ((step !== 'north' && step !== 'join') || !ready(e)) return;
     if (step === 'north') {
       const next = pointed < POINTERS.length ? POINTERS[pointed] : 'polaris';
       sfx('select');
@@ -269,16 +331,18 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
     setSaid(`Here’s one: ${shortName(picture, from)} to ${shortName(picture, to)} — they’re glowing. ${from === picked ? 'Now' : `I’ve picked ${shortName(picture, from)}:`} tap ${shortName(picture, to)}!`);
   }
 
-  function next() {
-    if (step !== 'done' || !settled()) return;
+  function next(e: { detail: number }) {
+    if (step !== 'done' || !ready(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      onFinish({ title: 'Three star pictures!', learned: lessons[lessons.length - 1] ?? '' });
+      const last = lessons[lessons.length - 1] ?? '';
+      onFinish({ title: 'Three star pictures!', learned: (expert && missedLesson) || last, spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
       return;
     }
     const nextJob = jobFor(band, round, done + 1, queue);
     setDone((n) => n + 1);
-    setStep(nextJob.findNorth ? 'north' : 'join');
+    setStep(firstStep(nextJob));
+    setMissed(false);
     setJoined(new Set());
     setLast(null);
     setPicked(null);
@@ -318,7 +382,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
     } else if (step !== 'done') card.current?.scrollTo?.({ top: 0, behavior });
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fit = useSkySize(page, board);
+  const fit = useSkySize(page, board, expert);
   const size = fit?.size ?? null;
 
   // On a split screen, a fact card taller than its room scrolls within: from its top, as far as Next needs (code review
@@ -335,9 +399,12 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
   let line: string;
   if (read) line = `${PICTURE_BY_ID[read].name}: ${PICTURE_BY_ID[read].note}`;
   // Her cheer when a picture's whole (the last join's words would cover it).
+  else if (step === 'done' && expert) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next picture.' : 'That’s the night.'}`;
   else if (step === 'done') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Ready for the next?' : 'What a night’s work!'}`;
   else if (said) line = said;
   else if (step === 'north') line = HUNT_WORDS.start;
+  else if (step === 'find') line = findWords(job);
+  else if (step === 'latitude') line = latitudeAsk;
   else
     line = job.outline
       ? `Here’s ${picture.called}: ${looksWords(job)}. Tap a star, then the next along a dotted line.`
@@ -347,12 +414,26 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
   const doing =
     step === 'north'
       ? HUNT_WORDS.doing
-      : job.outline
+      : step === 'find'
+        ? 'Read the grid: altitude up the side, azimuth along the bottom. Tap the star there.'
+        : step === 'latitude'
+          ? 'Find the North Star at azimuth 0°, read its altitude, and pick our latitude.'
+          : job.outline
         ? 'Tap a star, then the next along a dotted line — a line appears.'
         : 'Tap a star, then one it’s joined to — a line appears.';
-  const counter = step === 'north' ? (pointed < 2 ? `Pointer stars: ${pointed} of 2` : 'Now the North Star') : `${joined.size} of ${total} lines joined`;
-  const chips = job.findNorth ? ['The North Star', 'Join the stars', 'The fact card'] : ['The card', 'Join the stars', 'The fact card'];
-  const chipAt = step === 'north' ? 0 : step === 'join' ? 1 : 3;
+  const counter =
+    step === 'north'
+      ? pointed < 2
+        ? `Pointer stars: ${pointed} of 2`
+        : 'Now the North Star'
+      : step === 'find' && job.find
+        ? capitalise(coordsWords(starCoords(job, job.find)!))
+        : step === 'latitude'
+          ? 'The North Star: azimuth 0°'
+          : `${joined.size} of ${total} lines joined`;
+  const chips = job.findNorth ? ['The North Star', 'Join the stars', 'The fact card'] : job.latitude !== null ? ['The latitude', 'Join the stars', 'The fact card'] : job.find ? ['Find the star', 'Join the stars', 'The fact card'] : ['The card', 'Join the stars', 'The fact card'];
+  const chipAt = step === 'north' || step === 'find' || step === 'latitude' ? 0 : step === 'join' ? 1 : 3;
+  const heading = step === 'north' ? 'Find the North Star' : step === 'find' && job.find ? `Find ${shortName(picture, job.find)}` : step === 'latitude' ? 'How far north?' : picture.name;
 
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto split:overflow-hidden">
@@ -389,24 +470,26 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
             </p>
           )}
           <div className="flex flex-none flex-col items-center split:justify-center">
-            <div className="w-full max-w-[360px] split:max-w-none" style={size ? { width: size } : undefined}>
-              <Sky
-                key={done}
-                ref={skyRef}
-                stars={sky}
-                picture={picture}
-                job={job}
-                step={step}
-                joined={joined}
-                last={last}
-                picked={picked}
-                pointed={pointed}
-                hint={hint}
-                still={still}
-                size={size}
-                onTap={tapStar}
-                onMiss={tapSky}
-              />
+            <div className="w-full max-w-[360px] split:max-w-none" style={size ? { width: size + (expert ? AXIS_L : 0) } : undefined}>
+              <SkyAxes view={job.view}>
+                <Sky
+                  key={done}
+                  ref={skyRef}
+                  stars={sky}
+                  picture={picture}
+                  job={job}
+                  step={step}
+                  joined={joined}
+                  last={last}
+                  picked={picked}
+                  pointed={pointed}
+                  hint={hint}
+                  still={still}
+                  size={size}
+                  onTap={tapStar}
+                  onMiss={tapSky}
+                />
+              </SkyAxes>
             </div>
           </div>
 
@@ -430,7 +513,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
                   aria-describedby="sc-fact"
                   className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
                 >
-                  {picture.name}!
+                  {expert ? picture.name : `${picture.name}!`}
                 </h2>
                 {/* Vela's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{line}</p>
@@ -438,7 +521,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
                   {lessons[lessons.length - 1]}
                   {newPage && ` ${capitalise(picture.called)} is on Vela’s chart!`}
                 </p>
-                <button ref={(el) => void (goRef.current = el)} type="button" onClick={next} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base')}>
+                <button ref={(el) => void (goRef.current = el)} type="button" onClick={(e) => next(e)} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base')}>
                   {done + 1 < JOBS_PER_ROUND ? 'Next picture' : 'Finish the night'}
                 </button>
               </>
@@ -453,7 +536,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
                   )}
                   <div className="min-w-0">
                     <h2 id="sc-step" className={cn(pixelHeadClass, 'text-[24px] leading-none [@media(max-height:500px)]:text-[20px]')}>
-                      {step === 'north' ? 'Find the North Star' : picture.name}
+                      {heading}
                     </h2>
                     <p className="mt-1 text-[14px] font-bold leading-snug text-[#c9c5f2]">{counter}</p>
                   </div>
@@ -473,9 +556,27 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
                     It looks like {looksWords(job)}.
                   </p>
                 )}
-                <button type="button" onClick={showMe} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
-                  💡 {step === 'north' ? 'Show me where' : 'Show me a line'}
-                </button>
+                {/* Expert's latitude, from the North Star's altitude: four to pick from. */}
+                {step === 'latitude' && job.latitude !== null && job.view && (
+                  <div role="group" aria-label="Our latitude" className="grid grid-cols-2 gap-2">
+                    {latitudeChoices(job.latitude, gridStep(job.view)).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={(e) => pickLatitude(c, e)}
+                        className={cn('min-h-12 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-2 text-[16px] font-bold hover:bg-[#2f2b70]', focusRing)}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* No hint for Expert's coordinates: the grid's the help (§8.3), and a miss says which way to look. */}
+                {(step === 'north' || step === 'join') && (
+                  <button type="button" onClick={(e) => showMe(e)} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
+                    💡 {step === 'north' ? 'Show me where' : 'Show me a line'}
+                  </button>
+                )}
                 {/* What Vela said of the last tap, by the sky too: her bubble can be out of sight (under the board on a phone).
                     Under the hint, so a long one moves nothing a finger's going to. Not read out: her bubble is. */}
                 <p
@@ -500,7 +601,7 @@ export default function StarCharts({ def, band: playBand, round, onPage, onFinis
               {jobWords(job)}
             </Ticket>
           </div>
-          <Chart known={known} read={read} onRead={(id) => settled() && setRead(id)} />
+          <Chart known={known} read={read} onRead={(id, e) => ready(e) && setRead(id)} />
         </aside>
       </div>
 
@@ -537,7 +638,8 @@ interface SkyProps {
   still: boolean;
   /** Its width, px (null: not measured). */
   size: number | null;
-  onTap: (id: string) => void;
+  /** A star tapped — `key`: from the keyboard or a screen reader, not held back. */
+  onTap: (id: string, key?: boolean) => void;
   /** A tap on empty sky. */
   onMiss: () => void;
 }
@@ -574,10 +676,13 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
 
   // How each star's said: by where it is — two said alike numbered, left to right (UX review round 1).
   const placed = useMemo(() => {
-    const words = order.map((st) => placeWords(st.x, st.y, st.mag, isTiny(st)));
+    // On Expert, by its coordinates (§8.5): what's read off the grid.
+    const words = order.map((st) =>
+      job.view ? `${isTiny(st) ? 'A tiny dot' : st.mag === 1 ? 'A bright star' : st.mag === 2 ? 'A star' : 'A faint star'} at ${coordsWords(starCoords(job, st.id)!)}` : placeWords(st.x, st.y, st.mag, isTiny(st)),
+    );
     const count = (w: string) => words.filter((x) => x === w).length;
     return Object.fromEntries(order.map((st, k) => [st.id, count(words[k]) > 1 ? `${words[k]} (${words.slice(0, k + 1).filter((x) => x === words[k]).length} of ${count(words[k])})` : words[k]]));
-  }, [order]);
+  }, [order, job]);
 
   function nearest(e: PointerEvent<HTMLDivElement>): string | null {
     const r = e.currentTarget.getBoundingClientRect();
@@ -686,6 +791,8 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
       }}
     >
       <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true">
+        {/* Expert's altitude–azimuth grid, and the ground under the horizon where it's in the view. */}
+        {job.view && <SkyGrid view={job.view} />}
         {/* Gentle's outline, dotted, under the lines joined. */}
         {job.outline &&
           picture.lines.map(([a, b]) =>
@@ -729,7 +836,7 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
             onClick={() => {
               // A press from the keyboard or a screen reader (a pointer press is the sky's).
               if (pointerPress.current) pointerPress.current = false;
-              else onTap(st.id);
+              else onTap(st.id, true);
             }}
             onFocus={() => setFocusId(st.id)}
             onKeyDown={(e) => onKey(e, st.id)}
@@ -780,6 +887,59 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     </div>
   );
 });
+/** Expert's grid on the sky (§8.5), in its units: a line at each altitude and azimuth on the step; the ground under 0°. */
+function SkyGrid({ view }: { view: View }) {
+  const { alts, azs } = gridLines(view);
+  const horizon = 50 + view.mid / view.k;
+  return (
+    <>
+      {horizon < 100 && (
+        <>
+          <rect x="0" y={horizon} width="100" height={100 - horizon} fill="#1a1433" />
+          <line x1="0" y1={horizon} x2="100" y2={horizon} stroke="#a78bfa" strokeWidth="0.6" />
+        </>
+      )}
+      {alts.map((a) => (
+        <line key={`alt-${a.v}`} x1="0" y1={a.at} x2="100" y2={a.at} stroke="#818cf8" strokeWidth="0.35" opacity="0.55" />
+      ))}
+      {azs.map((a) => (
+        <line key={`az-${a.v}`} x1={a.at} y1="0" x2={a.at} y2="100" stroke="#818cf8" strokeWidth="0.35" opacity="0.55" />
+      ))}
+    </>
+  );
+}
+
+/**
+ * Expert's grid numbers round the sky (§8.5): altitude up the left, azimuth
+ * along the bottom, each at its line — inside the sky's frame (`border-4`).
+ */
+function SkyAxes({ view, children }: { view: View | null; children: ReactNode }) {
+  if (!view) return <>{children}</>;
+  const { alts, azs } = gridLines(view);
+  const at = (v: number) => `calc(4px + (100% - 8px) * ${v / 100})`;
+  const num = 'absolute whitespace-nowrap text-[10px] font-bold leading-none text-[#c7d2fe]';
+  return (
+    <div className="grid" style={{ gridTemplateColumns: `${AXIS_L}px minmax(0, 1fr)`, gridTemplateRows: `minmax(0, 1fr) ${AXIS_B}px` }}>
+      <div aria-hidden="true" className="relative">
+        {alts.map((a) => (
+          <span key={a.v} className={cn(num, 'right-1 -translate-y-1/2')} style={{ top: at(a.at) }}>
+            {a.v}°
+          </span>
+        ))}
+      </div>
+      {children}
+      <span aria-hidden="true" />
+      <div aria-hidden="true" className="relative">
+        {azs.map((a) => (
+          <span key={a.v} className={cn(num, 'top-1 -translate-x-1/2')} style={{ left: at(a.at) }}>
+            {a.v}°
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Vela's Observatory, close up (§2.2): the dome open on the night, Vela at her telescope, Ember looking up. */
 function Observatory({ cheer }: { cheer: boolean }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
@@ -813,7 +973,7 @@ function Observatory({ cheer }: { cheer: boolean }) {
 }
 
 /** Vela's chart: a page per picture joined, its shape in gold; tapped, read out — by Vela, and under the chart. */
-function Chart({ known, read, onRead }: { known: (id: PictureId) => boolean; read: PictureId | null; onRead: (id: PictureId) => void }) {
+function Chart({ known, read, onRead }: { known: (id: PictureId) => boolean; read: PictureId | null; onRead: (id: PictureId, e: { detail: number }) => void }) {
   const count = PICTURES.filter((p) => known(p.id)).length;
   const reading = read ? PICTURE_BY_ID[read] : null;
   const panel = useRef<HTMLDivElement>(null);
@@ -838,7 +998,7 @@ function Chart({ known, read, onRead }: { known: (id: PictureId) => boolean; rea
             {known(p.id) ? (
               <button
                 type="button"
-                onClick={() => onRead(p.id)}
+                onClick={(e) => onRead(p.id, e)}
                 aria-pressed={read === p.id}
                 aria-label={`${p.name}. Read the page`}
                 className={cn('flex h-[84px] w-full flex-col items-center justify-center gap-0.5 rounded border-[3px] bg-[#fff6dc] hover:bg-white', read === p.id ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}

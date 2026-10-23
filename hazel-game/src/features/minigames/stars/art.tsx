@@ -66,6 +66,20 @@ export function StepFind() {
   );
 }
 
+/** Expert's step 1: a star on an altitude–azimuth grid, over the horizon, its two coordinates marked. */
+export function StepCoords() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="20" y="20" width="160" height="160" rx="14" fill={NIGHT} stroke={INK} strokeWidth="9" />
+      <path d="M60 24 V176 M100 24 V176 M140 24 V176 M24 60 H176 M24 100 H176" stroke="#818cf8" strokeWidth="4" opacity="0.7" />
+      <rect x="24" y="140" width="152" height="36" fill="#1a1433" />
+      <path d="M24 140 H176" stroke="#a78bfa" strokeWidth="6" />
+      <path d="M100 140 V82 M42 60 H82" stroke={GOLD} strokeWidth="7" strokeDasharray="10 7" strokeLinecap="round" />
+      <circle cx="100" cy="60" r="16" fill="#fff7d6" stroke={INK} strokeWidth="6" />
+    </svg>
+  );
+}
+
 /** Step 2: a finger joining two stars. */
 export function StepConnect() {
   return (

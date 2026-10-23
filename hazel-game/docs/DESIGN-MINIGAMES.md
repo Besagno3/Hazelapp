@@ -408,6 +408,27 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   bigger than the sky's others; the step's card sits by the sky. Review
   round 2: the North Star hunt's words match its redrawn stars and it has a
   hint; star names are placed clear of the stars and each other.
+- **Expert (§8, PR 16):** sky coordinates. Every picture is on an
+  altitude–azimuth grid — altitude up from the horizon, azimuth round from
+  north through east — as big as it is in the real sky, so a chart's grid
+  can be 2° a line (Orion's Belt, the Southern Cross) or 10° (the Big
+  Dipper); the ground shows where the view dips under the horizon. Vela gives
+  one of the picture's bright stars by its coordinates ("Vega is at altitude
+  67°, azimuth 83°. Find it on the grid and tap it."); a wrong star says where
+  it is and which way to look ("…Vega is higher and to the right. Try
+  again."), then the picture's joined as on Tricky, from the star found; each
+  time a picture comes round it asks another of its bright stars. On the
+  Little Dipper the North Star, due north, is as high as the latitude Vela's
+  set up at along the coast tonight (20°, 15°, 25° N in turn — where the
+  Southern Cross clears the horizon too): read its altitude and pick the
+  latitude from four (it, 90° less it, south, a grid line off); the reason's
+  said either way. The lessons are where each picture is in the sky
+  (declination, the celestial equator, never setting, the ecliptic). Star
+  names are given, not shown; no hint for the coordinates; Vela speaks
+  plainly. Every star found at the first tap and every latitude read first
+  time is the Expert seal. Right ascension on a chart would need each
+  picture redrawn from a catalogue — not built (§8.5); declination comes in
+  the lessons.
 
 ### 5.7 🌳 Ringwood's Rings — Nature · Old Ringwood, Eldergrove
 
@@ -618,7 +639,7 @@ world, with the same host.
 | ⚙️ Clocktower Gears | Gear ratios in numbers: a machine's turns a minute from the crank's, or the turning force it needs — the kid works out the ratio and picks the crank's gear (8 to 32 teeth); the gears between still set only the way round. (Two pairs in a train — a compound gear — would need a new kind of peg: not built.) | "The crank turns 15 times a minute: make it turn 45"; "four times the crank's turning force" |
 | 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = 3, y = 3, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a point onto its image, then paint the image. | "A (2, 5) maps to A′ (5, 2): which move?" |
 | 🎵 Echo's Call | Intervals, in the tunes: name the interval between two notes Lyra marks (a 2nd to a 5th on the five chimes), major or minor, read on the staff or heard. (An octave, keys and sharps and flats would need more chimes: not built.) | "From note 1 to note 3: what interval?" — "E down to C: a major 3rd." |
-| ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth; the pole star's altitude as your latitude; right ascension and declination on a chart. | "Polaris is 52° up: how far north are you?" |
+| ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth on a grid; the pole star's altitude as your latitude; declination in the lessons. (Right ascension on a chart would need the pictures redrawn from a catalogue: not built.) | "Polaris is 20° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's rings to a rainfall record, find the dry years in both, date it to the year. | "Thin rings — and the chart's dry years?" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. No wars, battles, disasters or religion (§3.2). | "Paper → printing → …"; "300 BCE to 1450 CE is…" |
 | 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to coordinates, then say when it arrives. | "35° N, 135° E"; "9:00 in London — in Tokyo?" |
