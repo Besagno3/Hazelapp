@@ -102,8 +102,9 @@ export function boardBox(b: Board, biggest: Teeth): { x: number; y: number; w: n
   const x0 = Math.min(...xs, at.crank.x - reach) - 0.06;
   // Room for the biggest machine gear's teeth and the frame's stroke (code review round 1, PR 13: Expert's 32 touched it).
   const x1 = Math.max(...xs, at.machine.x + radius(biggest)) + 0.24;
-  const y0 = Math.min(-0.62, at.crank.y - reach - 0.04);
-  const y1 = Math.max(pegAt({ c: 0, r: 2 }).y + 0.62, at.crank.y + reach + 0.04);
+  // The top and bottom rows' teeth clear the frame's stroke (UX review round 2, PR 13: they touched it on every band).
+  const y0 = Math.min(-0.68, at.crank.y - reach - 0.04);
+  const y1 = Math.max(pegAt({ c: 0, r: 2 }).y + 0.68, at.crank.y + reach + 0.04);
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
 
@@ -335,10 +336,9 @@ const FORCE: [number, string][] = [
   [1 / 3, 'a third of'],
 ];
 
-/** How much force, short: "four times", "a third". */
+/** How much force, short: "four times", "a third" (a force job's: never the crank's own). */
 export function forceAmount(force: number): string {
   const f = Math.round(force * 1000) / 1000;
-  if (f === 1) return 'the same';
   return (FORCE.find(([n]) => Math.abs(n - f) < 1e-3)?.[1] ?? `${f} times`).replace(/ of$/, '');
 }
 
@@ -355,9 +355,26 @@ export function forceWords(force: number): string {
  * review round 1: "24 teeth turning 8 is 3 : 1" read the other way round).
  */
 export function ratioWords(machine: number, crank: number): string {
-  const g = (a: number, b: number): number => (b === 0 ? a : g(b, a % b));
-  const k = g(machine, crank);
-  return k === 1 ? `${machine} : ${crank}` : `${machine} : ${crank} = ${machine / k} : ${crank / k}`;
+  const [m, c] = lowest(machine, crank);
+  return m === machine ? `${machine} : ${crank}` : `${machine} : ${crank} = ${m} : ${c}`;
+}
+
+const lowest = (a: number, b: number): [number, number] => {
+  const g = (x: number, y: number): number => (y === 0 ? x : g(y, x % y));
+  const k = g(a, b);
+  return [a / k, b / k];
+};
+
+/**
+ * What a gear ratio, machine : crank, means for the turns — the bridge from the
+ * teeth to the turns (UX review round 2: "1 : 3, so 15 became 45" read as the
+ * machine turning less): "3 times for each turn of the crank", "once for every
+ * 4 turns of the crank", "3 times for every 4 turns of the crank".
+ */
+export function turnsWords(machine: number, crank: number): string {
+  const [m, c] = lowest(machine, crank);
+  const times = (n: number) => (n === 1 ? 'once' : `${n} times`);
+  return m === 1 ? `${times(c)} for each turn of the crank` : `${times(c)} for every ${m} turns of the crank`;
 }
 
 /** Expert: the machine's turns a minute for a speed against the crank's. */
@@ -443,12 +460,9 @@ export function learnedLine(job: Job, r: Run, crank: number): string {
   if (r.kind !== 'turns') return '';
   const m = MACHINE_BY_ID[job.machine];
   if (job.speed !== undefined && (job.rpm !== undefined || job.force)) {
-    // "an 8-tooth", "a 16-tooth".
-    const an = (n: number) => (/^(8|11|18)/.test(String(n)) ? 'an' : 'a');
-    const ratio = `${cap(an(crank))} ${crank}-tooth crank gear turning ${an(job.teeth)} ${job.teeth}-tooth machine gear: the gear ratio, machine : crank, is ${ratioWords(job.teeth, crank)}`;
-    if (job.rpm !== undefined)
-      return `${ratio}, so ${job.rpm} turns a minute became ${turnsAMinute(job, r.speed)}, with ${forceWords(1 / r.speed)}.`;
-    return `${ratio}, so it turns ${speedWords(r.speed)}, with ${forceWords(1 / r.speed)}: speed traded for force.`;
+    const ratio = `The gear ratio, machine : crank, is ${ratioWords(job.teeth, crank)}: the machine turns ${turnsWords(job.teeth, crank)}`;
+    if (job.rpm !== undefined) return `${ratio}, so ${job.rpm} turns a minute became ${turnsAMinute(job, r.speed)}, with ${forceWords(1 / r.speed)}.`;
+    return `${ratio} — ${speedWords(r.speed)}, with ${forceWords(1 / r.speed)}: speed traded for force.`;
   }
   if (job.speed !== undefined) {
     const how = crank > job.teeth ? `A big gear turning a small one makes it go faster` : crank < job.teeth ? `A small gear turning a big one makes it go slower` : 'Two gears the same size turn at the same speed';

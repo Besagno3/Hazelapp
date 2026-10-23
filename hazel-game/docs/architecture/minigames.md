@@ -187,21 +187,33 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   said driven : driver (`ratioWords(machine, crank)`: "8 : 24 = 1 : 3"), a
   force job's miss is headed in force (`FORCE_HEADS`) and said with
   `forceAmount` ("not four times"), and the reward keeps the first missed
-  machine's lesson. The job line (`JobLine`) is in the step card up to 800 px
-  high, and sticks at its top up to 600 px from `sm` (and on any screen up
-  to 500 px, where the board doesn't stick); up to 500 px it's smaller and
-  Expert's four gears stand in a row, and as a step starts the crank's
-  gears (or what's on the pegs) are scrolled to just under it, so the job,
-  the gears and Turn the crank are in sight together; the scrollers aren't
-  anchored (`overflow-anchor: none`: Take all the gears off coming up below
-  had moved the gears under the line). On every band a step's buttons wait `SETTLE_MS` as it
-  starts (`useSettled`, keyed on the machine, `again` — Change the gears and
-  Take all the gears off — and the runs: the pegs, the crank's gears, Turn
-  the crank, Change the gears, Take all the gears off, Next machine — gears
-  placed one after another aren't held back, after a miss either, nor is a
-  key), so a double tap's second doesn't press what came under the finger.
-  `GearShape` sizes a tooth's depth and outline by the space between teeth,
-  so every gear's teeth match. Each peg is an SVG `role="button"` (Enter /
+  machine's lesson. The job line (`JobLine`) is in the step card on a phone
+  and a short screen (up to 500 px from `sm`), smaller on a narrow phone;
+  on Tricky and Expert up to 800 px, and on Expert from `sm` up to 600 px
+  it sticks at the panel's very top (`-top-4`), smaller, with the four
+  gears in a row and the how-to left to the title card — the panel's
+  scroll padding is its height then, so keyboard focus lands below it.
+  What happened comes into sight with its button the same way. As a step starts (a
+  machine, Change the gears, Take all the gears off — never a peg tap, even
+  one that clears a miss) `stepScroll` (pure, tested) moves the scroller
+  only as far as it must: Turn the crank wholly in sight, and on Tricky and
+  Expert the job line — or the crank's gears under a stuck one — not under
+  what sticks at the top (the line, or a phone's board); where both can't
+  be, the job wins on Tricky and Expert, the button on Gentle and Medium.
+  Never on a phone on its side under 640 px, where the board scrolls with
+  the page. The scrollers aren't anchored (`overflow-anchor: none`: Take all
+  the gears off coming up below had moved the gears under the line). On
+  every band a step's buttons wait `SETTLE_MS` as it starts (`useSettled`,
+  keyed on the machine, `again` — Change the gears and Take all the gears
+  off — and the runs: the pegs, the crank's gears, Turn the crank, Change
+  the gears, Take all the gears off, Next machine — gears placed one after
+  another aren't held back, after a miss either, nor is a key), so a double
+  tap's second doesn't press what came under the finger; Enter on the
+  crank's peg just after focus moved there is a double Enter's second
+  (`useFocusMoved().fresh`, `keys.ts`). `GearShape` sizes a tooth's depth
+  and outline by the space between teeth, so every gear's teeth match
+  (`toothDepth` for a set drawn together); the frame leaves the top and
+  bottom rows' teeth room. Each peg is an SVG `role="button"` (Enter /
   Space, a held key once; a drawn focus ring) named by row and place, what it
   touches and, after a run, what its gear did ("Middle row, peg 1: a gear,
   turning anticlockwise ↺. Take it off. Touches the crank, top row peg 1 and

@@ -80,6 +80,18 @@ describe('⚙️ the title card', () => {
     expect(screen.getAllByText(/Tap a peg/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Join them up/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Let’s tinker!' })).toHaveFocus();
+    // The second step's picture: three gears joined.
+    expect(document.querySelectorAll('#mg-how li')[1].querySelectorAll('g[transform^="translate"]')).toHaveLength(3);
+  });
+
+  it('on Expert, the second step is picking the crank’s gear: a big gear turning a small one (code review round 2: untested)', () => {
+    useProfileStore.setState({
+      profile: { id: 'kid-1', birthYear: new Date().getFullYear() - 14, birthMonth: 1, skillLevels: { engineering: 6 }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    });
+    render(<MiniGameStage game="clocktower-gears" />);
+    expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByText(/Pick the crank’s gear/).length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('#mg-how li')[1].querySelectorAll('g[transform^="translate"]')).toHaveLength(2);
   });
 });
 
@@ -357,7 +369,7 @@ describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', ()
     fireEvent.click(sizes().getByRole('button', { name: /^Big(?!gest)/ }));
     turnCrank();
     expect(screen.getByRole('heading', { name: 'It works' })).toHaveAccessibleDescription(
-      /^A 24-tooth crank gear turning an 8-tooth machine gear: the gear ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became 45, with a third of the crank’s turning force\. The Great Hands is in your book\.$/,
+      /^The gear ratio, machine : crank, is 8 : 24 = 1 : 3: the machine turns 3 times for each turn of the crank, so 15 turns a minute became 45, with a third of the crank’s turning force\. The Great Hands is in your book\.$/,
     );
     expect(screen.getByText('Right. Next machine.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
@@ -368,7 +380,7 @@ describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', ()
     fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
     turnCrank();
     expect(screen.getByRole('heading', { name: 'It works' })).toHaveAccessibleDescription(
-      /^An 8-tooth crank gear turning a 32-tooth machine gear: the gear ratio, machine : crank, is 32 : 8 = 4 : 1, so it turns a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force\./,
+      /^The gear ratio, machine : crank, is 32 : 8 = 4 : 1: the machine turns once for every 4 turns of the crank — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force\./,
     );
     fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
 
@@ -402,6 +414,56 @@ describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', ()
       fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
     }
     expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
+  });
+
+  it('two machines missed, one too much force: the reward keeps the first missed one’s working (code review round 2: untested)', () => {
+    const { onFinish } = play('expert', 2);
+    const queue = roundQueue(() => false, 2);
+    const [bellJob, beltJob, hands] = [0, 1, 2].map((i) => jobFor('expert', 2, i, queue));
+    // Twice the crank's force, with the Small gear: four times — too much.
+    expect(bellJob.force).toBe(true);
+    const s1 = solve(bellJob)!;
+    expect(s1.crank).toBe(16);
+    for (const i of s1.placed) {
+      const p = bellJob.board.pegs[i];
+      fireEvent.click(peg(new RegExp(`^${ROWS[p.r]}, peg ${bellJob.board.pegs.filter((q) => q.r === p.r && q.c <= p.c).length}:`)));
+    }
+    fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'Too much force' })).toHaveAccessibleDescription(/^.* got four times the crank’s turning force, not twice\. /);
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(sizes().getByRole('button', { name: /^Middle/ }));
+    turnCrank();
+    const firstMissed = learnedLine(bellJob, run(bellJob.board, s1.placed, 16, bellJob.teeth), 16);
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+    // The second missed too: a size too small, then right.
+    const s2 = solve(beltJob)!;
+    const smaller = ({ 16: 8, 24: 16, 32: 24 } as Record<number, number>)[s2.crank];
+    for (const i of s2.placed) {
+      const p = beltJob.board.pegs[i];
+      fireEvent.click(peg(new RegExp(`^${ROWS[p.r]}, peg ${beltJob.board.pegs.filter((q) => q.r === p.r && q.c <= p.c).length}:`)));
+    }
+    fireEvent.click(sizes().getByRole('button', { name: SIZE_RE[smaller] }));
+    turnCrank();
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(sizes().getByRole('button', { name: SIZE_RE[s2.crank] }));
+    turnCrank();
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+    solveIt(hands);
+    fireEvent.click(screen.getByRole('button', { name: 'Next — that’s the last one' }));
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 1, of: 3 }, learned: firstMissed }));
+  });
+
+  it('a round right first time keeps the last machine’s working, and wins the seal’s tally', () => {
+    const { onFinish } = play('expert');
+    let last = '';
+    for (let i = 0; i < 3; i++) {
+      const job = jobFor('expert', 0, i);
+      const s = solveIt(job);
+      last = learnedLine(job, run(job.board, s.placed, s.crank, job.teeth), s.crank);
+      fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 3, of: 3 }, learned: last }));
   });
 
   it('a run with no gear touching the crank costs the seal too; a force job’s miss is headed in force (UX review round 1: "Too fast" over too little force)', () => {

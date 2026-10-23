@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   CRANK_TEETH,
@@ -41,7 +41,9 @@ import type { PlayProps } from '../types';
 import { useFitWidth } from '../useFitWidth';
 import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
+import { useFocusMoved } from '../keys';
 import { GearShape } from './art';
+import { stepScroll } from './stepScroll';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
@@ -122,47 +124,77 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   const entry = useRef<SVGGElement>(null);
   const resultHead = useRef<HTMLHeadingElement>(null);
   const first = useRef(true);
+  // A double Enter's second, on the crank's peg focus moved to, isn't a press there (UX review round 2: Change the
+  // gears' took its gear off).
+  const moved = useFocusMoved();
   useEffect(() => {
     entry.current?.focus({ preventScroll: first.current });
+    if (!first.current) moved.mark('entry');
     first.current = false;
-  }, [done, again]);
+  }, [done, again]); // eslint-disable-line react-hooks/exhaustive-deps
   // On a phone the board stays at the top of the page: the page keeps that much room at its top when it scrolls
   // something into view, so nothing lands under the board (review round 2: what happened, and why, did).
   const [boardEl, boardH] = useStickyHeight<HTMLElement>();
 
-  // What happened, in sight below the board.
+  /**
+   * Brings the gold button wholly into sight and `keep` with it where it fits, as little moved as that takes
+   * (`stepScroll`), in whatever scrolls them: below what sticks at the top — a stuck job line (`line`), or a
+   * phone's board.
+   */
+  function bringIn(go: HTMLElement | null, keep: Element | null, keepWins: boolean, line: HTMLElement | null) {
+    if (!go) return;
+    const behavior = still ? ('auto' as const) : ('smooth' as const);
+    let sc = go.parentElement;
+    while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+    if (!sc || typeof sc.scrollTo !== 'function') return go.scrollIntoView?.({ block: 'nearest', behavior });
+    const view = sc.getBoundingClientRect();
+    const b = boardEl.current;
+    const stuck = !!line && getComputedStyle(line).position === 'sticky';
+    // The stuck line sticks at the scroller's very top.
+    const cover = line && stuck ? line.offsetHeight : b && getComputedStyle(b).position === 'sticky' && sc.contains(b) ? b.getBoundingClientRect().bottom - view.top : 0;
+    const delta = stepScroll({ go: go.getBoundingClientRect(), keep: keep?.getBoundingClientRect() ?? null, view, cover, keepWins });
+    if (delta !== 0) sc.scrollTo({ top: sc.scrollTop + delta, behavior });
+  }
+
+  // What happened, in sight below the board — its heading, and Next or Change the gears with it (code and UX review
+  // round 2: the longer lesson left Next under the footer at 640 × 505).
   useEffect(() => {
     if (!result) return;
-    resultHead.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    bringIn(goRef.current, resultHead.current, true, null);
     resultHead.current?.focus({ preventScroll: true });
   }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The step's gold button comes into view as a step starts — never on a peg tap, which slid the board under the
-  // kid's finger on a phone (review round 2, as the bakery's) — with Tricky's crank gears just above it. Not where
+  // The step's gold button comes into view as a step starts — at a machine, Change the gears and Take all the gears off;
+  // never on a peg tap, which slid the board under the kid's finger on a phone (review round 2, as the bakery's), even
+  // one that clears a miss (UX review round 2). And with it, on Tricky and Expert, the job (the line in the step card) —
+  // or, where that line sticks on Expert, the crank's gears just under it — as little moved as that takes
+  // (`stepScroll`; UX review rounds 1 and 2: the job was scrolled away, then Tock's how-to and the board). Not where
   // the board scrolls with the page (a phone on its side under 640 px): it'd go before the kid had seen it.
   const goRef = useRef<HTMLButtonElement>(null);
-  // Where the job line sticks (a short screen), the crank's gears (or what's on the pegs) come up just under it, Turn
-  // the crank under them: "nearest" left them under the line after Change the gears (UX review round 1).
-  const jobRef = useRef<HTMLParagraphElement>(null);
+  const jobEl = useRef<HTMLParagraphElement | null>(null);
   useEffect(() => {
     if (result) return;
-    const behavior = still ? ('auto' as const) : ('smooth' as const);
-    const line = jobRef.current;
-    const under = line?.parentElement?.querySelector('[role="group"], [role="status"]');
-    if (line && under && getComputedStyle(line).position === 'sticky') {
-      let sc = line.parentElement;
-      while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
-      if (sc && typeof sc.scrollTo === 'function') {
-        // The line sticks inside the scroller's padding.
-        const pad = parseFloat(getComputedStyle(sc).paddingTop) || 0;
-        sc.scrollTo({ top: sc.scrollTop + under.getBoundingClientRect().top - sc.getBoundingClientRect().top - pad - line.offsetHeight - 8, behavior });
-        return;
-      }
-    }
     const b = boardEl.current;
     if (b && window.matchMedia?.('(max-width: 639px)').matches && getComputedStyle(b).position !== 'sticky') return;
-    goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
-  }, [done, again, !!result]); // eslint-disable-line react-hooks/exhaustive-deps
+    const line = jobEl.current && jobEl.current.getClientRects().length > 0 ? jobEl.current : null;
+    // Under a stuck line, the crank's gears (or what's on the pegs) are what's kept in sight; else the line itself.
+    const keep = line && getComputedStyle(line).position === 'sticky' ? line.parentElement?.querySelector('[role="group"], [role="status"]') ?? null : line;
+    bringIn(goRef.current, keep, tricky, line);
+  }, [done, again]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Where the job line sticks, keyboard focus is scrolled in below it (UX review round 2: a Shift+Tab to Turn the crank
+  // left it under the line).
+  const [stuckH, setStuckH] = useState<number | null>(null);
+  const lineWatch = useRef<ResizeObserver | null>(null);
+  const jobRef = useCallback((el: HTMLParagraphElement | null) => {
+    jobEl.current = el;
+    lineWatch.current?.disconnect();
+    lineWatch.current = null;
+    if (!el || typeof ResizeObserver === 'undefined') return setStuckH(null);
+    const ro = new ResizeObserver(() => setStuckH(getComputedStyle(el).position === 'sticky' && el.getClientRects().length > 0 ? Math.round(el.offsetHeight) + 8 : null));
+    ro.observe(el);
+    lineWatch.current = ro;
+  }, []);
 
   // A step's buttons wait a moment as it starts (§2.4): a double tap's second tap pressed what came under it — Turn the
   // crank's second on Change the gears or Next machine (what happened unseen), Next's on a peg of the next board.
@@ -172,8 +204,10 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
   const pressOk = (e: { detail: number }) => e.detail === 0 || settled();
 
-  function peg(i: number, e: { detail: number }) {
+  /** A peg pressed: a tap, a click — or `byKey`, Enter or Space on it. */
+  function peg(i: number, e: { detail: number }, byKey = false) {
     if (right || !pressOk(e)) return;
+    if (byKey && i === job.board.entry && moved.fresh('entry')) return;
     sfx('select');
     setRead(null);
     setResult(null);
@@ -314,6 +348,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
 
         <aside
           aria-label={`The job and the ${def.collection}`}
+          style={stuckH ? { scrollPaddingTop: stuckH } : undefined}
           className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4"
         >
           <HostBubble npcId={def.host} line={line} phoneStrip />
@@ -332,17 +367,23 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
             {!result && (
               <>
                 <h2 className={cn(pixelHeadClass, 'text-[26px]')}>Step 1 · Place the gears</h2>
-                <JobLine ref={jobRef} job={job} />
+                <JobLine ref={jobRef} job={job} expert={expert} tricky={tricky} />
                 {/* On a short screen Expert leaves this to the title card: the job, its four gears and Turn fit under the
                     job line that way. */}
-                <p className={cn('text-[15px] leading-snug text-[#e4e1ff]', expert && '[@media(max-height:500px)]:hidden')}>
+                <p
+                  className={cn(
+                    'text-[15px] leading-snug text-[#e4e1ff]',
+                    tricky && '[@media(max-width:359px)]:hidden',
+                    expert && '[@media(max-height:600px)]:hidden',
+                  )}
+                >
                   Tap a peg to put a gear on it — tap again to take it off. Gears that touch turn each other.
                 </p>
                 {tricky && (
                   <div
                     role="group"
                     aria-label="The crank’s gear"
-                    className={cn('grid gap-2', expert ? 'grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 sm:[@media(max-height:500px)]:grid-cols-4' : 'grid-cols-3')}
+                    className={cn('grid gap-2', expert ? 'grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 sm:[@media(max-height:600px)]:grid-cols-4' : 'grid-cols-3')}
                   >
                     {CRANK_TEETH[band].map((t) => (
                       <button
@@ -352,13 +393,21 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
                         aria-pressed={crank === t}
                         className={cn(
                           'flex min-h-[64px] flex-col items-center justify-center rounded-lg border-[3px] px-1 text-center text-[13px] font-bold leading-tight',
-                          // Four in a row on a short screen (UX review round 1: two by two, the job was scrolled away).
-                          expert && '[@media(max-height:500px)]:min-h-[52px] [@media(max-height:500px)]:px-0.5 [@media(max-height:500px)]:text-[12px]',
+                          // Four in a row on a short screen or a narrow phone (UX review rounds 1 and 2: two by two, the job
+                          // and Turn the crank didn't fit with them).
+                          expert &&
+                            '[@media(max-height:600px)]:min-h-[52px] [@media(max-height:600px)]:px-0.5 [@media(max-height:600px)]:text-[12px] [@media(max-width:359px)]:min-h-[52px] [@media(max-width:359px)]:px-0.5 [@media(max-width:359px)]:text-[12px]',
                           crank === t ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a] hover:bg-[#2f2b70]',
                           focusRing,
                         )}
                       >
-                        <svg width="34" height="34" viewBox="-40 -40 80 80" aria-hidden="true" className={cn(expert && '[@media(max-height:500px)]:h-[26px] [@media(max-height:500px)]:w-[26px]')}>
+                        <svg
+                          width="34"
+                          height="34"
+                          viewBox="-40 -40 80 80"
+                          aria-hidden="true"
+                          className={cn(expert && '[@media(max-height:600px)]:h-[26px] [@media(max-height:600px)]:w-[26px] [@media(max-width:359px)]:h-[26px] [@media(max-width:359px)]:w-[26px]')}
+                        >
                           {/* Each its size against the others, the biggest's teeth inside the box (code and UX review round 1: the 32 and Tricky's 24 were clipped). */}
                           <GearShape teeth={t} r={radius(t) * (expert ? ICON_EXPERT : ICON_TRICKY)} spokes={false} />
                         </svg>
@@ -392,6 +441,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
                   id="cg-result"
                   className={cn(
                     'rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-snug',
+                    expert && '[@media(max-height:600px)]:py-1.5 [@media(max-height:600px)]:text-[13px] [@media(max-height:600px)]:leading-snug',
                     right ? 'bg-amber-300' : 'bg-[#d4d0f5]',
                   )}
                 >
@@ -442,18 +492,28 @@ function listWords(items: readonly string[]): string {
 }
 
 /**
- * The job, in the step card on a phone or a screen up to 800 px high (the ticket's further up, scrolled away as the
- * step's buttons come into view) — and stuck at the card's top on a short screen where the board isn't, smaller up to
- * 500 px (UX review round 1: at 844 × 390 Expert's numbers were never in sight as the crank's gear was picked).
+ * The job, in the step card on a phone or a short screen (the ticket's further up, scrolled away as the step's
+ * buttons come into view) — smaller on a narrow phone. On Tricky and Expert, whose numbers are the job, on a screen up
+ * to 800 px high; on Expert from `sm` up to 600 px stuck at the panel's top, smaller, so the job, the crank's gears and
+ * Turn the crank are in sight together (UX review rounds 1 and 2: at 844 × 390 the numbers were never in sight as a
+ * gear was picked; Gentle and Medium keep it as they had it).
  */
-const JobLine = forwardRef<HTMLParagraphElement, { job: Job }>(function JobLine({ job }, ref) {
+const JobLine = forwardRef<HTMLParagraphElement, { job: Job; expert: boolean; tricky: boolean }>(function JobLine({ job, expert, tricky }, ref) {
   return (
     <p
       ref={ref}
       aria-hidden="true"
-      className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:801px)]:hidden sm:[@media(max-height:600px)]:sticky sm:[@media(max-height:600px)]:top-0 sm:[@media(max-height:600px)]:z-10 sm:[@media(max-height:600px)]:shadow-[0_2px_0_#1b0f22] [@media(max-height:500px)]:sticky [@media(max-height:500px)]:top-0 [@media(max-height:500px)]:z-10 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-tight [@media(max-height:500px)]:shadow-[0_2px_0_#1b0f22]"
+      className={cn(
+        'flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22]',
+        '[@media(max-width:359px)]:py-1 [@media(max-width:359px)]:text-[13px] [@media(max-width:359px)]:leading-tight',
+        // Tricky's too up to 800 px (its speed and teeth are the job — round 2's bench), never stuck.
+        tricky && !expert && 'sm:[@media(min-height:801px)]:hidden [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-tight',
+        !tricky && 'sm:[@media(min-height:501px)]:hidden [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-tight',
+        expert &&
+          'sm:[@media(min-height:801px)]:hidden [@media(max-height:600px)]:py-1 [@media(max-height:600px)]:text-[13px] [@media(max-height:600px)]:leading-tight sm:[@media(max-height:600px)]:sticky sm:[@media(max-height:600px)]:-top-4 sm:[@media(max-height:600px)]:z-10 sm:[@media(max-height:600px)]:shadow-[0_2px_0_#1b0f22]',
+      )}
     >
-      <span className="flex-none [@media(max-height:500px)]:hidden">
+      <span className={cn('flex-none [@media(max-width:359px)]:hidden', expert ? '[@media(max-height:600px)]:hidden' : '[@media(max-height:500px)]:hidden')}>
         <MachineBadge id={job.machine} />
       </span>
       <b>{jobWords(job)}</b>
@@ -502,7 +562,7 @@ const GearBoard = forwardRef<
     ran: Run | null;
     still: boolean;
     locked: boolean;
-    onPeg: (i: number, e: { detail: number }) => void;
+    onPeg: (i: number, e: { detail: number }, byKey?: boolean) => void;
   }
 >(function GearBoard({ job, band, placed, crank, ran, still, locked, onPeg }, entryRef) {
   const b = job.board;
@@ -599,7 +659,7 @@ const GearBoard = forwardRef<
               if (e.key !== 'Enter' && e.key !== ' ') return;
               e.preventDefault();
               // A held key doesn't flick the gear on and off (review round 1).
-              if (!e.repeat) onPeg(i, { detail: 0 });
+              if (!e.repeat) onPeg(i, { detail: 0 }, true);
             }}
             className={cn('group outline-none', !locked && 'cursor-pointer')}
           >

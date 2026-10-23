@@ -285,7 +285,13 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   wait (the next was swallowed); every gear's teeth are the same size as
   drawn (the 32's were deep and all ink); the reward keeps the first missed
   machine's working; the title card's second step shows a big gear turning
-  a small one.
+  a small one. After round 2: the right run's lesson bridges the ratio to
+  the turns ("…is 8 : 24 = 1 : 3: the machine turns 3 times for each turn
+  of the crank, so…"); the step-start scroll moves only as far as Turn the
+  crank and the job need (it had scrolled a phone on its side's board away,
+  and Gentle's how-to); the job line sticks on Expert only; Enter on the
+  crank's peg straight after Change the gears is a double Enter's second;
+  the title card's gears turn opposite ways.
 
 ### 5.4 🪞 Mirror Mural — Creativity · Madame Hue, the Grand Gallery, Chromaria
 

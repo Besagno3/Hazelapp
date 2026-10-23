@@ -11,6 +11,7 @@ import {
   forceAmount,
   forceWords,
   ratioWords,
+  turnsWords,
   roundQueue,
   check,
   ends,
@@ -136,7 +137,9 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
         for (const p of job.board.pegs) {
           const { x, y } = pegAt(p);
           expect(x - 0.5).toBeGreaterThanOrEqual(f.x);
-          expect(y + 0.5).toBeLessThanOrEqual(f.y + f.h);
+          // Its teeth and outline (0.07 past its radius) inside the frame's stroke, top and bottom (UX review round 2).
+          expect(y - 0.57, band).toBeGreaterThanOrEqual(f.y + 0.08);
+          expect(y + 0.57, band).toBeLessThanOrEqual(f.y + f.h - 0.08);
         }
       }
     }
@@ -329,6 +332,11 @@ describe('Expert: gear ratios in numbers — turns a minute, and turning force (
     expect(ratioWords(32, 24)).toBe('32 : 24 = 4 : 3');
     expect(ratioWords(16, 16)).toBe('16 : 16 = 1 : 1');
     expect(ratioWords(3, 2)).toBe('3 : 2');
+    // What the ratio means for the turns (UX review round 2).
+    expect(turnsWords(8, 24)).toBe('3 times for each turn of the crank');
+    expect(turnsWords(32, 8)).toBe('once for every 4 turns of the crank');
+    expect(turnsWords(32, 24)).toBe('3 times for every 4 turns of the crank');
+    expect(turnsWords(16, 16)).toBe('once for each turn of the crank');
     expect(forceWords(1)).toBe('the same turning force as the crank');
     expect(forceWords(0.75)).toBe('three quarters of the crank’s turning force');
     expect(forceWords(4 / 3)).toBe('one and a third times the crank’s turning force');
@@ -353,11 +361,10 @@ describe('Expert: gear ratios in numbers — turns a minute, and turning force (
       }
     }
     for (const v of speeds) expect(speedWords(v), String(v)).not.toMatch(/\d/);
-    for (const f of forces) {
-      expect(forceWords(f), String(f)).not.toMatch(/\d/);
-      expect(forceAmount(f), String(f)).not.toMatch(/\d/);
-    }
+    for (const f of forces) expect(forceWords(f), String(f)).not.toMatch(/\d/);
     expect(forces.size).toBe(10);
+    // `forceAmount` says a force job's own force.
+    for (const job of jobs('expert')) if (job.force) expect(forceAmount(1 / job.speed!), job.machine).not.toMatch(/\d/);
   });
 
   it('a miss says what happened in the job’s own numbers, and the rule — never the gear; a right run, the ratio and the trade', () => {
@@ -377,11 +384,14 @@ describe('Expert: gear ratios in numbers — turns a minute, and turning force (
     for (const v of ['empty', 'not-joined', 'jammed'] as const) expect(verdictWords(hands, { kind: 'empty' }, v)).not.toMatch(/!$|Clunk/);
     const ok = run(hands.board, over, 24, hands.teeth);
     expect(learnedLine(hands, ok, 24)).toBe(
-      'A 24-tooth crank gear turning an 8-tooth machine gear: the gear ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became 45, with a third of the crank’s turning force.',
+      'The gear ratio, machine : crank, is 8 : 24 = 1 : 3: the machine turns 3 times for each turn of the crank, so 15 turns a minute became 45, with a third of the crank’s turning force.',
     );
     expect(learnedLine(bell, run(bell.board, line, 8, bell.teeth), 8)).toBe(
-      'An 8-tooth crank gear turning a 32-tooth machine gear: the gear ratio, machine : crank, is 32 : 8 = 4 : 1, so it turns a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force.',
+      'The gear ratio, machine : crank, is 32 : 8 = 4 : 1: the machine turns once for every 4 turns of the crank — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force.',
     );
+    // Expert's empty and not-joined, word for word (code review round 2: only checked for no "!").
+    expect(verdictWords(hands, { kind: 'empty' }, 'empty')).toBe('Only the crank turned: no gear touches it. Put one on the peg next to the crank.');
+    expect(verdictWords(hands, { kind: 'empty' }, 'not-joined')).toBe('The gears turned, but they don’t reach the Great Hands. Gears only turn each other where they touch.');
   });
 });
 
