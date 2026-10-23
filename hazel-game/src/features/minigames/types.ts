@@ -22,9 +22,10 @@ export interface PlayProps {
   /**
    * The round's pay is earned, though something just for fun comes before the
    * reward (Mirror Mural's own canvas): paid now, once, so leaving by 🗺️ Map
-   * keeps it; `onFinish` then shows it on the reward.
+   * keeps it — and the Expert seal, if `spotOn` wins it; `onFinish` then shows
+   * them on the reward.
    */
-  onClaim?: () => void;
+  onClaim?: (spotOn?: RoundOutcome['spotOn']) => void;
 }
 
 /** What a finished round says on the reward screen. */

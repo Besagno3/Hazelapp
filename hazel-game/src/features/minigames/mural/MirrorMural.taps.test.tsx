@@ -30,8 +30,10 @@ afterEach(() => {
 });
 
 const wait = (ms = SETTLE_MS) => act(() => void (now += ms));
+/** A tap: a click with a click count, as a finger's is (a key's has none, and isn't held back). */
+const tap = (el: Element) => fireEvent.click(el, { detail: 1 });
 const pots = () => within(screen.getByRole('group', { name: 'Paint pots' }));
-const mirror = () => fireEvent.click(screen.getByRole('button', { name: '🪞 Hold up the mirror' }));
+const mirror = () => tap(screen.getByRole('button', { name: '🪞 Hold up the mirror' }));
 const marked = () => screen.queryAllByRole('button', { name: /Doesn’t match yet\.$/ });
 
 describe('🪞 a double tap', () => {
@@ -41,9 +43,9 @@ describe('🪞 a double tap', () => {
     render(<MirrorMural def={MINIGAMES['mirror-mural']} band="gentle" round={0} onPage={onPage} onFinish={() => {}} />);
     const job = jobFor('gentle', 0, 0, roundQueue(() => false, 0));
     wait();
-    fireEvent.click(pots().getByRole('button', { name: 'Red' }));
-    fireEvent.click(pots().getByRole('button', { name: 'Blue' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Mix them' }));
+    tap(pots().getByRole('button', { name: 'Red' }));
+    tap(pots().getByRole('button', { name: 'Blue' }));
+    tap(screen.getByRole('button', { name: 'Mix them' }));
     const [r, c] = toPaint(job.kind).find(([rr, cc]) => job.goal[rr][cc] === 'purple')!;
     fireEvent.click(document.querySelector(`[data-cell="${r},${c}"]`)!); // painting isn't held up
     mirror(); // the double tap's second
@@ -63,13 +65,44 @@ describe('🪞 a double tap', () => {
     wait();
     mirror();
     expect(screen.getByRole('heading', { name: 'A perfect match!' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    tap(screen.getByRole('button', { name: 'Next picture' }));
     expect(screen.getByRole('heading', { name: 'A perfect match!' })).toBeInTheDocument();
     // A Gallery page under the finger isn't read either.
-    fireEvent.click(screen.getByRole('button', { name: 'Castle. Read the page' }));
+    tap(screen.getByRole('button', { name: 'Castle. Read the page' }));
     expect(screen.getByRole('button', { name: 'Castle. Read the page' })).toHaveAttribute('aria-pressed', 'false');
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    tap(screen.getByRole('button', { name: 'Next picture' }));
     expect(screen.getByText('Picture 2 of 3')).toBeInTheDocument();
+  });
+
+  it('Expert (PR 14): a move tapped as the picture starts isn’t picked; That’s the move’s second tap doesn’t check the image; a key isn’t held back', () => {
+    render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const move = () => within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: 'Reflect in x = 3' });
+    tap(move());
+    expect(move()).toHaveAttribute('aria-pressed', 'false');
+    wait();
+    tap(move());
+    tap(screen.getByRole('button', { name: 'That’s the move' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Paint the image' })).toBeInTheDocument();
+    const check = () => screen.getByRole('button', { name: '🪞 Check the image' });
+    tap(check());
+    expect(screen.queryByText(/^Paint the image first/)).toBeNull();
+    wait();
+    tap(check());
+    expect(screen.getByText('Paint the image first — the right half — then check it.')).toBeInTheDocument();
+  });
+
+  it('a key isn’t held back (PR 14, as the other games): pots and Mix them from the keyboard as the picture starts', () => {
+    render(<MirrorMural def={MINIGAMES['mirror-mural']} band="gentle" round={0} onPage={() => true} onFinish={() => {}} />);
+    for (const name of ['Red', 'Blue']) fireEvent.click(pots().getByRole('button', { name }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'Mix them' }), { detail: 0 });
+    expect(screen.getByRole('heading', { name: 'Step 2 · Paint the other half' })).toBeInTheDocument();
+  });
+
+  it('Expert: from the keyboard, a move and That’s the move at once', () => {
+    render(<MirrorMural def={MINIGAMES['mirror-mural']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: 'Reflect in x = 3' }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }), { detail: 0 });
+    expect(screen.getByRole('heading', { name: 'Step 2 · Paint the image' })).toBeInTheDocument();
   });
 });

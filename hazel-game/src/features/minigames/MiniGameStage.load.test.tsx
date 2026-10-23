@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
@@ -134,6 +134,44 @@ describe('the Expert seal, from what a game reports (§8.3; code review round 2:
     expect(screen.getByText('The Expert seal: spot on every time')).toBeInTheDocument();
     expect(screen.getByText(/^🏅 Expert seal$/)).toBeInTheDocument();
     expect(screen.queryByText(/^Spot on/)).toBeNull();
+  });
+
+  // Claimed before something just for fun (Mirror Mural's own canvas, PR 14): leaving from it kept the pay, not the seal.
+  const claiming = (spotOn: { right: number; of: number }) =>
+    retryableLazy(async () => ({
+      default: ({ onFinish, onClaim }: import('./types').PlayProps) => (
+        <>
+          <button type="button" onClick={() => onClaim?.(spotOn)}>
+            Claim
+          </button>
+          <button type="button" onClick={() => onFinish({ title: 'Round done!', learned: 'A lesson.', spotOn })}>
+            Finish
+          </button>
+        </>
+      ),
+    }));
+  async function claim(band: 'Tricky' | 'Expert', spotOn: { right: number; of: number }) {
+    screens.play = claiming(spotOn);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: band }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Claim' }));
+  }
+
+  it('claimed spot on every time: the seal’s kept before the reward — which still says it’s new', async () => {
+    await claim('Expert', { right: 3, of: 3 });
+    expect(sealed()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
+    await screen.findByRole('heading', { name: 'Round done!' });
+    expect(screen.getByText('The Expert seal: spot on every time')).toBeInTheDocument();
+  });
+
+  it('claimed with one missed, or on another band: no seal', async () => {
+    await claim('Expert', { right: 2, of: 3 });
+    expect(sealed()).toBeUndefined();
+    cleanup();
+    await claim('Tricky', { right: 3, of: 3 });
+    expect(sealed()).toBeUndefined();
   });
 });
 

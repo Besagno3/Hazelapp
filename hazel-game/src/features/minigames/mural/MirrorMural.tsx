@@ -1,10 +1,12 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   FREE_PALETTE,
   GLYPH,
   HEX,
   JOBS_PER_ROUND,
+  MOVES,
+  MOVE_NAME,
   NAME,
   PATTERNS,
   PATTERN_BY_ID,
@@ -22,10 +24,14 @@ import {
   mismatches,
   mix,
   mixWords,
+  nameWords,
   num,
+  pImage,
   paint,
   paintFirstWords,
+  pointWords,
   roundQueue,
+  ruleWords,
   source,
   start,
   toPaint,
@@ -34,10 +40,12 @@ import {
   type Grid,
   type Job,
   type Kind,
+  type Move,
   type PatternId,
+  type Point,
   type Pot,
 } from '../../../lib/minigames/mural';
-import { BAND_LABEL, mineFlag, pageFlag, type Band } from '../../../content/minigames';
+import { BAND_LABEL, mineFlag, pageFlag, type PlayBand } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { CharacterPortrait } from '../../../components/CharacterPortrait';
 import { sfx } from '../../../lib/audio';
@@ -46,7 +54,6 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { PixelPicture } from './art';
 import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
@@ -54,13 +61,17 @@ import { fitCanvas, type Controls, type Fit } from './layout';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Mixing, painting (the mirror's marks stay on the canvas till they're fixed), a perfect match, the kid's own canvas. */
-type Step = 'mix' | 'paint' | 'matched' | 'free';
+/**
+ * Mixing (on Expert, naming the move), painting (the mirror's marks stay on the canvas till they're fixed), a perfect
+ * match, the kid's own canvas.
+ */
+type Step = 'mix' | 'name' | 'paint' | 'matched' | 'free';
 /** What the brush puts down: a paint, or bare wall again. */
 type Brush = Colour | 'rub';
 
-/** Madame Hue after a picture matches, in turn. */
+/** Madame Hue after a picture matches, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Magnifique! It’s a perfect reflection.', 'Darling, the mirror couldn’t have done it better!', 'Exquisite! Straight onto the Gallery wall.'];
+const EXPERT_RIGHT_LINES = ['Exact.', 'That’s the image.', 'Right.'];
 
 /** The colours each picture shows in the Gallery (its own, whatever band it was painted at) — this round's in the kid's. */
 const GALLERY_COLOURS: Record<PatternId, [Colour, Colour]> = {
@@ -91,6 +102,10 @@ const key = (r: number, c: number) => `${r},${c}`;
 
 /** `gap-2` under the heading. */
 const GAP_UNDER = 8;
+/** The canvas's frame (`border-4`): the grid's lines are inside it. */
+const FRAME = 4;
+/** The room Expert's axis numbers take, left and under the canvas (inside the size `layout.ts` fits). */
+const AXIS = 16;
 
 const MIRROR_HINT: Record<Kind, string> = {
   across: 'Each square on the right copies the square across the mirror line.',
@@ -98,6 +113,9 @@ const MIRROR_HINT: Record<Kind, string> = {
   four: 'Two mirror lines: every quarter copies the top-left one, flipped.',
   turn: 'Half a turn: the bottom half is the top half upside down — the bottom-right corner copies the top-left.',
   opposite: 'Each square on the right is the opposite colour of the square across the line: red and green, yellow and purple, blue and orange are opposites.',
+  diag: 'Each square in the bottom-right triangle copies the square across the corner-to-corner line.',
+  quarter: 'Each quarter is the top-left one turned: a quarter turn, a half, three quarters.',
+  shift: 'Each square on the right copies the square three to its left.',
 };
 
 /**
@@ -110,9 +128,10 @@ const MIRROR_HINT: Record<Kind, string> = {
  * mirror the rest, and it hangs in the Gallery. No timer. Rules:
  * `lib/minigames/mural.ts`.
  */
-export default function MirrorMural({ def, band: playBand, round, onPage, onFinish, onClaim }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function MirrorMural({ def, band, round, onPage, onFinish, onClaim }: PlayProps) {
+  // Expert (§8.5): transformations on a coordinate grid — the move named from A and A′ instead of a paint mixed.
+  const expert = band === 'expert';
+  const first: Step = expert ? 'name' : 'mix';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const update = useSaveStore((s) => s.update);
   const still = useReducedMotion() ?? false;
@@ -121,9 +140,12 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   const [queue] = useState(() => roundQueue((id) => !!flags[pageFlag(def.id, id)], round));
   const job = useMemo(() => jobFor(band, round, done, queue), [band, round, done, queue]);
   const pattern = PATTERN_BY_ID[job.pattern];
-  const [step, setStep] = useState<Step>('mix');
+  const [step, setStep] = useState<Step>(first);
   const [chosen, setChosen] = useState<Pot[]>([]);
   const [mixSaid, setMixSaid] = useState<string | null>(null);
+  // Expert's move picked, and what was said of it.
+  const [move, setMove] = useState<Move | null>(null);
+  const [nameSaid, setNameSaid] = useState<string | null>(null);
   const [grid, setGrid] = useState<Cell[][]>(() => start(job));
   const [brush, setBrush] = useState<Brush>(job.mixColour);
   const [marks, setMarks] = useState<ReadonlySet<string>>(() => new Set());
@@ -136,6 +158,9 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   const [newPage, setNewPage] = useState(false);
   const [read, setRead] = useState<PatternId | 'mine' | null>(null);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each picture's move named at the first pick and its image exact at the first check.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
   // This round's finished pictures, as painted: the Gallery shows them in the kid's colours.
   const [finished, setFinished] = useState<Partial<Record<PatternId, Grid>>>({});
   const [free, setFree] = useState<Cell[][]>(() => Array.from({ length: SIZE }, () => Array<Cell>(SIZE).fill(null)));
@@ -150,14 +175,17 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   const shown = step === 'free' ? mirrored(free) : grid;
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}:${checks}`);
+  // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
 
-  // Focus follows the picture: the mix (described by the job); the first square to paint — or, once the mirror has
-  // marked some, the first marked (review round 1); what a perfect match showed; the free canvas's first square.
+  // Focus follows the picture: the mix or Expert's move (described by the job); the first square to paint — or, once
+  // the mirror has marked some, the first marked (review round 1); what a perfect match showed; the free canvas's first
+  // square.
   const mixHead = useRef<HTMLHeadingElement>(null);
   const resultHead = useRef<HTMLHeadingElement>(null);
   const canvas = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (step === 'mix') mixHead.current?.focus({ preventScroll: true });
+    if (step === 'mix' || step === 'name') mixHead.current?.focus({ preventScroll: true });
     else if (step === 'matched') resultHead.current?.focus({ preventScroll: true });
     else (canvas.current?.querySelector<HTMLButtonElement>('button[data-marked]') ?? canvas.current?.querySelector<HTMLButtonElement>('button[tabindex="0"]'))?.focus({ preventScroll: true });
   }, [step, done, checks]);
@@ -182,16 +210,16 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
     else goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done, checks]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function pickPot(p: Pot) {
-    if (!settled()) return;
+  function pickPot(p: Pot, e: { detail: number }) {
+    if (!ready(e)) return;
     sfx('select');
     setRead(null);
     setMixSaid(null);
     setChosen((c) => (c.includes(p) ? c.filter((x) => x !== p) : [...c, p].slice(-2)));
   }
 
-  function doMix() {
-    if (step !== 'mix' || chosen.length < 2 || !settled()) return;
+  function doMix(e: { detail: number }) {
+    if (step !== 'mix' || chosen.length < 2 || !ready(e)) return;
     const [a, b] = chosen;
     setMixSaid(mixWords(a, b, job.mixColour));
     setRead(null);
@@ -202,6 +230,30 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
     } else {
       sfx('wrong');
       setChosen([]);
+    }
+  }
+
+  function pickMove(m: Move, e: { detail: number }) {
+    if (!ready(e)) return;
+    sfx('select');
+    setRead(null);
+    setNameSaid(null);
+    setMove(m);
+  }
+
+  /** Expert: the move named from A and A′ — the right one goes on to the painting; another says where it takes A. */
+  function nameIt(e: { detail: number }) {
+    if (step !== 'name' || move === null || !ready(e)) return;
+    setNameSaid(nameWords(job, move));
+    setRead(null);
+    if (move === job.kind) {
+      sfx('chest');
+      setBrush(job.palette[0]);
+      setStep('paint');
+    } else {
+      sfx('wrong');
+      setMissed(true);
+      setMove(null);
     }
   }
 
@@ -232,10 +284,11 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   }
 
   /** Hold up the mirror: a perfect match pays the page (and, the third, the round); else it marks what to fix. */
-  function check() {
-    if (step !== 'paint' || !settled()) return;
+  function check(e: { detail: number }) {
+    if (step !== 'paint' || !ready(e)) return;
     setRead(null);
     setMixSaid(null);
+    setNameSaid(null);
     // Nothing painted yet: nothing to mark — paint first (review round 2: it marked every square).
     if (toPaint(job.kind).every(([r, c]) => grid[r][c] === null)) {
       sfx('select');
@@ -248,6 +301,7 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
       sfx('wrong');
       setMarks(new Set(off.map(([r, c]) => key(r, c))));
       setFixing(true);
+      setMissed(true);
       return;
     }
     sfx('chest');
@@ -256,14 +310,17 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
     setNewPage(onPage(job.pattern, pattern.name));
     setLessons((l) => [...l, learnedLine(job)]);
     setRights((n) => n + 1);
+    const spot = spotOn + (missed ? 0 : 1);
+    setSpotOn(spot);
     setFinished((f) => ({ ...f, [job.pattern]: job.goal }));
     setStep('matched');
-    // The round is earned now: the free canvas is just for fun, and leaving from it keeps the pay (review round 1).
-    if (done + 1 >= JOBS_PER_ROUND) onClaim?.();
+    // The round is earned now: the free canvas is just for fun, and leaving from it keeps the pay (review round 1) —
+    // and Expert's seal.
+    if (done + 1 >= JOBS_PER_ROUND) onClaim?.(expert ? { right: spot, of: JOBS_PER_ROUND } : undefined);
   }
 
-  function next() {
-    if (step !== 'matched' || !settled()) return;
+  function next(e: { detail: number }) {
+    if (step !== 'matched' || !ready(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
       setStep('free');
@@ -275,20 +332,25 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
     setGrid(start(nextJob));
     setChosen([]);
     setMixSaid(null);
+    setMove(null);
+    setNameSaid(null);
+    setMissed(false);
     setMarks(new Set());
     setFixing(false);
     setTooSoon(false);
     setNewPage(false);
     setBrush(nextJob.mixColour);
-    setStep('mix');
+    setStep(first);
   }
 
   const learned = lessons[lessons.length - 1] ?? '';
-  function finish(hung: boolean) {
-    if (!settled()) return;
+  function finish(hung: boolean, e: { detail: number }) {
+    if (!ready(e)) return;
+    const spot = expert ? { spotOn: { right: spotOn, of: JOBS_PER_ROUND } } : {};
     onFinish(
       hung
         ? {
+            ...spot,
             title: 'Three pictures — and one of yours!',
             learned,
             // The picture hung, on the reward (review round 2: it was only in the next round's Gallery).
@@ -298,23 +360,23 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
               </span>
             ),
           }
-        : { title: 'Three pictures finished!', learned },
+        : { ...spot, title: 'Three pictures finished!', learned },
     );
   }
 
   /** Hang the free canvas in the Gallery: one picture at a time, in the kid's save (§3.5). */
-  function hang() {
-    if (step !== 'free' || !free.some((row) => row.some(Boolean)) || !settled()) return;
+  function hang(e: { detail: number }) {
+    if (step !== 'free' || !free.some((row) => row.some(Boolean)) || !ready(e)) return;
     const prefix = mineFlag(def.id);
     update((s) => ({
       ...s,
       flags: { ...Object.fromEntries(Object.entries(s.flags).filter(([k]) => !k.startsWith(prefix))), [mineFlag(def.id, encodeMine(free))]: true },
     }));
     sfx('chest');
-    finish(true);
+    finish(true, e);
   }
 
-  const stepIndex = step === 'mix' ? 0 : step === 'paint' ? 1 : step === 'matched' ? 2 : 3;
+  const stepIndex = step === 'mix' || step === 'name' ? 0 : step === 'paint' ? 1 : step === 'matched' ? 2 : 3;
   const freeEmpty = !free.some((row) => row.some(Boolean));
   const hint = MIRROR_HINT[job.kind];
 
@@ -322,9 +384,18 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   // once — review round 1), then what to do, what the mirror found, a match.
   let line: string;
   const readPage = read === 'mine' ? null : read ? PATTERN_BY_ID[read] : null;
-  if (read === 'mine') line = 'Your own picture, darling — the mirror painted the right half. Paint another after three pictures and it takes its place.';
+  if (read === 'mine') line = expert ? 'Your own picture — the right half is the left half’s reflection in x = 3. Paint another after three pictures and it takes its place.' : 'Your own picture, darling — the mirror painted the right half. Paint another after three pictures and it takes its place.';
   else if (readPage) line = `${readPage.name}: ${readPage.note}`;
-  else if (step === 'mix') line = `The ${pattern.name} needs ${NAME[job.mixColour]}. Pick two pots and mix them, darling!`;
+  else if (expert) {
+    // Expert, plainly (§8.3): what to do, what's wrong and one thing to try — no cheering.
+    if (step === 'name') line = `The ${pattern.name}. ${jobWords(job, false)}`;
+    else if (step === 'paint' && tooSoon) line = paintFirstWords(job.kind, true);
+    else if (step === 'paint' && marks.size > 0) line = markWords(marks.size, job);
+    else if (step === 'paint' && fixing) line = 'All fixed? Check it again.';
+    else if (step === 'paint') line = nameSaid ? `${nameSaid} Now paint the image.` : mirrorWords(job.kind, true);
+    else if (matched) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next picture.' : 'Now one of your own.'}`;
+    else line = 'Your turn. Paint the left half; its reflection in x = 3 paints itself, and it hangs in the Gallery.';
+  } else if (step === 'mix') line = `The ${pattern.name} needs ${NAME[job.mixColour]}. Pick two pots and mix them, darling!`;
   else if (step === 'paint' && tooSoon) line = paintFirstWords(job.kind);
   // The marks left, counted as they're fixed (review round 2: the count went stale); then a nudge.
   else if (step === 'paint' && marks.size > 0) line = `Nearly, darling! ${markWords(marks.size)}`;
@@ -334,8 +405,11 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
   else line = 'Your turn! Paint the left half — the mirror paints the rest — and it hangs in my Gallery.';
 
   const palette: readonly Colour[] = step === 'free' ? FREE_PALETTE : job.palette;
+  // Expert's mark for the move on the canvas: A and A′ while it's named; the line or the centre once the mirror's
+  // found something to fix (§8.3: a hint after a miss, not a label before).
+  const overlay: Overlay = !expert || step === 'free' ? null : step === 'name' ? 'points' : step === 'paint' && fixing ? 'move' : null;
   const pairs = step !== 'free' && job.kind === 'opposite';
-  const { area, head, fit } = useCanvasSize({ paints: palette.length, pairs, free: step === 'free' });
+  const { area, head, fit } = useCanvasSize({ paints: palette.length, pairs, free: step === 'free', axes: expert ? AXIS : 0 });
   const { beside, compact, tight } = fit ?? { beside: false, compact: true, tight: false };
   const size = fit?.size ?? null;
 
@@ -368,21 +442,25 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
                 <h2 ref={head} id="mm-canvas" className={cn(pixelHeadClass, 'truncate text-lg text-[#fde68a] sm:text-2xl [@media(max-width:639px)]:sr-only [@media(max-height:500px)]:sr-only')}>
                   {step === 'free' ? 'Your canvas' : `The ${pattern.name}`}
                 </h2>
-                <Canvas
-                  key={step === 'free' ? 'free' : done}
-                  ref={canvas}
-                  label={step === 'free' ? 'Your picture' : 'The picture'}
-                  describedBy={step === 'free' ? 'mm-free' : 'mm-job'}
-                  grid={shown}
-                  kind={step === 'free' ? 'across' : job.kind}
-                  editable={(r, c) => (step === 'free' ? c < SIZE / 2 : step === 'paint' && !given(job.kind, r, c))}
-                  isGiven={(r, c) => step !== 'free' && given(job.kind, r, c)}
-                  echo={(_, c) => step === 'free' && c >= SIZE / 2}
-                  marks={step === 'paint' ? marks : EMPTY_MARKS}
-                  painting={painting}
-                  job={step === 'free' ? null : job}
-                  onPaint={paintAt}
-                />
+                <Axes on={expert}>
+                  <Canvas
+                    key={step === 'free' ? 'free' : done}
+                    ref={canvas}
+                    label={step === 'free' ? 'Your picture' : 'The picture'}
+                    describedBy={step === 'free' ? 'mm-free' : 'mm-job'}
+                    grid={shown}
+                    kind={step === 'free' ? 'across' : job.kind}
+                    editable={(r, c) => (step === 'free' ? c < SIZE / 2 : step === 'paint' && !given(job.kind, r, c))}
+                    isGiven={(r, c) => step !== 'free' && given(job.kind, r, c)}
+                    echo={(_, c) => step === 'free' && c >= SIZE / 2}
+                    marks={step === 'paint' ? marks : EMPTY_MARKS}
+                    painting={painting}
+                    job={step === 'free' ? null : job}
+                    coords={expert}
+                    overlay={overlay}
+                    onPaint={paintAt}
+                  />
+                </Axes>
               </div>
               {/* Kept in place (unseen) while mixing and after a match, so the canvas never changes size under the
                   kid; on a phone, only while painting. */}
@@ -410,7 +488,7 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
                   </div>
                   {step !== 'free' ? (
                     <button ref={step === 'paint' ? goRef : undefined} type="button" onClick={check} className={cn(goldClass, 'h-14', beside ? 'px-3 text-base leading-tight' : 'text-lg')}>
-                      🪞 Hold up the mirror
+                      {expert ? '🪞 Check the image' : '🪞 Hold up the mirror'}
                     </button>
                   ) : (
                     // Side by side under the canvas, so it keeps its size (review round 1).
@@ -424,7 +502,7 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
                       >
                         {freeEmpty ? 'Paint a square first' : '🖼️ Hang it in the Gallery'}
                       </button>
-                      <button type="button" onClick={() => finish(false)} className={cn(outlineClass, 'border-2 px-3 text-sm', beside ? 'h-11' : 'h-14')}>
+                      <button type="button" onClick={(e) => finish(false, e)} className={cn(outlineClass, 'border-2 px-3 text-sm', beside ? 'h-11' : 'h-14')}>
                         Not this time
                       </button>
                     </div>
@@ -451,8 +529,8 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
           </div>
           {step !== 'free' && (
             <div className="order-1 sm:order-none">
-              <Ticket heading={`PAINT THE ${pattern.name.toUpperCase()}`} ready={matched} icon={<KindBadge kind={job.kind} />} id="mm-job">
-                {jobWords(job)}
+              <Ticket heading={`PAINT THE ${pattern.name.toUpperCase()}`} ready={matched} icon={<KindBadge kind={step === 'name' ? null : job.kind} />} id="mm-job">
+                {jobWords(job, step !== 'name')}
               </Ticket>
             </div>
           )}
@@ -473,11 +551,11 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
                   The picture needs <ColourWord colour={job.mixColour} />.<span className="[@media(max-height:500px)]:hidden"> Pick two pots, then mix them.</span>
                 </p>
                 <div role="group" aria-label="Paint pots" className="grid grid-cols-2 gap-2 [@media(max-height:500px)]:flex [@media(max-height:500px)]:gap-1.5">
-                  {POTS[band].map((p) => (
+                  {(band === 'expert' ? [] : POTS[band]).map((p) => (
                     <button
                       key={p}
                       type="button"
-                      onClick={() => pickPot(p)}
+                      onClick={(e) => pickPot(p, e)}
                       aria-pressed={chosen.includes(p)}
                       className={cn(
                         'flex min-h-[52px] items-center gap-2 rounded-lg border-[3px] px-2 text-left font-bold',
@@ -510,7 +588,68 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
               </>
             )}
 
-            {step === 'paint' && (
+            {step === 'name' && (
+              <>
+                <h2 ref={mixHead} tabIndex={-1} aria-describedby="mm-job" className={cn(pixelHeadClass, 'self-start rounded text-[26px] [@media(max-height:500px)]:text-[22px]', focusRing)}>
+                  Step 1 · Name the move
+                </h2>
+                <p className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
+                  <b>A {pointWords(job.p)}</b> maps to <b>A′ {pointWords(pImage(job))}</b>.<span className="[@media(max-height:500px)]:hidden"> Which move does that?</span>
+                </p>
+                <div role="group" aria-label="Moves" className="grid grid-cols-2 gap-2 [@media(max-height:500px)]:gap-1.5">
+                  {MOVES.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={(e) => pickMove(m, e)}
+                      aria-pressed={move === m}
+                      className={cn(
+                        'flex min-h-[52px] items-center rounded-lg border-[3px] px-2 py-1 text-left text-[14px] font-bold leading-tight',
+                        '[@media(max-height:500px)]:min-h-[40px] [@media(max-height:500px)]:text-[12px]',
+                        move === m ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a] hover:bg-[#2f2b70]',
+                        focusRing,
+                      )}
+                    >
+                      {MOVE_NAME[m]}
+                    </button>
+                  ))}
+                </div>
+                {/* Room for the longest said, so Name it never moves. */}
+                <p
+                  role="status"
+                  className="flex min-h-[4.25rem] items-center justify-center text-center text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.75rem] [@media(max-height:500px)]:text-[13px]"
+                >
+                  {nameSaid ?? (move ? `${MOVE_NAME[move]}.` : 'No move picked yet.')}
+                </p>
+                <button
+                  ref={goRef}
+                  type="button"
+                  onClick={nameIt}
+                  aria-disabled={move === null || undefined}
+                  className={cn(goldClass, 'h-14 text-lg [@media(max-height:500px)]:h-12 [@media(max-height:500px)]:text-base')}
+                >
+                  {move === null ? 'Pick a move' : 'That’s the move'}
+                </button>
+              </>
+            )}
+
+            {step === 'paint' && expert && (
+              <>
+                <h2 className={cn(pixelHeadClass, 'text-[26px] [@media(max-height:500px)]:text-[22px]')}>Step 2 · Paint the image</h2>
+                <JobLine job={job} />
+                <p className="text-[15px] leading-snug text-[#e4e1ff]">
+                  Pick a paint, then tap or drag across the squares: each is the image of a painted one.
+                  {fixing && ` ${ruleWords(job.kind)} It’s marked on the canvas.`}
+                </p>
+                {marks.size > 0 && (
+                  <p className="rounded-md bg-[#fde68a] px-2.5 py-1.5 text-[15px] font-bold text-[#1b0f22]">
+                    {marks.size === 1 ? 'One square to fix — it has a ! mark.' : `${cap(num(marks.size))} squares to fix — each has a ! mark.`}
+                  </p>
+                )}
+              </>
+            )}
+
+            {step === 'paint' && !expert && (
               <>
                 <h2 className={cn(pixelHeadClass, 'text-[26px] [@media(max-height:500px)]:text-[22px]')}>Step 2 · Paint the other half</h2>
                 <JobLine job={job} />
@@ -531,21 +670,21 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
                   aria-describedby="mm-result"
                   className={cn(pixelHeadClass, 'self-start rounded text-[28px] text-white [@media(max-height:500px)]:text-[22px]', focusRing)}
                 >
-                  A perfect match!
+                  {expert ? 'An exact image' : 'A perfect match!'}
                 </h2>
                 <p id="mm-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
                   {learnedLine(job)}
                   {newPage && ` The ${pattern.name} is in the Gallery!`}
                 </p>
                 <button ref={goRef} type="button" onClick={next} className={cn(goldClass, 'text-lg [@media(max-height:500px)]:px-3 [@media(max-height:500px)]:text-base')}>
-                  {done + 1 < JOBS_PER_ROUND ? 'Next picture' : 'Next — paint your own!'}
+                  {done + 1 < JOBS_PER_ROUND ? 'Next picture' : expert ? 'Next — paint your own' : 'Next — paint your own!'}
                 </button>
               </>
             )}
 
             {step === 'free' && (
               <>
-                <h2 className={cn(pixelHeadClass, 'self-start text-[26px]')}>Your turn!</h2>
+                <h2 className={cn(pixelHeadClass, 'self-start text-[26px]')}>{expert ? 'Your turn' : 'Your turn!'}</h2>
                 <p id="mm-free" className="text-[15px] leading-snug text-[#e4e1ff]">
                   Paint the left half — the mirror paints the right. Hang it and it takes the place of any you painted before.
                 </p>
@@ -558,15 +697,15 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
             painted={finished}
             mine={mine}
             read={read}
-            onRead={(id) => {
-              if (settled()) setRead(id);
+            onRead={(id, e) => {
+              if (ready(e)) setRead(id);
             }}
           />
         </aside>
       </div>
 
       <footer className="hidden flex-none flex-wrap items-center gap-3 border-t-4 border-[#1b0f22] bg-[#1e1b4b] px-5 py-2 sm:flex [@media(max-height:500px)]:hidden">
-        <StepChips steps={['Mix', 'Paint', 'Mirror']} current={stepIndex} />
+        <StepChips steps={expert ? ['Name', 'Paint', 'Check'] : ['Mix', 'Paint', 'Mirror']} current={stepIndex} />
         <span className="ml-auto text-[15px] text-[#c9c5f2]">
           {BAND_LABEL[band]} · No timer. Take your time.
         </span>
@@ -577,6 +716,104 @@ export default function MirrorMural({ def, band: playBand, round, onPage, onFini
 
 const EMPTY_MARKS: ReadonlySet<string> = new Set();
 
+/** Expert's mark on the canvas: A and A′, or the move's line or centre. */
+type Overlay = 'points' | 'move' | null;
+
+/**
+ * Expert's coordinate grid round the canvas (§8.5): x along the bottom and y
+ * up the left, 0 to 6 at the grid's lines from the bottom-left corner. It
+ * takes the canvas's own room, so the canvas fits as before.
+ */
+function Axes({ on, children }: { on: boolean; children: ReactNode }) {
+  if (!on) return <>{children}</>;
+  const at = (i: number) => `calc(${FRAME}px + (100% - ${2 * FRAME}px) * ${i / SIZE})`;
+  const ticks = Array.from({ length: SIZE + 1 }, (_, i) => i);
+  const num = 'absolute text-[11px] font-bold leading-none text-[#fde68a]';
+  return (
+    <div className="grid" style={{ gridTemplateColumns: `${AXIS}px minmax(0, 1fr)`, gridTemplateRows: `minmax(0, 1fr) ${AXIS}px` }}>
+      <div aria-hidden="true" className="relative">
+        {ticks.map((i) => (
+          <span key={i} className={cn(num, 'right-1 -translate-y-1/2')} style={{ top: at(SIZE - i) }}>
+            {i}
+          </span>
+        ))}
+      </div>
+      {children}
+      <span aria-hidden="true" />
+      <div aria-hidden="true" className="relative">
+        {ticks.map((i) => (
+          <span key={i} className={cn(num, 'top-1 -translate-x-1/2')} style={{ left: at(i) }}>
+            {i}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A square's corners in Expert's coordinates: "(1, 4) to (2, 5)". */
+const squareWords = (r: number, c: number) => `${pointWords([c, SIZE - 1 - r])} to ${pointWords([c + 1, SIZE - r])}`;
+
+/**
+ * Expert's mark on the canvas, drawn in its coordinates (y up): A and A′
+ * with an arrow while the move's named; once the mirror's found something to
+ * fix, the move's line — x = 3, y = 3, y = x — its centre (3, 3), or its
+ * vector. Cyan and white with ink edges, clear on any paint.
+ */
+function MoveMarks({ job, overlay }: { job: Job; overlay: Exclude<Overlay, null> }) {
+  const y = (v: number) => SIZE - v;
+  const line = (x1: number, y1: number, x2: number, y2: number) => (
+    <>
+      <line x1={x1} y1={y(y1)} x2={x2} y2={y(y2)} stroke="#1b0f22" strokeWidth={0.2} strokeLinecap="round" />
+      <line x1={x1} y1={y(y1)} x2={x2} y2={y(y2)} stroke="#22d3ee" strokeWidth={0.11} strokeDasharray="0.3 0.18" strokeLinecap="round" />
+    </>
+  );
+  const dot = ([px, py]: Point, fill: string, name: string) => (
+    <>
+      <circle cx={px} cy={y(py)} r={0.17} fill={fill} stroke="#1b0f22" strokeWidth={0.07} />
+      <text x={px + 0.2} y={y(py) - 0.2} fontSize={0.46} fontWeight={900} fill="#1b0f22" stroke="#ffffff" strokeWidth={0.12} paintOrder="stroke">
+        {name}
+      </text>
+    </>
+  );
+  const kind = job.kind;
+  const centre = (
+    <>
+      <circle cx={3} cy={3} r={0.24} fill="#ffffff" stroke="#1b0f22" strokeWidth={0.08} />
+      <circle cx={3} cy={3} r={0.08} fill="#0e7490" />
+    </>
+  );
+  return (
+    <svg aria-hidden="true" viewBox={`0 0 ${SIZE} ${SIZE}`} className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
+      <defs>
+        <marker id="mm-head" viewBox="0 0 4 4" refX="3.2" refY="2" markerWidth="4" markerHeight="4" orient="auto-start-reverse">
+          <path d="M0 0 L4 2 L0 4 Z" fill="#1b0f22" />
+        </marker>
+      </defs>
+      {overlay === 'points' ? (
+        <>
+          <line x1={job.p[0]} y1={y(job.p[1])} x2={pImage(job)[0]} y2={y(pImage(job)[1])} stroke="#1b0f22" strokeWidth={0.07} strokeDasharray="0.2 0.12" markerEnd="url(#mm-head)" />
+          {dot(job.p, '#ffffff', 'A')}
+          {dot(pImage(job), '#22d3ee', 'A′')}
+        </>
+      ) : (
+        <>
+          {kind === 'across' && line(3, 0, 3, 6)}
+          {kind === 'down' && line(0, 3, 6, 3)}
+          {kind === 'diag' && line(0, 0, 6, 6)}
+          {(kind === 'turn' || kind === 'quarter') && centre}
+          {kind === 'shift' && (
+            <>
+              <line x1={1.5} y1={3} x2={4.5} y2={3} stroke="#ffffff" strokeWidth={0.22} />
+              <line x1={1.5} y1={3} x2={4.4} y2={3} stroke="#1b0f22" strokeWidth={0.1} markerEnd="url(#mm-head)" />
+            </>
+          )}
+        </>
+      )}
+    </svg>
+  );
+}
+
 /**
  * The canvas's fit from `sm` up (`layout.ts`): the space measured, the rest
  * worked out — so nothing it draws can change what it measures. On a phone the
@@ -586,7 +823,7 @@ function useCanvasSize(controls: Controls) {
   const area = useRef<HTMLDivElement>(null);
   const head = useRef<HTMLHeadingElement>(null);
   const [fit, setFit] = useState<Fit | null>(null);
-  const { paints, pairs, free } = controls;
+  const { paints, pairs, free, axes } = controls;
   useLayoutEffect(() => {
     const el = area.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
@@ -595,14 +832,14 @@ function useCanvasSize(controls: Controls) {
       const { width: w, height: h } = el.getBoundingClientRect();
       // The heading over the canvas takes room, unless it's only for a reader (a short screen).
       const heading = head.current && getComputedStyle(head.current).position !== 'absolute' ? head.current.offsetHeight + GAP_UNDER : 0;
-      const next = fitCanvas({ w, h, heading, short: window.matchMedia('(max-height: 500px)').matches }, { paints, pairs, free });
+      const next = fitCanvas({ w, h, heading, short: window.matchMedia('(max-height: 500px)').matches }, { paints, pairs, free, axes });
       setFit((f) => (f && f.size === next.size && f.beside === next.beside && f.compact === next.compact && f.tight === next.tight ? f : next));
     };
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     measure();
     return () => ro.disconnect();
-  }, [paints, pairs, free]);
+  }, [paints, pairs, free, axes]);
   return { area, head, fit };
 }
 
@@ -671,11 +908,27 @@ function RubButton({ on, compact, onPick }: { on: boolean; compact: boolean; onP
   );
 }
 
-/** The kind of mirror, as a small sign for the ticket. */
-function KindBadge({ kind }: { kind: Kind }) {
+/** The kind of mirror, as a small sign for the ticket — or, while Expert's move is to be named (null), A and A′. */
+function KindBadge({ kind }: { kind: Kind | null }) {
   return (
     <span aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-md border-[3px] border-[#1b0f22] bg-[#f4ecdc]">
       <svg width="24" height="24" viewBox="0 0 24 24">
+        {kind === null && (
+          <>
+            <path d="M6 8 L17 17" stroke="#1b0f22" strokeWidth="2" strokeDasharray="3 2" />
+            <circle cx="6" cy="8" r="3.5" fill="#ffffff" stroke="#1b0f22" strokeWidth="2" />
+            <circle cx="18" cy="18" r="3.5" fill="#22d3ee" stroke="#1b0f22" strokeWidth="2" />
+          </>
+        )}
+        {kind === 'diag' && <path d="M2 22 L22 2" stroke="#0e7490" strokeWidth="3" strokeDasharray="3 2" />}
+        {kind === 'quarter' && (
+          <>
+            <path d="M12 4 A8 8 0 0 1 20 12" fill="none" stroke="#0e7490" strokeWidth="3" />
+            <path d="M16.5 12 H23.5 L20 16.5 Z" fill="#0e7490" />
+            <circle cx="12" cy="12" r="2.5" fill="#1b0f22" />
+          </>
+        )}
+        {kind === 'shift' && <path d="M3 12 H17 M13 6 L20 12 L13 18" fill="none" stroke="#0e7490" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />}
         {(kind === 'across' || kind === 'four' || kind === 'opposite') && <path d="M12 1 V23" stroke="#0e7490" strokeWidth="3" strokeDasharray="3 2" />}
         {(kind === 'down' || kind === 'four') && <path d="M1 12 H23" stroke="#0e7490" strokeWidth="3" strokeDasharray="3 2" />}
         {kind === 'turn' && <path d="M12 4 A8 8 0 1 1 4 12" fill="none" stroke="#0e7490" strokeWidth="3" />}
@@ -707,9 +960,9 @@ function PhoneLine({ job, step }: { job: Job; step: Step }) {
   return (
     <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[14px] font-bold leading-snug text-[#1b0f22] sm:hidden">
       <span className="flex-none">
-        <KindBadge kind={job.kind} />
+        <KindBadge kind={step === 'name' ? null : job.kind} />
       </span>
-      {step === 'mix' ? jobWords(job) : mirrorWords(job.kind)}
+      {step === 'mix' || step === 'name' ? jobWords(job, step !== 'name') : mirrorWords(job.kind, job.expert)}
     </p>
   );
 }
@@ -754,9 +1007,12 @@ const Canvas = forwardRef<
     marks: ReadonlySet<string>;
     painting: boolean;
     job: Job | null;
+    /** Expert: squares said by their corners' coordinates, no mirror line till a miss (`overlay`). */
+    coords: boolean;
+    overlay: Overlay;
     onPaint: (r: number, c: number) => void;
   }
->(function Canvas({ label, describedBy, grid, kind, editable, isGiven, echo, marks, painting, job, onPaint }, ref) {
+>(function Canvas({ label, describedBy, grid, kind, editable, isGiven, echo, marks, painting, job, coords, overlay, onPaint }, ref) {
   // The square in the tab order (roving): the first editable one until the kid moves (a new picture starts afresh: keyed).
   const [at, setAt] = useState<[number, number] | null>(null);
   const firstEditable = useMemo(() => {
@@ -844,9 +1100,13 @@ const Canvas = forwardRef<
           }
           const [sr, sc] = source(kind, r, c);
           const from = grid[sr][sc];
-          const copy = job
-            ? `It copies the square at row ${sr + 1}, square ${sc + 1}: ${from ? NAME[from] : 'bare'}${kind === 'opposite' && from ? ` — paint its opposite` : ''}.`
-            : '';
+          // Expert's says which square it's the image of — the given squares aren't read out on their own.
+          const copy = !job
+            ? ''
+            : coords
+              ? `It’s the image of the square ${squareWords(sr, sc)}: ${from ? NAME[from] : 'bare'}.`
+              : `It copies the square at row ${sr + 1}, square ${sc + 1}: ${from ? NAME[from] : 'bare'}${kind === 'opposite' && from ? ` — paint its opposite` : ''}.`;
+          const place = coords ? `Square ${squareWords(r, c)}` : `Row ${r + 1}, square ${c + 1}`;
           return (
             <button
               key={key(r, c)}
@@ -854,7 +1114,7 @@ const Canvas = forwardRef<
               data-cell={key(r, c)}
               data-marked={marked || undefined}
               tabIndex={focusAt && focusAt[0] === r && focusAt[1] === c ? 0 : -1}
-              aria-label={`Row ${r + 1}, square ${c + 1}: ${v ? NAME[v] : 'bare'}.${copy ? ` ${copy}` : ''}${marked ? ' Doesn’t match yet.' : ''}`}
+              aria-label={`${place}: ${v ? NAME[v] : 'bare'}.${copy ? ` ${copy}` : ''}${marked ? ' Doesn’t match yet.' : ''}`}
               onClick={(e) => {
                 // A press from the keyboard (a pointer press paints on pointer down).
                 if (e.detail === 0) onPaint(r, c);
@@ -878,21 +1138,23 @@ const Canvas = forwardRef<
           );
         }),
       )}
+      {/* Expert's mark (A and A′, or the move after a miss). */}
+      {coords && job && overlay && <MoveMarks job={job} overlay={overlay} />}
       {/* The mirror line(s), and a half turn's middle — cyan and white with ink edges, clear on any paint. */}
-      {(kind === 'across' || kind === 'four' || kind === 'opposite') && (
+      {!coords && (kind === 'across' || kind === 'four' || kind === 'opposite') && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-y-0 left-1/2 w-1.5 -translate-x-1/2 bg-[repeating-linear-gradient(180deg,#22d3ee_0_8px,#ffffff_8px_13px)] shadow-[0_0_0_1.5px_#1b0f22]"
         />
       )}
-      {(kind === 'down' || kind === 'four') && (
+      {!coords && (kind === 'down' || kind === 'four') && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 bg-[repeating-linear-gradient(90deg,#22d3ee_0_8px,#ffffff_8px_13px)] shadow-[0_0_0_1.5px_#1b0f22]"
         />
       )}
-      {kind === 'turn' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-[#22d3ee] shadow-[0_0_0_1.5px_#1b0f22]" />}
-      {kind === 'turn' && (
+      {!coords && kind === 'turn' && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-[#22d3ee] shadow-[0_0_0_1.5px_#1b0f22]" />}
+      {!coords && kind === 'turn' && (
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-[#1b0f22] bg-white text-xl font-black text-[#0e7490]"
@@ -921,7 +1183,7 @@ function GalleryScene({
   done: number;
   matched: boolean;
   finished: Partial<Record<PatternId, Grid>>;
-  band: Band;
+  band: PlayBand;
   round: number;
 }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
@@ -974,7 +1236,7 @@ function GalleryBook({
   painted: Partial<Record<PatternId, Grid>>;
   mine: Grid | null;
   read: PatternId | 'mine' | null;
-  onRead: (id: PatternId | 'mine') => void;
+  onRead: (id: PatternId | 'mine', e: { detail: number }) => void;
 }) {
   const count = PATTERNS.filter((p) => known(p.id)).length;
   const reading = read && read !== 'mine' ? PATTERN_BY_ID[read] : null;
@@ -999,7 +1261,7 @@ function GalleryBook({
             {known(p.id) ? (
               <button
                 type="button"
-                onClick={() => onRead(p.id)}
+                onClick={(e) => onRead(p.id, e)}
                 aria-pressed={read === p.id}
                 aria-label={`${p.name}. Read the page`}
                 className={cn('flex h-[72px] w-full flex-col items-center justify-center gap-0.5 rounded border-[3px] bg-[#fff6dc] hover:bg-white', read === p.id ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}
@@ -1020,7 +1282,7 @@ function GalleryBook({
       {mine && (
         <button
           type="button"
-          onClick={() => onRead('mine')}
+          onClick={(e) => onRead('mine', e)}
           aria-pressed={read === 'mine'}
           aria-label="Your own picture. Look at it"
           className={cn('flex items-center gap-3 rounded border-[3px] bg-[#fff6dc] p-1.5 text-left text-[15px] font-bold text-[#1b0f22]', read === 'mine' ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}

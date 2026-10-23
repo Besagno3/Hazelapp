@@ -59,6 +59,20 @@ export function StepMix() {
   );
 }
 
+/** Expert's step 1: a coordinate grid with A, its image A′ and the arrow between. */
+export function StepMove() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="20" y="20" width="160" height="160" fill="#f4ecdc" stroke={INK} strokeWidth="8" />
+      <path d="M73 20 V180 M127 20 V180 M20 73 H180 M20 127 H180" stroke={INK} strokeOpacity="0.3" strokeWidth="4" />
+      <path d="M62 62 L130 130" stroke={INK} strokeWidth="7" strokeDasharray="12 8" />
+      <path d="M146 146 L118 132 L132 118 Z" fill={INK} />
+      <circle cx="56" cy="56" r="16" fill="#ffffff" stroke={INK} strokeWidth="7" />
+      <circle cx="144" cy="144" r="16" fill="#22d3ee" stroke={INK} strokeWidth="7" />
+    </svg>
+  );
+}
+
 /** Step 2: half a picture, a brush painting the other half. */
 export function StepPaint() {
   return (

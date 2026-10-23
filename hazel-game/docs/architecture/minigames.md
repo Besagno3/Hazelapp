@@ -29,9 +29,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
   `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
   when a round is done (a game with something just for fun before the reward
-  — Mirror Mural's free canvas — calls `onClaim()` as the round is earned: it
-  pays then, once, so leaving by 🗺️ Map keeps it, and `onFinish` only shows
-  the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
+  — Mirror Mural's free canvas — calls `onClaim(spotOn?)` as the round is
+  earned: it pays then, once, and records the Expert seal, so leaving by 🗺️
+  Map keeps both, and `onFinish` only shows the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
   saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
   `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
@@ -279,7 +279,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   in it; the focus ring is drawn over it. On a tall enough screen Madame
   Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
   Clocktower Gears' board). The room above (this round's three frames) from
-  `sm` up. **🎵 Echo's Call** (`chromaria-musician`, Bard Lyra, Chromaria —
+  `sm` up. On Expert (`Job.expert`) the kinds are its six moves (`MOVES`:
+  `across`, `down`, `diag` — y = x, `turn`, `quarter` — quarter turns
+  clockwise, `shift` — by (3, 0); `source` for each, tested corner for
+  corner against `mapPoint`), two rounds of three; step 1 (`'name'`, no
+  pots) names the move from `Job.p` (A, inside every move's painted part,
+  each move taking it somewhere else) and `pImage` (A′): `nameAsk`,
+  `nameWords`, `MOVE_NAME`; the ticket hides the move till then
+  (`jobWords(job, named)`). `Axes` puts 0–6 round the canvas inside its
+  fitted size, the squares are said by their corners ("Square (3, 5) to
+  (4, 6): bare. It's the image of the square (2, 5) to (3, 6): purple."),
+  and `MoveMarks` (an SVG in the canvas's coordinates) draws A and A′, or —
+  once a check has marked squares — the move's line, centre or vector, with
+  its rule (`ruleWords`, `markWords(n, job)`). Its lessons are the moves'
+  (`learnedLine`), Madame Hue speaks plainly, and the pictures right at
+  their first naming and first check are `spotOn`, passed to `onClaim`.
+  The steps' buttons wait for a tap's second, not a key's (`e.detail`), on
+  every band. **🎵 Echo's Call** (`chromaria-musician`, Bard Lyra, Chromaria —
   she gives a quest too; `lib/minigames/echo.ts`, `features/minigames/echo/`):
   pitch, melody and reading notes — five chimes, C D E F G low to high, each
   its colour, letter and name (`CHIME`), long to short. Three tunes a round,

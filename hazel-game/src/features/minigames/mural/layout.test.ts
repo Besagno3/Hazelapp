@@ -54,6 +54,15 @@ describe('the canvas’s fit', () => {
     expect(fitCanvas({ w: 308, h: 260, heading: 40, short: false }, gentle)).toEqual({ size: FLOOR_PX, beside: false, compact: true, tight: true });
     expect(fitCanvas({ w: 368, h: 254, heading: 40, short: false }, pairs).tight).toBe(true);
   });
+
+  it('Expert’s axis numbers come out of the canvas’s size, not its squares (PR 14: 640×505 fitted 23 px squares)', () => {
+    const expert = { ...gentle, axes: 16 };
+    const space = { w: 308, h: 330, heading: 40, short: false };
+    expect(fitCanvas(space, gentle).tight).toBe(false);
+    expect(fitCanvas(space, expert)).toEqual({ size: FLOOR_PX + 16, beside: false, compact: true, tight: true });
+    // Room enough: the same fit as without them.
+    expect(fitCanvas({ w: 900, h: 600, heading: 40, short: false }, expert)).toEqual(fitCanvas({ w: 900, h: 600, heading: 40, short: false }, gentle));
+  });
 });
 
 describe('a laptop at 1024×600', () => {

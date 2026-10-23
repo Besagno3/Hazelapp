@@ -184,6 +184,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Gallery',
     pages: 9,
     bandNote: 'Medium mirrors down as well as across; Tricky four ways, half turns and opposite colours.',
+    expert: {
+      note: 'Expert: transformations on a coordinate grid — reflections, rotations and a translation, named from a point and its image.',
+      hello: 'The Gallery’s pictures are on a coordinate grid now: x across, y up, from the bottom-left corner. Name the move from a point and its image, then paint the image.',
+      steps: [
+        { title: 'Name the move', text: 'A and its image A′: which reflection, rotation or translation takes one to the other?' },
+        { title: 'Paint the image', text: 'Tap or drag across the squares. The line or the centre shows on the canvas only after a miss.' },
+        { title: 'Check the image', text: 'Every move named and every image exact first time wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'town',
     backdrop: '/backgrounds/chromaria.png',
     firstItem: 'mirror',

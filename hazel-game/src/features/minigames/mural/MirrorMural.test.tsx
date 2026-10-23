@@ -72,7 +72,7 @@ async function open() {
   return screen.findByRole('heading', { name: 'Step 1 · Mix the paint' });
 }
 
-function play(band: 'gentle' | 'medium' | 'tricky', { round = 0, isNew = true } = {}) {
+function play(band: 'gentle' | 'medium' | 'tricky' | 'expert', { round = 0, isNew = true } = {}) {
   const onPage = vi.fn(() => isNew);
   const onFinish = vi.fn();
   const onClaim = vi.fn();
@@ -441,6 +441,115 @@ describe('🪞 Mirror Mural, a whole round (docs/DESIGN-MINIGAMES.md §5.4)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Next — paint your own!' }));
     expect(paints().queryByRole('group', { name: /opposites$/ })).toBeNull();
     for (const c of ['Pink', 'Sky blue']) expect(paints().getByRole('button', { name: c })).toBeInTheDocument();
+  }, 20_000);
+
+  it('Expert: the move named from A and A′ (a wrong one says where it takes A), the image painted on the coordinates, its line after a miss; spot on counted and claimed with the pay', async () => {
+    setUp(9);
+    const { onFinish, onClaim } = play('expert');
+    const queue = roundQueue(() => false, 0);
+    const moves = () => within(screen.getByRole('group', { name: 'Moves' }));
+    const named = (name: string) => {
+      fireEvent.click(moves().getByRole('button', { name }));
+      fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }));
+    };
+    const check = () => fireEvent.click(screen.getByRole('button', { name: '🪞 Check the image' }));
+    const canvas = () => screen.getByRole('group', { name: 'The picture' });
+
+    // Step 1: no pots — A and its image, the move kept back till it's named (the ticket and its badge too).
+    const across = jobFor('expert', 0, 0, queue);
+    expect(across.kind).toBe('across');
+    const head = screen.getByRole('heading', { name: 'Step 1 · Name the move' });
+    expect(head).toHaveAccessibleDescription('A (1, 4) maps to A′ (5, 4). Name the move, then paint the image.');
+    expect(screen.queryByRole('group', { name: 'Paint pots' })).toBeNull();
+    expect(screen.getByText('Name', { selector: 'li *, li' })).toBeInTheDocument();
+    expect(moves().getAllByRole('button').map((b) => b.textContent)).toEqual(['Reflect in x = 3', 'Reflect in y = 3', 'Reflect in y = x', 'Rotate 180° about (3, 3)', 'Rotate 90° clockwise about (3, 3)', 'Translate by (3, 0)']);
+    expect(screen.getByRole('button', { name: 'Pick a move' })).toHaveAttribute('aria-disabled', 'true');
+    // A and A′ on the canvas, and the axes 0 to 6 round it; no mirror line drawn.
+    expect(canvas().querySelectorAll('svg circle')).toHaveLength(2);
+    expect(canvas().querySelector('svg')).toHaveTextContent('AA′');
+    expect(canvas().querySelector('[class*="left-1/2"]')).toBeNull();
+    expect(canvas().previousElementSibling).toHaveTextContent('0123456');
+    expect(canvas().parentElement!.lastElementChild).toHaveTextContent('0123456');
+
+    // A wrong move: where it takes A, and pick again; it costs the seal.
+    named('Reflect in y = x');
+    expect(screen.getByRole('status')).toHaveTextContent('Reflect in y = x: A goes to (4, 1), not (5, 4). Try another.');
+    expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pick a move' })).toBeInTheDocument();
+    named('Reflect in x = 3');
+
+    // Step 2: the image; the squares said by their corners, each with what it's the image of.
+    expect(screen.getByRole('heading', { name: 'Step 2 · Paint the image' })).toBeInTheDocument();
+    expect(screen.getByText('Reflect in x = 3: A goes to (5, 4). Now paint the image.')).toBeInTheDocument();
+    expect(screen.getByText('PAINT THE BUTTERFLY').parentElement!.parentElement).toHaveTextContent('Reflect the left half in the line x = 3.');
+    const src = across.goal[0][2];
+    expect(square(0, 3)).toHaveAccessibleName(`Square (3, 5) to (4, 6): bare. It’s the image of the square (2, 5) to (3, 6): ${src ? NAME[src] : 'bare'}.`);
+    expect(canvas().querySelector('svg')).toBeNull();
+    // The picture's two paints and Rub out: nothing to mix.
+    expect(paints().getAllByRole('button')).toHaveLength(3);
+    for (const c of across.palette) expect(paints().getByRole('button', { name: cap(NAME[c]) })).toBeInTheDocument();
+    // Checked with a square left: marked, the rule said, and the line x = 3 drawn now.
+    const [lr, lc] = toPaint('across').find(([r, c]) => across.goal[r][c])!;
+    for (const [r, c] of toPaint('across')) {
+      const v = across.goal[r][c];
+      if (!v || (r === lr && c === lc)) continue;
+      brush(v);
+      fireEvent.click(square(r, c));
+    }
+    check();
+    expect(marked()).toHaveLength(1);
+    expect(screen.getByText('One square doesn’t match yet — it’s marked. A reflection in x = 3 takes (x, y) to (6 − x, y).')).toBeInTheDocument();
+    expect(screen.getByText(/It’s marked on the canvas\.$/)).toBeInTheDocument();
+    const line = canvas().querySelector('svg line[stroke="#22d3ee"]')!;
+    expect([line.getAttribute('x1'), line.getAttribute('x2')]).toEqual(['3', '3']);
+    paintGoal(across);
+    expect(screen.getByText('All fixed? Check it again.')).toBeInTheDocument();
+    check();
+    expect(screen.getByRole('heading', { name: 'An exact image' })).toHaveAccessibleDescription(`${learnedLine(across)} The Butterfly is in the Gallery!`);
+    expect(screen.getByText('Exact. Next picture.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    await screen.findByText('Picture 2 of 3');
+
+    // Spot on: y = x, then the quarter turns, each named and exact the first time.
+    for (const [i, name] of [[1, 'Reflect in y = x'], [2, 'Rotate 90° clockwise about (3, 3)']] as const) {
+      const job = jobFor('expert', 0, i, queue);
+      named(name);
+      paintGoal(job);
+      check();
+      expect(screen.getByRole('heading', { name: 'An exact image' })).toBeInTheDocument();
+      if (i === 1) {
+        // A square on y = x is its own image: given, not the kid's.
+        expect(document.querySelector('button[data-cell="0,5"]')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+        await screen.findByText('Picture 3 of 3');
+        expect(screen.getByRole('heading', { name: 'Step 1 · Name the move' })).toHaveAccessibleDescription('A (1, 4) maps to A′ (4, 5). Name the move, then paint the image.');
+      }
+    }
+    // Two of three spot on: claimed with the pay, before the free canvas.
+    expect(onClaim).toHaveBeenCalledWith({ right: 2, of: 3 });
+    fireEvent.click(screen.getByRole('button', { name: 'Next — paint your own' }));
+    expect(screen.getByRole('heading', { name: 'Your turn' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Not this time' }));
+    expect(onFinish).toHaveBeenCalledWith({ spotOn: { right: 2, of: 3 }, title: 'Three pictures finished!', learned: learnedLine(jobFor('expert', 0, 2, queue)) });
+  }, 20_000);
+
+  it('Expert: the second round translates, turns half round and reflects in y = 3; the lessons are the moves’', async () => {
+    setUp(9);
+    const { onFinish } = play('expert', { round: 1 });
+    const queue = roundQueue(() => false, 1);
+    const names = ['Translate by (3, 0)', 'Rotate 180° about (3, 3)', 'Reflect in y = 3'];
+    for (let i = 0; i < 3; i++) {
+      const job = jobFor('expert', 1, i, queue);
+      fireEvent.click(within(screen.getByRole('group', { name: 'Moves' })).getByRole('button', { name: names[i] }));
+      fireEvent.click(screen.getByRole('button', { name: 'That’s the move' }));
+      if (i === 0) expect(square(0, 3)).toHaveAccessibleName(/It’s the image of the square \(0, 5\) to \(1, 6\):/);
+      paintGoal(job);
+      fireEvent.click(screen.getByRole('button', { name: '🪞 Check the image' }));
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next picture' : 'Next — paint your own' }));
+      if (i < 2) await screen.findByText(`Picture ${i + 2} of 3`);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Not this time' }));
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 3, of: 3 }, learned: expect.stringMatching(/^A reflection in y = 3/) }));
   }, 20_000);
 
   it('hanging a new picture takes the old one’s place', async () => {

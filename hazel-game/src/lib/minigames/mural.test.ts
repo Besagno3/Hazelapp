@@ -5,6 +5,8 @@ import {
   GLYPH,
   HEX,
   JOBS_PER_ROUND,
+  MOVES,
+  MOVE_NAME,
   NAME,
   OPPOSITE,
   PATTERNS,
@@ -18,14 +20,17 @@ import {
   jobFor,
   jobWords,
   learnedLine,
+  mapPoint,
   markWords,
   mirrorWords,
   mirrored,
   mismatches,
   mix,
   mixWords,
+  nameWords,
   num,
   opposite,
+  pImage,
   paintFirstWords,
   recipe,
   roundQueue,
@@ -34,10 +39,12 @@ import {
   toPaint,
   type Grid,
   type Kind,
+  type Move,
+  type Point,
 } from './mural';
-import { BANDS, MINIGAMES } from '../../content/minigames';
+import { BANDS, MINIGAMES, PLAY_BANDS, type PlayBand } from '../../content/minigames';
 
-const jobs = (band: (typeof BANDS)[number]) => Array.from({ length: 36 }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
+const jobs = (band: PlayBand) => Array.from({ length: 36 }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 const KINDS: readonly Kind[] = ['across', 'down', 'four', 'turn', 'opposite'];
 
 describe('paint (docs/DESIGN-MINIGAMES.md §5.4)', () => {
@@ -129,7 +136,7 @@ describe('the jobs', () => {
   });
 
   it('a goal is its pattern mirrored: the kid’s half matches the given half by its rule', () => {
-    for (const band of BANDS) {
+    for (const band of PLAY_BANDS) {
       for (const job of jobs(band)) {
         for (const [r, c] of toPaint(job.kind)) {
           const [sr, sc] = source(job.kind, r, c);
@@ -148,7 +155,7 @@ describe('the jobs', () => {
   });
 
   it('a half turn isn’t the top half flipped down: a pinwheel, the same after half a turn only', () => {
-    const turns = BANDS.flatMap((b) => jobs(b)).filter((j) => j.kind === 'turn');
+    const turns = PLAY_BANDS.flatMap((b) => jobs(b)).filter((j) => j.kind === 'turn');
     expect(turns.length).toBeGreaterThan(0);
     for (const job of turns) {
       const flipped = toPaint('turn').some(([r, c]) => job.goal[r][c] !== job.goal[SIZE - 1 - r][c]);
@@ -160,7 +167,7 @@ describe('the jobs', () => {
   it('no half of a picture is two colours a colour-blind eye mixes up — opposites set side by side, the halves apart', () => {
     const muddled = [new Set(['purple', 'blue']), new Set(['red', 'green']), new Set(['red', 'orange']), new Set(['green', 'blue'])];
     const mixedUp = (cs: Set<unknown>) => muddled.some((m) => [...cs].every((c) => m.has(c as string)));
-    for (const band of BANDS) {
+    for (const band of PLAY_BANDS) {
       for (const job of jobs(band)) {
         const given = new Set(job.goal.flatMap((row, r) => row.filter((v, c) => v && !toPaint(job.kind).some(([rr, cc]) => rr === r && cc === c))));
         const painted = new Set(toPaint(job.kind).map(([r, c]) => job.goal[r][c]).filter(Boolean));
@@ -173,7 +180,7 @@ describe('the jobs', () => {
 
   it('a round’s three pictures are its queue’s first three, in turn', () => {
     const q = roundQueue((id) => id === 'butterfly', 0);
-    for (const band of BANDS) for (const i of [0, 1, 2]) expect(jobFor(band, 0, i, q).pattern).toBe(q[i]);
+    for (const band of PLAY_BANDS) for (const i of [0, 1, 2]) expect(jobFor(band, 0, i, q).pattern).toBe(q[i]);
   });
 
   it('each band asks in turn: Medium across then down; Tricky four ways, a half turn, opposites', () => {
@@ -200,6 +207,79 @@ describe('the jobs', () => {
     expect(job.pattern).toBe('diamond');
     expect(job.kind).toBe(jobFor('tricky', 0, 0).kind);
     expect(PATTERN_IDS).toHaveLength(9);
+  });
+});
+
+describe('Expert: transformations on a coordinate grid (§8.5)', () => {
+  /** A square's four corners, x across and y up from the canvas's bottom-left corner. */
+  const corners = (r: number, c: number): Point[] => [
+    [c, SIZE - 1 - r],
+    [c + 1, SIZE - 1 - r],
+    [c, SIZE - r],
+    [c + 1, SIZE - r],
+  ];
+  const same = (a: readonly Point[], b: readonly Point[]) => JSON.stringify(a.map(String).sort()) === JSON.stringify(b.map(String).sort());
+  const turned = (m: Move, p: Point, n: number): Point => (n === 0 ? p : turned(m, mapPoint(m, p), n - 1));
+
+  it('each move takes every square of the painted part onto the square it makes — corner for corner', () => {
+    for (const move of MOVES) {
+      for (const [r, c] of toPaint(move)) {
+        const [sr, sc] = source(move, r, c);
+        // The quarter turns' three other quarters: the painted one turned once, twice, three times.
+        const times = move === 'quarter' ? [1, 2, 3] : [1];
+        expect(
+          times.some((n) => same(corners(sr, sc).map((p) => turned(move, p, n)), corners(r, c))),
+          `${move} ${r},${c}`,
+        ).toBe(true);
+      }
+    }
+    // The painted part: half; a triangle with the squares on y = x (their own image); a quarter.
+    expect(MOVES.map((m) => toPaint(m).length)).toEqual([18, 18, 15, 18, 27, 18]);
+    for (let k = 0; k < SIZE; k++) expect(given('diag', SIZE - 1 - k, k)).toBe(true);
+  });
+
+  it('A: in every move’s painted part, off its lines, and each move takes it somewhere else inside the canvas', () => {
+    for (const job of jobs('expert')) {
+      const images = MOVES.map((m) => String(mapPoint(m, job.p)));
+      expect(new Set(images).size, String(job.p)).toBe(MOVES.length);
+      expect(images).not.toContain(String(job.p));
+      for (const m of MOVES) for (const v of mapPoint(m, job.p)) expect(v > 0 && v < SIZE, `${m} ${job.p}`).toBe(true);
+      // The square A is the top-right corner of is painted on every move: x < 3, y > 3, above y = x.
+      const [x, y] = job.p;
+      expect(x > 0 && x < 3 && y > 3 && y < SIZE && y > x).toBe(true);
+      expect(pImage(job)).toEqual(mapPoint(job.kind as Move, job.p));
+    }
+  });
+
+  it('the six moves over two rounds, each once; no paint to mix — the palette is the picture’s two colours', () => {
+    const six = [0, 1].flatMap((round) => [0, 1, 2].map((i) => jobFor('expert', round, i)));
+    expect(six.map((j) => j.kind)).toEqual(['across', 'diag', 'quarter', 'shift', 'turn', 'down']);
+    for (const job of jobs('expert')) {
+      expect(job.expert).toBe(true);
+      expect(MOVES).toContain(job.kind);
+      expect(job.palette).toHaveLength(2);
+      for (const [r, c] of toPaint(job.kind)) if (job.goal[r][c]) expect(job.palette).toContain(job.goal[r][c]);
+    }
+    for (const band of BANDS) expect(jobs(band).every((j) => !j.expert)).toBe(true);
+  });
+
+  it('the words: A and A′ till the move’s named, then the move; a wrong move says where it takes A; a miss gives the rule; the lesson', () => {
+    const job = jobFor('expert', 0, 1); // reflect in y = x, A (2, 5)
+    expect(job.kind).toBe('diag');
+    expect(jobWords(job, false)).toBe('A (2, 5) maps to A′ (5, 2). Name the move, then paint the image.');
+    expect(jobWords(job)).toBe('Reflect the top-left triangle in the line y = x.');
+    expect(jobWords(job, false)).not.toMatch(/Reflect|Rotate|Translate|Mix/);
+    expect(nameWords(job, 'diag')).toBe('Reflect in y = x: A goes to (5, 2).');
+    expect(nameWords(job, 'turn')).toBe('Rotate 180° about (3, 3): A goes to (4, 1), not (5, 2). Try another.');
+    expect(markWords(2, job)).toBe('Two squares don’t match yet — they’re marked. A reflection in y = x swaps the coordinates: (x, y) goes to (y, x).');
+    expect(paintFirstWords(job.kind, true)).toBe('Paint the image first — the bottom-right triangle — then check it.');
+    expect(learnedLine(job)).toMatch(/^A reflection in y = x swaps the coordinates/);
+    expect(mirrorWords('quarter', true)).toBe('Rotate the top-left quarter 90°, 180° and 270° clockwise about (3, 3).');
+    // Every move has its button and its own lesson; none says "darling" or mixes paint.
+    expect(new Set(MOVES.map((m) => MOVE_NAME[m])).size).toBe(6);
+    const lessons = jobs('expert').map(learnedLine);
+    expect(new Set(lessons).size).toBe(6);
+    for (const l of lessons) expect(l).not.toMatch(/darling|make (purple|orange|green|pink)/i);
   });
 });
 

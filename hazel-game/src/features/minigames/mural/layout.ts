@@ -29,11 +29,15 @@ export const BESIDE_MAX = 352;
 /** Below 26 px squares (and the frame) the canvas stops shrinking and its space scrolls instead. */
 export const FLOOR_PX = 6 * 26 + 8;
 
-/** What stands with the canvas: its paints (Rub out besides), in opposite pairs or not; Hang it and Not this time, or the mirror. */
+/**
+ * What stands with the canvas: its paints (Rub out besides), in opposite pairs or not; Hang it and Not this time, or
+ * the mirror; and the room Expert's axis numbers take inside the canvas's size (0 on the other bands).
+ */
 export interface Controls {
   paints: number;
   pairs: boolean;
   free: boolean;
+  axes?: number;
 }
 
 export interface Fit {
@@ -86,7 +90,9 @@ export function fitCanvas({ w, h, heading, short }: { w: number; h: number; head
   const uCompact = short || small < full;
   const under: Fit = { size: Math.min(w, tall - GAP_UNDER - (uCompact ? small : full)), beside: false, compact: uCompact, tight: false };
   const best = bFits && beside.size >= under.size ? beside : under;
-  if (best.size >= FLOOR_PX) return { ...best, size: Math.floor(best.size) };
+  // The squares' floor: the axes' numbers come out of the canvas's size, not its squares (PR 14).
+  const floor = FLOOR_PX + (c.axes ?? 0);
+  if (best.size >= floor) return { ...best, size: Math.floor(best.size) };
   // Too small to tap well: the floor, under (beside it wouldn't fit across), and the space scrolls.
-  return { size: Math.min(FLOOR_PX, Math.floor(w)), beside: false, compact: true, tight: true };
+  return { size: Math.min(floor, Math.floor(w)), beside: false, compact: true, tight: true };
 }
