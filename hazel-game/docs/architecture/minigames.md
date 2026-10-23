@@ -358,7 +358,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   side from 640) — narrower tall windows stack like a phone, the step card
   under the chimes so it growing never moves one (and each step scrolls back
   to the board's top). The board itself puts the step beside the chimes on
-  any screen on its side from 560 px, under them on one held upright. A
+  any screen on its side from 560 px, under them on one held upright; the
+  Sounds switch sits over the chimes, but by the step's heading on a phone
+  under 640 px high (by its icon there). A
   step's buttons wait as it starts (`useSettled`), and the listen step's
   Next as it first appears too (a second settle, keyed on `heard` — for it
   alone) — a tap's, not a key's (`e.detail`); a held Enter rings a chime
@@ -367,13 +369,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   are staff, ear, staff (5–7 notes, all five chimes) and the `interval`
   step takes the shape's place: `asked` gives the two notes Lyra marks
   (`pairFor`: a perfect 5th where the notes make one, else the tune's turn
-  of `EXPERT_ASKS`, round by round — each made by its first five notes,
-  tested), `intervalOf` names what two chimes make (letter names for the
+  of `EXPERT_ASKS` — each made by its first five notes, tested — from the
+  next of the pairs that make it, `pairsMaking`; `echoFor`'s turn is the
+  round plus one each time the songbook's gone round, so each comes up read
+  and heard, and on Expert `roundQueue`'s third tune is `EXPERT_THIRD`'s
+  turn), `intervalOf` names what two chimes make (letter names for the
   number, `SEMITONES` for its kind), `intervalQuestion` asks it by the notes'
-  places and `intervalWords` gives the method either way; the staff's and
-  the slots' two notes are marked while it's asked. The chimes say their
-  letters only, Lyra speaks plainly, and an interval right at the first pick
-  with no wrong chime played back is `spotOn`.
+  places and `intervalWords` gives the method either way (the letters the
+  way the tune goes, the semitones step by step); the staff's and the
+  slots' two notes are marked while it's asked (a heard tune's from the
+  first listen; `listen(e, only)` plays the two alone). A double Enter's
+  second press on the chime or staff note focus just moved to does nothing
+  (`useFocusMoved`, every band). The chimes say their letters only, as does
+  what Lyra played for a reader; Lyra speaks plainly; the Songbook keeps
+  the tune being played `held` and every page's notes hidden (`bare`) till
+  it's echoed; an interval right at the first pick with no wrong chime
+  played back is `spotOn`, and the reward keeps the first missed tune's
+  lesson (`missedLesson`).
   **✨ Vela's Star Charts** (`coast-stargazer`, Vela, Starfall Coast — no
   quest of her own, so ✨ is her gold offer; `lib/minigames/stars.ts`,
   `features/minigames/stars/`): star pictures and how far starlight travels.

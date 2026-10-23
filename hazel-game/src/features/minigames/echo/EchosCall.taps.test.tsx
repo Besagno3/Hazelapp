@@ -39,6 +39,8 @@ afterEach(() => {
 const wait = (ms = SETTLE_MS) => act(() => void (now += ms));
 /** A tap: a click with a click count, as a finger's is (a key's has none, and isn't held back — PR 15). */
 const tap = (el: Element) => fireEvent.click(el, { detail: 1 });
+/** A key's press: no click count. */
+const key = (el: Element) => fireEvent.click(el, { detail: 0 });
 const play = (band: Band = 'gentle') => render(<EchosCall def={MINIGAMES['echos-call']} band={band} round={0} onPage={() => true} onFinish={() => {}} />);
 const chime = (n: string) => screen.getByRole('button', { name: new RegExp(`^${n},`) });
 /** Lyra plays to the end. */
@@ -115,7 +117,7 @@ describe('🎵 a double tap', () => {
     const { unmount } = play('expert');
     const iv = () => screen.getByRole('button', { name: 'Major 3rd' });
     tap(iv());
-    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Step 1 · The interval' })).toBeInTheDocument();
     wait();
     tap(iv());
     expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
@@ -123,5 +125,48 @@ describe('🎵 a double tap', () => {
     play('expert');
     fireEvent.click(iv(), { detail: 0 });
     expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
+  });
+
+  it('Expert: a double Enter’s second, on the chime focus moved to, plays nothing; another chime at once, or that one a moment later, does', () => {
+    play('expert');
+    const e = echoFor('expert', 0, 0, roundQueue('expert', () => false, 0)); // Hot Cross Buns: E D C E D
+    const letter = (n: string) => screen.getByRole('button', { name: n });
+    const card = () => document.getElementById('ec-play')?.textContent ?? '';
+    key(screen.getByRole('button', { name: 'Major 3rd' }));
+    expect(letter('C')).toHaveFocus();
+    // UX and code review round 1: it rang C as the first note — a wrong chime, the seal gone.
+    key(letter('C'));
+    expect(card()).toMatch(/0 of 5 played\.$/);
+    expect(screen.queryByText(/^That was C\./)).toBeNull();
+    key(letter(e.notes[0]));
+    expect(card()).toMatch(/1 of 5 played\.$/);
+    wait();
+    key(letter('C'));
+    expect(screen.getAllByText(/^That was C\./).length).toBeGreaterThan(0);
+  });
+
+  it('Tricky: a double Enter’s second, on the staff note focus moved to, picks nothing; another note at once, or that one a moment later, does', () => {
+    play('tricky');
+    const queue = roundQueue('tricky', () => false, 0);
+    const read = echoFor('tricky', 0, 0, queue);
+    const note = (k: number) => screen.getByRole('button', { name: new RegExp(`^Note ${k}:`) });
+    const said = () => screen.getAllByText(/./, { selector: 'p.min-h-\\[4\\.25rem\\]' })[0]?.textContent;
+    // Keys aren't held back as a step starts: the shape, Next tune, Listen, Next.
+    key(screen.getByRole('button', { name: 'Lower' }));
+    for (const n of read.notes) tap(chime(n));
+    key(screen.getByRole('button', { name: 'Next tune' }));
+    key(screen.getByRole('button', { name: '▶ Listen' }));
+    toTheEnd();
+    key(screen.getByRole('button', { name: 'Next — which was wrong?' }));
+    expect(screen.getByRole('heading', { name: 'Step 2 · Which note was wrong?' })).toBeInTheDocument();
+    expect(note(1)).toHaveFocus();
+    // Code and UX review round 1: it picked the first note — never the wrong one.
+    key(note(1));
+    expect(said()).toBe('Which one didn’t match the chimes?');
+    key(note(2));
+    expect(said()).toMatch(/^The second note was right/);
+    wait();
+    key(note(1));
+    expect(said()).toMatch(/^The first note was right/);
   });
 });
