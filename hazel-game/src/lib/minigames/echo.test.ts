@@ -13,11 +13,13 @@ import {
   intervalWords,
   pairFor,
   pairsMaking,
+  type Echo,
   PLACE,
   STAFF_LINES,
   ECHOES_PER_ROUND,
   NOTES,
   TUNES,
+  TUNE_BY_ID,
   TUNE_IDS,
   echoFor,
   echoWords,
@@ -35,8 +37,8 @@ import {
 } from './echo';
 import { BANDS, type PlayBand } from '../../content/minigames';
 
-/** Words with their no-break spaces as spaces. */
-const said = (s: string) => s.replace(/\u00a0/g, ' ');
+/** Words with their no-break spaces as spaces, and no word joiners. */
+const said = (s: string) => s.replace(/\u00a0/g, ' ').replace(/\u2060/g, '');
 const echoes = (band: PlayBand) => Array.from({ length: 24 }, (_, k) => echoFor(band, Math.floor(k / ECHOES_PER_ROUND), k % ECHOES_PER_ROUND));
 
 describe('the chimes (docs/DESIGN-MINIGAMES.md §5.5)', () => {
@@ -272,6 +274,41 @@ describe('Expert: intervals (§8.5)', () => {
     expect(roundQueue('expert', () => false, 0)).toEqual(['hot-cross-buns', 'mary', 'lightly-row', 'frere-jacques', 'au-clair', 'aunt-rhody', 'ode-to-joy', 'old-macdonald']);
   });
 
+  it('the third tune asks its intervals in turn, each time it comes third, from every pair in time; every kind in a new teen’s first rounds (code and UX review round 2)', () => {
+    // Its asks one after another, alternating — not eight of one in a row.
+    for (const id of ['old-macdonald', 'ode-to-joy'] as const) {
+      const rounds = Array.from({ length: 48 }, (_, r) => r).filter((r) => EXPERT_THIRD[r % 3] === id);
+      const asks = rounds.map((r) => asked(echoFor('expert', r, 2, roundQueue('expert', () => true, r)))!);
+      for (let k = 1; k < asks.length; k++) expect(asks[k].interval, `${id} #${k}`).not.toBe(asks[k - 1].interval);
+      // Every pair of its seven notes that makes one of its asks comes up.
+      const notes = TUNE_BY_ID[id].opening;
+      for (const iv of EXPERT_ASKS[id]) expect(new Set(asks.filter((q) => q.interval === iv).map((q) => q.at.join('-'))).size, `${id} ${iv}`).toBe(pairsMaking(notes, iv).length);
+    }
+    // A new teen meets every kind in the first six rounds, the minor 2nd by the third.
+    const seen = (upTo: number) => new Set(Array.from({ length: upTo * 3 }, (_, k) => asked(echoFor('expert', Math.floor(k / 3), k % 3, roundQueue('expert', () => false, Math.floor(k / 3))))!.interval));
+    expect(seen(6)).toEqual(new Set(INTERVALS));
+    expect(seen(3).has('m2')).toBe(true);
+  });
+
+  it('every two chimes, either way: the letters the way it goes, the semitones step by step, and its kind', () => {
+    const KINDS = { m: 'minor', M: 'major', P: 'perfect' } as const;
+    for (const a of NOTES)
+      for (const b of NOTES) {
+        const iv = intervalOf(a, b);
+        if (!iv) continue;
+        const e: Echo = { tune: 'mary', mode: 'staff', notes: [a, b], played: [a, b], wrongAt: null, chimes: NOTES, pair: [0, 1] };
+        const words = said(intervalWords(e, iv));
+        const semis = Math.abs(SEMITONES[a] - SEMITONES[b]);
+        const up = height(b) > height(a);
+        const letters = up ? NOTES.slice(height(a), height(b) + 1) : NOTES.slice(height(b), height(a) + 1).reverse();
+        expect(words, `${a}–${b}`).toContain(`${a} ${up ? 'up' : 'down'} to ${b}: ${letters.length} letter names, ${letters.join(' ')}`);
+        expect(words, `${a}–${b}`).toMatch(new RegExp(`${semis} semitones? — ${KINDS[iv[0] as 'm' | 'M' | 'P']}\\.$`));
+        // The steps add up.
+        const steps = [...words.matchAll(/[A-G]–[A-G] (\d)/g)].map((m) => Number(m[1]));
+        if (letters.length > 2) expect(steps.reduce((x, y) => x + y, 0), `${a}–${b}`).toBe(semis);
+      }
+  });
+
   it('the question by the notes’ places, not their names; the answer, the method either way', () => {
     const e = echoFor('expert', 0, 0, ['ode-to-joy', 'mary', 'au-clair']); // E E F G G — staff
     expect(asked(e)).toEqual({ a: 'E', b: 'F', at: [0, 2], interval: 'm2' });
@@ -288,7 +325,7 @@ describe('Expert: intervals (§8.5)', () => {
     expect(intervalQuestion(heard)).toBe('From note 1 to note 4: what interval? Count the chimes from one to the other, both included.');
     // The letters the way the tune goes, and the semitones step by step (UX review round 1).
     expect(said(intervalWords(heard, 'P4'))).toBe('Yes, a perfect 4th. G down to D: 4 letter names, G F E D — a 4th; G–F 2 + F–E 1 + E–D 2 = 5 semitones — perfect.');
-    expect(intervalWords(heard, 'P4')).toContain('G–F\u00a02 + F–E\u00a01');
+    expect(intervalWords(heard, 'P4')).toContain('G–\u2060F\u00a02 + F–\u2060E\u00a01');
     expect(echoWords(heard)).toMatch(/^Listen to Lyra’s six notes: name the interval/);
     expect(learnedLine(heard)).toBe('Old MacDonald starts G G G D E E: G to D is a perfect 4th, 5 semitones — a 4th of 5 semitones is perfect.');
     // Down a 3rd, and Lightly Row's 5th.

@@ -372,22 +372,25 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   the staff, hears one, reads one (five to seven notes on all five chimes),
   and in each Lyra marks two notes — by their place in the tune, not their
   names: "From note 1 to note 3: what interval?" — to name from six: a minor
-  or major 2nd, a minor or major 3rd, a perfect 4th or 5th. A heard tune's
-  two are marked from the first listen, and "▶ Notes 1 and 2" plays them
-  alone. Whichever is picked, she gives the method, step by step the way
+  or major 2nd, a minor or major 3rd, a perfect 4th or 5th (in columns by
+  number). A heard tune's two are marked from the first listen, and "▶ Notes
+  1 and 2" plays them alone; the marks stay, fainter, as it's played back. Whichever is picked, she gives the method, step by step the way
   the tune goes: "E down to C: 3 letter names, E D C — a 3rd; E–D 2 + D–C 2
   = 4 semitones — major." — then the tune's played back. Each tune asks the
-  intervals its own notes make, in turn, read and heard alike, from another
-  pair of its notes each time it comes round (most here make only 2nds and
+  intervals its own notes make, in turn, read and heard alike (but the 5th,
+  only in Lightly Row's seven notes, always read), from another pair of its
+  notes each time it comes round (most here make only 2nds and
   3rds; Ode to Joy a minor 2nd and 3rd, Old MacDonald a perfect 4th, Lightly
   Row a 4th and, at seven notes, a perfect 5th — asked wherever it's there).
   A round's third tune, the longest, is Lightly Row, Old MacDonald or Ode to
-  Joy in turn, so every round asks a minor or perfect one and the 5th comes
-  every third round. The chimes keep their letters, not their colours'
+  Joy in turn, each asking its intervals in turn as it comes, so every round
+  asks a minor or perfect one, the 5th comes every third round and a new
+  teen meets every kind in the first six. The chimes keep their letters, not their colours'
   names; Lyra speaks plainly; while a tune's played its Songbook page stays
   shut and no page shows its notes. Every interval named at the first pick
   and every tune played back with no wrong chime is the Expert seal, and the
-  reward teaches the first missed tune's interval. An octave, keys and
+  reward teaches the first tune whose interval was missed (else the first
+  with a wrong chime). An octave, keys and
   sharps and flats would need more chimes — not built (§8.5).
 
 ### 5.6 ✨ Vela's Star Charts — Space · Vela, Vela's Observatory, Starfall Coast

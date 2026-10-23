@@ -118,9 +118,11 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
   // Expert's seal (§8.3): each tune's interval named at the first pick and played back with no wrong chime.
   const [missed, setMissed] = useState(false);
   const [ivMissed, setIvMissed] = useState(false);
+  const [chimeMissed, setChimeMissed] = useState(false);
   const [spotOn, setSpotOn] = useState(0);
-  // The first missed tune's lesson, for the reward on Expert, as the other games' (UX and code review round 1).
-  const missedLesson = useRef<string | null>(null);
+  // The reward's lesson on Expert: the first tune whose interval was missed — what's taught — else the first missed at
+  // all (UX and code review round 1; round 2: a chime's slip came before a missed interval).
+  const missedLesson = useRef<{ interval: string | null; any: string | null }>({ interval: null, any: null });
   const [read, setRead] = useState<TuneId | null>(null);
   const known = (id: TuneId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts; the listen step's Next as it first appears too, when Lyra's done (review
@@ -215,6 +217,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
     if (judge(echo, i, n) !== 'right') {
       setShake((s) => ({ at: i, n: (s?.n ?? 0) + 1 }));
       setMissed(true);
+      setChimeMissed(true);
       return;
     }
     setShake(null);
@@ -225,7 +228,8 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
     setNewPage(onPage(echo.tune, tune.name));
     const lesson = learnedLine(echo);
     setLessons((l) => [...l, lesson]);
-    if (missed) missedLesson.current ??= lesson;
+    if (ivMissed) missedLesson.current.interval ??= lesson;
+    if (missed) missedLesson.current.any ??= lesson;
     setRights((r) => r + 1);
     if (!missed) setSpotOn((k) => k + 1);
     setStep('done');
@@ -284,13 +288,15 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
     setRead(null);
     if (done + 1 >= ECHOES_PER_ROUND) {
       const last = lessons[lessons.length - 1] ?? '';
-      onFinish({ title: 'Three tunes echoed!', learned: (expert && missedLesson.current) || last, spotOn: expert ? { right: spotOn, of: ECHOES_PER_ROUND } : undefined });
+      const lesson = expert ? (missedLesson.current.interval ?? missedLesson.current.any) : null;
+      onFinish({ title: 'Three tunes echoed!', learned: lesson || last, spotOn: expert ? { right: spotOn, of: ECHOES_PER_ROUND } : undefined });
       return;
     }
     const e = echoFor(band, round, done + 1, queue);
     setDone((d) => d + 1);
     setMissed(false);
     setIvMissed(false);
+    setChimeMissed(false);
     setStep(e.mode === 'staff' ? ask : 'listen');
     setHeard(false);
     setPlaying(false);
@@ -342,7 +348,13 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
 
   const n = echo.notes.length;
   // On Expert after a miss, not "Right." — it read as the interval's (UX review round 1).
-  const expertDone = !missed ? EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length] : ivMissed ? 'Played back — the interval was the miss.' : 'Played back, after a wrong chime.';
+  const expertDone = !missed
+    ? EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]
+    : ivMissed && chimeMissed
+      ? 'Played back — the interval and a chime were the misses.'
+      : ivMissed
+        ? 'Played back — the interval was the miss.'
+        : 'Played back, after a wrong chime.';
   const cheerLine = expert
     ? `${expertDone} ${done + 1 < ECHOES_PER_ROUND ? 'Next tune.' : 'That’s the last.'}`
     : `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < ECHOES_PER_ROUND ? 'Ready for the next one?' : 'Take a bow!'}`;
@@ -376,7 +388,8 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
   // The two notes Expert asks about, marked on the staff or the slots while it's asked — and, heard, from the first
   // listen, so it can be aimed at them (UX review round 1).
   const q = asked(echo);
-  const marked = step === 'interval' || step === 'listen' ? (q?.at ?? null) : null;
+  // Played back too, paler: the method names them (UX review round 2: it had nothing on the staff to point at).
+  const marked = step === 'interval' || step === 'listen' || step === 'play' ? (q?.at ?? null) : null;
   const showStaff = echo.mode !== 'ear';
   const canListen = echo.mode !== 'staff' || step === 'done';
   const spotting = step === 'spot';
@@ -432,7 +445,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
               busy={playing}
               still={still}
               named={!expert}
-              describedBy={step === 'play' ? 'ec-play' : undefined}
+              describedBy={step === 'play' ? 'ec-play ec-said' : undefined}
               onTap={tap}
             />
             {/* Which way is higher, in sight: a higher note is a shorter chime, so a tune going up can look like it's going
@@ -454,7 +467,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
           <div
             className={cn(
               windowClass,
-              'flex flex-col gap-2.5 p-3 [&>*]:flex-none split:overflow-y-auto split:[@media(orientation:portrait)]:min-h-0 split:[@media(orientation:portrait)]:flex-1 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:min-w-0 [@media(min-width:560px)_and_(max-height:500px)]:flex-1 [@media(max-height:640px)]:gap-2 [@media(max-height:500px)]:p-2.5',
+              'flex flex-col gap-2.5 p-3 [&>*]:flex-none split:overflow-y-auto split:[@media(orientation:portrait)]:min-h-0 split:[@media(orientation:portrait)]:flex-1 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:min-w-0 [@media(min-width:560px)_and_(max-height:500px)]:flex-1 [@media(min-height:501px)_and_(max-height:640px)]:gap-2 [@media(max-height:500px)]:gap-1.5 [@media(max-height:500px)]:p-2.5',
             )}
           >
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
@@ -471,7 +484,8 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                   aria-describedby="ec-result"
                   className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}
                 >
-                  {tune.name}!
+                  {tune.name}
+                  {expert ? '' : '!'}
                 </h2>
               ) : (
                 <h2
@@ -479,13 +493,19 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                   ref={stepHead}
                   tabIndex={-1}
                   aria-describedby={step === 'play' ? undefined : 'ec-job'}
-                  className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none [@media(max-height:500px)]:text-[19px] [@media(min-height:501px)_and_(max-height:640px)]:text-[22px]', focusRing)}
+                  // On the narrowest short split card (667 × 375), a size smaller, so it's one line (UX review round 2: two,
+                  // it was cut as the step brought Listen again into view).
+                  className={cn(
+                    pixelHeadClass,
+                    'self-start rounded text-[24px] leading-none [@media(max-width:639px)_and_(max-height:500px)]:text-[19px] [@media(min-width:720px)_and_(max-height:500px)]:text-[19px] [@media(min-width:640px)_and_(max-width:719px)_and_(max-height:500px)]:text-[17px] [@media(min-height:501px)_and_(max-height:640px)]:text-[22px]',
+                    focusRing,
+                  )}
                 >
                   {stepTitle(step, echo.mode)}
                 </h2>
               )}
               <span className="hidden flex-none [@media(max-width:559px)_and_(max-height:640px)]:flex [@media(min-width:560px)_and_(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:flex">
-                <SoundToggle />
+                <SoundToggle compact />
               </span>
             </div>
             {step === 'done' ? (
@@ -495,10 +515,10 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
                 <p id="ec-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
                   {lessons[lessons.length - 1]}
-                  {newPage && ` ${tune.name} is in the Songbook!`}
+                  {newPage && ` ${tune.name} is in the Songbook${expert ? '.' : '!'}`}
                 </p>
                 <button ref={goRef} type="button" onClick={next} className={cn(goldClass, 'text-lg [@media(max-height:500px)]:px-3 [@media(max-height:500px)]:text-base')}>
-                  {done + 1 < ECHOES_PER_ROUND ? 'Next tune' : 'Take a bow!'}
+                  {done + 1 < ECHOES_PER_ROUND ? 'Next tune' : expert ? 'Finish the round' : 'Take a bow!'}
                 </button>
                 <button type="button" onClick={listen} aria-disabled={playing || undefined} className={cn(outlineClass, 'min-h-11 border-2 px-3 text-sm')}>
                   {playing ? '♪ Listening…' : '▶ Hear it again'}
@@ -512,7 +532,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                       {echo.mode === 'wrong'
                         ? 'One of Lyra’s notes won’t match the staff. Watch the chimes and find it!'
                         : q
-                          ? `Lyra plays ${n} notes; I’ll ask about notes ${q.at[0] + 1} and ${q.at[1] + 1}, marked. Watch the chimes${soundOn ? ' and listen.' : ', or tap 🔇 Sounds to hear them too.'}`
+                          ? `Lyra plays ${n} notes and asks about notes ${q.at[0] + 1} and ${q.at[1] + 1}, marked. Watch the chimes${soundOn ? ' and listen.' : ', or tap 🔇 Sounds to hear them too.'}`
                           : `Lyra plays ${n} notes. Watch the chimes light up${soundOn ? ' — and listen!' : ' — or tap 🔇 Sounds to hear them too.'}`}
                     </p>
                     {/* One button for Listen, then Listen again — where a kid taps again; Next comes in under it, its room
@@ -563,16 +583,22 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                 )}
                 {step === 'interval' && (
                   <>
-                    {/* How to count, read out but not shown on a short split screen: Lyra's bubble beside says it (UX review
-                        round 1: the card hadn't the room for the answers and Listen again). */}
+                    {/* How to count, read out but not shown on a heard tune on a short split screen: Lyra's bubble beside says
+                        it (UX review round 1: the card hadn't the room for the answers and Listen again; round 2: a staff
+                        tune's card has, and the bubble's narrow). */}
                     <p id="ec-question" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
                       {intervalQuestion(echo, true)}
-                      <span className="split:[@media(max-height:640px)]:sr-only"> {countHow(echo)}</span>
+                      <span className={cn(canListen && 'split:[@media(max-height:640px)]:sr-only')}> {countHow(echo)}</span>
                     </p>
                     {/* Three across, a name on two lines, so all six fit; the step brings the last into view (UX review
-                        round 1: two across, the perfect 4th and 5th started out of sight). Two across on a card too narrow
-                        for "Perfect" (a phone on its side, 667 × 375), where the room under them is. */}
-                    <div role="group" aria-labelledby="ec-question" className="grid grid-cols-3 gap-1.5 [@media(min-width:640px)_and_(max-width:719px)_and_(max-height:500px)]:grid-cols-2">
+                        round 1: two across, the perfect 4th and 5th started out of sight) — in columns by number, minor over
+                        major (round 2: across, each 3rd's pair was split between rows). Two across on a card too narrow for
+                        "Perfect" (a phone on its side, 667 × 375), where the room under them is, paired by row. */}
+                    <div
+                      role="group"
+                      aria-labelledby="ec-question"
+                      className="grid grid-flow-col grid-cols-3 grid-rows-2 gap-1.5 [@media(min-width:640px)_and_(max-width:719px)_and_(max-height:500px)]:grid-flow-row [@media(min-width:640px)_and_(max-width:719px)_and_(max-height:500px)]:grid-cols-2 [@media(min-width:640px)_and_(max-width:719px)_and_(max-height:500px)]:grid-rows-none"
+                    >
                       {INTERVALS.map((iv, k) => (
                         <button
                           key={iv}
@@ -593,7 +619,8 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                         <ListenAgain onClick={listen} playing={playing} />
                         {/* Heard, the step's last: brought into view with the six (UX review round 1). */}
                         <button ref={goRef} type="button" onClick={(e) => listen(e, q.at)} aria-disabled={playing || undefined} className={cn(outlineClass, 'min-h-11 border-2 px-2 py-1 text-sm leading-tight')}>
-                          ▶ Notes {q.at[0] + 1} and {q.at[1] + 1}
+                          ▶ Notes {q.at[0] + 1} and{'\u00a0'}
+                          {q.at[1] + 1}
                         </button>
                       </div>
                     )}
@@ -613,7 +640,7 @@ export default function EchosCall({ def, band, round, onPage, onFinish }: PlayPr
                     <p id="ec-play" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
                       {echo.mode === 'staff' ? 'Play the staff’s notes on the chimes, left to right.' : echo.mode === 'wrong' ? 'Play what the staff says — with the right note.' : 'Tap the chimes in the same order.'} {got.length} of {n} played.
                     </p>
-                    <Said text={said ?? ''} />
+                    <Said id="ec-said" text={said ?? ''} />
                     {canListen && <ListenAgain onClick={listen} playing={playing} />}
                   </>
                 )}
@@ -660,9 +687,12 @@ function stepTitle(step: Step, mode: Echo['mode']): string {
  * What Lyra said of the last answer, in the step's card by the chimes too: on a phone her bubble's below the fold (review
  * round 1: a wrong chime went unexplained). Room for the longest, so nothing under it moves; not read out — her bubble is.
  */
-function Said({ text }: { text: string }) {
+function Said({ text, id }: { text: string; id?: string }) {
   return (
-    <p className="flex min-h-[4.25rem] flex-none items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]">
+    <p
+      id={id}
+      className="flex min-h-[4.25rem] flex-none items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px] [@media(min-height:501px)_and_(max-height:640px)]:min-h-[3.75rem]"
+    >
       {text}
     </p>
   );
@@ -680,7 +710,7 @@ function ListenAgain({ onClick, playing, goRef }: { onClick: (e: { detail: numbe
  * Sound on or off — the device's sound effects (all of them, not just the chimes: so "Sounds"), here where they matter
  * most. Its name stays put; pressed is on. Turned on, a chime rings at once, in the tap.
  */
-function SoundToggle() {
+function SoundToggle({ compact = false }: { compact?: boolean }) {
   const on = useSettingsStore((s) => s.sfx);
   const setSfx = useSettingsStore((s) => s.setSfx);
   return (
@@ -694,8 +724,9 @@ function SoundToggle() {
       className={cn('flex min-h-11 items-center gap-1.5 rounded-lg border-2 px-2.5 text-[13px] font-bold', on ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a]', focusRing)}
     >
       <span aria-hidden="true">{on ? '🔊' : '🔇'}</span>
-      {/* Its name read only, under 640 px high, where it's by the step's heading (UX review round 1: it overflowed the card). */}
-      <span className="[@media(max-height:640px)]:sr-only">Sounds</span>
+      {/* By the step's heading on a short phone, its name read only (UX review round 1: it overflowed the card) — over the
+          chimes, where there's room, shown (round 2: it was hidden there too, while Lyra says "tap 🔇 Sounds"). */}
+      <span className={cn(compact && 'sr-only')}>Sounds</span>
       <span aria-hidden="true" className={cn('rounded px-1 text-[11px] uppercase', on ? 'bg-amber-300 text-[#1b0f22]' : 'bg-[#1b0f22] text-[#c9c5f2]')}>
         {on ? 'on' : 'off'}
       </span>
@@ -813,7 +844,8 @@ function Slots({
               // Shaken first: lit as Lyra passes it, it keeps its shake (round 2: it restarted) and its red ring.
               shaken ? 'cg-shake border-red-400 bg-[#24215a]' : n || lit ? 'border-[#1b0f22]' : nextUp ? 'border-dashed border-amber-300 bg-[#24215a]' : 'border-[#8f8ad0] bg-[#24215a]',
               lit && 'shadow-[0_0_0_3px_#ffffff]',
-              asked && !lit && 'border-solid border-amber-300 shadow-[0_0_0_3px_#fbbf24]',
+              // Asked about: a gold ring — fainter while it's played back, the next slot's dashed border reading through.
+              asked && !lit && (playing ? 'shadow-[0_0_0_2px_rgba(251,191,36,0.6)]' : 'border-solid border-amber-300 shadow-[0_0_0_3px_#fbbf24]'),
             )}
             style={lit ? { background: '#ffffff', color: '#1b0f22' } : n ? { background: CHIME[n].colour, color: n === 'G' ? '#ffffff' : '#1b0f22' } : undefined}
           >
@@ -882,7 +914,8 @@ const Staff = forwardRef<
       const svg = (
         <svg aria-hidden="true" viewBox={`0 0 30 ${STAFF_H}`} className="h-full w-full">
           {on && <path data-marker="" d="M9 2 h12 l-6 8 z" fill="#1b0f22" />}
-          {n === 'C' && <line data-ledger="" x1="6" x2="24" y1={y} y2={y} stroke="#1b0f22" strokeWidth="1.6" />}
+          {/* Past the head either side, as thick as the staff's lines (UX review round 2: as wide as the head, it hid). */}
+          {n === 'C' && <line data-ledger="" x1="1" x2="29" y1={y} y2={y} stroke="#1b0f22" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />}
           <ellipse cx="15" cy={y} rx="7.5" ry="5.5" transform={`rotate(-20 15 ${y})`} fill="#1b0f22" />
           <line x1="21.5" x2="21.5" y1={y - 2} y2={y - 34} stroke="#1b0f22" strokeWidth="2" />
         </svg>
@@ -897,9 +930,10 @@ const Staff = forwardRef<
         'relative h-full max-w-[56px] flex-1 rounded',
         on && 'bg-amber-300/50 ring-[3px] ring-inset ring-[#1b0f22]',
         !on && shaken && 'cg-shake ring-[3px] ring-inset ring-red-500',
-        !on && !shaken && nextAt === k && 'outline-dashed outline-2 -outline-offset-2 outline-amber-600',
-        // The two Expert asks about: a pale gold tint and a ring.
-        !on && askedHere && 'bg-amber-300/30 ring-[3px] ring-inset ring-amber-700',
+        !on && !shaken && nextAt === k && 'outline-dashed outline-2 -outline-offset-2 outline-amber-700',
+        // The two Expert asks about: a pale gold tint and a ring — while it's played back, a fainter ring, the next note's
+        // dashed outline reading through.
+        !on && !shaken && askedHere && (nextAt === null ? 'bg-amber-300/30 ring-[3px] ring-inset ring-amber-700' : 'ring-2 ring-inset ring-amber-600/70'),
       );
       return spotting ? (
         <button
@@ -955,11 +989,12 @@ function MusicHouse({ playing, cheer }: { playing: boolean; cheer: boolean }) {
   const lyra = NPC_DEFS['chromaria-musician'];
   return (
     <div className="absolute inset-0 flex items-end justify-center gap-[14%] bg-[linear-gradient(#3e2a6b_0_68%,#2a1c4a_68%_100%)] px-3 pb-[4%]">
-      <span>
+      {/* Smaller where the house's row is short (UX review round 2: at 1280 × 505 Lyra's head was cut off). */}
+      <span className="origin-bottom [@media(max-height:600px)]:scale-[0.7]">
         <EmberSprite anim={cheer ? 'cheer' : undefined} scale={3} />
       </span>
       <span className={cn('absolute left-1/2 top-[14%] -translate-x-1/2 text-4xl text-amber-200 transition-opacity', playing ? 'opacity-100' : 'opacity-25')}>♪ ♫ ♪</span>
-      <span className="flex items-end">{lyra && <CharacterPortrait spriteId={npcSpriteId(lyra, flags)} emoji={npcEmoji(lyra, flags)} scale={3} className="text-5xl" />}</span>
+      <span className="flex origin-bottom items-end [@media(max-height:600px)]:scale-[0.7]">{lyra && <CharacterPortrait spriteId={npcSpriteId(lyra, flags)} emoji={npcEmoji(lyra, flags)} scale={3} className="text-5xl" />}</span>
     </div>
   );
 }

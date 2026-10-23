@@ -223,8 +223,11 @@ export function echoFor(band: PlayBand, round: number, i: number, queue?: readon
   const notes = t.opening.slice(0, LENGTHS[band][i]);
   const mode: Mode = band === 'tricky' ? TRICKY_MODES[i] : band === 'expert' ? EXPERT_MODES[i] : 'ear';
   // A tune's turn: the round, and one more each time the songbook's gone round (UX and code review round 1: by the round
-  // alone, a tune read always asked one interval and heard the other).
-  const pair = band === 'expert' ? pairFor(t.id, notes, round + Math.floor((round * ECHOES_PER_ROUND + i) / TUNES.length)) : null;
+  // alone, a tune read always asked one interval and heard the other) — the third tune's, how many times it's been third
+  // (round 2: it comes every third round, so the round's turn hardly moved, and Ode to Joy asked a minor 3rd eight times
+  // running).
+  const turn = i === ECHOES_PER_ROUND - 1 ? Math.floor(round / EXPERT_THIRD.length) : round + Math.floor((round * ECHOES_PER_ROUND + i) / TUNES.length);
+  const pair = band === 'expert' ? pairFor(t.id, notes, turn) : null;
   if (mode !== 'wrong') return { tune: t.id, mode, notes, played: notes, wrongAt: null, chimes: CHIMES[band], pair };
   // A note in the middle changed by a step — up, unless it's at the top — so the shape around it gives it away.
   const at = 1 + ((round + i) % (notes.length - 2));
@@ -293,8 +296,8 @@ export function intervalWords(echo: Echo, said: Interval): string {
   const up = height(q.b) > height(q.a);
   const letters = up ? NOTES.slice(height(q.a), height(q.b) + 1) : NOTES.slice(height(q.b), height(q.a) + 1).reverse();
   const semis = Math.abs(SEMITONES[q.a] - SEMITONES[q.b]);
-  // Each step a no-break space from its count, so "E–F 1" stays on a line.
-  const steps = letters.slice(1).map((n, k) => `${letters[k]}–${n}\u00a0${Math.abs(SEMITONES[n] - SEMITONES[letters[k]])}`);
+  // Each step on a line: a word joiner after its dash, a no-break space before its count (round 2: "E–" / "D 2").
+  const steps = letters.slice(1).map((n, k) => `${letters[k]}–\u2060${n}\u00a0${Math.abs(SEMITONES[n] - SEMITONES[letters[k]])}`);
   const count = steps.length > 1 ? `${steps.join(' + ')} = ${semis} semitones` : `${semis} semitone${semis === 1 ? '' : 's'}`;
   const method = `${q.a} ${up ? 'up' : 'down'} to ${q.b}: ${letters.length} letter names, ${letters.join(' ')} — a ${ORDINAL_NUM[letters.length]}; ${count} — ${KIND[q.interval]}.`;
   return said === q.interval ? `Yes, a ${INTERVAL_NAME[q.interval]}. ${method}` : `Not a ${INTERVAL_NAME[said]}. ${method} A ${INTERVAL_NAME[q.interval]}.`;

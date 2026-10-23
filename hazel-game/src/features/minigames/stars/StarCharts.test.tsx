@@ -396,14 +396,16 @@ describe('✨ Expert: sky coordinates (§8.5)', () => {
     expect(star('caph')).toHaveAttribute('aria-pressed', 'true');
     joinAll(cas);
     // The fact card: where it is in the sky; plainly.
-    expect(screen.getByRole('heading', { name: 'Cassiopeia' })).toHaveAccessibleDescription(`${learnedLine(cas, 'expert')} Cassiopeia is on Vela’s chart!`);
-    expect(screen.getAllByText(/^That’s it\. Next picture\.$/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Cassiopeia' })).toHaveAccessibleDescription(`${learnedLine(cas, 'expert')} Cassiopeia is on Vela’s chart.`);
+    // After a miss, not "That's it." — it read as the last answer's.
+    expect(screen.getAllByText(/^Joined, with a miss on the way\. Next picture\.$/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
     await screen.findByText('Picture 2 of 3');
 
-    // Picture 2: found first time.
+    // Picture 2: found first time — plainly right.
     press(dip.find!);
     joinAll(dip);
+    expect(screen.getAllByText(/^Joined\. Next picture\.$/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
     await screen.findByText('Picture 3 of 3');
 

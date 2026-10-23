@@ -194,7 +194,8 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
       return `${name}’s lines are all joined. Start the next from ${shortName(picture, open[0])} or ${shortName(picture, open[1])}.`;
     const other = hint?.includes(id) ? hint.find((h) => h !== id) : undefined;
     const next = other ? `${shortName(picture, other)} — it’s glowing` : job.outline ? 'the next star along a dotted line' : 'a star it’s joined to';
-    return `${again ? `You’ve picked ${name}.` : `${name}!`} Now tap ${next}.`;
+    // On Expert plainly (§8.3).
+    return `${again ? `You’ve picked ${name}.` : `${name}${expert ? '.' : '!'}`} Now tap ${next}.`;
   }
 
   /** A star tapped (or pressed — `key`, not held back): the North Star's hunt, Expert's star to find, or a join. */
@@ -328,7 +329,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
     setRead(null);
     setHint(line);
     setPicked(from);
-    setSaid(`Here’s one: ${shortName(picture, from)} to ${shortName(picture, to)} — they’re glowing. ${from === picked ? 'Now' : `I’ve picked ${shortName(picture, from)}:`} tap ${shortName(picture, to)}!`);
+    setSaid(`Here’s one: ${shortName(picture, from)} to ${shortName(picture, to)} — they’re glowing. ${from === picked ? 'Now' : `I’ve picked ${shortName(picture, from)}:`} tap ${shortName(picture, to)}${expert ? '.' : '!'}`);
   }
 
   function next(e: { detail: number }) {
@@ -399,7 +400,9 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
   let line: string;
   if (read) line = `${PICTURE_BY_ID[read].name}: ${PICTURE_BY_ID[read].note}`;
   // Her cheer when a picture's whole (the last join's words would cover it).
-  else if (step === 'done' && expert) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next picture.' : 'That’s the night.'}`;
+  // On Expert after a miss, not "That's it." — it read as the last answer's (Echo's Call's UX review round 1).
+  else if (step === 'done' && expert)
+    line = `${missed ? 'Joined, with a miss on the way.' : EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next picture.' : 'That’s the night.'}`;
   else if (step === 'done') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Ready for the next?' : 'What a night’s work!'}`;
   else if (said) line = said;
   else if (step === 'north') line = HUNT_WORDS.start;
@@ -519,7 +522,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{line}</p>
                 <p id="sc-fact" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
                   {lessons[lessons.length - 1]}
-                  {newPage && ` ${capitalise(picture.called)} is on Vela’s chart!`}
+                  {newPage && ` ${capitalise(picture.called)} is on Vela’s chart${expert ? '.' : '!'}`}
                 </p>
                 <button ref={(el) => void (goRef.current = el)} type="button" onClick={(e) => next(e)} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base')}>
                   {done + 1 < JOBS_PER_ROUND ? 'Next picture' : 'Finish the night'}
