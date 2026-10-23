@@ -228,6 +228,17 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Built (PR 2):** Baker Dot also gives a quest, so the 🥧 button shows over
   her quest's offer and reminders (leaving them as they were) and never over its
   reward; the first morning gives a Sunseed Snack.
+- **Expert (§8, PR 12):** an order is a ratio, a rate or a percentage change —
+  "25% more pie than last week's 1 pie", "the bigger share of 1 pie, split
+  5 : 1", "enough for 4 people, when 1 pie feeds 6" — and the amount of pie is
+  the kid's to work out (eight orders, up to two pies, each a different
+  amount). Always two pies on the board, so it doesn't say whether the order
+  is more than one; the ticket shows the order's numbers ("+25%", "5 : 1"),
+  never its pie; a cut that can't make it is said after a miss, not as it's
+  picked. Dot says it plainly: "Too little. Work out 25% of 1 pie, then add it
+  on." A right box shows the working ("25% of 1 pie is a quarter, so 25% more
+  than 1 pie is one and a quarter pies."); every box right at its first close
+  is the Expert seal.
 
 ### 5.3 ⚙️ Clocktower Gears — Engineering · Tock, Gearfall Canyon
 
@@ -530,7 +541,7 @@ world, with the same host.
 | Game | On Expert | For example |
 |---|---|---|
 | 🧪 Potion Lab | The pH scale in numbers, counted in tens: an order asks for "a thousand times as acidic as pure water"; the kid guesses the jar's pH, 0–14, and Tadpole says where it sits and what neutralises it. | "Lemon juice is about pH 2: five steps below 7, so a hundred thousand times as acidic as pure water." |
-| 🥧 Dot's Bakery | Ratios and percent change: scale a recipe; an order or a price up or down by a percent. | "3 cups of flour for 2 pies — for 5?"; "20% more than 15 pies?" |
+| 🥧 Dot's Bakery | Ratios, rates and percentage change, boxed in pie: a share in a ratio, enough for so many people, a percentage more or less than last week's — the amount is the kid's to work out. | "25% less pie than last week's 2 pies"; "the smaller share of 1 pie, split 3 : 5" |
 | ⚙️ Clocktower Gears | Gear ratios: the ratio of teeth, two pairs in a train, speed traded for turning force. | "A 40 driving a 10, then a 30 driving a 15: how fast?" |
 | 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = c, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a shape onto another. | "Reflect (2, 5) in y = x." |
 | 🎵 Echo's Call | Intervals and keys: name the interval (a second to an octave), major or minor, which note a scale needs, sharps and flats on the staff. | "C up to G is a…" |

@@ -121,13 +121,20 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   shares; the ticket's picture too), so converting and adding are the kid's;
   Medium orders more than a pie; Tricky asks in percentages and decimals
   (`numberWords`, `asNumber`) and boxes two people's orders together
-  (`Order.with`); the reward keeps the morning's "is the same as" lesson
+  (`Order.with`); on Expert an order is a ratio, a rate or a percentage
+  change (`EXPERT_ASKS`, `Order.expert`: the ticket's `badge`, a miss's `how`,
+  a right box's `working`), always on two pies (`boardPies`), its cut hint
+  only after a miss (`cutHint` is null there; `verdictWords` says it), and
+  the boxes right at their first close are `spotOn`; the reward keeps the morning's "is the same as" lesson
   (`learnedLine`; more slices than a pie has are "Three halves is the same as
   one and a half pies."). The pies are in the step card on a phone (as wide
   as it, so an eighth can be tapped, but no taller than about a third of the
   screen, so the box and its button fit under them) and beside the steps from `sm` up,
   sized from the board (up to 260 px; the scene gets 45 % of the side, 88 px
-  on a short screen) so they stay in sight. The gold button scrolls into
+  on a short screen) so they stay in sight. In a side panel up to 700 px
+  high the step card comes first, with the order in it (`OrderLine`), so the
+  cuts start in view; in the 300 px panel (`sm` to `lg`) and on a 320 px
+  phone each cut has its word under its picture (`narrowCuts`). The gold button scrolls into
   view as a step starts, never on a slice tap, and what's in the box has a
   fixed height above − / +, so nothing moves under a kid's finger. On the
   board a slice in the box keeps its filling, lifted with a gold outline and

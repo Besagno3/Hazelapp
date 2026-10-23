@@ -7,13 +7,13 @@ import {
   REGULAR_BY_ID,
   SLICE,
   amountWords,
+  boardPies,
   boxWords,
   check,
   cutHint,
   learnedLine,
   morningQueue,
   orderFor,
-  piesFor,
   simplify,
   verdictWords,
   type Amount,
@@ -30,7 +30,6 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { PieArt } from './art';
 
 type Step = 'cut' | 'fill' | 'closed';
@@ -40,8 +39,9 @@ const EMPTY_FLAGS: Record<string, boolean> = {};
 /** A cut's name on its button: "Halves", "Thirds"… */
 const cutName = (cut: number) => SLICE[cut].many.charAt(0).toUpperCase() + SLICE[cut].many.slice(1);
 
-/** Dot after a right box, in turn. */
+/** Dot after a right box, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Perfect — fair and square!', 'Just what they ordered. You’ve got a baker’s eye!', 'Spot on! The regulars will be back tomorrow.'];
+const EXPERT_RIGHT_LINES = ['Right.', 'Exactly that.', 'That’s it.'];
 
 /**
  * 🥧 Dot's Bakery (docs/DESIGN-MINIGAMES.md §5.2), in Baker Dot's shop: three
@@ -49,11 +49,13 @@ const RIGHT_LINES = ['Perfect — fair and square!', 'Just what they ordered. Yo
  * slices, taps slices into the box (or uses − / +) and closes it. Any cut that
  * makes the amount is right; a box that's off is said back in words and can be
  * fixed. Each regular served right is a page of the Regulars' Book; those
- * not in it yet come in first. No timer. Rules: `lib/minigames/bakery.ts`.
+ * not in it yet come in first. On Expert (§8.5) an order is a ratio, a rate or
+ * a percentage change: the amount is the kid's to work out, always on two
+ * pies, a cut that can't make it said after a miss, and every box right first
+ * time is the Expert seal. No timer. Rules: `lib/minigames/bakery.ts`.
  */
-export default function DotsBakery({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayProps) {
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [served, setServed] = useState(0);
@@ -61,7 +63,7 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
   const [queue] = useState(() => morningQueue((id) => !!flags[pageFlag(def.id, id)], round));
   const order = useMemo(() => orderFor(band, round, served, queue), [band, round, served, queue]);
   const regular = REGULAR_BY_ID[order.regular];
-  const pies = piesFor(order.amount);
+  const pies = boardPies(band, order.amount);
   const [step, setStep] = useState<Step>('cut');
   const [cut, setCut] = useState<number | null>(null);
   // Which slices are in the box: pie by pie, slice by slice.
@@ -71,6 +73,9 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
   const [newPage, setNewPage] = useState(false);
   const [read, setRead] = useState<RegularId | null>(null);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each box right at its first close; a miss on this order means it isn't.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
   const count = taken.filter(Boolean).length;
   const known = (id: RegularId) => !!flags[pageFlag(def.id, id)];
 
@@ -134,7 +139,11 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
       setNewPage(onPage(order.regular, regular.name));
       setLessons((l) => [...l, learnedLine(count, cut, order)]);
       setRights((n) => n + 1);
-    } else sfx('wrong');
+      if (!missed) setSpotOn((n) => n + 1);
+    } else {
+      sfx('wrong');
+      setMissed(true);
+    }
     setStep('closed');
   }
 
@@ -159,10 +168,11 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
     if (served + 1 >= ORDERS_PER_ROUND) {
       // An "is the same as" lesson is the one worth keeping, if the morning had one.
       const learned = lessons.find((l) => l.includes('the same as')) ?? lessons[lessons.length - 1] ?? '';
-      onFinish({ title: 'Morning served!', learned });
+      onFinish({ title: 'Morning served!', learned, spotOn: expert ? { right: spotOn, of: ORDERS_PER_ROUND } : undefined });
       return;
     }
     setServed((n) => n + 1);
+    setMissed(false);
     setCut(null);
     setTaken([]);
     setVerdict(null);
@@ -185,7 +195,13 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
   const readRegular = read ? REGULAR_BY_ID[read] : null;
   // A page's note names the regular and their pie already (review round 1: said twice).
   if (readRegular) line = readRegular.note;
-  else if (step === 'cut') line = `${who} wants ${order.words}. ${question}`;
+  else if (expert) {
+    // Expert, plainly (§8.3): the order and what to do, no cheering.
+    if (step === 'cut') line = `${who} wants ${order.words}. How will you cut the pies?`;
+    else if (step === 'fill') line = `Box it: ${order.words}.`;
+    else if (verdict === 'right') line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Next customer.' : 'That’s the last order.'}`;
+    else line = 'Not quite. Fix the box, or cut it another way.';
+  } else if (step === 'cut') line = `${who} wants ${order.words}. ${question}`;
   else if (step === 'fill') line = hint ?? `Now tap slices into the box: ${who} wants ${order.words}.`;
   else if (verdict === 'right') line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${served + 1 < ORDERS_PER_ROUND ? 'Hand it over, then the next customer!' : 'That’s the last order of the morning!'}`;
   else line = 'Not quite! Have another look — you can change the slices, or cut it another way.';
@@ -223,7 +239,9 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
             </Ticket>
           </div>
 
-          <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first')}>
+          {/* The step card first where the side panel is short — up to 700 px high, where its cuts started below the fold
+              (all five even at 1366 × 650; PR 12 bench) — with the order in it (`OrderLine`). */}
+          <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first sm:[@media(max-height:700px)]:order-first')}>
             <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">
               Order {served + 1} of {ORDERS_PER_ROUND}
             </p>
@@ -241,7 +259,7 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
                 {/* Dot's bubble asks it — but while a book page has her bubble, the card does (review rounds 1 and 2). */}
                 {read && <p className="text-[15px] leading-snug text-[#e4e1ff]">{capFirst(question)}</p>}
                 {/* Three across, the picture over the word, where the panel is narrow (review round 1: "Quarters" was cut to "Quarter"). */}
-                <div role="group" aria-label="Cuts" className={cn('grid grid-cols-2 gap-2', CUTS[band].length > 2 && narrowCuts.grid)}>
+                <div role="group" aria-label="Cuts" className={cn('grid grid-cols-2 gap-2', CUTS[band].length > 2 && narrowCuts.grid, narrowCuts.panel)}>
                   {CUTS[band].map((c) => (
                     <button
                       key={c}
@@ -330,7 +348,7 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
                   <div className="min-w-0">
                     {/* Heard with what's in the box and what it means, as focus lands (review round 1). */}
                     <h2 ref={resultHead} tabIndex={-1} aria-describedby="bk-box bk-verdict" className={cn(pixelHeadClass, 'rounded text-[28px] text-white', focusRing)}>
-                      {verdict === 'right' ? 'Just right!' : verdict === 'too-little' ? 'Not quite enough' : 'A bit too much'}
+                      {expert ? (verdict === 'right' ? 'Right' : verdict === 'too-little' ? 'Too little' : 'Too much') : verdict === 'right' ? 'Just right!' : verdict === 'too-little' ? 'Not quite enough' : 'A bit too much'}
                     </h2>
                     <p id="bk-box" className="mt-1 text-[15px] leading-snug text-[#e4e1ff]">
                       {boxWords(count, cut)}
@@ -376,14 +394,17 @@ export default function DotsBakery({ def, band: playBand, round, onPage, onFinis
 /**
  * Where the panel is narrow, each cut has its word under its picture, and
  * five cuts go three across (review round 1: "Quarters" was cut to
- * "Quarter"): a 320 px phone, and a phone on its side — there without the
+ * "Quarter"): a 320 px phone, the 300 px side panel (`sm` to `lg`; there it
+ * was cut too, PR 12 bench), and a phone on its side — there without the
  * picture, as the pie is on the board beside, so every cut is in sight.
  */
 const narrowCuts = {
-  grid: '[@media(max-height:500px)]:grid-cols-3 [@media(max-width:359px)]:grid-cols-3',
+  grid: '[@media(max-height:500px)]:grid-cols-3 [@media(max-width:359px)]:grid-cols-3 sm:[@media(max-width:1023px)]:grid-cols-3',
+  // Two cuts (Gentle) stay two across in the side panel, picture over word.
+  panel: 'sm:[@media(max-width:1023px)]:[&>button]:flex-col sm:[@media(max-width:1023px)]:[&>button]:justify-center sm:[@media(max-width:1023px)]:[&>button]:gap-0.5 sm:[@media(max-width:1023px)]:[&>button]:px-1 sm:[@media(max-width:1023px)]:[&>button]:text-center sm:[@media(max-width:1023px)]:[&>button]:text-[14px]',
   button:
     '[@media(max-height:500px)]:min-h-[48px] [@media(max-height:500px)]:justify-center [@media(max-height:500px)]:px-1 [@media(max-height:500px)]:text-center [@media(max-height:500px)]:text-[14px] [@media(max-width:359px)]:flex-col [@media(max-width:359px)]:justify-center [@media(max-width:359px)]:gap-0.5 [@media(max-width:359px)]:px-1 [@media(max-width:359px)]:text-center [@media(max-width:359px)]:text-[14px]',
-  pie: '[@media(max-width:359px)]:h-[30px] [@media(max-width:359px)]:w-[30px]',
+  pie: '[@media(max-width:359px)]:h-[30px] [@media(max-width:359px)]:w-[30px] sm:[@media(max-width:1023px)]:h-[30px] sm:[@media(max-width:1023px)]:w-[30px]',
 };
 
 /** The order as a sentence, for its ticket (and what the board and steps are described by). */
@@ -396,10 +417,10 @@ function capFirst(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** The order, in the step card on a phone or a short screen (the ticket is further down there). */
+/** The order, in the step card on a phone or a short screen — up to 700 px high (the ticket is further down there). */
 function OrderLine({ order }: { order: Order }) {
   return (
-    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:501px)]:hidden">
+    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:701px)]:hidden">
       <span className="flex-none">
         <AmountIcon order={order} />
       </span>
@@ -418,6 +439,13 @@ function OrderLine({ order }: { order: Order }) {
  */
 function AmountIcon({ order }: { order: Order }) {
   const filling = REGULAR_BY_ID[order.regular].filling;
+  // Expert's tag: the order's numbers, never its pie (§8.3).
+  if (order.expert)
+    return (
+      <span aria-hidden="true" className="flex h-[30px] min-w-[30px] items-center justify-center whitespace-nowrap rounded-full border-[3px] border-[#1b0f22] bg-amber-200 px-1.5 text-sm font-bold text-[#1b0f22]">
+        {order.expert.badge}
+      </span>
+    );
   if (order.asNumber)
     return (
       <span aria-hidden="true" className="flex h-[30px] min-w-[30px] items-center justify-center rounded-full border-[3px] border-[#1b0f22] bg-amber-200 px-1.5 text-sm font-bold text-[#1b0f22]">

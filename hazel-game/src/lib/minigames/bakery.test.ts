@@ -8,6 +8,7 @@ import {
   add,
   amountWords,
   askedWords,
+  boardPies,
   boxWords,
   check,
   compare,
@@ -196,3 +197,71 @@ describe('the box', () => {
     expect(learnedLine(5, 4, orderFor('medium', 2, 0))).toBe('Five quarters is the same as one and a quarter pies.');
   });
 });
+
+describe('Expert: ratios, rates and percentage change (§8.5)', () => {
+  const orders = Array.from({ length: 8 }, (_, k) => orderFor('expert', Math.floor(k / 3), k % 3));
+  const value = (a: { n: number; d: number }) => a.n / a.d;
+
+  it('eight orders, each a different amount, each boxable with the cuts on the two pies always on the board', () => {
+    expect(new Set(orders.map((o) => `${simplify(o.amount).n}/${simplify(o.amount).d}`)).size).toBe(8);
+    for (const o of orders) {
+      expect(CUTS.expert.some((c) => cutMakes(c, o.amount)), o.words).toBe(true);
+      expect(value(o.amount)).toBeLessThanOrEqual(2);
+      expect(boardPies('expert', o.amount)).toBe(2);
+    }
+    // The other bands' boards are as before: enough pies to hold it.
+    expect(boardPies('gentle', A(1, 2))).toBe(1);
+    expect(boardPies('medium', A(3, 2))).toBe(2);
+    // The same order slot comes round again after eight.
+    expect(orderFor('expert', 3, 0).words).toBe(orders[(9 % 8)].words);
+  });
+
+  it('each order’s words work out to its amount — a percentage up or down, a share in a ratio, a rate', () => {
+    for (const o of orders) {
+      const pct = /^(\d+)% (more|less) pie than last week’s (1 pie|2 pies|half a pie)$/.exec(o.words);
+      const share = /^the (bigger|smaller) share of 1 pie, split (\d+) : (\d+)$/.exec(o.words);
+      const rate = /^enough for (\d+) (people|tables), when (\d+) pies? (?:feeds|serve) (\d+)$/.exec(o.words);
+      let worked: number | null = null;
+      if (pct) worked = { '1 pie': 1, '2 pies': 2, 'half a pie': 0.5 }[pct[3]]! * (1 + (pct[2] === 'more' ? 1 : -1) * (Number(pct[1]) / 100));
+      else if (share) {
+        const [a, b] = [Number(share[2]), Number(share[3])];
+        worked = (share[1] === 'bigger' ? Math.max(a, b) : Math.min(a, b)) / (a + b);
+      } else if (rate) worked = (Number(rate[1]) * Number(rate[3])) / Number(rate[4]);
+      expect(worked, o.words).not.toBeNull();
+      expect(worked, o.words).toBeCloseTo(value(o.amount), 9);
+    }
+    // All three kinds come up.
+    expect(orders.some((o) => /% more/.test(o.words)) && orders.some((o) => /% less/.test(o.words))).toBe(true);
+    expect(orders.some((o) => / : /.test(o.words)) && orders.some((o) => /^enough for/.test(o.words))).toBe(true);
+  });
+
+  it('never says the amount: not on the ticket’s words or tag, nor in what’s asked back', () => {
+    for (const o of orders) {
+      const said = amountWords(o.amount);
+      expect(o.words, o.words).not.toContain(said);
+      expect(o.expert!.badge).not.toContain(said);
+      expect(askedWords(o)).toBe(o.words);
+      expect(o.with).toBeUndefined();
+    }
+  });
+
+  it('a cut that can’t make it is said after a miss, not as it’s picked; a miss says too little or too much and one way in', () => {
+    const quarter = orders[0]; // 25% more than 1 pie: one and a quarter pies
+    expect(cutHint(3, quarter)).toBeNull();
+    expect(verdictWords(4, 3, quarter)).toBe('Thirds can’t make this order exactly — cut it another way.');
+    expect(verdictWords(4, 4, quarter)).toBe('Too little. Work out 25% of 1 pie, then add it on.');
+    expect(verdictWords(6, 4, quarter)).toBe('Too much. Work out 25% of 1 pie, then add it on.');
+    expect(verdictWords(10, 8, quarter)).toBe('Right.');
+    // The other bands still say it as the cut's picked.
+    expect(cutHint(3, orderFor('gentle', 0, 0))).not.toBeNull();
+    for (const o of orders) expect(o.expert!.how).not.toContain(amountWords(o.amount));
+  });
+
+  it('a right box shows the working, ending in the amount', () => {
+    for (const o of orders) {
+      expect(learnedLine(1, 1, o)).toBe(o.expert!.working);
+      expect(o.expert!.working.endsWith(`${amountWords(o.amount)}.`), o.expert!.working).toBe(true);
+    }
+  });
+});
+

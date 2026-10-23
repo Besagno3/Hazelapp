@@ -21,7 +21,7 @@ const { default: MiniGameStage } = await import('../MiniGameStage');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
-const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
+const { MINIGAMES, pageFlag, sealFlag, starFlag } = await import('../../../content/minigames');
 const { default: DotsBakery } = await import('./DotsBakery');
 const { MINIGAME_PAGE_XP } = await import('../../../content/items');
 const { noteRoundPlayed } = await import('../../../lib/minigames');
@@ -29,11 +29,11 @@ const { noteRoundPlayed } = await import('../../../lib/minigames');
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   localStorage.clear();
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
-    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - 9, birthMonth: 1, skillLevels: { math: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - age, birthMonth: 1, skillLevels: { math: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
     addXp,
     recordActivity,
   });
@@ -314,3 +314,74 @@ describe('🥧 Dot’s Bakery, a whole morning (docs/DESIGN-MINIGAMES.md §5.2)'
     expect(screen.getByText(/Now tap slices into the box/)).toBeInTheDocument();
   });
 });
+
+describe('🥧 Dot’s Bakery on Expert: ratios, rates and percentage change (§8.5)', () => {
+  /** A 14-year-old at level 6: Expert suggested. */
+  async function openExpert() {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="dots-bakery" />);
+    expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Today’s orders come as ratios and percentages/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s bake!' }));
+    // Always two pies on the board: it doesn't say whether the order is more than one.
+    return screen.findByRole('heading', { name: 'Step 1 · Cut the pies' });
+  }
+  const last = () => fireEvent.click(screen.getByRole('button', { name: /^Hand it to/ }));
+
+  it('the order as a percentage, its tag on the ticket and no pie drawn; a cut that can’t make it said after the miss; a miss, then two right — spot on 2 of 3, no seal', async () => {
+    await openExpert();
+    expect(screen.getByText('Grandmother Wick wants 25% more pie than last week’s 1 pie. How will you cut the pies?')).toBeInTheDocument();
+    expect(ticket().textContent).toContain('+25%');
+    expect(ticket().querySelector('svg')).toBeNull();
+    // Thirds can't make it — not said as they're picked.
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Thirds/ }));
+    expect(screen.queryByText(/can’t make/)).toBeNull();
+    for (let k = 0; k < 4; k++) fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
+    expect(screen.getByRole('heading', { name: 'Too much' })).toBeInTheDocument();
+    expect(screen.getByText('Thirds can’t make this order exactly — cut it another way.')).toBeInTheDocument();
+    expect(screen.getByText('Not quite. Fix the box, or cut it another way.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
+    boxUp('Quarters', 4);
+    expect(screen.getByText('Too little. Work out 25% of 1 pie, then add it on.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Fix the box' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Put a slice in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close the box' }));
+    expect(screen.getByRole('heading', { name: 'Right' })).toBeInTheDocument();
+    expect(screen.getByText(/25% of 1 pie is a quarter, so 25% more than 1 pie is one and a quarter pies\./)).toBeInTheDocument();
+    expect(screen.getByText('Right. Next customer.')).toBeInTheDocument();
+    last();
+
+    // A share in a ratio, right first time.
+    await screen.findByText('Order 2 of 3');
+    expect(screen.getByText(/wants the bigger share of 1 pie, split 5 : 1\./)).toBeInTheDocument();
+    boxUp('Sixths', 5);
+    expect(screen.getByRole('heading', { name: 'Right' })).toBeInTheDocument();
+    last();
+    // A rate, right first time.
+    await screen.findByText('Order 3 of 3');
+    expect(screen.getByText(/wants enough for 4 people, when 1 pie feeds 6\./)).toBeInTheDocument();
+    boxUp('Thirds', 2);
+    last();
+    expect(await screen.findByText('Spot on: 2 of 3. Spot on every time wins the Expert seal.')).toBeInTheDocument();
+    expect(save().flags[sealFlag('dots-bakery')]).toBeUndefined();
+  });
+
+  it('every box right at its first close: the Expert seal', async () => {
+    await openExpert();
+    boxUp('Eighths', 10);
+    last();
+    await screen.findByText('Order 2 of 3');
+    // Cut another way before closing isn't a miss.
+    fireEvent.click(within(screen.getByRole('group', { name: 'Cuts' })).getByRole('button', { name: /^Halves/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cut it another way' }));
+    boxUp('Sixths', 5);
+    last();
+    await screen.findByText('Order 3 of 3');
+    boxUp('Sixths', 4);
+    last();
+    expect(await screen.findByText('The Expert seal: spot on every time')).toBeInTheDocument();
+    expect(save().flags[sealFlag('dots-bakery')]).toBe(true);
+  });
+});
+
