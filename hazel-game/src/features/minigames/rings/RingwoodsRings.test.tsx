@@ -26,18 +26,18 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
 const { ringAt } = await import('./hit');
-const { RING_WIDTH, TREE_BY_ID, fitOffset, growthWord, jobFor, learnedLine, matchWords, ringsOf, roundQueue, weather } = await import('../../../lib/minigames/rings');
-type Band = import('../../../content/minigames').Band;
+const { RING_WIDTH, TREE_BY_ID, dateAsk, datedWords, fitOffset, growthWord, jobFor, learnedLine, lineUpWords, matchWords, rainfall, ringMm, ringsOf, roundQueue, weather } = await import('../../../lib/minigames/rings');
+type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/rings').Job;
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   localStorage.clear();
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
-    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - 9, birthMonth: 1, skillLevels: { nature: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - age, birthMonth: 1, skillLevels: { nature: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
     addXp,
     recordActivity,
   });
@@ -52,6 +52,8 @@ beforeEach(() => {
 const save = () => useSaveStore.getState().save!;
 /** Ringwood's bubble (the beam's rings, for a reader, are live too). */
 const bubble = () => document.querySelector('[aria-live="polite"]:not(#rr-under)')?.textContent ?? '';
+/** What Ringwood says, without his name. */
+const said = () => bubble().replace(/^Old Ringwood/, '');
 /** A ring pressed from the keyboard (a pointer's tap is the wood's: see the tap test). */
 const ring = (k: number) => fireEvent.click(document.querySelector<HTMLButtonElement>(`[data-ring="${k}"]`)!);
 /** A finger's tap at a point: pressed and lifted. */
@@ -278,6 +280,71 @@ describe('🌳 Ringwood’s Rings, a round (docs/DESIGN-MINIGAMES.md §5.7)', ()
     expect(screen.getByRole('heading', { name: `Cut in ${end}!` })).toHaveAccessibleDescription(new RegExp(`was cut in ${end}\\.`));
     expect(screen.getByText(`The beam: ${job.beam[0]}–${end}`)).toBeInTheDocument();
     expect(bubble()).toMatch(/They match! .+ Hrrrm! Just as I remember it\. Another\?$/);
+  });
+
+  it('Expert: the beam’s measured rings slid along the rainfall record — a wrong place says what’s wrong; lined up, dated from four; spot on 2 of 3, the missed beam’s lesson', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const [first, second, third] = [0, 1, 2].map((i) => jobFor('expert', 0, i, queue));
+    if (first.kind !== 'rain' || second.kind !== 'rain' || third.kind !== 'rain') throw new Error('rain jobs');
+    const end = first.beam[first.beam.length - 1];
+    expect(screen.getByRole('heading', { name: 'Line it up' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Line it up' })).toHaveAccessibleDescription(
+      'A silver birch beam from the old mill, its rings measured, and the grove’s rainfall record from 1995. Slide the beam till its thin rings sit under the dry years, then date its last ring.',
+    );
+    expect(said()).toBe('An old beam, its rings measured, and the grove’s rainfall record. Slide the beam till its thin rings sit under the dry years.');
+    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Line it up');
+    // The record: a bar a year, the dry line; the years every fifth; the beam's years not given till it's dated.
+    const record = screen.getByRole('group', { name: /^The grove’s rainfall record/ });
+    expect(record.querySelectorAll('rect[data-year]')).toHaveLength(30);
+    expect(within(record).getByText('dry: under 500')).toBeInTheDocument();
+    expect(['1995', '2000', '2005', '2010', '2015', '2020'].every((y) => within(record).queryByText(y))).toBe(true);
+    expect(within(record).getByText('The beam’s rings, mm')).toBeInTheDocument();
+    // A reader hears the rings' widths and the rain over them, and where the beam is on the record.
+    expect(screen.getByRole('button', { name: 'Slide ▶' })).toHaveAccessibleDescription(
+      `The beam’s rings, mm: ${first.beam.map(ringMm).join(', ')}. The rain above them, mm: ${first.rings.slice(0, 10).map(rainfall).join(', ')}. The record runs from 1995 to 2024; the beam’s first ring is under its year 1.`,
+    );
+    // Checked in the wrong place: what's wrong and one thing to try — and the seal's gone for this beam.
+    fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+    expect(said()).toBe(lineUpWords(first, 0));
+    for (let k = 0; k < fitOffset(first); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+    expect(screen.getByRole('heading', { name: 'Date it' })).toHaveFocus();
+    expect(said()).toBe(`They line up: every thin ring sits under a dry year, every wide one under a wet year. ${dateAsk}`);
+    expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Date it');
+    const years = within(screen.getByRole('group', { name: 'Date it' }));
+    expect(years.getAllByRole('button').map((b) => b.textContent)).toEqual(['1996', '2004', '2005', '2006']);
+    fireEvent.click(years.getByRole('button', { name: '2004' }));
+    expect(said()).toBe(datedWords(first, 2004));
+    fireEvent.click(years.getByRole('button', { name: String(end) }));
+    expect(screen.getByRole('heading', { name: `Cut in ${end}` })).toHaveAccessibleDescription(`${learnedLine(first)} Silver Birch is in the grove book.`);
+    expect(screen.getByText(`The beam’s rings, mm: 1996–${end}`)).toBeInTheDocument();
+    // Plain, and not "Right." after a miss.
+    expect(said()).toBe(`${datedWords(first, end)} Dated, with a miss on the way. Next beam.`);
+    fireEvent.click(screen.getByRole('button', { name: 'Next beam' }));
+
+    // The next two right first time.
+    for (const job of [second, third]) {
+      if (job.kind !== 'rain') throw new Error('a rain job');
+      expect(screen.getByRole('heading', { name: 'Line it up' })).toBeInTheDocument();
+      for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+      fireEvent.click(screen.getByRole('button', { name: String(job.beam[job.beam.length - 1]) }));
+      expect(bubble()).toMatch(job === second ? /That’s the year\. Next beam\.$/ : /Right\. That’s all three\.$/);
+      fireEvent.click(screen.getByRole('button', { name: job === second ? 'Next beam' : 'All done' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(first) }));
+  });
+
+  it('Expert, through the stage: offered at 14; its own hello and steps', () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="ringwoods-rings" />);
+    const bands = within(screen.getByRole('group', { name: 'How tricky?' }));
+    expect(bands.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky', 'Expert']);
+    expect(bands.getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/I keep a rainfall record now, a bar a year/)).toBeInTheDocument();
+    expect(screen.getByText(/Every beam lined up and dated first time wins the Expert seal\. No clock\./)).toBeInTheDocument();
   });
 
   it('the grove book: a page read out by Ringwood and under the book; trees not in it come first', () => {

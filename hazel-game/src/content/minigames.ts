@@ -280,6 +280,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Grove book',
     pages: 8,
     bandNote: 'Medium: read a core — find a year, then the dry years. Tricky: match an old beam’s rings to a living tree’s.',
+    expert: {
+      note: 'Expert: cross-dating with climate data — an old beam’s rings, measured, matched to the grove’s rainfall record and dated to the year.',
+      hello: 'I keep a rainfall record now, a bar a year. Slide each old beam’s measured rings along it till the thin ones sit under the dry years, then tell me the year its last ring grew.',
+      steps: [
+        { title: 'Line it up', text: 'A dry year grew a thin ring. Slide the beam’s rings till the thin ones sit under the record’s dry years, the bars under 500 mm.' },
+        { title: 'Date it', text: 'Read the year above the beam’s last ring, the one by the bark: its tree was cut that year.' },
+        { title: 'Its page', text: 'Every beam lined up and dated first time wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'spireThicket',
     backdrop: '/backgrounds/eldergrove.png',
     firstItem: 'clover',

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   BAND_TREES,
+  DRY_MM,
   FIRST_YEAR,
   JOBS_PER_ROUND,
   LAST_YEAR,
@@ -10,6 +11,9 @@ import {
   TREE_IDS,
   EVENTS,
   countWords,
+  dateAsk,
+  dateChoices,
+  datedWords,
   dryAsk,
   foundWords,
   wetAsk,
@@ -19,9 +23,12 @@ import {
   jobFor,
   jobWords,
   learnedLine,
+  lineUpWords,
   matchWords,
   matchesAt,
   maxOffset,
+  rainfall,
+  ringMm,
   ringWords,
   ringsOf,
   roundQueue,
@@ -33,10 +40,11 @@ import {
   type DateJob,
   type Job,
   type MatchJob,
+  type RainJob,
 } from './rings';
-import { BANDS, type Band } from '../../content/minigames';
+import { BANDS, type PlayBand } from '../../content/minigames';
 
-const jobs = (band: Band, rounds = 8): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
+const jobs = (band: PlayBand, rounds = 8): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 const as = <K extends Job['kind']>(job: Job, kind: K) => {
   if (job.kind !== kind) throw new Error(`a ${kind} job`);
   return job as Extract<Job, { kind: K }>;
@@ -208,7 +216,73 @@ describe('the words', () => {
 
 describe('every band', () => {
   it('three jobs a round, of its kind', () => {
-    const kind: Record<Band, Job['kind']> = { gentle: 'count', medium: 'date', tricky: 'match' };
-    for (const band of BANDS) expect(new Set(jobs(band).map((j) => j.kind))).toEqual(new Set([kind[band]]));
+    const kind: Record<PlayBand, Job['kind']> = { gentle: 'count', medium: 'date', tricky: 'match', expert: 'rain' };
+    for (const band of [...BANDS, 'expert' as const]) expect(new Set(jobs(band).map((j) => j.kind))).toEqual(new Set([kind[band]]));
+  });
+});
+
+describe('Expert: cross-dating with rainfall (§8.5)', () => {
+  it('the grove’s rain follows its weather: a dry year under the dry line, a fair or wet one well over; a ring’s width follows the rain', () => {
+    for (const y of years(FIRST_YEAR, LAST_YEAR)) {
+      const mm = rainfall(y);
+      const g = weather(y);
+      if (g === 'dry') expect(mm, `${y}`).toBeLessThan(DRY_MM);
+      else expect(mm, `${y}`).toBeGreaterThanOrEqual(DRY_MM + 50);
+      if (g === 'wet') expect(mm, `${y}`).toBeGreaterThanOrEqual(820);
+      // Thin under 1 mm, medium 1.2–1.7, wide 2 and over — to the tenth.
+      const w = ringMm(y);
+      expect(Math.round(w * 10) / 10).toBe(w);
+      expect(g === 'dry' ? w < 1 : g === 'fair' ? w >= 1.2 && w <= 1.7 : w >= 2).toBe(true);
+    }
+    // Each year its own amount: not one value a weather.
+    expect(new Set(ringsOf(years(FIRST_YEAR, LAST_YEAR), 'dry').map(rainfall)).size).toBeGreaterThan(8);
+  });
+
+  it('a beam of 10–12 rings slid along the 30-year record: it fits in one place only, never at an end, and has a dry year; every tree', () => {
+    const record = years(LAST_YEAR - TREE_CORE + 1, LAST_YEAR);
+    for (const n of [10, 11, 12])
+      for (let s = 1; s <= TREE_CORE - n - 2; s++) {
+        const job: RainJob = { kind: 'rain', tree: 'oak', rings: record, beam: years(record[s], record[s] + n - 1), building: 'the barn' };
+        const fits = Array.from({ length: maxOffset(job) + 1 }, (_, o) => o).filter((o) => matchesAt(job, o));
+        expect(fits, `${n} from ${record[s]}`).toEqual([fitOffset(job)]);
+        expect(fitOffset(job)).toBeGreaterThan(0);
+        expect(fitOffset(job)).toBeLessThan(maxOffset(job));
+        expect(ringsOf(job.beam, 'dry').length).toBeGreaterThan(0);
+      }
+    const all = jobs('expert', 12).map((j) => as(j, 'rain'));
+    for (const [k, job] of all.entries()) {
+      expect(job.rings).toEqual(record);
+      expect(job.beam).toHaveLength([10, 11, 12][k % 3]);
+    }
+    expect(new Set(all.map((j) => j.tree))).toEqual(new Set(TREE_IDS));
+    expect(BAND_TREES.expert).toEqual(TREE_IDS);
+  });
+
+  it('lined up, or what’s wrong; the year from four; the ticket and the lesson', () => {
+    const job = as(jobFor('expert', 0, 0), 'rain'); // a birch beam, 1996–2005, from the old mill
+    expect(job.beam).toEqual(years(1996, 2005));
+    expect(job.building).toBe('the old mill');
+    expect(lineUpWords(job, fitOffset(job))).toBe('They line up: every thin ring sits under a dry year, every wide one under a wet year.');
+    const thinOnly = Array.from({ length: maxOffset(job) + 1 }, (_, o) => o).find((o) => o !== fitOffset(job) && thinLinedUp(job, o));
+    if (thinOnly !== undefined) expect(lineUpWords(job, thinOnly)).toBe('The thin rings sit under dry years here, but a wide ring isn’t under a wet year. Slide on.');
+    expect(lineUpWords(job, 0)).toBe('Not lined up: a thin ring sits over a year with more than 500 mm of rain. Slide the beam’s thinnest rings under bars below the dry line.');
+    expect(dateChoices(job)).toEqual([1996, 2004, 2005, 2006]);
+    expect(dateAsk).toBe('Which year did its last ring grow — the one by the bark?');
+    expect(datedWords(job, 2005)).toBe('Yes — 2005: its last ring sits under 2005 on the record, so its tree was cut in 2005.');
+    expect(datedWords(job, 1996)).toBe('1996 is its first ring, nearest the middle of the tree. The last, by the bark, sits under 2005.');
+    expect(datedWords(job, 2004)).toBe('Not 2004: the last ring sits under 2005, a year after 2004.');
+    expect(datedWords(job, 2006)).toBe('Not 2006: the last ring sits under 2005, a year before 2006.');
+    expect(jobWords(job)).toBe('A silver birch beam from the old mill, its rings measured, and the grove’s rainfall record from 1995. Slide the beam till its thin rings sit under the dry years, then date its last ring.');
+    expect(learnedLine(job)).toBe(
+      `Cross-dating with rain: the silver birch beam’s thin rings grew in the record’s dry years, 1998 (416 mm) and 2005 (405 mm). Its rings run from 1996 to 2005, so its tree was cut in 2005. ${TREE_BY_ID.birch.note}`,
+    );
+    // Every beam: four years to pick from, the right one among them, the first ring's too.
+    for (const j of jobs('expert', 12).map((x) => as(x, 'rain'))) {
+      const c = dateChoices(j);
+      expect(c).toHaveLength(4);
+      expect(c).toContain(j.beam[j.beam.length - 1]);
+      expect(c[0]).toBe(j.beam[0]);
+      expect(Math.max(...c)).toBeLessThanOrEqual(LAST_YEAR);
+    }
   });
 });

@@ -1,4 +1,4 @@
-import type { Band } from '../../content/minigames';
+import type { PlayBand } from '../../content/minigames';
 
 /**
  * 🌳 Ringwood's Rings (docs/DESIGN-MINIGAMES.md §5.7): reading tree rings,
@@ -9,9 +9,12 @@ import type { Band } from '../../content/minigames';
  * from bark to middle): the ring from the year something happened, counted
  * back from the bark, and the dry years; Tricky cross-dates — slides an old
  * beam's core along a living tree's till the thin rings line up, and so finds
- * the year the beam's tree was cut, as scientists do. Three trees a round,
- * each a page of Ringwood's grove book. Pure: the weather, the trees, the
- * jobs, the checks and the words.
+ * the year the beam's tree was cut, as scientists do. Expert (§8.5)
+ * cross-dates with climate data: the beam's rings, measured, slid along the
+ * grove's rainfall record till its thin rings sit under the dry years, then
+ * dated to the year. Three trees a round, each a page of Ringwood's grove
+ * book. Pure: the weather, the rainfall, the trees, the jobs, the checks and
+ * the words.
  */
 
 /** How a year's ring grew. */
@@ -35,6 +38,24 @@ const WET_YEARS = new Set([1954, 1962, 1968, 1973, 1981, 1984, 1991, 1996, 2001,
 export function weather(year: number): Growth {
   return DRY_YEARS.has(year) ? 'dry' : WET_YEARS.has(year) ? 'wet' : 'fair';
 }
+
+/** Expert's rainfall record: under this a year was dry (mm). */
+export const DRY_MM = 500;
+
+/**
+ * A year's rain in the grove (mm), from its weather: a dry year 380–469, a
+ * fair one 560–719, a wet one 820–959 — each year its own amount, so the
+ * record reads like a real one, but never across the dry line by mistake.
+ */
+export function rainfall(year: number): number {
+  const g = weather(year);
+  if (g === 'dry') return 380 + ((year * 37) % 90);
+  if (g === 'fair') return 560 + ((year * 53) % 160);
+  return 820 + ((year * 29) % 140);
+}
+
+/** Expert's beam measured: a ring's width (mm, to 0.1), which follows the year's rain — a dry year's under 1 mm. */
+export const ringMm = (year: number) => Math.round((rainfall(year) - 200) / 30) / 10;
 
 /** The years from `from` to `to`, both in. */
 export const years = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, k) => from + k);
@@ -125,21 +146,23 @@ export const TREES: readonly Tree[] = [
 export const TREE_BY_ID = Object.fromEntries(TREES.map((t) => [t.id, t])) as Record<TreeId, Tree>;
 
 /** The trees each band reads (pages come from every band, §3.3). */
-export const BAND_TREES: Record<Band, readonly TreeId[]> = {
+export const BAND_TREES: Record<PlayBand, readonly TreeId[]> = {
   gentle: ['birch', 'willow', 'beech', 'rowan'],
   medium: ['oak', 'pine', 'yew', 'sequoia'],
   tricky: TREE_IDS,
+  expert: TREE_IDS,
 };
 
 export const JOBS_PER_ROUND = 3;
 
-/** How many rings each job of a round has: Medium's cores, Tricky's beam (Gentle's slices are their tree's `age`). */
-const RINGS: Record<Exclude<Band, 'gentle'>, readonly [number, number, number]> = {
+/** How many rings each job of a round has: Medium's cores, Tricky's and Expert's beams (Gentle's slices are their tree's `age`). */
+const RINGS: Record<Exclude<PlayBand, 'gentle'>, readonly [number, number, number]> = {
   medium: [10, 12, 14],
   tricky: [8, 9, 10],
+  expert: [10, 11, 12],
 };
 
-/** A living tree's core on Tricky: this many rings, to slide the beam along. */
+/** A living tree's core on Tricky, and Expert's rainfall record: this many years, to slide the beam along. */
 export const TREE_CORE = 30;
 
 /** Medium's "the year it happened": something in the grove, the same year in every tree's rings. */
@@ -149,7 +172,7 @@ export const EVENTS = [
   { what: 'Fen planted the hedge by the pond', year: 2014 },
 ] as const;
 
-/** The old buildings a Tricky beam comes from. */
+/** The old buildings a beam (Tricky, Expert) comes from. */
 const BEAMS = ['the old mill', 'the boathouse', 'the barn on the hill'] as const;
 
 interface JobBase {
@@ -181,14 +204,31 @@ export interface MatchJob extends JobBase {
   building: string;
 }
 
-export type Job = CountJob | DateJob | MatchJob;
+/**
+ * Expert: slide an old beam's rings, measured, along the grove's rainfall
+ * record till its thin rings sit under the dry years — then date its last
+ * ring. Cross-dating with climate data.
+ */
+export interface RainJob extends JobBase {
+  kind: 'rain';
+  /** The record's years, oldest first, to `LAST_YEAR`. */
+  rings: readonly number[];
+  /** The beam's rings, oldest first (its years are what's found). */
+  beam: readonly number[];
+  building: string;
+}
+
+export type Job = CountJob | DateJob | MatchJob | RainJob;
+
+/** A beam slid along a strip of years: Tricky's living tree, Expert's rainfall record. */
+export type SlideJob = MatchJob | RainJob;
 
 /**
  * Which trees come up in a round: those not in the grove book yet first, so
  * every round can fill pages, then the rest in turn from where the round
  * would have them.
  */
-export function roundQueue(band: Band, known: (id: TreeId) => boolean, round: number): TreeId[] {
+export function roundQueue(band: PlayBand, known: (id: TreeId) => boolean, round: number): TreeId[] {
   const can = BAND_TREES[band];
   const start = (round * JOBS_PER_ROUND) % can.length;
   const turn = [...can.slice(start), ...can.slice(0, start)];
@@ -196,7 +236,7 @@ export function roundQueue(band: Band, known: (id: TreeId) => boolean, round: nu
 }
 
 /** The `i`th job of a round. */
-export function jobFor(band: Band, round: number, i: number, queue?: readonly TreeId[]): Job {
+export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly TreeId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
   const tree = TREE_BY_ID[q[i % q.length]];
   if (band === 'gentle') return { kind: 'count', tree: tree.id, rings: years(tree.cut - (tree.age ?? 4) + 1, tree.cut) };
@@ -212,7 +252,8 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Tr
   const core = years(LAST_YEAR - TREE_CORE + 1, LAST_YEAR);
   const room = TREE_CORE - n - 2;
   const start = core[1 + ((round * 7 + i * 11) % room)];
-  return { kind: 'match', tree: tree.id, rings: core, beam: years(start, start + n - 1), building: BEAMS[(round + i) % BEAMS.length] };
+  const job = { tree: tree.id, rings: core, beam: years(start, start + n - 1), building: BEAMS[(round + i) % BEAMS.length] };
+  return band === 'expert' ? { kind: 'rain', ...job } : { kind: 'match', ...job };
 }
 
 /** The rings (years) of a job that grew in a weather. */
@@ -222,15 +263,15 @@ export const ringsOf = (rings: readonly number[], g: Growth) => rings.filter((y)
  * Tricky's slide: with the beam's first ring under the tree core's ring
  * `offset`, does every ring match the weather of the one above it?
  */
-export function matchesAt(job: MatchJob, offset: number): boolean {
+export function matchesAt(job: SlideJob, offset: number): boolean {
   return job.beam.every((y, k) => job.rings[offset + k] !== undefined && weather(job.rings[offset + k]) === weather(y));
 }
 
 /** Where the beam fits: the core ring its first ring sits under. */
-export const fitOffset = (job: MatchJob) => job.rings.indexOf(job.beam[0]);
+export const fitOffset = (job: SlideJob) => job.rings.indexOf(job.beam[0]);
 
 /** How far the beam can slide: its first ring under the core's first … to its last ring under the core's last. */
-export const maxOffset = (job: MatchJob) => job.rings.length - job.beam.length;
+export const maxOffset = (job: SlideJob) => job.rings.length - job.beam.length;
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen'];
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth', 'thirteenth', 'fourteenth'];
@@ -255,6 +296,8 @@ export function jobWords(job: Job): string {
   const t = TREE_BY_ID[job.tree];
   if (job.kind === 'count') return `A slice from ${t.from}. Count its rings from the middle out — one ring, one year — then find its wettest year.`;
   if (job.kind === 'date') return `A core from ${t.from}, ${t.cut === LAST_YEAR ? 'taken' : 'cut'} in ${t.cut}. Find the ring from ${job.event.year}, when ${job.event.what} — then every dry year.`;
+  if (job.kind === 'rain')
+    return `A ${t.name.toLowerCase()} beam from ${job.building}, its rings measured, and the grove’s rainfall record from ${job.rings[0]}. Slide the beam till its thin rings sit under the dry years, then date its last ring.`;
   return `A beam from ${job.building}, and a core from a living ${t.name.toLowerCase()} in the grove. Slide the beam till its rings match the tree’s: when was the beam’s tree cut?`;
 }
 
@@ -309,7 +352,7 @@ export function dryWords(job: DateJob, k: number, left: number): string {
 }
 
 /** With the beam at `offset`, does every thin ring of the beam sit under a thin ring of the tree, and none under a wider one? */
-export function thinLinedUp(job: MatchJob, offset: number): boolean {
+export function thinLinedUp(job: SlideJob, offset: number): boolean {
   return job.beam.every((y, k) => (weather(y) === 'dry') === (weather(job.rings[offset + k]) === 'dry'));
 }
 
@@ -321,6 +364,37 @@ export function matchWords(job: MatchJob, offset: number): string {
   }
   if (thinLinedUp(job, offset)) return 'The thin rings line up here — but not the wide ones. Slide on: thin under thin, wide under wide!';
   return 'Not yet — find the thin dark rings first: slide till the beam’s sit right under the tree’s.';
+}
+
+/** A list said: "2005, 2008 and 2013". */
+const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : `${xs[0] ?? ''}`);
+
+/**
+ * After "Do they line up?" on Expert: every thin ring under a dry year and
+ * every wide one under a wet year — or what's wrong, and one thing to try.
+ * Plain (§8.3); no years given: dating it is the next step.
+ */
+export function lineUpWords(job: RainJob, offset: number): string {
+  if (offset === fitOffset(job)) return 'They line up: every thin ring sits under a dry year, every wide one under a wet year.';
+  if (thinLinedUp(job, offset)) return 'The thin rings sit under dry years here, but a wide ring isn’t under a wet year. Slide on.';
+  return `Not lined up: a thin ring sits over a year with more than ${DRY_MM} mm of rain. Slide the beam’s thinnest rings under bars below the dry line.`;
+}
+
+/** Expert's dating: the year the beam's last ring grew, from four — its first ring's, and a year either side of the last's. */
+export function dateChoices(job: RainJob): number[] {
+  const end = job.beam[job.beam.length - 1];
+  return [...new Set([job.beam[0], end - 1, end, end + 1])].sort((a, b) => a - b);
+}
+
+/** Expert's dating, asked. */
+export const dateAsk = 'Which year did its last ring grow — the one by the bark?';
+
+/** After a year's picked for the beam's last ring: right, or which ring that year is. */
+export function datedWords(job: RainJob, year: number): string {
+  const end = job.beam[job.beam.length - 1];
+  if (year === end) return `Yes — ${end}: its last ring sits under ${end} on the record, so its tree was cut in ${end}.`;
+  if (year === job.beam[0]) return `${year} is its first ring, nearest the middle of the tree. The last, by the bark, sits under ${end}.`;
+  return `Not ${year}: the last ring sits under ${end}, a year ${year < end ? 'after' : 'before'} ${year}.`;
 }
 
 /** What a job teaches, for the reward. */
@@ -339,5 +413,9 @@ export function learnedLine(job: Job): string {
     return `${t.name}: its thin rings were dry years — ${list}.${scar} ${t.note}`;
   }
   const end = job.beam[job.beam.length - 1];
+  if (job.kind === 'rain') {
+    const dry = ringsOf(job.beam, 'dry');
+    return `Cross-dating with rain: the ${t.name.toLowerCase()} beam’s thin rings grew in the record’s dry years, ${listWords(dry.map((y) => `${y} (${rainfall(y)} mm)`))}. Its rings run from ${job.beam[0]} to ${end}, so its tree was cut in ${end}. ${t.note}`;
+  }
   return `Matching rings dates wood: the beam’s rings matched the living ${t.name.toLowerCase()}’s from ${job.beam[0]} to ${end}, so its tree was cut in ${end}. ${t.note}`;
 }

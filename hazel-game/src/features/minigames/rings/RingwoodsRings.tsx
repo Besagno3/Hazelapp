@@ -6,8 +6,12 @@ import {
   TREES,
   TREE_BY_ID,
   backWords,
+  DRY_MM,
   countWords,
+  dateAsk,
+  dateChoices,
   dateWords,
+  datedWords,
   dryAsk,
   dryWords,
   fitOffset,
@@ -16,9 +20,12 @@ import {
   jobFor,
   jobWords,
   learnedLine,
+  lineUpWords,
   matchWords,
   maxOffset,
   numberWord,
+  rainfall,
+  ringMm,
   ringWords,
   ringsOf,
   roundQueue,
@@ -27,6 +34,8 @@ import {
   wetWords,
   type Job,
   type MatchJob,
+  type RainJob,
+  type SlideJob,
   type TreeId,
 } from '../../../lib/minigames/rings';
 import { BAND_LABEL, pageFlag } from '../../../content/minigames';
@@ -38,7 +47,6 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
 import { SliceCard } from './art';
@@ -47,19 +55,23 @@ import { BARK, LATE, TREE_TINT, WOOD } from './wood';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Counting a slice's rings; its wettest year; a core's year; its dry years; sliding a beam; read. */
-type Step = 'count' | 'wet' | 'date' | 'dry' | 'slide' | 'done';
+/** Counting a slice's rings; its wettest year; a core's year; its dry years; sliding a beam; dating it (Expert); read. */
+type Step = 'count' | 'wet' | 'date' | 'dry' | 'slide' | 'year' | 'done';
 
-/** Old Ringwood after a tree's read, in turn. */
+/** Old Ringwood after a tree's read, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Hrrrm! Just as I remember it.', 'You read wood like an old owl. Well done.', 'Ha! I’d forgotten that year. Thank you.'];
+const EXPERT_RIGHT_LINES = ['Dated.', 'That’s the year.', 'Right.'];
 
 const STEP_CHIPS: Record<Job['kind'], readonly string[]> = {
   count: ['Count the rings', 'The wettest year', 'Its page'],
   date: ['Find the year', 'The dry years', 'Its page'],
   match: ['Slide the beam', 'Check the match', 'Its page'],
+  rain: ['Line it up', 'Date it', 'Its page'],
 };
 
 const firstStep = (job: Job): Step => (job.kind === 'count' ? 'count' : job.kind === 'date' ? 'date' : 'slide');
+/** A beam slid along a strip of years: Tricky's tree, Expert's rainfall record. */
+const isSlide = (job: Job): job is SlideJob => job.kind === 'match' || job.kind === 'rain';
 
 /**
  * 🌳 Ringwood's Rings (docs/DESIGN-MINIGAMES.md §5.7), by Old Ringwood in
@@ -68,12 +80,13 @@ const firstStep = (job: Job): Step => (job.kind === 'count' ? 'count' : job.kind
  * wettest year; Medium reads a core — the ring from the year something
  * happened, counted back from the bark, then the dry years; Tricky slides an
  * old beam's core along a living tree's till the rings match, to find when the
- * beam's tree was cut. Three trees a round, each a page of the grove book. No
- * timer. Rules: `lib/minigames/rings.ts`.
+ * beam's tree was cut. Expert (§8.5) slides a beam's measured rings along the
+ * grove's rainfall record, then dates its last ring to the year. Three trees a
+ * round, each a page of the grove book. No timer. Rules:
+ * `lib/minigames/rings.ts`.
  */
-export default function RingwoodsRings({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function RingwoodsRings({ def, band, round, onPage, onFinish }: PlayProps) {
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);
@@ -93,17 +106,28 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
   const [newPage, setNewPage] = useState(false);
   const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each beam lined up at the first check and dated at the first pick.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
+  // The first missed beam's lesson, for the reward on Expert, as the other games'.
+  const missedLesson = useRef<string | null>(null);
   const [read, setRead] = useState<TreeId | null>(null);
   const known = (id: TreeId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}`);
+  // A button's press to act on: a key's at once (no click count), a tap's once settled. The wood's rings wait for a key
+  // too: focus is moved onto one as a step starts, where a double Enter's second would land.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
   const dryRings = job.kind === 'date' ? ringsOf(job.rings, 'dry') : [];
 
   function finish() {
     sfx('chest');
     setNewPage(onPage(job.tree, tree.name));
-    setLessons((l) => [...l, learnedLine(job)]);
+    const lesson = learnedLine(job);
+    setLessons((l) => [...l, lesson]);
     setRights((r) => r + 1);
+    if (expert && !missed) setSpotOn((n) => n + 1);
+    if (expert && missed) missedLesson.current ??= lesson;
     setStep('done');
   }
 
@@ -163,10 +187,10 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
     }
   }
 
-  /** The beam moved to `to` (its first ring under the tree's ring `to`): by ◀ ▶, or a tap along the tree's core. */
-  function slideTo(to: number) {
+  /** The beam moved to `to` (its first ring under the strip's ring `to`): by ◀ ▶, or a tap along the tree's core or the record. */
+  function slideTo(to: number, e: { detail: number }) {
     // Waits as the step starts, like Check: a double tap on Next tree could land on Slide (code review round 2).
-    if (job.kind !== 'match' || step !== 'slide' || !settled()) return;
+    if (!isSlide(job) || step !== 'slide' || !ready(e)) return;
     const o = Math.max(0, Math.min(maxOffset(job), to));
     // At an end already: what Ringwood said stays (code review round 1).
     if (o === offset) return;
@@ -176,19 +200,44 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
     setOffset(o);
   }
 
-  function check() {
-    if (job.kind !== 'match' || step !== 'slide' || !settled()) return;
+  function check(e: { detail: number }) {
+    if (!isSlide(job) || step !== 'slide' || !ready(e)) return;
     setRead(null);
+    if (job.kind === 'rain') {
+      // Expert: lined up, then dated — the ask with the verdict (on a short screen nothing else says it).
+      const right = offset === fitOffset(job);
+      setSaid(right ? `${lineUpWords(job, offset)} ${dateAsk}` : lineUpWords(job, offset));
+      if (!right) {
+        setMissed(true);
+        return void sfx('wrong');
+      }
+      sfx('correct');
+      setStep('year');
+      return;
+    }
     setSaid(matchWords(job, offset));
     if (offset !== fitOffset(job)) return void sfx('wrong');
     finish();
   }
 
-  function next() {
-    if (step !== 'done' || !settled()) return;
+  /** Expert: a year picked for the beam's last ring. */
+  function dateIt(year: number, e: { detail: number }) {
+    if (job.kind !== 'rain' || step !== 'year' || !ready(e)) return;
+    setRead(null);
+    setSaid(datedWords(job, year));
+    if (year !== job.beam[job.beam.length - 1]) {
+      setMissed(true);
+      return void sfx('wrong');
+    }
+    finish();
+  }
+
+  function next(e: { detail: number }) {
+    if (step !== 'done' || !ready(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      onFinish({ title: 'Three trees read!', learned: lessons[lessons.length - 1] ?? '' });
+      const last = lessons[lessons.length - 1] ?? '';
+      onFinish({ title: 'Three trees read!', learned: (expert && missedLesson.current) || last, spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
       return;
     }
     const j = jobFor(band, round, done + 1, queue);
@@ -200,6 +249,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
     setFound([]);
     setOffset(0);
     setMoved(false);
+    setMissed(false);
     setSaid(null);
     setNewPage(false);
   }
@@ -210,7 +260,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
   const doneHead = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (step === 'done') doneHead.current?.focus({ preventScroll: true });
-    else if (step === 'slide') stepHead.current?.focus({ preventScroll: true });
+    else if (step === 'slide' || step === 'year') stepHead.current?.focus({ preventScroll: true });
     else wood.current?.querySelector<HTMLButtonElement>('button[tabindex="0"]')?.focus({ preventScroll: true });
   }, [step, done]);
 
@@ -221,7 +271,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
   const board = useRef<HTMLElement>(null);
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
-    const go = step === 'done' || step === 'slide' ? goRef.current : wood.current;
+    const go = step === 'done' || step === 'slide' || step === 'year' ? goRef.current : wood.current;
     const s = page.current;
     const b = board.current;
     if (s && b && s.scrollHeight > s.clientHeight && getComputedStyle(s).overflowY !== 'hidden') {
@@ -233,13 +283,18 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
     } else go?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another?' : 'My rings and I thank you.'}`;
+  // On Expert, plainly — and after a miss not "Right." (it read as the last answer's: Echo's Call's UX review round 1).
+  const cheerLine = expert
+    ? `${missed ? 'Dated, with a miss on the way.' : EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next beam.' : 'That’s all three.'}`
+    : `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another?' : 'My rings and I thank you.'}`;
   // What Ringwood says as a step starts — in the card's box by the wood too, till he says something else.
   let opening: string;
   if (step === 'count') opening = `A slice of ${tree.name}. Count its rings for me, from the middle out — I always lose count.`;
   else if (step === 'wet') opening = 'Now: which ring is the widest? That was its wettest year.';
   else if (step === 'date' && job.kind === 'date') opening = `The ring by the bark is ${job.rings[job.rings.length - 1]}. Count back to ${job.event.year}!`;
   else if (step === 'dry') opening = 'Dry years grew thin rings. Find every one!';
+  else if (job.kind === 'rain' && step === 'year') opening = dateAsk;
+  else if (job.kind === 'rain') opening = 'An old beam, its rings measured, and the grove’s rainfall record. Slide the beam till its thin rings sit under the dry years.';
   else opening = 'An old beam, and my neighbour’s core. Slide the beam till its rings match — thin under thin, wide under wide!';
   // The box by the wood, till he's said something: a tip, not his words again (UX review round 2: the card, the box and
   // his bubble said the same thing three times) — on a short screen, what to do (the card's words are a reader's there).
@@ -250,6 +305,8 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
     const bark = job.rings[job.rings.length - 1];
     tip = `Count in from the bark — ${bark}, ${bark - 1}, ${bark - 2}… — to ${job.event.year}!`;
   } else if (step === 'dry' && job.kind === 'date') tip = dryAsk(job);
+  else if (job.kind === 'rain' && step === 'year') tip = 'Read the year above its last ring on the record’s axis.';
+  else if (job.kind === 'rain') tip = `Slide the beam till its thin rings sit under the dry years: the bars under the dashed line, ${DRY_MM} mm.`;
   else tip = 'Find the beam’s thin dark rings in the tree’s core, then slide the beam under them.';
   let line: string;
   if (read) line = `${TREE_BY_ID[read].name}: ${TREE_BY_ID[read].note}`;
@@ -258,7 +315,8 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
   else line = said ?? opening;
 
   const chips = STEP_CHIPS[job.kind];
-  const chipAt = step === 'done' ? chips.length : step === 'wet' || step === 'dry' || (step === 'slide' && moved) ? 1 : 0;
+  const chipAt = step === 'done' ? chips.length : step === 'wet' || step === 'dry' || step === 'year' || (step === 'slide' && moved && job.kind === 'match') ? 1 : 0;
+  const slides = isSlide(job);
 
   // The ring said for a reader: where it is and how it grew (seeing its width) — and what's been found on it.
   const ringLabel = (k: number, year: number): string => {
@@ -279,7 +337,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
       <div
         className={cn(
           'grid flex-none grid-cols-1 split:min-h-0 split:flex-1 split:grid-cols-[minmax(0,1fr)_300px] split:grid-rows-[minmax(0,24fr)_minmax(0,76fr)] [@media(min-width:1024px)_and_(min-height:501px)]:grid-cols-[minmax(0,1fr)_380px] split:[@media(max-height:700px)]:grid-rows-[minmax(0,1fr)]',
-          job.kind === 'match' ? 'split:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]' : 'split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)]',
+          slides ? 'split:[@media(max-height:500px)]:grid-cols-[minmax(400px,1fr)_minmax(0,260px)]' : 'split:[@media(max-height:500px)]:grid-cols-[minmax(440px,1fr)_minmax(0,260px)]',
         )}
       >
         <div aria-hidden="true" className="relative hidden overflow-hidden split:col-start-1 split:row-start-1 split:block [@media(max-height:700px)]:hidden">
@@ -299,7 +357,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
           className={cn(
             'flex flex-col gap-3 bg-[#2c3a26] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:border-t-4 split:border-[#1b0f22] split:p-4 split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(max-height:500px)]:p-2',
             job.kind === 'count' && '[@media(min-width:560px)_and_(orientation:landscape)]:flex-row',
-            job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-row',
+            slides && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-row',
           )}
         >
           <div
@@ -308,7 +366,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
               // A slice in the middle of its room; a core at the top of its, so a card growing under it never moves it
               // (bench: Medium's moved up 10–45 px at the payoff).
               job.kind === 'count' ? 'split:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:flex-1' : 'split:pt-2',
-              job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-1 [@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:justify-center',
+              slides && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-1 [@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:justify-center',
             )}
           >
             {job.kind === 'count' ? (
@@ -341,8 +399,10 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                 want={(k) => step === 'dry' && weather(job.rings[k]) === 'dry' && !found.includes(k)}
                 onTap={tapRing}
               />
+            ) : job.kind === 'rain' ? (
+              <RainRecord key={done} job={job} offset={offset} lined={step !== 'slide'} dated={step === 'done'} onSlideTo={(to) => slideTo(to, { detail: 1 })} />
             ) : (
-              <Match key={done} job={job} offset={offset} matched={step === 'done'} onSlideTo={slideTo} />
+              <Match key={done} job={job} offset={offset} matched={step === 'done'} onSlideTo={(to) => slideTo(to, { detail: 1 })} />
             )}
           </div>
           <div
@@ -354,14 +414,16 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
               job.kind === 'count' &&
                 '[@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:w-[min(300px,46%)] [@media(min-width:560px)_and_(orientation:landscape)]:flex-none [@media(min-width:560px)_and_(max-height:500px)]:w-[clamp(200px,42%,236px)]',
               // Tricky's, once matched, wider for the lesson (the beam's done with): bench, its heading went out of view.
-              job.kind === 'match' && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-none',
-              job.kind === 'match' &&
+              slides && '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:flex-none',
+              slides &&
                 (step === 'done' ? '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:w-[clamp(220px,58%,320px)]' : '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:w-[clamp(200px,42%,236px)]'),
               // On an upright tablet a slice is square and wants the room; a core or two are a strip, and the card can grow.
               job.kind === 'count' ? 'split:[@media(orientation:portrait)]:max-h-[45%]' : 'split:[@media(orientation:portrait)]:max-h-[60%]',
             )}
           >
-            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
+            {/* On a split screen a beam's card gives its room to the strips: the count goes by the heading (bench: the
+                card covered the beam at 1280 × 800). */}
+            <p className={cn('text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden', slides && 'split:hidden [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:hidden')}>
               Tree {done + 1} of {JOBS_PER_ROUND}
             </p>
             {step === 'done' ? (
@@ -369,9 +431,9 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                 <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                   {/* Focused from script, no ring: it carried the title card's (UX review round 2) — as the stage's heading. */}
                   <h2 id="rr-step" ref={doneHead} tabIndex={-1} aria-describedby="rr-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white focus:outline-none [@media(max-height:500px)]:text-[20px]')}>
-                    {job.kind === 'match' ? `Cut in ${job.beam[job.beam.length - 1]}!` : `${tree.name}!`}
+                    {slides ? `Cut in ${job.beam[job.beam.length - 1]}${expert ? '' : '!'}` : `${tree.name}!`}
                   </h2>
-                  <TreeOf done={done} />
+                  <TreeOf done={done} beside={slides} />
                 </div>
                 {/* Ringwood's cheer, in the card too: on a phone his bubble's below the fold — not on a split screen, where
                     it's beside the board. */}
@@ -382,7 +444,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                   className={cn(
                     'flex flex-col gap-2.5',
                     job.kind === 'date' && '[@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-end [@media(max-height:500px)]:gap-2',
-                    job.kind === 'match' && 'split:[@media(max-height:500px)]:flex-row split:[@media(max-height:500px)]:items-end split:[@media(max-height:500px)]:gap-2',
+                    slides && 'split:[@media(max-height:500px)]:flex-row split:[@media(max-height:500px)]:items-end split:[@media(max-height:500px)]:gap-2',
                   )}
                 >
                   <p id="rr-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[14px]">
@@ -390,7 +452,7 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                     {/* Said to a reader only on a split screen: the grove book's in sight beside the board (bench: at 640 × 360
                         the card's heading went out of view). */}
                     {newPage && ' '}
-                    {newPage && <span className="split:sr-only">{tree.name} is in the grove book!</span>}
+                    {newPage && <span className="split:sr-only">{tree.name} is in the grove book{expert ? '.' : '!'}</span>}
                   </p>
                   <button
                     ref={goRef}
@@ -400,10 +462,10 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                       goldClass,
                       'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base',
                       job.kind === 'date' && '[@media(max-height:500px)]:flex-none [@media(max-height:500px)]:px-4',
-                      job.kind === 'match' && 'split:[@media(max-height:500px)]:flex-none split:[@media(max-height:500px)]:px-4',
+                      slides && 'split:[@media(max-height:500px)]:flex-none split:[@media(max-height:500px)]:px-4',
                     )}
                   >
-                    {done + 1 < JOBS_PER_ROUND ? 'Next tree' : 'All done!'}
+                    {done + 1 < JOBS_PER_ROUND ? (expert ? 'Next beam' : 'Next tree') : expert ? 'All done' : 'All done!'}
                   </button>
                 </div>
               </>
@@ -417,12 +479,15 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                     aria-describedby="rr-job"
                     className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none focus:outline-none [@media(max-height:500px)]:text-[19px]')}
                   >
-                    {stepTitle(step)}
+                    {stepTitle(step, job)}
                   </h2>
-                  <TreeOf done={done} />
+                  <TreeOf done={done} beside={slides} />
                 </div>
                 {/* What to do — on a short screen for a reader only: the box under it says it (UX review round 1). */}
-                <p id="rr-do" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:sr-only">
+                {/* A beam's on a split screen up to 700 px high, a reader's too: his bubble beside says it, and the strips
+                    want the room (bench: at 1280 × 505 the card covered the beam); on a phone up to 640 px high, the box
+                    under it says what to do (bench: at 320 × 568 the gold button started under the fold). */}
+                <p id="rr-do" className={cn('text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:sr-only', slides && 'split:[@media(max-height:700px)]:sr-only [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:sr-only')}>
                   {stepWords(step, job, counted, dryRings.length - found.length)}
                 </p>
                 {/* What Ringwood said of the last tap, by the wood too: on a phone his bubble's below the fold — till he's
@@ -431,25 +496,45 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
                 <p
                   className={cn(
                     'flex min-h-[4.25rem] items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[3.5rem] [@media(max-height:500px)]:text-[14px]',
-                    // Tricky's on a short split screen: his bubble's beside the board, and the card's compact.
-                    job.kind === 'match' && 'split:[@media(max-height:500px)]:hidden',
+                    // A beam's on a split screen: his bubble's beside the board, and the card's compact so the strips have the
+                    // room (bench: at 1280 × 800 the card covered the beam — Tricky's in part, Expert's whole).
+                    slides && 'split:hidden',
                   )}
                 >
                   {said ?? <span className="font-normal text-[#e4e1ff]">{tip}</span>}
                 </p>
-                {step === 'slide' && job.kind === 'match' && (
-                  <div className="flex flex-col gap-2.5 split:[@media(max-height:500px)]:flex-row split:[@media(max-height:500px)]:gap-2">
-                    <div className="grid grid-cols-2 gap-2 split:[@media(max-height:500px)]:flex-1">
-                      <button type="button" onClick={() => slideTo(offset - 1)} aria-disabled={offset === 0 || undefined} aria-describedby="rr-under" className={cn(outlineClass, 'min-h-12 border-2 px-2 text-base aria-disabled:opacity-50')}>
+                {step === 'slide' && slides && (
+                  <div className="flex flex-col gap-2.5 split:[@media(max-height:700px)]:flex-row split:[@media(max-height:700px)]:gap-2">
+                    <div className="grid grid-cols-2 gap-2 split:[@media(max-height:700px)]:flex-1">
+                      <button type="button" onClick={(e) => slideTo(offset - 1, e)} aria-disabled={offset === 0 || undefined} aria-describedby="rr-under" className={cn(outlineClass, 'min-h-12 border-2 px-2 text-base aria-disabled:opacity-50')}>
                         ◀ Slide
                       </button>
-                      <button type="button" onClick={() => slideTo(offset + 1)} aria-disabled={offset === maxOffset(job) || undefined} aria-describedby="rr-under" className={cn(outlineClass, 'min-h-12 border-2 px-2 text-base aria-disabled:opacity-50')}>
+                      <button type="button" onClick={(e) => slideTo(offset + 1, e)} aria-disabled={offset === maxOffset(job) || undefined} aria-describedby="rr-under" className={cn(outlineClass, 'min-h-12 border-2 px-2 text-base aria-disabled:opacity-50')}>
                         Slide ▶
                       </button>
                     </div>
-                    <button ref={goRef} type="button" onClick={check} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base split:[@media(max-height:500px)]:flex-none split:[@media(max-height:500px)]:px-4')}>
-                      Do they match?
+                    <button ref={goRef} type="button" onClick={check} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:text-base split:[@media(max-height:700px)]:flex-none split:[@media(max-height:700px)]:px-4')}>
+                      {job.kind === 'rain' ? 'Do they line up?' : 'Do they match?'}
                     </button>
+                  </div>
+                )}
+                {step === 'year' && job.kind === 'rain' && (
+                  // Expert: the last ring's year, from four (UX: read off the record's axis, above the beam's last bar).
+                  <div role="group" aria-labelledby="rr-step" aria-describedby="rr-year" className="grid grid-cols-4 gap-2 split:[@media(max-height:500px)]:grid-cols-4">
+                    <span id="rr-year" className="sr-only">
+                      {dateAsk}
+                    </span>
+                    {dateChoices(job).map((y, k, all) => (
+                      <button
+                        key={y}
+                        ref={k === all.length - 1 ? goRef : undefined}
+                        type="button"
+                        onClick={(e) => dateIt(y, e)}
+                        className={cn('min-h-12 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1 text-[17px] font-bold hover:bg-[#2f2b70] [@media(max-height:500px)]:text-[15px]', focusRing)}
+                      >
+                        {y}
+                      </button>
+                    ))}
                   </div>
                 )}
               </>
@@ -482,22 +567,23 @@ export default function RingwoodsRings({ def, band: playBand, round, onPage, onF
   );
 }
 
-/** Which tree of the round — on a short screen by the heading (the card's top line is left out there). */
-function TreeOf({ done }: { done: number }) {
+/** Which tree of the round — on a short screen by the heading (the card's top line is left out there), and a beam's on a split screen. */
+function TreeOf({ done, beside = false }: { done: number; beside?: boolean }) {
   return (
-    <span className="hidden flex-none text-[12px] font-bold text-[#c9c5f2] [@media(max-height:500px)]:inline">
+    <span className={cn('hidden flex-none text-[12px] font-bold text-[#c9c5f2] [@media(max-height:500px)]:inline', beside && 'split:inline [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:inline')}>
       <span className="sr-only">Tree </span>
       {done + 1} of {JOBS_PER_ROUND}
     </span>
   );
 }
 
-function stepTitle(step: Step): string {
+function stepTitle(step: Step, job: Job): string {
   if (step === 'count') return 'Count the rings';
   if (step === 'wet') return 'The wettest year';
   if (step === 'date') return 'Find the year';
   if (step === 'dry') return 'The dry years';
-  return 'Match the rings';
+  if (step === 'year') return 'Date it';
+  return job.kind === 'rain' ? 'Line it up' : 'Match the rings';
 }
 
 /** For a reader: how the keyboard moves along the wood. */
@@ -516,6 +602,9 @@ function stepWords(step: Step, job: Job, counted: number, dryLeft: number): Reac
   }
   if (job.kind === 'date' && step === 'date') return <>The ring by the bark is {job.rings[job.rings.length - 1]}; each ring in is a year earlier. Tap the ring from {job.event.year}.{KEYS}</>;
   if (step === 'dry') return <>Dry years grew thin rings. Tap every thin one: {numberWord(dryLeft)} to find.{KEYS}</>;
+  if (step === 'year') return 'Read the record’s year above the beam’s last ring — the one by the bark. Which is it?';
+  if (job.kind === 'rain')
+    return 'Slide the beam — tap along the record, or ◀ ▶ — till its thin rings sit under the dry years and its wide ones under wet years. Then tap “Do they line up?”';
   return 'Slide the old beam — tap along the tree’s core, or ◀ ▶ — till its rings match the tree’s: thin under thin, wide under wide. Then tap “Do they match?”';
 }
 
@@ -842,7 +931,7 @@ function Match({ job, offset, matched, onSlideTo }: { job: MatchJob; offset: num
         preserveAspectRatio="none"
         aria-hidden="true"
         {...handlers}
-        className={cn('h-[136px] w-full select-none overflow-visible [@media(max-height:500px)]:h-[100px]', !matched && 'cursor-pointer touch-manipulation')}
+        className={cn('h-[136px] w-full select-none overflow-visible [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:h-[112px] [@media(max-height:500px)]:h-[100px]', !matched && 'cursor-pointer touch-manipulation')}
       >
         <Rings bands={bands} years={job.rings} wood={WOOD} dry="#d8a868" y={0} />
         <rect x="0" y="0" width={total} height="30" fill="none" stroke="#1b0f22" strokeWidth="3" vectorEffect="non-scaling-stroke" />
@@ -859,6 +948,97 @@ function Match({ job, offset, matched, onSlideTo }: { job: MatchJob; offset: num
       </div>
       <p id="rr-under" aria-live="polite" className="sr-only">
         The beam’s rings: {said(job.beam)}. The tree’s rings above them: {said(above)}.
+      </p>
+    </div>
+  );
+}
+
+/** Expert's record: the top of its scale (mm), and a year's column in the picture's units. */
+const RAIN_TOP = 1000;
+const COL = 10;
+/** The beam's measured rings: the top of their scale (mm). */
+const MM_TOP = 3;
+
+/**
+ * Expert's two strips (§8.5): the grove's rainfall record, a bar a year with
+ * the dry line at `DRY_MM`, its years under it (a tick each, a label every
+ * fifth) — and under them the old beam's rings, measured, a bar a ring as wide
+ * as it grew, slid along by the slide buttons or a tap along the strips (the
+ * beam's middle comes under it). Lined up right, every thin ring sits under a
+ * dry year. The beam's years are said only once it's dated. For a reader, the
+ * rain over the beam and its rings' widths (`rr-under`, live), and where its
+ * first ring is on the record.
+ */
+function RainRecord({ job, offset, lined, dated, onSlideTo }: { job: RainJob; offset: number; lined: boolean; dated: boolean; onSlideTo: (offset: number) => void }) {
+  const n = job.rings.length;
+  const width = n * COL;
+  const { handlers } = useLiftTap<number, HTMLDivElement>(
+    (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const k = Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * n)));
+      return k - Math.floor(job.beam.length / 2);
+    },
+    onSlideTo,
+    lined,
+  );
+  const above = job.rings.slice(offset, offset + job.beam.length);
+  const dryY = 60 - (DRY_MM / RAIN_TOP) * 60;
+  const end = job.beam[job.beam.length - 1];
+  return (
+    <div role="group" aria-label="The grove’s rainfall record, and the beam’s rings measured under it" aria-describedby="rr-under" className="flex w-full max-w-[640px] flex-col gap-1">
+      <div className="flex flex-wrap justify-between gap-x-3 text-[13px] font-bold text-[#e4e1ff]">
+        <span>Rain a year, mm</span>
+        <span className="flex items-center gap-1.5">
+          <svg aria-hidden="true" viewBox="0 0 20 4" className="h-1 w-5">
+            <line x1="0" x2="20" y1="2" y2="2" stroke="#fca5a5" strokeWidth="3" strokeDasharray="5 3" />
+          </svg>
+          dry: under {DRY_MM}
+        </span>
+      </div>
+      <div {...handlers} className={cn('flex select-none flex-col', !lined && 'cursor-pointer touch-manipulation')}>
+        <svg viewBox={`0 0 ${width} 60`} preserveAspectRatio="none" aria-hidden="true" className="h-24 w-full overflow-visible split:h-20 [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:h-16 [@media(max-height:500px)]:h-[60px]">
+          <rect x="0" y="0" width={width} height="60" fill="#eef4fb" />
+          {job.rings.map((y, k) => {
+            const top = 60 - (rainfall(y) / RAIN_TOP) * 60;
+            return <rect key={y} data-year={y} x={k * COL + 1.5} y={top} width={COL - 3} height={60 - top} fill="#2f6fb0" />;
+          })}
+          <line x1="0" x2={width} y1={dryY} y2={dryY} stroke="#b4232a" strokeWidth="2" strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
+          <rect x="0" y="0" width={width} height="60" fill="none" stroke="#1b0f22" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+        </svg>
+        {/* The years: a tick each, longer every fifth — what the last ring is read against. */}
+        <svg viewBox={`0 0 ${width} 6`} preserveAspectRatio="none" aria-hidden="true" className="h-1.5 w-full">
+          {job.rings.map((y, k) => (
+            <line key={y} x1={k * COL + COL / 2} x2={k * COL + COL / 2} y1="0" y2={y % 5 === 0 ? 6 : 3} stroke="#e4e1ff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+          ))}
+        </svg>
+        <div aria-hidden="true" className="relative h-4 text-[12px] font-bold leading-4 text-[#e4e1ff]">
+          {job.rings.map((y, k) =>
+            y % 5 === 0 ? (
+              <span key={y} className="absolute -translate-x-1/2" style={{ left: `${((k + 0.5) / n) * 100}%` }}>
+                {y}
+              </span>
+            ) : null,
+          )}
+        </div>
+        <svg viewBox={`0 0 ${width} 30`} preserveAspectRatio="none" aria-hidden="true" className="mt-1 h-11 w-full overflow-visible [@media(max-width:767px)_and_(min-height:501px)_and_(max-height:640px)]:h-8 [@media(max-height:500px)]:h-8">
+          <g style={{ transform: `translateX(${offset * COL}px)` }} className="transition-transform duration-200 motion-reduce:transition-none">
+            <rect x="0" y="0" width={job.beam.length * COL} height="30" fill={BEAM_WOOD} />
+            {job.beam.map((y, k) => {
+              const h = (ringMm(y) / MM_TOP) * 30;
+              return <rect key={k} x={k * COL + 2} y={30 - h} width={COL - 4} height={h} fill={BARK} />;
+            })}
+            <rect x="0" y="0" width={job.beam.length * COL} height="30" fill="none" stroke="#1b0f22" strokeWidth="3" vectorEffect="non-scaling-stroke" />
+          </g>
+        </svg>
+      </div>
+      {/* Its name goes with the beam. */}
+      <div className="text-[13px] font-bold text-[#e4e1ff]">
+        <span className="inline-block transition-[margin] duration-200 motion-reduce:transition-none" style={{ marginLeft: `${Math.min((offset / n) * 100, 50)}%` }}>
+          The beam’s rings, mm{dated ? `: ${job.beam[0]}–${end}` : ''}
+        </span>
+      </div>
+      <p id="rr-under" aria-live="polite" className="sr-only">
+        The beam’s rings, mm: {job.beam.map(ringMm).join(', ')}. The rain above them, mm: {above.map(rainfall).join(', ')}. The record runs from {job.rings[0]} to {job.rings[n - 1]}; the beam’s first ring is under its year {offset + 1}.
       </p>
     </div>
   );

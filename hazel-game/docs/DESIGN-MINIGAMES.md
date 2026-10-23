@@ -464,6 +464,22 @@ Old Ringwood is the tree who loses count of his rings.
   next ask; each ring is drawn its width from a pith dot (the first looked the
   widest) and the bark isn't a ring; on a short split screen Tricky's cores
   take the board's width.
+- **Expert (§8, PR 17):** cross-dating with climate data. Each of a round's
+  three beams (10, 11, then 12 rings) comes measured — a bar a ring, as wide
+  as it grew — under the grove's rainfall record, a bar a year from 1995,
+  the dry line at 500 mm. The kid slides the beam till its thin rings sit
+  under the dry years and its wide ones under the wet; a wrong place says
+  what's wrong and one thing to try. Then the year its last ring grew, by
+  the bark, from four: its first ring's year, and a year either side. The
+  record has a tick a year and a label every fifth; the beam's years are
+  said only once it's dated. The lesson is the rain in its thin rings'
+  years and the year its tree was cut. Ringwood speaks plainly. Every beam
+  lined up at the first check and dated at the first pick is the Expert
+  seal. Sapwood, missing outer rings and a living tree's statistics would
+  need more than the grove's record — not built (§8.5). On a split screen
+  a beam's card (Tricky's too) gives the strips the room: its words are in
+  Ringwood's bubble beside it; on a short phone they're the box's, and the
+  strips are shorter, so Check starts in view.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 
@@ -646,7 +662,7 @@ world, with the same host.
 | 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = 3, y = 3, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a point onto its image, then paint the image. | "A (2, 5) maps to A′ (5, 2): which move?" |
 | 🎵 Echo's Call | Intervals, in the tunes: name the interval between two notes Lyra marks (a 2nd to a 5th on the five chimes), major, minor or perfect, read on the staff or heard. (An octave, keys and sharps and flats would need more chimes: not built.) | "From note 1 to note 3: what interval?" — "E down to C: a major 3rd." |
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth on a grid; the pole star's altitude as your latitude; declination in the lessons. (Right ascension on a chart would need the pictures redrawn from a catalogue: not built.) | "Polaris is 20° up: how far north are you?" |
-| 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's rings to a rainfall record, find the dry years in both, date it to the year. | "Thin rings — and the chart's dry years?" |
+| 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's measured rings to a rainfall record, its thin rings under the dry years, and date it to the year. (Missing outer rings and sapwood estimates: not built.) | "Thin rings — and the record's dry years?"; "Its last ring grew in…" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. No wars, battles, disasters or religion (§3.2). | "Paper → printing → …"; "300 BCE to 1450 CE is…" |
 | 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to coordinates, then say when it arrives. | "35° N, 135° E"; "9:00 in London — in Tokyo?" |
 | 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged. | "chrono + meter"; "What does port mean in transport?" |
