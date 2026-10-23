@@ -54,7 +54,7 @@ export const STAMPS: readonly Stamp[] = [
   { id: 'map', name: 'Rolled-up map', emoji: '🗺️', note: 'A grid square is named by its letter along the bottom, then its number up the side — along the corridor, then up the stairs!' },
   { id: 'lantern', name: 'Paper lantern', emoji: '🏮', note: 'Maps draw real things as little pictures called symbols, and the map’s key says what each one means.' },
   { id: 'postcard', name: 'Postcard', emoji: '🏞️', note: 'There are seven continents: Asia (the biggest), Africa, North America, South America, Antarctica, Europe and Australia.' },
-  { id: 'shell', name: 'Sea shell', emoji: '🐚', note: 'There are five oceans: the Pacific, the Atlantic, the Indian, the Southern and the Arctic. Together they cover most of the Earth.' },
+  { id: 'shell', name: 'Sea shell', emoji: '🐚', note: 'There are five oceans: the Pacific, the Atlantic, the Indian, the Southern (all round Antarctica) and the Arctic. Together they cover most of the Earth.' },
   { id: 'globe', name: 'Little globe', emoji: '🌐', note: 'The equator runs round the middle of the Earth. North of it is the northern hemisphere, south of it the southern — where summer comes in December.' },
 ];
 
@@ -77,6 +77,7 @@ export type PlaceId = (typeof PLACE_IDS)[number];
 export interface Place {
   id: PlaceId;
   name: string;
+  /** Its picture on the map — the lighthouse and the bridge are drawn (no emoji is one: UX review round 1). */
   emoji: string;
 }
 
@@ -87,7 +88,7 @@ export const PLACES: Record<PlaceId, Place> = {
   pond: { id: 'pond', name: 'duck pond', emoji: '🦆' },
   farm: { id: 'farm', name: 'farm', emoji: '🌾' },
   harbour: { id: 'harbour', name: 'harbour', emoji: '⚓' },
-  market: { id: 'market', name: 'market', emoji: '🏪' },
+  market: { id: 'market', name: 'market', emoji: '🛒' },
   bridge: { id: 'bridge', name: 'bridge', emoji: '🌉' },
   post: { id: 'post', name: 'post office', emoji: '🏤' },
 };
@@ -190,52 +191,63 @@ export interface Region {
   code: string;
   /** Where a parcel for it is addressed. */
   clue: string;
+  /** Where it is on the map, said after a first wrong delivery (UX review round 1: the first said the way, so the map was never read). */
+  spot: string;
   /** A true thing about it, for the fact card. */
   fact: string;
 }
 
 export const REGIONS: readonly Region[] = [
-  { id: 'north-america', name: 'North America', ocean: false, code: 'N', clue: 'to the continent west of Europe, across the Atlantic and north of the equator', fact: 'North America runs from the icy Arctic in the north to the warm tropics in the south.' },
-  { id: 'south-america', name: 'South America', ocean: false, code: 'S', clue: 'to the continent of the Amazon rainforest, most of it south of the equator', fact: 'The Amazon rainforest in South America is the biggest rainforest on Earth.' },
-  { id: 'europe', name: 'Europe', ocean: false, code: 'E', clue: 'home to Europe', fact: 'Europe is one of the smallest continents, but it has more than forty countries.' },
-  { id: 'africa', name: 'Africa', ocean: false, code: 'F', clue: 'to the continent just south of Europe, with the equator right across its middle', fact: 'The equator runs right across Africa, and the Sahara there is the biggest hot desert in the world.' },
-  { id: 'asia', name: 'Asia', ocean: false, code: 'A', clue: 'to the biggest continent of all, east of Europe', fact: 'Asia is the biggest continent, and more than half of all the people in the world live there.' },
-  { id: 'australia', name: 'Australia', ocean: false, code: 'U', clue: 'to the smallest continent, south of the equator, where kangaroos live', fact: 'Australia is the smallest continent and a whole country too. Wild kangaroos live nowhere else.' },
+  { id: 'north-america', name: 'North America', ocean: false, code: 'N', clue: 'to the continent west of Europe, across the Atlantic and north of the equator', spot: 'at the top on the left, across the Atlantic', fact: 'North America runs from the icy Arctic in the north to the warm tropics in the south.' },
+  { id: 'south-america', name: 'South America', ocean: false, code: 'S', clue: 'to the continent of the Amazon rainforest, most of it south of the equator', spot: 'under North America, across the equator', fact: 'The Amazon rainforest in South America is the biggest rainforest on Earth.' },
+  { id: 'europe', name: 'Europe', ocean: false, code: 'E', clue: 'to the small continent the post sets off from', spot: 'in the middle at the top, where Ember sets off', fact: 'Europe is one of the smallest continents, but it has more than forty countries.' },
+  { id: 'africa', name: 'Africa', ocean: false, code: 'F', clue: 'to the continent just south of Europe, with the equator right across its middle', spot: 'just under Europe, with the equator across it', fact: 'The equator runs right across Africa, and the Sahara there is the biggest hot desert in the world.' },
+  { id: 'asia', name: 'Asia', ocean: false, code: 'A', clue: 'to the biggest continent of all, east of Europe', spot: 'the big green one, at the top on the right', fact: 'Asia is the biggest continent, and more than half of all the people in the world live there.' },
+  { id: 'australia', name: 'Australia', ocean: false, code: 'U', clue: 'to the smallest continent, south of the equator, where kangaroos live', spot: 'low down on the right, under Asia', fact: 'Australia is the smallest continent and a whole country too. Wild koalas live nowhere else.' },
   {
     id: 'antarctica',
     name: 'Antarctica',
     ocean: false,
     code: 'X',
     clue: 'to the icy continent at the very south of the world',
+    spot: 'the icy one, all along the bottom',
     fact: 'Antarctica is the coldest place on Earth, nearly all ice. On a flat map it looks huge and wide; on a globe it’s a round cap at the bottom.',
   },
-  { id: 'pacific', name: 'the Pacific Ocean', ocean: true, code: 'p', clue: 'to a ship on the biggest ocean, between Asia and the Americas', fact: 'The Pacific is the biggest and deepest ocean: all the land on Earth would fit into it.' },
-  { id: 'atlantic', name: 'the Atlantic Ocean', ocean: true, code: 'a', clue: 'to a ship on the ocean between Europe and North America', fact: 'The Atlantic is the second-biggest ocean, between the Americas on one side and Europe and Africa on the other.' },
-  { id: 'indian', name: 'the Indian Ocean', ocean: true, code: 'i', clue: 'to a ship on the ocean between Africa and Australia', fact: 'The Indian Ocean is the warmest ocean in the world.' },
-  { id: 'arctic', name: 'the Arctic Ocean', ocean: true, code: 'r', clue: 'to a ship on the frozen ocean at the very north of the world', fact: 'The Arctic is the smallest ocean, and much of it is frozen all year round.' },
+  { id: 'pacific', name: 'the Pacific Ocean', ocean: true, code: 'p', clue: 'to a ship on the biggest ocean, between Asia and the Americas', spot: 'the big ocean at both edges of the map — the left and the right', fact: 'The Pacific is the biggest and deepest ocean: all the land on Earth would fit into it.' },
+  { id: 'atlantic', name: 'the Atlantic Ocean', ocean: true, code: 'a', clue: 'to a ship on the ocean between Europe and North America', spot: 'the ocean between the Americas and Europe and Africa', fact: 'The Atlantic is the second-biggest ocean, between the Americas on one side and Europe and Africa on the other.' },
+  { id: 'indian', name: 'the Indian Ocean', ocean: true, code: 'i', clue: 'to a ship on the ocean between Africa and Australia', spot: 'the ocean under Asia, between Africa and Australia', fact: 'The Indian Ocean is the warmest ocean in the world.' },
+  { id: 'arctic', name: 'the Arctic Ocean', ocean: true, code: 'r', clue: 'to a ship on the frozen ocean at the very top of the map, north-west of Europe', spot: 'the pale ice at the very top, by Europe and on the far left', fact: 'The Arctic is the smallest ocean, and much of it is frozen all year round.' },
 ];
 
 export const REGION_BY_ID = Object.fromEntries(REGIONS.map((r) => [r.id, r])) as Record<RegionId, Region>;
-const REGION_BY_CODE = Object.fromEntries(REGIONS.map((r) => [r.code, r])) as Record<string, Region>;
+const REGION_BY_CODE: Partial<Record<string, Region>> = Object.fromEntries(REGIONS.map((r) => [r.code, r]));
 
 /**
  * The world in squares of 30° by 30° (12 across from 180° west, 6 down from
- * the North Pole): each square marked by what's most of it. The equator runs
- * between the third row and the fourth. Rough on purpose — a first map.
+ * the North Pole), drawn so each continent and ocean has a shape a kid knows
+ * — rough on purpose, a first map, so a square isn't always most of what
+ * it's marked (code review round 1: north of Moscow was Asia, the Horn of
+ * Africa too). The equator runs between the third row and the fourth.
  */
-export const WORLD: readonly string[] = ['rNNNNrEAAAAA', 'ppNNaaEAAAAp', 'ppNNaFFAAApp', 'pppSSaFFiiUp', 'pppSaaaiiiUp', 'XXXXXXXXXXXX'];
+export const WORLD: readonly string[] = ['rNNNNrEEAAAA', 'ppNNaaEAAAAp', 'ppNNaaFFAApp', 'pppSSaFFiiUp', 'pppSaaaiiiUp', 'XXXXXXXXXXXX'];
 export const WORLD_W = 12;
 export const WORLD_H = 6;
 /** Rows above it are north of the equator. */
 export const EQUATOR_ROW = 3;
-/** The map's scale: each square is about this far across (km). */
+/**
+ * The map's scale: each square counts as about this far (km) — true top to
+ * bottom, and across near the equator; a flat map stretches the far north and
+ * south across, so it's said as the map's scale (code review round 1).
+ */
 export const KM_PER_SQUARE = 3000;
 /** Where the world's post sets off: Europe. */
 export const WORLD_START: Cell = { x: 6, y: 1 };
 
 /** The continent or ocean a world square shows. */
 export function regionAt(c: Cell): Region {
-  return REGION_BY_CODE[WORLD[c.y][c.x]];
+  const r = REGION_BY_CODE[WORLD[c.y]?.[c.x] ?? ''];
+  if (!r) throw new Error(`No region at ${c.x},${c.y}`);
+  return r;
 }
 
 // ——— The jobs ———
@@ -318,33 +330,54 @@ const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight
 const squares = (n: number) => `${n} square${n === 1 ? '' : 's'}`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-/** How far one square is from another, in compass words: "2 squares north and 1 east". */
-export function relWords(from: Cell, to: Cell, wraps = false): string {
+/** From one square to another: across (east +, the short way round the world) and down (south +). */
+function offset(from: Cell, to: Cell, wraps: boolean): [number, number] {
   let dx = to.x - from.x;
   if (wraps && Math.abs(dx) > WORLD_W / 2) dx -= Math.sign(dx) * WORLD_W;
-  const dy = to.y - from.y;
+  return [dx, to.y - from.y];
+}
+
+/**
+ * How far one square is from another, in compass words: "2 squares north and
+ * 1 east" — with eight directions, straight along a diagonal "2 squares
+ * north-east" (code review round 1: the pond's clue said north-east, the hint
+ * "north and east").
+ */
+export function relWords(from: Cell, to: Cell, wraps = false, diagonals = false): string {
+  const [dx, dy] = offset(from, to, wraps);
+  if (diagonals && dx && Math.abs(dx) === Math.abs(dy)) return `${squares(Math.abs(dx))} ${dy < 0 ? 'north' : 'south'}-${dx > 0 ? 'east' : 'west'}`;
   const ns = dy ? `${squares(Math.abs(dy))} ${dy < 0 ? 'north' : 'south'}` : '';
   const ew = dx ? `${dy ? Math.abs(dx) : squares(Math.abs(dx))} ${dx > 0 ? 'east' : 'west'}` : '';
   return ns && ew ? `${ns} and ${ew}` : ns || ew;
 }
 
-/** The target square nearest to Ember (the world's continents are many squares). */
+/**
+ * The fewest moves from one square to another with a band's compass: four
+ * directions count across and down; eight, the longer of the two.
+ */
+export function movesBetween(job: Job, from: Cell, to: Cell): number {
+  const [dx, dy] = offset(from, to, mapOf(job).wraps).map(Math.abs);
+  return BAND_DIRS[job.band].length === 8 ? Math.max(dx, dy) : dx + dy;
+}
+
+/** The target square fewest moves from Ember (the world's continents are many squares) — counted as the band moves (code review round 1: on the world, four directions, it counted diagonals). */
 function nearest(job: Job, at: Cell): Cell {
-  const { wraps } = mapOf(job);
-  const d = (c: Cell) => {
-    const dx = Math.abs(c.x - at.x);
-    return Math.max(wraps ? Math.min(dx, WORLD_W - dx) : dx, Math.abs(c.y - at.y)) * 10 + (wraps ? Math.min(dx, WORLD_W - dx) : dx) + Math.abs(c.y - at.y);
-  };
+  const d = (c: Cell) => movesBetween(job, at, c) * 100 + Math.abs(c.x - at.x) + Math.abs(c.y - at.y);
   return targets(job).reduce((a, b) => (d(b) < d(a) ? b : a));
+}
+
+/** A town house's landmark (none: a house found only by its square). */
+export function landmarkOf(job: Job): (typeof TOWN_CLUES)[number] | null {
+  if (job.map !== 'town' || job.by !== 'landmark') return null;
+  return TOWN_CLUES.find((t) => sameCell(t.house, job.to)) ?? null;
 }
 
 /** Where a parcel's going, said: "the castle", "the house at C5", "Australia". */
 export function destWords(job: Job): string {
   if (job.map === 'bay') return `the ${PLACES[job.to].name}`;
   if (job.map === 'town') {
-    if (job.by === 'square') return `the house at ${gridRef(job.to)}`;
-    const c = TOWN_CLUES.find((t) => sameCell(t.house, job.to))!;
-    return `the house just ${DIR_WORDS[c.dir]} of the ${PLACES[c.from].name}`;
+    const c = landmarkOf(job);
+    return c ? `the house just ${DIR_WORDS[c.dir]} of the ${PLACES[c.from].name}` : `the house at ${gridRef(job.to)}`;
   }
   return REGION_BY_ID[job.to].name;
 }
@@ -367,22 +400,41 @@ export function whereWords(job: Job, at: Cell): string {
   return what ? `${ref}, at ${what}` : ref;
 }
 
+/** How to find a town house: by its square, or from its landmark. */
+function howWords(job: Job & { map: 'town' }): string {
+  const c = landmarkOf(job);
+  if (c) return `Find the ${PLACES[c.from].name} first, then look ${DIR_WORDS[c.dir]} of it.`;
+  const ref = gridRef(job.to);
+  return `${ref} is ${ref[0]} along the bottom, then ${ref.slice(1)} up the side.`;
+}
+
 /**
- * A delivery to the wrong square: where Ember is, and which way to go —
- * short, to fit beside the compass on a phone (bench). Never scolded.
+ * A delivery to the wrong square (`misses`: this parcel's, this one counted):
+ * where Ember is, and — the first time on the town and the world — how to
+ * find the place on the map; from the second, which way to go (UX review
+ * round 1: the first said the way, so the map need never be read). Gentle's
+ * lesson is the way, so it says it at once. Short, to fit beside the compass
+ * on a phone (bench). Never scolded.
  */
-export function missWords(job: Job, at: Cell): string {
+export function missWords(job: Job, at: Cell, misses = 2): string {
   const to = nearest(job, at);
-  const way = relWords(at, to, mapOf(job).wraps);
-  if (job.map === 'world') return `That’s ${regionAt(at).name}. ${cap(REGION_BY_ID[job.to].name)} is ${way}.`;
+  const way = relWords(at, to, mapOf(job).wraps, BAND_DIRS[job.band].length === 8);
+  if (job.map === 'world') {
+    const r = REGION_BY_ID[job.to];
+    return misses < 2 ? `That’s ${regionAt(at).name}. ${cap(r.name)} is ${r.spot} — find its name on the map.` : `That’s ${regionAt(at).name}. ${cap(r.name)} is ${way}.`;
+  }
   if (job.map === 'bay') {
     const here = placeAt(BAY, at);
     return `${here && here !== 'house' ? `That’s the ${PLACES[here].name}` : 'Nobody’s waiting here'}. The ${PLACES[job.to].name} is ${way}.`;
   }
-  return `That’s ${gridRef(at)}. The house is ${way}.`;
+  return misses < 2 ? `That’s ${gridRef(at)}. ${howWords(job)}` : `That’s ${gridRef(at)}. The house is ${way}.`;
 }
 
-/** Ember's route, said: "2 east, then 1 north" — each run of one direction once. */
+/**
+ * Ember's route, said: "1 square north, then 2 squares east" — each run of one
+ * direction once; past three runs, just how many squares (code review round 1:
+ * a wandering route made a card too long for a phone).
+ */
 export function routeWords(route: readonly Dir[]): string {
   const runs: [Dir, number][] = [];
   for (const d of route) {
@@ -390,21 +442,43 @@ export function routeWords(route: readonly Dir[]): string {
     if (last && last[0] === d) last[1]++;
     else runs.push([d, 1]);
   }
-  return runs.map(([d, n]) => `${n} ${DIR_WORDS[d]}`).join(', then ');
+  if (runs.length > 3) return squares(route.length);
+  return runs.map(([d, n], k) => `${k ? n : squares(n)} ${DIR_WORDS[d]}`).join(', then ');
 }
 
 /** Pidge's opening for a parcel: the clue, and how to find where it's going. */
 export function openingWords(job: Job): string {
   if (job.map === 'bay') return `${clueWords(job)} Can you see it on the map? Steer Ember there with the compass, then deliver it!`;
-  if (job.map === 'town') {
-    if (job.by === 'square') {
-      const ref = gridRef(job.to);
-      return `${clueWords(job)} That’s ${ref[0]} along the bottom, ${ref.slice(1)} up the side. Steer Ember there!`;
-    }
-    const c = TOWN_CLUES.find((t) => sameCell(t.house, job.to))!;
-    return `${clueWords(job)} Find the ${PLACES[c.from].name} first, then look ${DIR_WORDS[c.dir]} of it.`;
-  }
+  if (job.map === 'town') return `${clueWords(job)} ${howWords(job)} Steer Ember there!`;
   return `${clueWords(job)} Where in the world is that? Steer Ember there!`;
+}
+
+/**
+ * For a reader, where the parcel's going (the map's squares are pictures, so
+ * only a wrong delivery said it: code review round 1): on the bay, which way
+ * from Ember; on the town, the landmark's square (a square's in the clue); on
+ * the world, where it is on the map.
+ */
+export function targetWords(job: Job, at: Cell): string {
+  if (job.map === 'bay') return delivered(job, at) ? `The ${PLACES[job.to].name} is here.` : `The ${PLACES[job.to].name} is ${relWords(at, nearest(job, at))}.`;
+  if (job.map === 'town') {
+    const c = landmarkOf(job);
+    const lm = c && TOWN.places.find((p) => p.place === c.from);
+    return lm && c ? `The ${PLACES[c.from].name} is at ${gridRef(lm)}.` : '';
+  }
+  const r = REGION_BY_ID[job.to];
+  return `${cap(r.name)} is ${r.spot}.`;
+}
+
+/**
+ * How to find where the parcel's going, as the step's card says it till the
+ * first move (UX review round 1: on a phone, Pidge's "E along the bottom" was
+ * below the fold).
+ */
+export function howToFind(job: Job): string {
+  if (job.map === 'bay') return `Find the ${PLACES[job.to].name}’s picture on the map, then steer Ember there.`;
+  if (job.map === 'town') return howWords(job);
+  return `Find ${REGION_BY_ID[job.to].name} on the map: north is up, the equator across the middle.`;
 }
 
 /** The ticket: the job, and how to play it. */
@@ -414,26 +488,44 @@ export function jobWords(job: Job): string {
   return `Fly it ${REGION_BY_ID[job.to].clue}. North is up; the equator runs across the middle.`;
 }
 
-/** Tricky's scale question: how far Ember flew, three choices (km), smallest first. */
-export function farChoices(flown: number): number[] {
-  const n = Math.max(1, flown);
-  const others = [n + 2, n > 2 ? n - 2 : n + 4];
-  return [n, ...others].map((k) => k * KM_PER_SQUARE).sort((a, b) => a - b);
+/**
+ * Tricky's scale question: about how far, for `n` squares — three choices (km),
+ * smallest first, the right one first, in the middle or last by the parcel
+ * (`slot`), so where it sits says nothing (code review and UX review round 1:
+ * always the middle, or first).
+ */
+export function farChoices(n: number, slot = 0): number[] {
+  const k = Math.max(1, n);
+  // Where the right one goes: as the slot says, as far as squares above none allow.
+  const at = Math.min(slot % 3, k - 1);
+  const others = at === 0 ? [k + 1, k + 2] : at === 1 ? [k - 1, k + 1] : [k - 2, k - 1];
+  return [k, ...others].map((m) => m * KM_PER_SQUARE).sort((a, b) => a - b);
 }
 
 export const kmWords = (km: number) => `${km.toLocaleString('en-GB')} km`;
 
-/** What a delivery teaches, for the fact card and the reward. */
-export function learnedLine(job: Job, route: readonly Dir[]): string {
+/**
+ * How far a world parcel went: the fewest squares from where the post set off
+ * to where it was delivered — the distance between the places, whichever way
+ * Ember flew (UX review round 1: a wandering route was asked as its length,
+ * and taught as how far apart they are).
+ */
+export const squaresAway = (job: Job, at: Cell) => movesBetween(job, mapOf(job).start, at);
+
+/** What a delivery teaches, for the fact card and the reward (`at`: where it was delivered). */
+export function learnedLine(job: Job, route: readonly Dir[], at: Cell): string {
   const stamp = STAMP_BY_ID[job.stamp];
   // The world's: its place, and how far (its stamp's note is in the album — with it, the card was too long for a phone).
-  if (job.map === 'world') return `${REGION_BY_ID[job.to].fact} Ember flew ${NUM[route.length] ?? route.length} ${route.length === 1 ? 'square' : 'squares'} — about ${kmWords(route.length * KM_PER_SQUARE)}.`;
+  if (job.map === 'world') {
+    const n = squaresAway(job, at);
+    return `${REGION_BY_ID[job.to].fact} From Europe it’s ${NUM[n] ?? n} ${n === 1 ? 'square' : 'squares'} — about ${kmWords(n * KM_PER_SQUARE)} by the map’s scale.`;
+  }
   const way = route.length ? `Ember flew ${routeWords(route)}.` : '';
   if (job.map === 'town') {
     const ref = gridRef(job.to);
     return `The house was at ${ref}: ${ref[0]} along, ${ref.slice(1)} up. ${way} ${stamp.note}`;
   }
-  return `To the ${PLACES[job.to].name}: ${way} ${stamp.note}`;
+  return `${way} ${stamp.note}`.trim();
 }
 
 export { cap as capitalise };

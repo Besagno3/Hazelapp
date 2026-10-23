@@ -371,7 +371,10 @@ Old Ringwood is the tree who loses count of his rings.
   and west edges joined, then "How far?" at about 3,000 km a square. The
   stamps are the kinds of post (three a band), each a true thing about maps
   and the world; each continent and ocean says one more. Pidge has no quest,
-  so 🐉 is her gold offer; the first round gives a Hint Feather.
+  so 🐉 is her gold offer; the first round gives a Hint Feather. Review
+  round 1: a first wrong delivery on the town or the world says how to find
+  the place on the map, only a second which way (else the map need never be
+  read); "How far?" is the shortest way from Europe, by the map's scale.
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 

@@ -18,6 +18,7 @@ import {
   destWords,
   farChoices,
   gridRef,
+  howToFind,
   jobFor,
   jobWords,
   learnedLine,
@@ -30,6 +31,8 @@ import {
   roundQueue,
   routeWords,
   STEP,
+  squaresAway,
+  targetWords,
   targets,
   whereWords,
   type Cell,
@@ -120,6 +123,40 @@ describe('the maps', () => {
     expect(WORLD[5]).toBe('XXXXXXXXXXXX');
   });
 
+  it('the world’s squares where real places are (code review round 1: north of Moscow was Asia, Addis Ababa too)', () => {
+    // A square: 30° each way, from 180° west and the North Pole.
+    const at = (lat: number, lon: number) => regionAt({ x: Math.floor((lon + 180) / 30), y: Math.floor((90 - lat) / 30) }).id;
+    expect(at(48.9, 2.3)).toBe('europe'); // Paris
+    expect(at(64.5, 40.5)).toBe('europe'); // Arkhangelsk, north of Moscow
+    expect(at(9, 38.7)).toBe('africa'); // Addis Ababa
+    expect(at(29.9, 31.2)).toBe('africa'); // Cairo
+    expect(at(-1.3, 36.8)).toBe('africa'); // Nairobi
+    expect(at(-4.3, 15.3)).toBe('africa'); // Kinshasa
+    expect(at(39.9, 116.4)).toBe('asia'); // Beijing
+    expect(at(28.6, 77.2)).toBe('asia'); // Delhi
+    expect(at(40.7, -74)).toBe('north-america'); // New York
+    expect(at(-22.9, -43.2)).toBe('south-america'); // Rio de Janeiro
+    expect(at(-25, 135)).toBe('australia'); // the middle of Australia
+    expect(at(-80, 0)).toBe('antarctica');
+    // Each continent and the three big oceans in one piece (the Atlantic was two, joined at a corner).
+    for (const r of REGIONS.filter((x) => x.id !== 'arctic')) {
+      const cells = WORLD.flatMap((row, y) => [...row].flatMap((c, x) => (c === r.code ? [{ x, y }] : [])));
+      const seen = new Set([`${cells[0].x},${cells[0].y}`]);
+      const todo = [cells[0]];
+      while (todo.length) {
+        const c = todo.pop()!;
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const n = { x: (c.x + dx + 12) % 12, y: c.y + dy };
+          if (n.y >= 0 && n.y < 6 && WORLD[n.y][n.x] === r.code && !seen.has(`${n.x},${n.y}`)) {
+            seen.add(`${n.x},${n.y}`);
+            todo.push(n);
+          }
+        }
+      }
+      expect(seen.size, r.id).toBe(cells.length);
+    }
+  });
+
   it('a move: one square; off the bay or the town’s edge, nowhere; the world’s east and west edges join', () => {
     const bay = jobFor('gentle', 0, 0);
     expect(move(bay, { x: 2, y: 2 }, 'N')).toEqual({ x: 2, y: 1 });
@@ -127,6 +164,10 @@ describe('the maps', () => {
     expect(move(bay, { x: 0, y: 0 }, 'N')).toBeNull();
     const town = jobFor('medium', 0, 0);
     expect(move(town, { x: 3, y: 3 }, 'NE')).toEqual({ x: 4, y: 2 });
+    // A diagonal off the town's corners and edges: nowhere.
+    expect(move(town, { x: 5, y: 0 }, 'NE')).toBeNull();
+    expect(move(town, { x: 0, y: 5 }, 'SW')).toBeNull();
+    expect(move(town, { x: 2, y: 0 }, 'NW')).toBeNull();
     const world = jobFor('tricky', 0, 0);
     expect(move(world, { x: 0, y: 2 }, 'W')).toEqual({ x: 11, y: 2 });
     expect(move(world, { x: 11, y: 2 }, 'E')).toEqual({ x: 0, y: 2 });
@@ -183,12 +224,16 @@ describe('the words', () => {
   const c5: Job = { ...pondHouse, by: 'square' };
   const ice: Job = { band: 'tricky', stamp: 'globe', map: 'world', to: 'antarctica' };
 
-  it('which way, in compass words', () => {
+  it('which way, in compass words — with eight directions, along a diagonal', () => {
     expect(relWords({ x: 2, y: 2 }, { x: 0, y: 0 })).toBe('2 squares north and 2 west');
     expect(relWords({ x: 2, y: 2 }, { x: 2, y: 1 })).toBe('1 square north');
     expect(relWords({ x: 2, y: 2 }, { x: 4, y: 2 })).toBe('2 squares east');
     // Round the world the short way.
     expect(relWords({ x: 0, y: 1 }, { x: 11, y: 1 }, true)).toBe('1 square west');
+    // Medium's compass has the diagonals (code review round 1: the pond's "north-east" was "north and east").
+    expect(relWords({ x: 1, y: 2 }, { x: 2, y: 1 }, false, true)).toBe('1 square north-east');
+    expect(relWords({ x: 0, y: 0 }, { x: 2, y: 2 }, false, true)).toBe('2 squares south-east');
+    expect(relWords({ x: 0, y: 0 }, { x: 1, y: 2 }, false, true)).toBe('2 squares south and 1 east');
   });
 
   it('the clue, the ticket, where Ember is', () => {
@@ -208,23 +253,63 @@ describe('the words', () => {
     expect(whereWords(ice, { x: 0, y: 2 })).toBe('over the Pacific Ocean');
   });
 
-  it('a wrong square: where Ember is, and which way to go — never scolded', () => {
-    expect(missWords(lighthouse, { x: 0, y: 2 })).toBe('That’s the duck pond. The lighthouse is 1 square north and 4 east.');
-    expect(missWords(lighthouse, { x: 1, y: 1 })).toBe('Nobody’s waiting here. The lighthouse is 3 squares east.');
-    expect(missWords(c5, { x: 3, y: 3 })).toBe('That’s D3. The house is 2 squares north and 1 west.');
-    expect(missWords(pondHouse, { x: 1, y: 1 })).toBe('That’s B5. The house is 1 square east.');
-    expect(missWords(ice, { x: 6, y: 3 })).toBe('That’s Africa. Antarctica is 2 squares south.');
+  it('a wrong square: where Ember is — the first time on the town and the world, how to find the place; then which way — never scolded', () => {
+    // Gentle's lesson is the way: said at once.
+    expect(missWords(lighthouse, { x: 0, y: 2 }, 1)).toBe('That’s the duck pond. The lighthouse is 1 square north and 4 east.');
+    expect(missWords(lighthouse, { x: 1, y: 1 }, 1)).toBe('Nobody’s waiting here. The lighthouse is 3 squares east.');
+    // The first miss reads the map (UX review round 1: the way at once, and the map was never read).
+    expect(missWords(c5, { x: 3, y: 3 }, 1)).toBe('That’s D3. C5 is C along the bottom, then 5 up the side.');
+    expect(missWords(c5, { x: 3, y: 3 }, 2)).toBe('That’s D3. The house is 2 squares north and 1 west.');
+    expect(missWords(pondHouse, { x: 1, y: 1 }, 1)).toBe('That’s B5. Find the duck pond first, then look north-east of it.');
+    expect(missWords(pondHouse, { x: 1, y: 1 }, 2)).toBe('That’s B5. The house is 1 square east.');
+    expect(missWords(pondHouse, { x: 1, y: 2 }, 2)).toBe('That’s B4. The house is 1 square north-east.');
+    expect(missWords(ice, { x: 6, y: 3 }, 1)).toBe('That’s Africa. Antarctica is the icy one, all along the bottom — find its name on the map.');
+    expect(missWords(ice, { x: 6, y: 3 }, 2)).toBe('That’s Africa. Antarctica is 2 squares south.');
+    // Tricky's four directions counted as it flies (code review round 1: from Africa, 2 north and 2 west, not 3 west).
+    const america: Job = { band: 'tricky', stamp: 'postcard', map: 'world', to: 'north-america' };
+    expect(missWords(america, { x: 6, y: 2 }, 2)).toBe('That’s Africa. North America is 3 squares west.');
   });
 
-  it('the route said in runs; the scale’s three choices; what a delivery teaches', () => {
-    expect(routeWords(['E', 'E', 'N'] as Dir[])).toBe('2 east, then 1 north');
-    expect(routeWords(['NE'] as Dir[])).toBe('1 north-east');
-    expect(farChoices(4)).toEqual([6000, 12000, 18000]);
-    expect(farChoices(1)).toEqual([3000, 9000, 15000]);
-    expect(farChoices(2)).toEqual([6000, 12000, 18000]);
-    expect(learnedLine(lighthouse, ['E', 'E', 'N'])).toBe(`To the lighthouse: Ember flew 2 east, then 1 north. ${STAMPS[0].note}`);
-    expect(learnedLine(c5, ['N', 'NW'])).toBe(`The house was at C5: C along, 5 up. Ember flew 1 north, then 1 north-west. ${STAMPS.find((s) => s.id === 'seeds')!.note}`);
-    expect(learnedLine(ice, ['S', 'S', 'S', 'S'])).toBe(`${REGION_BY_ID.antarctica.fact} Ember flew four squares — about 12,000 km.`);
-    expect(learnedLine(ice, ['S'])).toMatch(/flew one square — about 3,000 km\.$/);
+  it('for a reader, where the parcel’s going; by the map till the first move, how to find it', () => {
+    expect(targetWords(lighthouse, { x: 2, y: 2 })).toBe('The lighthouse is 1 square north and 2 east.');
+    expect(targetWords(lighthouse, { x: 4, y: 1 })).toBe('The lighthouse is here.');
+    expect(targetWords(pondHouse, { x: 3, y: 3 })).toBe('The duck pond is at B4.');
+    expect(targetWords(c5, { x: 3, y: 3 })).toBe('');
+    expect(targetWords(ice, WORLD_START)).toBe('Antarctica is the icy one, all along the bottom.');
+    expect(howToFind(lighthouse)).toBe('Find the lighthouse’s picture on the map, then steer Ember there.');
+    expect(howToFind(c5)).toBe('C5 is C along the bottom, then 5 up the side.');
+    expect(howToFind(pondHouse)).toBe('Find the duck pond first, then look north-east of it.');
+    expect(howToFind(ice)).toBe('Find Antarctica on the map: north is up, the equator across the middle.');
+  });
+
+  it('the route said in runs, or past three, how many squares; what a delivery teaches', () => {
+    expect(routeWords(['E', 'E', 'N'] as Dir[])).toBe('2 squares east, then 1 north');
+    expect(routeWords(['NE'] as Dir[])).toBe('1 square north-east');
+    // A wandering route (code review round 1: every run, too long for a phone's card).
+    expect(routeWords(['N', 'S', 'N', 'S', 'E', 'E', 'N'] as Dir[])).toBe('7 squares');
+    expect(learnedLine(lighthouse, ['E', 'E', 'N'], { x: 4, y: 1 })).toBe(`Ember flew 2 squares east, then 1 north. ${STAMPS[0].note}`);
+    expect(learnedLine(c5, ['N', 'NW'], { x: 2, y: 1 })).toBe(`The house was at C5: C along, 5 up. Ember flew 1 square north, then 1 north-west. ${STAMPS.find((s) => s.id === 'seeds')!.note}`);
+    // The world's: how far from Europe, the shortest way — however Ember flew (UX review round 1).
+    expect(learnedLine(ice, ['E', 'S', 'S', 'S', 'S', 'W'], { x: 6, y: 5 })).toBe(`${REGION_BY_ID.antarctica.fact} From Europe it’s four squares — about 12,000 km by the map’s scale.`);
+    expect(squaresAway(ice, { x: 6, y: 5 })).toBe(4);
+    expect(squaresAway(ice, { x: 0, y: 5 })).toBe(10);
+  });
+
+  it('how far: three choices, the right one first, in the middle or last by the parcel (code review and UX review round 1: always the middle)', () => {
+    expect(farChoices(4, 0)).toEqual([12000, 15000, 18000]);
+    expect(farChoices(4, 1)).toEqual([9000, 12000, 15000]);
+    expect(farChoices(4, 2)).toEqual([6000, 9000, 12000]);
+    for (let n = 3; n <= 10; n++) for (const slot of [0, 1, 2]) expect(farChoices(n, slot).indexOf(n * 3000), `${n} ${slot}`).toBe(slot);
+    // Never none or fewer: one square, the right one first.
+    for (const slot of [0, 1, 2]) {
+      expect(farChoices(1, slot)).toEqual([3000, 6000, 9000]);
+      expect(Math.min(...farChoices(2, slot))).toBeGreaterThan(0);
+    }
+    // Over the rounds' parcels, each place comes up.
+    const at = jobs('tricky', 8).map((j, k) => {
+      const n = Math.min(...targets(j).map((c) => squaresAway(j, c)));
+      return farChoices(n, k).indexOf(n * 3000);
+    });
+    expect(new Set(at)).toEqual(new Set([0, 1, 2]));
   });
 });

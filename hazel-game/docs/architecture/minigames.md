@@ -340,11 +340,22 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   kind of post (`STAMPS`, three a band) to a place, a house (by its square or
   a landmark) or a continent or ocean (`REGIONS`, each a clue and a fact).
   The compass (`BAND_DIRS`: four, eight, four) moves Ember a square
-  (`move`); Deliver checks (`delivered`) or says which way (`missWords`,
-  `relWords`); Tricky then asks how far (`farChoices`, `KM_PER_SQUARE`).
-  The map is sized to fit with the card beside or under it, whichever lets
-  it be bigger (`useMapLayout`); on a short phone held sideways what Pidge
-  said goes under the map when there's room (`saidUnder`), and on a short
-  split screen a stamp's card goes beside it (`CARD_UNDER.done`). The
+  (`move`), and so does a tapped square next to her (`useLiftTap`); Deliver
+  checks (`delivered`) or says — the first miss on the town or the world —
+  how to find the place (`howToFind`, a region's `spot`), then which way
+  (`missWords`, `relWords`, the nearest square by `movesBetween`); Tricky
+  then asks how far the place is from Europe the shortest way
+  (`squaresAway`, `farChoices` with the answer's place by the parcel,
+  `KM_PER_SQUARE` as the map's scale). The map is sized to fit with the
+  card beside or under it, whichever lets it be bigger (`useMapLayout`: the
+  card under it sized from its parts, `cardUnder`; beside it, Deliver under
+  the compass where the card's narrow, `stack`); the side panel splits off
+  from 768 px (`md`, not the stage's `split`: a phone held sideways gives
+  the world its width); on a short phone held sideways what Pidge said goes
+  under the map when there's room (`saidUnder`), and on a short split
+  screen a stamp's card goes beside it. Pidge's bubble re-reads the same
+  words (a zero-width space every other time); for a reader the map is
+  described by the clue, where Ember is and where the parcel's going
+  (`targetWords`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
