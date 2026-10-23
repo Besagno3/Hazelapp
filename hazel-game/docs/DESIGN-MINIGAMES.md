@@ -348,7 +348,12 @@ Old Ringwood is the tree who loses count of his rings.
   is about the first wrong place and names only cards on the board (most
   named a card not dealt); Medium deals no two cards closer than 30 years
   (it had 1885 and 1889, with no years shown); Tricky says what BCE means as
-  it starts; the next empty place is marked.
+  it starts; the next empty place is marked. Review round 2: a check keeps
+  the longest run already in order, each card moved to its own place, and
+  floats back the rest — by place, the oldest put last sent every card back
+  with "Not yet!"; Medium always keeps the set's oldest card, so a drawer
+  spans two thousand years or more; the keyboard starts at the washed-up
+  cards.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 

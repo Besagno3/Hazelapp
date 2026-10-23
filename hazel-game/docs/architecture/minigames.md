@@ -295,8 +295,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   and buildings — no wars, disasters or religion, tested — each event a
   year, "about" where it's rough, a name to say mid-sentence and a `why`
   naming no other card); Gentle and Tricky pick 3–4 or 6–7 of a set
-  (`PICKS`), Medium five whose neighbours are `MIN_GAP` years apart (as
-  Gentle's), dealt with at most a third in place (`deal`); Tricky with
+  (`PICKS`), Medium five keeping the oldest whose neighbours are `MIN_GAP`
+  years apart (as Gentle's; `yearsApart`: no year 0), dealt with at most a
+  third in place, none of three, and no run in order longer than half
+  (`deal`); Tricky with
   years (`yearWords`: BCE counting down; `BCE_WORDS` said as it starts),
   the others "years ago" once filed (`whenWords`). Each card tapped goes in
   the next empty place (marked "next"), oldest first, and one on the line
@@ -305,11 +307,28 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   timeline side by side, the step a bar kept under them); each card leaves
   a slot its own size (`CardSlot`) and, held sideways, an empty place keeps
   a card's room, so nothing moves under a finger. "Check the order"
-  (`check`, `checkWords`, `clueFor`: the first wrong place and the card for
-  it, naming only cards dealt) keeps the right ones and floats the rest back,
-  the clue kept by the timeline till the next check; a check starts the wait
-  again. Focus starts on the step's heading; a card placed from the keyboard
-  moves it on to the next card left, or Check; a wrong check, to the first
-  card back; each landing is said by Index. The
+  (`check`: the longest run already in order, with every card already in its
+  place, each moved to its own place — a run of one only if in place;
+  `checkWords`; `clueFor`: the first empty place and the card for it, naming
+  only cards dealt) keeps those and floats the rest back, Index saying how
+  many and the clue, the box by the timeline just the clue till the next
+  check; a check starts the wait again. Focus starts on the washed-up cards
+  (a group described by how to play), so a Tab goes to the first; a card
+  placed from the keyboard moves it on to the next card left, or Check; a
+  wrong check, to the first card back — where a key's press within
+  `SETTLE_MS`, or a held key's repeat, does nothing (`useFocusMoved`,
+  `noRepeat`); each landing is said by Index, and the same words said again
+  carry a zero-width space so her bubble reads them again. `HostBubble`
+  takes a `portraitClass` (the Timeline hides her picture on a short split
+  screen under 760 px wide). Held sideways from 560 px (and 501 px high) the
+  board is a grid: the timeline across the top, the washed-up cards (how to
+  play under them) and the step's card side by side under it; held upright
+  (a phone, or a tablet), the cards and the timeline side by side; on a
+  phone held upright the board is the page's height at least
+  (`min-h-[100cqh]`, the page a size container) and the step one bar at its
+  foot, sticky (a media list with a comma is dropped by Tailwind as an
+  arbitrary variant: "under 560 px or upright" is two variants); long
+  words in a card's name are blocks with a soft hyphen (`Breakable`), so they
+  break only where they must. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

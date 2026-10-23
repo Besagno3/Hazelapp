@@ -25,7 +25,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { SET_BY_ID, jobFor, learnedLine, roundQueue } = await import('../../../lib/minigames/timeline');
+const { SET_BY_ID, check, clueFor, jobFor, learnedLine, roundQueue } = await import('../../../lib/minigames/timeline');
 type Band = import('../../../content/minigames').Band;
 type Job = import('../../../lib/minigames/timeline').Job;
 
@@ -50,6 +50,8 @@ beforeEach(() => {
 
 const save = () => useSaveStore.getState().save!;
 const index = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
+// The step's box, by the timeline: what Index said, or the last check's clue, or what to do now.
+const box = () => document.querySelector('[data-bar] p.min-h-\\[5\\.25rem\\]')?.textContent ?? '';
 const tray = () => screen.getByRole('group', { name: /^The washed-up cards/ });
 const card = (name: string) => within(tray()).getByRole('button', { name: new RegExp(`^${name}`) });
 const place = (k: number) => screen.getByRole('button', { name: new RegExp(`^Place ${k + 1} of `) });
@@ -78,13 +80,15 @@ describe('📜 the title card', () => {
 });
 
 describe('📜 Index’s Timeline, a round (docs/DESIGN-MINIGAMES.md §5.8)', () => {
-  it('Gentle: each card tapped goes in the next place, oldest first; a check sends the wrong ones back with a clue, keeps the right; in order → its page; three, then the round', () => {
+  it('Gentle: each card tapped goes in the next place, oldest first; a check keeps the longest run in order, each card in its place, and sends the rest back with a clue; in order → its page; three, then the round', () => {
     const { onPage, onFinish } = play('gentle');
     const queue = roundQueue(() => false, 0);
     const job = jobFor('gentle', 0, 0, queue); // Light: firelight, gas lamps, LEDs
     expect(job.events.map((ev) => ev.name)).toEqual(['Firelight in caves', 'Gas street lamps', 'First LED light']);
-    // Focus on the step's heading — no card lit as if it were the answer (UX review round 1); no years on Gentle's cards.
-    expect(screen.getByRole('heading', { name: 'Put them in order' })).toHaveFocus();
+    // Focus on the washed-up cards — no card lit as if it were the answer (UX review round 1), and a Tab goes to the first
+    // (UX and code review round 2); no years on Gentle's cards.
+    expect(tray()).toHaveFocus();
+    expect(tray()).toHaveAccessibleDescription(/^Tap the cards in the order they happened, oldest first/);
     expect(card('First LED light')).toHaveAccessibleName('First LED light');
     expect(place(0)).toHaveAccessibleName('Place 1 of 3, the oldest, empty, next');
     expect(index()).toContain('Which came first? Tap the oldest card.');
@@ -93,27 +97,32 @@ describe('📜 Index’s Timeline, a round (docs/DESIGN-MINIGAMES.md §5.8)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Check the order' }));
     expect(index()).toContain('Every card on the timeline first — 3 still to place.');
 
-    // Gas lamps first, firelight second (wrong); the LED last (right). Each landing is said (a reader hears it).
+    // Gas lamps first, firelight second (wrong); the LED last (right). Each landing is said (a reader hears it), and what's
+    // next names the card before it (UX review round 2: "the card that came after" — after what?).
     fireEvent.click(card('Gas street lamps'));
     expect(place(0)).toHaveAccessibleName('Place 1 of 3, the oldest: Gas street lamps');
     expect(place(1)).toHaveAccessibleName('Place 2 of 3, empty, next');
-    expect(index()).toContain('Gas street lamps: place 1 of 3. And next? Tap the card that came after.');
+    expect(index()).toContain('Gas street lamps: place 1 of 3. What came after gas street lamps? Tap that card.');
     fireEvent.click(card('Firelight in caves'));
     fireEvent.click(card('First LED light'));
     fireEvent.click(screen.getByRole('button', { name: 'Check the order' }));
-    const clue = 'One in the right place! Oldest of these: firelight in caves — people have lit the dark with fire for hundreds of thousands of years.';
-    expect(screen.getAllByText(clue)).toHaveLength(2);
-    // The right one stays, ticked; the others are back with the washed-up cards; the next place marked.
+    const clue = 'Oldest of these: firelight in caves — people have lit the dark with fire for hundreds of thousands of years.';
+    // Index says how many stayed; the box by the timeline just the clue — the ticks show how many (UX review round 2).
+    expect(index()).toContain(`Two in order! ${clue}`);
+    expect(box()).toBe(clue);
+    // The gas lamps and the LED, in order, stay — the gas lamps to their own place; firelight's back with the washed-up
+    // cards; the next place marked.
+    expect(place(1)).toHaveAccessibleName('Place 2 of 3: Gas street lamps, right');
     expect(place(2)).toHaveAccessibleName('Place 3 of 3, the newest: First LED light, right');
     expect(place(0)).toHaveAccessibleName('Place 1 of 3, the oldest, empty, next');
-    expect(card('Gas street lamps')).toBeInTheDocument();
+    expect(within(tray()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Firelight in caves']);
     fireEvent.click(place(2));
     expect(index()).toContain('First LED light is in its right place — it stays.');
+    expect(box()).toBe('First LED light is in its right place — it stays.');
 
-    // The next cards fill the empty places, oldest first; the clue stays by the timeline till the next check.
+    // The next card fills the empty place; the clue's back by the timeline till the next check (code review round 2).
     fireEvent.click(card('Firelight in caves'));
-    expect(screen.getAllByText(clue)).toHaveLength(1);
-    fireEvent.click(card('Gas street lamps'));
+    expect(box()).toBe(clue);
     fireEvent.click(screen.getByRole('button', { name: 'Check the order' }));
     const head = screen.getByRole('heading', { name: 'Light, in order!' });
     expect(head).toHaveFocus();
@@ -148,24 +157,42 @@ describe('📜 Index’s Timeline, a round (docs/DESIGN-MINIGAMES.md §5.8)', ()
     expect(place(1)).toHaveAccessibleName('Place 2 of 3: First LED light');
   });
 
-  it('from the keyboard: a card placed, on to the next card left, then Check; a wrong check, on to the first card back (code review round 1)', () => {
+  it('the same words again are read again: an empty place tapped twice (code review round 2)', () => {
+    play('gentle');
+    fireEvent.click(place(1));
+    const once = index();
+    fireEvent.click(place(1));
+    expect(index()).not.toBe(once);
+    expect(index().replace(/\u200b/g, '')).toBe(once.replace(/\u200b/g, ''));
+  });
+
+  it('Medium: the oldest put last — the rest stay in order, each in its place, and the oldest goes back (UX review round 2)', () => {
+    setUp(5);
+    play('medium');
+    const job = jobFor('medium', 0, 0, roundQueue(() => false, 0));
+    for (const ev of [...job.events.slice(1), job.events[0]]) fireEvent.click(card(ev.name));
+    fireEvent.click(screen.getByRole('button', { name: 'Check the order' }));
+    expect(index()).toContain(`Four in order! ${clueFor(job, check(job, [...job.events.slice(1), job.events[0]].map((ev) => ev.id)))}`);
+    expect(box()).toMatch(/^Oldest of these: /);
+    for (let k = 1; k < 5; k++) expect(place(k)).toHaveAccessibleName(new RegExp(`^Place ${k + 1} of 5.*: ${job.events[k].name}, right$`));
+    expect(place(0)).toHaveAccessibleName('Place 1 of 5, the oldest, empty, next');
+    expect(within(tray()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([job.events[0].name]);
+    expect(index()).not.toContain('What came after');
+  });
+
+  it('the line holds every card’s face unseen, and a card placed leaves its face unseen in the tray — so nothing moves; long words breakable (code and UX review round 2)', () => {
     play('gentle');
     const job = jobFor('gentle', 0, 0);
-    const press = (b: HTMLElement) => {
-      b.focus();
-      fireEvent.click(b);
-    };
-    // Dealt: the cards in the tray's order; each pressed, focus on to the next still there.
-    const dealt = job.dealt.map((id) => job.events.find((ev) => ev.id === id)!.name);
-    press(card(dealt[0]));
-    expect(card(dealt[1])).toHaveFocus();
-    press(card(dealt[1]));
-    expect(card(dealt[2])).toHaveFocus();
-    press(card(dealt[2]));
-    expect(screen.getByRole('button', { name: 'Check the order' })).toHaveFocus();
-    press(screen.getByRole('button', { name: 'Check the order' }));
-    // The dealt order isn't right: the first card back has focus.
-    expect(within(tray()).getAllByRole('button')[0]).toHaveFocus();
+    fireEvent.click(card(job.events[0].name));
+    // A face's name, its long words breakable (a soft hyphen: "Fire­light").
+    const said = (el: Element | null) => el?.textContent?.replace(/\u00ad/g, '');
+    const named = (name: string) => (_: string, el: Element | null) => !!el && said(el) === name && !Array.from(el.children).some((c) => said(c) === name);
+    expect(within(tray()).getByText(named(job.events[0].name)).textContent).toBe('Fire\u00adlight in caves');
+    // Its spot in the tray: the card's face, unseen, not read out.
+    expect(within(tray()).getByText(named(job.events[0].name)).closest('[aria-hidden="true"]')).not.toBeNull();
+    // Each place: every card's face, none read out (a place's name says what's on it).
+    for (let k = 0; k < job.events.length; k++)
+      for (const ev of job.events) expect(within(place(k)).getByText(named(ev.name)).closest('[aria-hidden="true"]'), `${k} ${ev.id}`).not.toBeNull();
   });
 
   it('Medium: five cards, no years', () => {
@@ -184,12 +211,12 @@ describe('📜 Index’s Timeline, a round (docs/DESIGN-MINIGAMES.md §5.8)', ()
     expect(card('Stone oil lamps')).toHaveAccessibleName('Stone oil lamps, about 15,000 BCE');
     // Its years said as it starts, where a kid sees them (UX review round 1).
     expect(index()).toContain('BCE means before year 1: the bigger the BCE number, the longer ago.');
-    // Swap the second and third (both BCE): the clue counts the years down.
+    // Swap the second and third (both BCE): five stay in order, and the clue counts the years down.
     const order = job.events.map((ev) => ev.name);
     [order[1], order[2]] = [order[2], order[1]];
     for (const name of order) fireEvent.click(card(name));
     fireEvent.click(screen.getByRole('button', { name: 'Check the order' }));
-    expect(index()).toContain('Four in the right place! After firelight in caves came stone oil lamps — in BCE, a bigger year is longer ago.');
+    expect(index()).toContain('Five in order! After firelight in caves came stone oil lamps — in BCE, a bigger year is longer ago.');
   });
 
   it('the timeline book: a page read out by Index and under the book; sets not in it come first', () => {

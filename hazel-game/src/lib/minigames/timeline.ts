@@ -4,8 +4,9 @@ import type { Band } from '../../content/minigames';
  * 📜 Index's Timeline (docs/DESIGN-MINIGAMES.md §5.8): putting things in the
  * order they happened, with Index in the Sunken Archive's card catalog. Soggy
  * cards wash in; the kid puts each on the timeline (tap a card, then a place)
- * and checks: a card in the wrong place floats back with a hint of why ("A
- * bicycle needs wheels, so the wheel came first"). Gentle has 3–4 cards far
+ * and checks: the longest run already in order stays, each card in its own
+ * place, and the rest float back with a hint of why ("After gas street lamps
+ * came the electric light bulb — …"). Gentle has 3–4 cards far
  * apart, no years; Medium five across the centuries, no years; Tricky 6–7
  * with their years, BCE and CE. Three sets a round, each a page of Index's
  * timeline book (light, travel, writing, flight, food, music, buildings,
@@ -53,7 +54,7 @@ export const SETS: readonly TimelineSet[] = [
       e('oil-lamp', 'Stone oil lamps', 'stone oil lamps', '🪔', -15000, 'an oil lamp is a little fire in a stone dish, from the Stone Age.', true),
       e('candle', 'Candles', 'candles', '🕯️', -500, 'a good candle needs wax and a wick, made with care.', true),
       e('gas-lamp', 'Gas street lamps', 'gas street lamps', '🏮', 1807, 'lighting a whole street took gas pipes under the roads.'),
-      e('bulb', 'Electric light bulb', 'the electric light bulb', '💡', 1879, 'a light bulb needs electricity in people’s homes.'),
+      e('bulb', 'Electric light bulb', 'the electric light bulb', '💡', 1879, 'its thin wire glows with electricity, without burning up.'),
       e('neon', 'Neon signs', 'neon signs', '🌈', 1910, 'a neon sign is a glass tube of gas that glows with electricity.'),
       e('led', 'First LED light', 'the first LED light', '🔴', 1962, 'an LED is a tiny electronic light — the first ones were small and red.'),
     ],
@@ -65,7 +66,7 @@ export const SETS: readonly TimelineSet[] = [
     note: 'For thousands of years, nothing on land went faster than a horse. Then engines changed everything in about 100 years.',
     events: [
       e('canoe', 'Dugout canoes', 'dugout canoes', '🛶', -8000, 'a canoe is a hollowed-out log — one of the oldest ways to travel.', true),
-      e('wheel', 'The wheel', 'the wheel', '🛞', -3500, 'the first wheels were made for carts, thousands of years ago.', true),
+      e('wheel', 'The wheel', 'the wheel', '🛞', -3500, 'wheels were first put on carts, thousands of years ago.', true),
       e('steam-train', 'Steam train', 'the steam train', '🚂', 1804, 'a steam train needs an engine that burns coal to make steam.'),
       e('bicycle', 'Bicycle', 'the bicycle', '🚲', 1817, 'the first bicycle had no pedals — riders pushed with their feet!'),
       e('car', 'Petrol car', 'the petrol car', '🚗', 1886, 'a petrol car needs an engine small enough to carry.'),
@@ -96,7 +97,7 @@ export const SETS: readonly TimelineSet[] = [
     events: [
       e('kite', 'Kites', 'kites', '🪁', -500, 'kites were the first things people flew.', true),
       e('balloon', 'Hot-air balloon', 'the hot-air balloon', '🎈', 1783, 'a hot-air balloon was the first way people flew themselves.'),
-      e('glider', 'Glider with a pilot', 'the glider with a pilot', '🦅', 1853, 'a glider flies with no engine — its pilot had to learn to steer in the air.'),
+      e('glider', 'Glider with a pilot', 'the glider with a pilot', '🦅', 1853, 'a glider carried a man across a valley — with no engine at all.'),
       e('first-plane', 'First aeroplane', 'the first aeroplane', '✈️', 1903, 'the first aeroplane was a glider with an engine.'),
       e('helicopter', 'Helicopter', 'the helicopter', '🚁', 1939, 'a helicopter’s spinning blades are trickier to fly than wings.'),
       e('jet', 'Jet airliner', 'the jet airliner', '🛫', 1952, 'a jet airliner carries lots of people fast, with jet engines.'),
@@ -145,7 +146,7 @@ export const SETS: readonly TimelineSet[] = [
       e('skyscraper', 'First skyscraper', 'the first skyscraper', '🏙️', 1885, 'a skyscraper needs a steel frame and lifts.'),
       e('eiffel', 'Eiffel Tower', 'the Eiffel Tower', '🗼', 1889, 'the Eiffel Tower is made of iron, built for a world fair.'),
       e('opera-house', 'Sydney Opera House', 'the Sydney Opera House', '🎭', 1973, 'its roof shells took modern concrete and computers to work out.'),
-      e('burj', 'Burj Khalifa', 'the Burj Khalifa', '🏗️', 2010, 'it’s the tallest building in the world.'),
+      e('burj', 'Burj Khalifa', 'the Burj Khalifa', '🏗️', 2010, 'it was the tallest building in the world when it opened.'),
     ],
   },
   {
@@ -187,13 +188,21 @@ const PICKS: Record<'gentle' | 'tricky', readonly (readonly number[])[]> = {
 /** On a card with no year (Gentle, Medium), the least two side by side are apart (code review round 1: four years). */
 export const MIN_GAP = 30;
 
-/** Medium's five of a set's seven: every pair of two left out whose cards stay `MIN_GAP` apart, spread over a round. */
+/** Years from one event to a later one (there's no year 0: 1 BCE to 1 CE is a year). */
+export const yearsApart = (a: TimelineEvent, b: TimelineEvent) => b.year - a.year - (a.year < 0 && b.year > 0 ? 1 : 0);
+
+/**
+ * Medium's five of a set's events: every two left out — never the oldest, so a
+ * drawer runs across the centuries (code review round 2: a third of them were
+ * a few hundred years) — whose cards stay `MIN_GAP` apart.
+ */
 function mediumPicks(set: TimelineSet): number[][] {
+  const all = set.events.map((_, k) => k);
   const out: number[][] = [];
-  for (let a = 0; a < 7; a++)
-    for (let b = a + 1; b < 7; b++) {
-      const ks = [0, 1, 2, 3, 4, 5, 6].filter((k) => k !== a && k !== b);
-      if (ks.slice(1).every((k, j) => set.events[k].year - set.events[ks[j]].year >= MIN_GAP)) out.push(ks);
+  for (let a = 1; a < all.length; a++)
+    for (let b = a + 1; b < all.length; b++) {
+      const ks = all.filter((k) => k !== a && k !== b);
+      if (ks.slice(1).every((k, j) => yearsApart(set.events[ks[j]], set.events[k]) >= MIN_GAP)) out.push(ks);
     }
   return out;
 }
@@ -230,18 +239,35 @@ function shuffle(ids: readonly string[], seed: number): string[] {
   return out;
 }
 
+/** How long the longest run of `xs` going up is (cards in order, not side by side). */
+function longestRun(xs: readonly number[]): number {
+  const ends = xs.map(() => 1);
+  xs.forEach((x, k) => xs.slice(0, k).forEach((y, j) => y < x && (ends[k] = Math.max(ends[k], ends[j] + 1))));
+  return Math.max(0, ...ends);
+}
+
 /**
  * How the cards wash in: a shuffle the same every time for a seed, with at
- * most a third of them where they go (code review round 1: some deals were a
- * swap from done, so tapping them left to right all but solved them).
+ * most a third of them where they go — none of three (code review round 2: a
+ * swap from done) — and no run in order longer than half of them, so tapping
+ * them as they lie leaves most to do (code review round 1: some deals were a
+ * swap from done). `tries` shuffles, then the other way round (never needed:
+ * a test).
  */
-function deal(ids: readonly string[], seed: number): string[] {
-  const most = Math.floor(ids.length / 3);
-  for (let t = 0; t < 50; t++) {
+export function deal(ids: readonly string[], seed: number, tries = 50): string[] {
+  const n = ids.length;
+  const most = n <= 3 ? 0 : Math.floor(n / 3);
+  const run = Math.max(2, Math.floor(n / 2));
+  for (let t = 0; t < tries; t++) {
     const out = shuffle(ids, seed + t * 7919);
-    if (out.filter((id, k) => id === ids[k]).length <= most) return out;
+    const at = out.map((id) => ids.indexOf(id));
+    if (at.filter((x, k) => x === k).length <= most && longestRun(at) <= run) return out;
   }
-  return [...ids.slice(1), ids[0]];
+  // The other way round; with an odd count the middle two swapped, so none's in its place.
+  const out = [...ids].reverse();
+  const m = (n - 1) / 2;
+  if (n % 2) [out[m], out[m + 1]] = [out[m + 1], out[m]];
+  return out;
 }
 
 /** The `i`th job of a round. */
@@ -252,7 +278,8 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Se
   let picks: readonly number[];
   if (band === 'medium') {
     const can = mediumPicks(set);
-    picks = can[Math.floor((at * can.length) / JOBS_PER_ROUND)];
+    // Spread over a round (a test: every set has three); none at all only if a set's years were all close.
+    picks = can[Math.floor((at * can.length) / JOBS_PER_ROUND)] ?? [0, 1, 3, 5, 6];
   } else picks = PICKS[band][at];
   const events = picks.map((k) => set.events[k]);
   return { set: set.id, events, years: band === 'tricky', dealt: deal(events.map((ev) => ev.id), round * JOBS_PER_ROUND + i + 1) };
@@ -267,7 +294,7 @@ export function yearWords(ev: TimelineEvent): string {
 }
 
 /** Now, for "years ago". */
-const NOW = 2025;
+const NOW = new Date().getFullYear();
 
 /**
  * When, for a band whose cards have no years (Gentle, Medium) once a drawer's
@@ -276,31 +303,53 @@ const NOW = 2025;
  */
 export function whenWords(ev: TimelineEvent): string {
   if (ev.year > 0) return `${ev.about ? 'about the year ' : ''}${ev.year}`;
-  const ago = Number((NOW - ev.year).toPrecision(2));
+  const ago = Number((NOW - ev.year - 1).toPrecision(2));
   return `about ${ago.toLocaleString('en-GB')} years ago`;
 }
 
 /** A card's when, as its band says it. */
 export const dateOf = (job: Job, ev: TimelineEvent) => (job.years ? yearWords(ev) : whenWords(ev));
 
-/** Placed cards (ids, by place; null for an empty place) checked against the right order: which places are right. */
+/**
+ * Placed cards (ids, by place; null for an empty place) checked: which places'
+ * cards stay. The longest run of them already in order stays, each card going
+ * to its own place — with every card already in its place in it (UX review
+ * round 2: by place, the oldest put last sent every card back). A run of one
+ * isn't moved (it would show where a lone card goes): then only a card
+ * already in its place stays. Of runs as long, the one moving cards least.
+ */
 export function check(job: Job, placed: readonly (string | null)[]): boolean[] {
-  return job.events.map((ev, k) => placed[k] === ev.id);
+  const n = job.events.length;
+  // Each place's card's own place (-1: none).
+  const own = job.events.map((_, k) => job.events.findIndex((ev) => ev.id === placed[k]));
+  const there = own.flatMap((t, k) => (t === k ? [k] : []));
+  let best: number[] = [];
+  let moves = 0;
+  for (let mask = 1; mask < 1 << n; mask++) {
+    const ks = own.flatMap((_, k) => ((mask >> k) & 1 ? [k] : []));
+    if (ks.some((k) => own[k] < 0) || there.some((k) => !ks.includes(k)) || ks.some((k, j) => j > 0 && own[k] < own[ks[j - 1]])) continue;
+    const m = ks.reduce((sum, k) => sum + Math.abs(own[k] - k), 0);
+    if (ks.length > best.length || (ks.length === best.length && m < moves)) [best, moves] = [ks, m];
+  }
+  const stay = best.length >= 2 ? best : there;
+  return job.events.map((_, t) => stay.some((k) => own[k] === t));
 }
 
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 /**
- * The clue after a check: the first place that's wrong, and the card that
- * goes there — the oldest of these, or what came after the card before it —
- * with why (its `why`, naming no other card; on Tricky the years' order).
- * Only cards on the board are named (code review round 1).
+ * The clue after a check (`stay`: which places' cards stayed): the first empty
+ * place, and the card that goes there — the oldest of these, or what came
+ * after the card before it (which stayed) — with why (its `why`, naming no
+ * other card; on Tricky, with BCE before it, how BCE years count: code review
+ * round 2, the oldest too). Only cards on the board are named (code review
+ * round 1).
  */
-export function clueFor(job: Job, placed: readonly (string | null)[]): string {
-  const k = job.events.findIndex((ev, j) => placed[j] !== ev.id);
+export function clueFor(job: Job, stay: readonly boolean[]): string {
+  const k = stay.indexOf(false);
   if (k < 0) return '';
   const r = job.events[k];
-  if (k === 0) return `Oldest of these: ${r.said} — ${r.why}`;
+  if (k === 0) return `Oldest of these: ${r.said} — ${job.years && r.year < 0 ? 'in BCE, a bigger year is longer ago.' : r.why}`;
   const prev = job.events[k - 1];
   let why = r.why;
   if (job.years && prev.year < 0 && r.year < 0) why = 'in BCE, a bigger year is longer ago.';
@@ -310,13 +359,13 @@ export function clueFor(job: Job, placed: readonly (string | null)[]): string {
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'];
 
-/** After a check: all in order, or how many are, and the clue. Short, so it fits a phone's bar whole. */
-export function checkWords(job: Job, right: readonly boolean[], placed: readonly (string | null)[]): string {
-  const n = right.filter(Boolean).length;
+/** After a check: all in order, or how many stayed, and the clue. Short, so it fits a phone's bar whole. */
+export function checkWords(job: Job, stay: readonly boolean[]): string {
+  const n = stay.filter(Boolean).length;
   const first = job.events[0];
   const last = job.events[job.events.length - 1];
   if (n === job.events.length) return `All in order! ${cap(first.said)} first, ${last.said} last.`;
-  return `${n ? `${cap(NUM[n])} in the right place!` : 'Not yet!'} ${cap(clueFor(job, placed))}`;
+  return `${n > 1 ? `${cap(NUM[n])} in order!` : n ? 'One in the right place!' : 'Not yet!'} ${clueFor(job, stay)}`;
 }
 
 /** Tricky's years, said where a kid sees them (UX review round 1: only on the ticket, hidden on a short screen). */

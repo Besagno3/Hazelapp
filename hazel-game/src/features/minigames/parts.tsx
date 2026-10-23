@@ -40,7 +40,7 @@ export function Stars({ count, size = 30, className }: { count: number; size?: n
  * smaller portrait and no name, so the game comes up sooner (one bubble —
  * never two live regions).
  */
-export function HostBubble({ npcId, line, phoneStrip = false, id }: { npcId: string; line: ReactNode; phoneStrip?: boolean; id?: string }) {
+export function HostBubble({ npcId, line, phoneStrip = false, id, portraitClass }: { npcId: string; line: ReactNode; phoneStrip?: boolean; id?: string; portraitClass?: string }) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const npc = NPC_DEFS[npcId];
   if (!npc) return null;
@@ -53,6 +53,7 @@ export function HostBubble({ npcId, line, phoneStrip = false, id }: { npcId: str
         className={cn(
           'flex flex-none items-end justify-center overflow-hidden rounded-lg border-[3px] border-white bg-[#2f6a4c] shadow-[0_0_0_3px_#1b0f22]',
           phoneStrip ? 'h-14 w-14 sm:[@media(min-height:501px)]:h-24 sm:[@media(min-height:501px)]:w-24' : 'h-20 w-20 sm:h-24 sm:w-24',
+          portraitClass,
         )}
       >
         <CharacterPortrait spriteId={npcSpriteId(npc, flags)} emoji={npcEmoji(npc, flags)} scale={2.5} className="text-4xl" />
