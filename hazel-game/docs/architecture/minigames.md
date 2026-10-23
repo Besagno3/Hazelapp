@@ -379,13 +379,18 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   (`forgeWords`: right; a real word that means something else — `realWord`,
   the asked words and `ALSO`, every pair a tray can make held by
   `forge.test` to those or a looked-at list of not-words; the other way
-  round; -s for -es; an add-on in the wrong place; or no word, with
-  `hintFor`, which builds on what the try got right). The tray keeps each
+  round; -s for -es; two add-ons; an add-on not in the word, where it goes;
+  or no word, with `hintFor`, which builds on what the try got right — a
+  real word with a part right says to keep it). What's shown keeps an end
+  part's hyphen on its line (`keepHyphens`); the reward recaps the round's
+  three words (`builtLine`). The tray keeps each
   part's spot; the step's card is beside the board held sideways from 560
   px, Hammer above what Dot said so a long line never moves it, and on a
   short screen — or a small phone held upright — a bar kept in sight under
   it (on a short split screen one row, the meaning and Hammer: what Dot
-  said is in her bubble beside the board). From the keyboard, focus goes on from a part placed to the next, then
+  said is in her bubble beside the board, kept at the side panel's top). A
+  page of the wall is read under it in a place kept for it, so nothing
+  moves as it opens. From the keyboard, focus goes on from a part placed to the next, then
   Hammer; from a tap, to the tray. The games' keyboard guards are shared
   (`features/minigames/keys.ts`: `noRepeat` for a held Enter, `useFocusMoved`
   for a double Enter on what focus moved to, `keyed`). The

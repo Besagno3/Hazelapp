@@ -279,7 +279,8 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     ],
     collection: 'Word wall',
     pages: 9,
-    bandNote: 'Medium: un-, re-, pre-, -ful, -less, -er and -est. Tricky: Greek and Latin roots — tele means far!',
+    // A word joiner after each end part's hyphen: "-" / "ful" never split over two lines (Word Forge's UX review round 2).
+    bandNote: 'Medium: un-, re-, pre-, -\u2060ful, -\u2060less, -\u2060er and -\u2060est. Tricky: Greek and Latin roots — tele means far!',
     music: 'shallows',
     backdrop: '/backgrounds/inkwell-cove.png',
     firstItem: 'tea',

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { FAMILIES, FAMILY_BY_ID, JOBS_PER_ROUND, PART_MEANS, capitalise, forgeWords, jobFor, jobWords, learnedLine, partText, roundQueue, type FamilyId } from '../../../lib/minigames/forge';
+import { FAMILIES, FAMILY_BY_ID, JOBS_PER_ROUND, PART_MEANS, builtLine, capitalise, forgeWords, jobFor, jobWords, keepHyphens, learnedLine, partText, roundQueue, type FamilyId } from '../../../lib/minigames/forge';
 import { BAND_LABEL, pageFlag, type Band } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { CharacterPortrait } from '../../../components/CharacterPortrait';
@@ -59,7 +59,6 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
   // wrong try said "Two parts on the anvil first" over the hint).
   const [tries, setTries] = useState(0);
   const [newPage, setNewPage] = useState(false);
-  const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
   const [read, setRead] = useState<FamilyId | null>(null);
   const known = (id: FamilyId) => !!flags[pageFlag(def.id, id)];
@@ -129,7 +128,6 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
     if (right) {
       sfx('chest');
       setNewPage(onPage(job.family, family.name));
-      setLessons((l) => [...l, learnedLine(job)]);
       setRights((r) => r + 1);
       setStep('done');
       return;
@@ -145,7 +143,9 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
     if (step !== 'done' || !settled()) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      onFinish({ title: 'Three words forged!', learned: lessons[lessons.length - 1] ?? '' });
+      // The round's three words, each how it's built (UX review round 2: only the last was named).
+      const built = Array.from({ length: JOBS_PER_ROUND }, (_, i) => builtLine(jobFor(band, round, i, queue)));
+      onFinish({ title: 'Three words forged!', learned: keepHyphens(built.join(' ')) });
       return;
     }
     setDone((d) => d + 1);
@@ -176,18 +176,20 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
 
   // As each step starts, the page scrolls back to the board's top on a phone (a word forged: at least that, with Next);
   // where the page doesn't scroll, the step's gold button comes into view. A new page on the wall, in a side panel, comes
-  // into sight (UX review round 1: it was below the panel's fold).
+  // into sight (UX review round 1: it was below the panel's fold) — clear of Dot's bubble, kept at the panel's top.
   const page = useRef<HTMLDivElement>(null);
   const board = useRef<HTMLElement>(null);
   const side = useRef<HTMLElement>(null);
+  const bubble = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
     const a = side.current;
     const fresh = step === 'done' && newPage ? a?.querySelector<HTMLElement>(`[data-family="${job.family}"]`) : null;
     if (a && fresh && a.scrollHeight > a.clientHeight && getComputedStyle(a).overflowY !== 'visible') {
+      const cover = bubble.current && getComputedStyle(bubble.current).position === 'sticky' ? bubble.current.offsetHeight : 0;
       const top = fresh.getBoundingClientRect().top - a.getBoundingClientRect().top;
       const below = top + fresh.offsetHeight + 8 - a.clientHeight;
-      if (below > 0 || top < 0) a.scrollTo?.({ top: a.scrollTop + (top < 0 ? top - 8 : below), behavior });
+      if (below > 0 || top < cover) a.scrollTo?.({ top: a.scrollTop + (top < cover ? top - cover - 8 : below), behavior });
     }
     const go = goRef.current;
     const s = page.current;
@@ -202,18 +204,21 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another?' : 'The wall’s filling up!'}`;
-  // What Dot says — once a part's on the anvil, which (UX review round 1: a reader never heard what landed).
+  // What Dot says — once a part's on the anvil, which (UX review round 1: a reader never heard what landed). A page of the
+  // wall is read under the wall, not by her: her bubble growing moved the page tapped, so a second tap to close it hit
+  // another (UX review round 2).
   const [first, second] = anvil.map((p) => (p ? quote(partText(p, band)) : null));
   let line: string;
-  if (read) line = `${FAMILY_BY_ID[read].name}: ${FAMILY_BY_ID[read].note}`;
-  else if (step === 'done') line = cheerLine;
+  if (step === 'done') line = cheerLine;
   else if (said) line = said;
   else if (left === 2) line = `I need a word that means “${job.word.meaning}”. Which two parts make it?`;
   else if (left === 1) line = `${first ?? second} is on the anvil. And the second part? Tap it in the tray.`;
   else line = `${first} and ${second} are on the anvil — hammer them together!`;
+  line = keepHyphens(line);
   if (beat % 2) line += '​';
 
-  const chipAt = step === 'done' ? 3 : 2 - left;
+  // The next part goes in the first empty place (UX review round 2: with only the second filled, it said "Then the second").
+  const chipAt = step === 'done' ? 3 : !anvil[0] ? 0 : !anvil[1] ? 1 : 2;
   const forming = anvil.map((p) => p ?? '').join('');
 
   return (
@@ -291,7 +296,7 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
                 <div className="flex flex-col gap-2.5 [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-end [@media(max-height:500px)]:gap-2">
                   <p id="wf-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
-                    {lessons[lessons.length - 1]}
+                    {keepHyphens(learnedLine(job))}
                     {/* Not "Graph, “write” are on the word wall!" (UX review round 1). */}
                     {newPage && ` A new page on the word wall: ${family.name}!`}
                   </p>
@@ -312,7 +317,9 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
                     <span className="hidden [@media(max-height:500px)]:inline [@media(max-width:559px)_and_(max-height:640px)]:inline">
                       Word {done + 1} of {JOBS_PER_ROUND} ·{' '}
                     </span>
-                    A word that means
+                    {/* On a short screen, read out but not shown, so the meaning's one line (code and UX review round 2: at
+                        568 × 320, two, and the bar covered half of Tricky's meanings on the tiles). */}
+                    <span className="[@media(max-height:500px)]:sr-only">A word that means</span>
                   </span>
                   <br className="[@media(max-height:500px)]:hidden" />“{job.word.meaning}”
                 </p>
@@ -334,7 +341,7 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
                   {/* All of it, never cut short (code and UX review round 1: what Dot wants, or the hint, was clamped off). */}
                   <p className="flex min-h-[4.5rem] items-center rounded-md bg-[#24215a] px-2.5 py-1.5 text-[15px] font-bold leading-snug split:[@media(max-height:500px)]:hidden [@media(max-height:500px)]:min-h-[2.75rem] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-width:559px)_and_(max-height:640px)]:min-h-[3.25rem] [@media(max-width:559px)_and_(max-height:640px)]:flex-1 [@media(max-width:559px)_and_(max-height:640px)]:py-1 [@media(max-width:559px)_and_(max-height:640px)]:text-[13px]">
                     {said ? (
-                      <span>{said}</span>
+                      <span>{keepHyphens(said)}</span>
                     ) : (
                       // Till Dot's said something: what to do now (an empty box looked like a field to fill).
                       <span className="font-normal text-[#e4e1ff]">{left === 2 ? 'Tap two parts in the tray, in order.' : left ? 'And the second part?' : 'Both on the anvil — hammer them!'}</span>
@@ -351,7 +358,11 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
           aria-label={`The job and the ${def.collection}`}
           className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] split:col-start-2 split:row-span-2 split:row-start-1 split:overflow-y-auto split:border-l-4 split:p-4"
         >
-          <HostBubble npcId={def.host} line={line} phoneStrip />
+          {/* On a split screen, kept at the panel's top as the wall scrolls under it: on a short one it's the only place what Dot
+              said is (code review round 2: a new page brought into sight scrolled it away). */}
+          <div ref={bubble} className="split:sticky split:top-0 split:z-10 split:-mx-4 split:-mt-4 split:bg-[#1e1b4b] split:px-4 split:pb-2 split:pt-4">
+            <HostBubble npcId={def.host} line={line} phoneStrip />
+          </div>
           <div className="[@media(max-height:500px)]:hidden">
             {/* The family named once its word's forged, not before (UX review round 1: "TELE, “FAR”" and a part on the ticket
                 gave the word away). */}
@@ -367,7 +378,6 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
               if (!settled()) return;
               // Pressed again, the page closes (UX review round 1: it stayed open).
               setRead((r) => (r === id ? null : id));
-              setBeat((b) => b + 1);
             }}
           />
         </aside>
@@ -431,7 +441,7 @@ function Anvil({ anvil, band, forming, done, still, onTap }: { anvil: readonly (
               onClick={() => onTap(k)}
               onKeyDown={noRepeat}
               aria-disabled={done || undefined}
-              aria-label={`${k === 0 ? 'First' : 'Second'} part${p ? `: ${partText(p, band)}` : ', empty'}`}
+              aria-label={`${k === 0 ? 'First' : 'Second'} part${p ? `: ${partText(p, band)}${done ? '' : ' (take it back)'}` : ', empty'}`}
               className={cn(
                 'flex min-h-[56px] w-full items-center justify-center rounded-md border-[3px] text-[19px] font-black [@media(max-height:500px)]:min-h-[44px] [@media(max-height:500px)]:text-[16px]',
                 p ? 'border-[#1b0f22] bg-[#fdba74] text-[#1b0f22] shadow-[2px_2px_0_#1b0f22]' : 'border-dashed border-[#9b7bc0] bg-[#2b1d3d] text-[#9b7bc0]',
@@ -477,17 +487,14 @@ function Forge({ cheer }: { cheer: boolean }) {
 
 /**
  * Dot's word wall: a page per family forged — a new one marked "New!" (UX
- * review round 1) — tapped, read out by Dot and under the wall; tapped again,
- * closed.
+ * review round 1) — tapped, read under the wall in a place kept for it, so
+ * nothing moves and a second tap on the page closes it (UX review round 2:
+ * the page read opened under the wall and scrolled into sight, and the page
+ * tapped moved from under the finger).
  */
 function WordWall({ known, read, fresh, onRead }: { known: (id: FamilyId) => boolean; read: FamilyId | null; fresh: FamilyId | null; onRead: (id: FamilyId) => void }) {
   const count = FAMILIES.filter((f) => known(f.id)).length;
   const reading = read ? FAMILY_BY_ID[read] : null;
-  const panel = useRef<HTMLDivElement>(null);
-  const still = useReducedMotion() ?? false;
-  useEffect(() => {
-    if (read) panel.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
-  }, [read, still]);
   return (
     <section aria-labelledby="wf-wall" className="mt-auto flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -499,14 +506,14 @@ function WordWall({ known, read, fresh, onRead }: { known: (id: FamilyId) => boo
         </span>
       </div>
       <ul className="grid grid-cols-3 gap-1.5 [@media(max-width:700px)_and_(max-height:500px)]:grid-cols-2">
-        {FAMILIES.map((f) => (
-          <li key={f.id} data-family={f.id} className="relative">
-            {fresh === f.id && (
-              <span aria-hidden="true" className="absolute -right-1 -top-1 z-10 rounded-full border-2 border-[#1b0f22] bg-emerald-400 px-1.5 text-[11px] font-black leading-tight text-[#1b0f22]">
-                New!
-              </span>
-            )}
-            {known(f.id) ? (
+        {FAMILIES.map((f) =>
+          known(f.id) ? (
+            <li key={f.id} data-family={f.id} className="relative">
+              {fresh === f.id && (
+                <span aria-hidden="true" className="absolute -right-1 -top-1 z-10 rounded-full border-2 border-[#1b0f22] bg-emerald-400 px-1.5 text-[11px] font-black leading-tight text-[#1b0f22]">
+                  New!
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => onRead(f.id)}
@@ -520,20 +527,25 @@ function WordWall({ known, read, fresh, onRead }: { known: (id: FamilyId) => boo
                   {f.name}
                 </span>
               </button>
-            ) : (
-              <span role="img" aria-label="A word family not forged yet" className="flex h-[76px] items-center justify-center rounded border-[3px] border-dashed border-[#6c67b8] text-base font-bold text-[#8f8ad0]">
-                🔨 ?
-              </span>
-            )}
-          </li>
-        ))}
+            </li>
+          ) : (
+            // Not read out one by one: "0 of 9 families" says it (UX review round 2).
+            <li key={f.id} data-family={f.id} aria-hidden="true" className="flex h-[76px] items-center justify-center rounded border-[3px] border-dashed border-[#6c67b8] text-base font-bold text-[#8f8ad0]">
+              🔨 ?
+            </li>
+          ),
+        )}
       </ul>
-      {/* The page read (Dot's bubble says it too, and is the live region). */}
-      {reading && (
-        <div ref={panel} className="rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-2.5 py-2 text-[15px] leading-snug text-[#1b0f22]">
-          <b>{reading.name}</b> — {reading.note} <i>{reading.words.map((x) => x.word).join(', ')}.</i>
-        </div>
-      )}
+      {/* The page read, said as it opens; held at the longest page's height where the wall sits at the panel's foot. */}
+      <div aria-live="polite" className="rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-2.5 py-2 text-[14px] leading-snug text-[#1b0f22] split:[@media(min-height:501px)]:min-h-[9.5rem]">
+        {reading ? (
+          <>
+            <b>{reading.name}</b> — {keepHyphens(reading.note)} <i>{reading.words.map((x) => x.word).join(', ')}.</i>
+          </>
+        ) : (
+          <span className="text-[#5b4a6b]">{count ? 'Tap a page to read it.' : 'Forge a word to start the wall.'}</span>
+        )}
+      </div>
     </section>
   );
 }

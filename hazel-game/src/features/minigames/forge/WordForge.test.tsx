@@ -25,7 +25,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { FAMILY_BY_ID, PART_MEANS, jobFor, learnedLine, partText, roundQueue } = await import('../../../lib/minigames/forge');
+const { FAMILY_BY_ID, PART_MEANS, builtLine, jobFor, keepHyphens, learnedLine, partText, roundQueue } = await import('../../../lib/minigames/forge');
 type Band = import('../../../content/minigames').Band;
 type Job = import('../../../lib/minigames/forge').Job;
 
@@ -51,7 +51,8 @@ beforeEach(() => {
 });
 
 const save = () => useSaveStore.getState().save!;
-const dot = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
+// Dot's bubble, without the word joiners that keep an end part's hyphen with it.
+const dot = () => (document.querySelector('[aria-live="polite"]')?.textContent ?? '').replace(/\u2060/g, '');
 const tray = () => screen.getByRole('group', { name: /^The tray of word parts/ });
 const tile = (name: string) => within(tray()).getByRole('button', { name: new RegExp(`^${name.replace(/[-+]/g, '\\$&')}(,|$)`) });
 const slot = (k: number) => screen.getByRole('button', { name: new RegExp(`^${k === 0 ? 'First' : 'Second'} part`) });
@@ -100,7 +101,9 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     expect(dot()).toContain('Two parts on the anvil first — two to go.');
 
     fireEvent.click(tile('flower'));
-    expect(slot(0)).toHaveAccessibleName('First part: flower');
+    expect(slot(0)).toHaveAccessibleName('First part: flower (take it back)');
+    // It's left the tray (code review round 2: untested).
+    expect(within(tray()).queryByRole('button', { name: /^flower/ })).toBeNull();
     // What landed, said (UX review round 1: a reader never heard).
     expect(dot()).toContain('“flower” is on the anvil. And the second part? Tap it in the tray.');
     expect(chip()).toContain('Then the second');
@@ -140,7 +143,9 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
     forge(jobFor('gentle', 0, 2, queue));
     fireEvent.click(screen.getByRole('button', { name: 'All forged!' }));
-    expect(onFinish).toHaveBeenCalledWith({ title: 'Three words forged!', learned: learnedLine(jobFor('gentle', 0, 2, queue)) });
+    // The round's three words (UX review round 2: only the last).
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three words forged!', learned: keepHyphens([0, 1, 2].map((i) => builtLine(jobFor('gentle', 0, i, queue))).join(' ')) });
+    expect(onFinish.mock.calls[0][0].learned).toMatch(/^Sunflower: sun \+ flower\. Rainbow: rain \+ bow\. Cats: cat \+ -\u2060s\.$/);
   });
 
   it('a part on the anvil tapped comes back to the tray (its place fills next); an empty place says how; a full anvil says so; the same words again re-read', () => {
@@ -158,14 +163,16 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     const other = within(tray()).getAllByRole('button')[0];
     fireEvent.click(other);
     expect(dot()).toContain('The anvil holds two parts — tap one on it to take it off.');
-    expect(slot(1)).toHaveAccessibleName('Second part: flower');
+    expect(slot(1)).toHaveAccessibleName('Second part: flower (take it back)');
 
     fireEvent.click(slot(0));
     expect(dot()).toContain('“sun” is back in the tray.');
     expect(slot(0)).toHaveAccessibleName('First part, empty');
-    expect(slot(1)).toHaveAccessibleName('Second part: flower');
+    expect(slot(1)).toHaveAccessibleName('Second part: flower (take it back)');
+    // The next part goes first: the steps say so (UX review round 2: "Then the second").
+    expect(chip()).toContain('Pick the first part');
     fireEvent.click(tile('sun'));
-    expect(slot(0)).toHaveAccessibleName('First part: sun');
+    expect(slot(0)).toHaveAccessibleName('First part: sun (take it back)');
   });
 
   it('more than one: both endings in the tray; the wrong one said, with the rule', () => {
@@ -197,7 +204,8 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     hammer();
     expect(dot()).toContain(other === 'est' ? 'Helpest isn’t a word. “help” first is right — now an end part meaning “full of”.' : `is a real word:`);
     forge(job);
-    expect(screen.getByRole('heading', { name: 'Helpful!' })).toHaveAccessibleDescription(/^Helpful: help \+ -ful\./);
+    // An end part's hyphen kept with it on a line (UX review round 2).
+    expect(screen.getByRole('heading', { name: 'Helpful!' })).toHaveAccessibleDescription(/^Helpful: help \+ -\u2060ful\./);
   });
 
   it('Tricky: each root says what it means (not “wave” under wave); the card says how the word’s built', () => {
@@ -215,7 +223,7 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     expect(learnedLine(job)).toContain(`${b} (“`);
   });
 
-  it('the word wall: a page read out by Dot and under the wall, closed when tapped again; a tray tap closes it too; families not on it come first', () => {
+  it('the word wall: a page read under the wall, in a place kept for it — Dot’s line not changed, so nothing moves; closed when tapped again; a tray tap closes it too; families not on it come first', () => {
     setUp(2, { [pageFlag('word-forge', 'sun')]: true });
     play('gentle');
     expect(screen.getByText('1 of 9 families')).toBeInTheDocument();
@@ -223,12 +231,17 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     expect(screen.getByText('WORD 1 OF 3')).toBeInTheDocument();
     expect(jobFor('gentle', 0, 0, roundQueue('gentle', (id) => id === 'sun', 0)).family).toBe('rain');
     const page = screen.getByRole('button', { name: 'Sun words. Read the page' });
+    expect(screen.getByText('Tap a page to read it.')).toBeInTheDocument();
+    const before = dot();
     fireEvent.click(page);
     expect(page).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getAllByText(FAMILY_BY_ID.sun.note, { exact: false })).toHaveLength(2);
+    // Under the wall, said as it opens (UX review round 2: Dot's bubble grew with it, and the page tapped moved).
+    expect(screen.getByText(FAMILY_BY_ID.sun.note, { exact: false }).closest('[aria-live]')).not.toBeNull();
+    expect(dot()).toBe(before);
     fireEvent.click(page);
     expect(page).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryAllByText(FAMILY_BY_ID.sun.note, { exact: false })).toHaveLength(0);
+    expect(screen.getByText('Tap a page to read it.')).toBeInTheDocument();
     fireEvent.click(page);
     fireEvent.click(within(tray()).getAllByRole('button')[0]);
     expect(page).toHaveAttribute('aria-pressed', 'false');

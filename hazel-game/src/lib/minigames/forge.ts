@@ -93,12 +93,12 @@ export const FAMILIES: readonly Family[] = [
     id: 'micro',
     name: 'Micro, “small”',
     note: 'Micro comes from Greek and means small: microscope (small + look), microphone (small + sound), microwave (small + wave).',
-    // A microphone turns sound into a signal (code review round 1: "makes them louder"); a microwave's are about 12 cm, short
-    // for radio waves, not tiny.
+    // A microphone turns sound into a signal, so a voice can be made louder (code review rounds 1 and 2: it was said to make
+    // it louder); a microwave's are about 12 cm, short for radio waves, not tiny.
     words: [
       w('microscope', 'micro', 'scope', 'what a scientist peers into to see germs'),
-      w('microphone', 'micro', 'phone', 'what makes a quiet voice fill a hall'),
-      w('microwave', 'micro', 'wave', 'an oven that heats food with short, invisible waves'),
+      w('microphone', 'micro', 'phone', 'what you speak into so a soft voice can fill a hall'),
+      w('microwave', 'micro', 'wave', 'an oven that cooks with short, invisible waves'),
     ],
   },
   {
@@ -153,6 +153,13 @@ export function partText(p: string, band: Band): string {
   return FRONT.includes(p) ? `${p}-` : BACK.includes(p) ? `-${p}` : p;
 }
 
+/**
+ * An end part's hyphen kept with it on a line, for what's shown: a word
+ * joiner after it (UX review round 2: "add -" / "es" — what's taught, split
+ * in two).
+ */
+export const keepHyphens = (t: string) => t.replace(/(^|[\s“(])-(?=[a-z])/g, '$1-\u2060');
+
 /** What a part means in this word: -er is "more" (kinder) or "one who" (helper). */
 function meansIn(job: Job, p: string): string {
   if (p === 'er') return job.word.meaning.startsWith('more') ? 'more' : 'one who';
@@ -180,7 +187,8 @@ export const ALSO: Record<string, string> = {
   ess: 'the name of the letter S',
   sunbow: 'a rainbow in a waterfall’s spray',
   // Medium.
-  unless: 'as in “not unless it’s sunny”',
+  // A whole sentence a 7-year-old can follow (UX review round 2: "not unless it's sunny").
+  unless: 'as in “We’ll play outside unless it rains”',
   lesser: 'smaller, or not as important',
   ester: 'a chemical that often smells of fruit',
   kindless: 'an old, old word for heartless',
@@ -195,7 +203,8 @@ export const ALSO: Record<string, string> = {
   photophone: 'an 1880 machine that sent sound on light',
   biograph: 'an old name for a film projector',
   bioscope: 'an old name for a cinema',
-  autography: 'something written in your own hand',
+  // Not the autograph asked for (UX review round 2: "something written in your own hand" sounded the same).
+  autography: 'handwriting itself, not a name signed',
 };
 
 export const JOBS_PER_ROUND = 3;
@@ -244,7 +253,8 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Fa
   const word = family.words[round % family.words.length];
   const r = rand(round * JOBS_PER_ROUND + i + 1);
   const pool = [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))].filter((p) => !word.parts.includes(p));
-  const others = family.id === 'more' ? pool.splice(pool.indexOf(word.parts[1] === 's' ? 'es' : 's'), 1) : [];
+  const ending = family.id === 'more' ? pool.indexOf(word.parts[1] === 's' ? 'es' : 's') : -1;
+  const others = ending >= 0 ? pool.splice(ending, 1) : [];
   while (others.length < OTHERS[band] && pool.length) others.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   const tiles = [...word.parts, ...others];
   for (let k = tiles.length - 1; k > 0; k--) {
@@ -285,7 +295,8 @@ export function hintFor(job: Job, tried?: readonly [string, string]): string {
     const p = tried[0] === b ? b : a;
     return `${show(p)} is in it — but ${p === a ? 'first' : 'second'}!`;
   }
-  if (job.band === 'tricky') return `You need a part meaning ${quoted(meansIn(job, a))} and one meaning ${quoted(meansIn(job, b))}.`;
+  // One part, as the other bands' (UX review round 2: both meanings, printed on the tiles, was matching again).
+  if (job.band === 'tricky') return `It starts with a part meaning ${quoted(meansIn(job, a))}.`;
   if (job.band === 'medium') {
     const affix = FRONT.includes(a) ? a : b;
     return `It ${affix === a ? 'starts' : 'ends'} with a part meaning ${quoted(meansIn(job, affix))}.`;
@@ -297,18 +308,29 @@ export function hintFor(job: Job, tried?: readonly [string, string]): string {
 /**
  * The anvil's two parts hammered: right, or why not — a real word that means
  * something else (the other way round too: scat), the other way round, the
- * wrong one of -s and -es, an end part first or a front part second, or no
- * word at all, with a hint. Never scolded, and short, for the bar on a phone
- * (code and UX review round 1: "Dot wants …" again, under the meaning, was
- * cut off at 320 × 568).
+ * wrong one of -s and -es, two add-ons, an add-on in the wrong place, or no
+ * word at all, with a hint that builds on what was right. Never scolded, and
+ * short, for the bar on a phone (code and UX review round 1: "Dot wants …"
+ * again, under the meaning, was cut off at 320 × 568). Advice that can't
+ * lead to another miss (code and UX review round 2: "“re-” goes at the front —
+ * try it first!" led to "Rekind isn't a word", and two add-ons went round in
+ * a loop): a right part is kept ("Keep “tele”!"), two add-ons need a root
+ * word, and an add-on not in the word is said where it goes, with the hint.
  */
 export function forgeWords(job: Job, parts: readonly [string, string]): { right: boolean; said: string } {
   const made = parts.join('');
   const [x, y] = parts;
+  const [a, b] = job.word.parts;
   if (made === job.word.word) return { right: true, said: `${cap(made)}! ${cap(job.word.meaning)}.` };
+  const show = (p: string) => quoted(partText(p, job.band));
   const reversed = y + x === job.word.word;
+  const keep = x === a ? `Keep ${show(a)}!` : y === b ? `Keep ${show(b)}!` : null;
+  const addOns = [x, y].every((p) => FRONT.includes(p) || BACK.includes(p));
   const real = realWord(made);
-  if (real) return { right: false, said: `${cap(made)} is a real word: ${real}. ${reversed ? 'Try them the other way round!' : 'Not this one!'}` };
+  if (real) {
+    const next = reversed ? 'Try them the other way round!' : (keep ?? (addOns ? (job.band === 'gentle' ? 'Start with a word!' : 'It needs a root word!') : 'Not this one!'));
+    return { right: false, said: `${cap(made)} is a real word: ${real}. ${next}` };
+  }
   if (reversed) return { right: false, said: `${cap(made)} isn’t a word — try them the other way round!` };
   if ((y === 's' || y === 'es') && !BACK.includes(x)) {
     const end = /(ch|sh|s|x|z)$/.exec(x)?.[1];
@@ -316,8 +338,9 @@ export function forgeWords(job: Job, parts: readonly [string, string]): { right:
     const rule = end ? `After ${quoted(end)} it’s -es — easier to say: ${plural}.` : `Just -s here: ${plural}.`;
     return { right: false, said: plural === job.word.word ? rule : `${rule} Not this one, though!` };
   }
-  if (BACK.includes(x)) return { right: false, said: `${quoted(partText(x, job.band))} goes at the end of a word — try it second!` };
-  if (FRONT.includes(y)) return { right: false, said: `${quoted(partText(y, job.band))} goes at the front of a word — try it first!` };
+  if (addOns && !keep) return { right: false, said: `${job.band === 'gentle' ? 'Both are endings!' : 'Both are add-ons — it needs a root word!'} ${hintFor(job, parts)}` };
+  const astray = keep ? null : BACK.includes(x) && x !== b ? x : FRONT.includes(y) && y !== a ? y : null;
+  if (astray) return { right: false, said: `${show(astray)} goes at the ${BACK.includes(astray) ? 'end' : 'front'}. ${hintFor(job, parts)}` };
   return { right: false, said: `${cap(made)} isn’t a word. ${hintFor(job, parts)}` };
 }
 
@@ -326,11 +349,16 @@ export function jobWords(job: Job): string {
   return `Forge a word that means “${job.word.meaning}”: put two parts on the anvil, in order, and hammer!`;
 }
 
-/** What a word teaches, for its card and the reward: how it's built, and its family's page. */
-export function learnedLine(job: Job): string {
+/** How a word's built: "Telescope: tele (“far”) + scope (“look”)." — the reward recaps the round's three (UX review round 2: only the last). */
+export function builtLine(job: Job): string {
   const [a, b] = job.word.parts;
   const built = job.band === 'tricky' ? `${a} (${quoted(PART_MEANS[a])}) + ${b} (${quoted(PART_MEANS[b])})` : `${partText(a, job.band)} + ${partText(b, job.band)}`;
-  return `${cap(job.word.word)}: ${built}. ${FAMILY_BY_ID[job.family].note}`;
+  return `${cap(job.word.word)}: ${built}.`;
+}
+
+/** What a word teaches, for its card: how it's built, and its family's page. */
+export function learnedLine(job: Job): string {
+  return `${builtLine(job)} ${FAMILY_BY_ID[job.family].note}`;
 }
 
 export { cap as capitalise };

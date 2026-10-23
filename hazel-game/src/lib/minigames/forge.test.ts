@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALSO, BAND_FAMILIES, FAMILIES, FAMILY_BY_ID, FAMILY_IDS, JOBS_PER_ROUND, PART_MEANS, forgeWords, hintFor, jobFor, jobWords, learnedLine, partText, realWord, roundQueue, type Job } from './forge';
+import { ALSO, BAND_FAMILIES, FAMILIES, FAMILY_BY_ID, FAMILY_IDS, JOBS_PER_ROUND, PART_MEANS, builtLine, forgeWords, hintFor, jobFor, jobWords, keepHyphens, learnedLine, partText, realWord, roundQueue, type Job } from './forge';
 import { BANDS, MINIGAMES, type Band } from '../../content/minigames';
 
 const jobs = (band: Band, rounds = 6): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
@@ -17,9 +17,9 @@ const jobOf = (band: Band, word: string): Job => {
  */
 const NOT_WORDS: Record<Band, string> = {
   gentle:
-    'bowcat bowcoat bowdrop bowflower bowfox bowrain bowrise bowshine bowsun bowwish catbow catcoat catdrop catflower catfox catrain catrise catshine catsun catwish coatbow coatcat coatdrop coatflower coatfox coatrain coatrise coatshine coatsun coatwish dropbow dropcat dropcoat dropflower dropfox droprain droprise dropshine dropsun dropwish esfox eswish flowerbow flowercat flowercoat flowerdrop flowerfox flowerrain flowerrise flowershine flowersun flowerwish foxbow foxcat foxcoat foxdrop foxflower foxrain foxrise foxshine foxsun foxwish raincat rainflower rainfox rainrise rainshine rainsun rainwish risebow risecat risecoat risedrop riseflower risefox riserain riseshine risesun risewish shinebow shinecat shinecoat shinedrop shineflower shinefox shinerain shinerise shinesun shinewish suncat suncoat sundrop sunfox sunrain sunwish wishbow wishcat wishcoat wishdrop wishflower wishfox wishrain wishrise wishshine wishsun',
+    'bowcat bowcoat bowdrop bowflower bowfox bowrain bowrise bowshine bowsun bowwish catbow catcoat catdrop catflower catfox catrain catrise catshine catsun catwish coatbow coatcat coatdrop coatflower coatfox coatrain coatrise coatshine coatsun coatwish dropbow dropcat dropcoat dropflower dropfox droprain droprise dropshine dropsun dropwish esbow escat escoat esdrop esflower esfox esrain esrise esshine essun eswish flowerbow flowercat flowercoat flowerdrop flowerfox flowerrain flowerrise flowershine flowersun flowerwish foxbow foxcat foxcoat foxdrop foxflower foxrain foxrise foxshine foxsun foxwish raincat rainflower rainfox rainrise rainshine rainsun rainwish risebow risecat risecoat risedrop riseflower risefox riserain riseshine risesun risewish sbow scoat sdrop ses sflower sfox shinebow shinecat shinecoat shinedrop shineflower shinefox shinerain shinerise shinesun shinewish srain srise sshine ssun suncat suncoat sundrop sunfox sunrain sunwish wishbow wishcat wishcoat wishdrop wishflower wishfox wishrain wishrise wishshine wishsun',
   medium:
-    'erhelp erkind erview estkind fulhelp helpest helpkind helpview kindful kindhelp kindun kindview lesshelp preer preest preful prehelp prekind preless reer reest reful rehelp rekind reless uner unest unful unhelp unview viewest viewful viewhelp viewkind viewpre viewre',
+    'erest erful erhelp erkind erless erview estful esthelp estkind estless estview fuler fulest fulhelp fulkind fulless fulview helpest helpkind helppre helpre helpun helpview kindful kindhelp kindpre kindre kindun kindview lessest lessful lesshelp lesskind lessview preer preest preful prehelp prekind preless prere preun reer reest reful rehelp rekind reless repre reun uner unest unful unhelp unpre unre unview viewest viewful viewhelp viewkind viewpre viewre viewun',
   tricky:
     'autobio automicro autophone autophoto autoscope autotele autovision autowave bioauto biomicro biophone biophoto biotele biovision biowave graphauto graphbio graphgraphy graphmicro graphphone graphphoto graphscope graphtele graphvision graphwave graphyauto graphybio graphygraph graphymicro graphyphone graphyphoto graphyscope graphytele graphyvision graphywave microauto microbio microphoto microtele microvision phoneauto phonebio phonegraph phonegraphy phonemicro phonephoto phonescope phonetele phonevision phonewave photoauto photobio photomicro photoscope phototele photovision photowave scopeauto scopebio scopegraph scopegraphy scopemicro scopephone scopephoto scopetele scopevision scopewave teleauto telebio telemicro telewave visionauto visionbio visiongraph visiongraphy visionmicro visionphone visionphoto visionscope visiontele visionwave waveauto wavebio wavegraph wavegraphy wavemicro wavephone wavephoto wavescope wavetele wavevision',
 };
@@ -115,40 +115,72 @@ describe('the forge’s words', () => {
     for (const word of Object.keys(ALSO)) expect(made.has(word), word).toBe(true);
   });
 
-  it('right; a real word meaning something else (the other way round too); the other way round; -s for -es; an add-on in the wrong place; no word, with a hint', () => {
+  it('right; a real word meaning something else — keeping a part that’s right; the other way round; -s for -es; two add-ons; an add-on astray; no word, with a hint', () => {
     const sunflower = jobOf('gentle', 'sunflower');
     const cats = jobOf('gentle', 'cats');
+    const said = (job: Job, parts: [string, string]) => forgeWords(job, parts).said;
     expect(forgeWords(sunflower, ['sun', 'flower'])).toEqual({ right: true, said: 'Sunflower! A tall flower with a big round face like the sun.' });
     expect(forgeWords(sunflower, ['flower', 'sun'])).toEqual({ right: false, said: 'Flowersun isn’t a word — try them the other way round!' });
-    expect(forgeWords(sunflower, ['sun', 'rise']).said).toBe('Sunrise is a real word: when the sun comes up in the morning. Not this one!');
-    expect(forgeWords(sunflower, ['flower', 's']).said).toBe('Flowers is a real word: more than one flower. Not this one!');
-    expect(forgeWords(cats, ['s', 'cat']).said).toBe('Scat is a real word: “go away!”, said to a cat. Try them the other way round!');
-    expect(forgeWords(cats, ['cat', 'es']).said).toBe('Just -s here: cats.');
-    expect(forgeWords(jobOf('gentle', 'foxes'), ['fox', 's']).said).toBe('After “x” it’s -es — easier to say: foxes.');
-    expect(forgeWords(jobOf('gentle', 'wishes'), ['wish', 's']).said).toBe('After “sh” it’s -es — easier to say: wishes.');
-    expect(forgeWords(cats, ['sun', 'es']).said).toBe('Just -s here: suns. Not this one, though!');
-    expect(forgeWords(cats, ['s', 'sun']).said).toBe('“-s” goes at the end of a word — try it second!');
-    expect(forgeWords(sunflower, ['sun', 'coat']).said).toBe('Suncoat isn’t a word. “sun” first is right — the meaning tells you the rest.');
-    expect(forgeWords(sunflower, ['rain', 'flower']).said).toBe('Rainflower isn’t a word. “flower” second is right — now the first part.');
-    expect(forgeWords(sunflower, ['flower', 'rain']).said).toBe('Flowerrain isn’t a word. “flower” is in it — but second!');
-    expect(forgeWords(sunflower, ['rain', 'cat']).said).toBe('Raincat isn’t a word. It starts with “sun”.');
+    // A real word with a part right says which to keep (UX review round 2: "Not this one!" lost the part that was right).
+    expect(said(sunflower, ['sun', 'rise'])).toBe('Sunrise is a real word: when the sun comes up in the morning. Keep “sun”!');
+    expect(said(sunflower, ['flower', 's'])).toBe('Flowers is a real word: more than one flower. Not this one!');
+    expect(said(cats, ['s', 'cat'])).toBe('Scat is a real word: “go away!”, said to a cat. Try them the other way round!');
+    expect(said(cats, ['cat', 'es'])).toBe('Just -s here: cats.');
+    expect(said(jobOf('gentle', 'foxes'), ['fox', 's'])).toBe('After “x” it’s -es — easier to say: foxes.');
+    expect(said(jobOf('gentle', 'wishes'), ['wish', 's'])).toBe('After “sh” it’s -es — easier to say: wishes.');
+    expect(said(cats, ['sun', 'es'])).toBe('Just -s here: suns. Not this one, though!');
+    // Two endings: a word to start with, not "try it second" round and round (code and UX review round 2).
+    expect(said(sunflower, ['s', 'es'])).toBe('Both are endings! It starts with “sun”.');
+    expect(said(cats, ['s', 'es'])).toBe('Both are endings! “-s” is in it — but second!');
+    expect(hintFor(cats)).toBe('Start with “cat”, then make it more than one.');
+    expect(said(jobOf('gentle', 'wishes'), ['es', 's'])).toBe('Ess is a real word: the name of the letter S. Start with a word!');
+    expect(said(jobOf('gentle', 'foxes'), ['s', 'es'])).toBe('Ses isn’t a word. “-es” second is right — now the first part.');
+    expect(said(cats, ['cat', 'fox'])).toBe('Catfox isn’t a word. “cat” first is right — now make it more than one.');
+    expect(said(cats, ['s', 'sun'])).toBe('Ssun isn’t a word. “-s” is in it — but second!');
+    expect(said(sunflower, ['sun', 'coat'])).toBe('Suncoat isn’t a word. “sun” first is right — the meaning tells you the rest.');
+    expect(said(sunflower, ['rain', 'flower'])).toBe('Rainflower isn’t a word. “flower” second is right — now the first part.');
+    expect(said(sunflower, ['flower', 'rain'])).toBe('Flowerrain isn’t a word. “flower” is in it — but second!');
+    expect(said(sunflower, ['rain', 'cat'])).toBe('Raincat isn’t a word. It starts with “sun”.');
 
     const unkind = jobOf('medium', 'unkind');
-    expect(forgeWords(unkind, ['un', 'less']).said).toBe('Unless is a real word: as in “not unless it’s sunny”. Not this one!');
-    expect(forgeWords(unkind, ['kind', 'er']).said).toBe('Kinder is a real word: more kind. Not this one!');
-    expect(forgeWords(unkind, ['re', 'kind']).said).toBe('Rekind isn’t a word. “kind” second is right — now a front part meaning “not”.');
-    expect(forgeWords(unkind, ['un', 'help']).said).toBe('Unhelp isn’t a word. “un-” first is right — now the root word.');
-    expect(forgeWords(unkind, ['less', 'kind']).said).toBe('“-less” goes at the end of a word — try it second!');
-    expect(forgeWords(unkind, ['help', 'un']).said).toBe('“un-” goes at the front of a word — try it first!');
-    expect(forgeWords(jobOf('medium', 'helper'), ['help', 'est']).said).toBe('Helpest isn’t a word. “help” first is right — now an end part meaning “one who”.');
-    expect(forgeWords(jobOf('medium', 'kinder'), ['view', 'est']).said).toBe('Viewest isn’t a word. It ends with a part meaning “more”.');
+    expect(said(unkind, ['un', 'less'])).toBe('Unless is a real word: as in “We’ll play outside unless it rains”. Keep “un-”!');
+    expect(said(unkind, ['kind', 'er'])).toBe('Kinder is a real word: more kind. Not this one!');
+    expect(said(unkind, ['re', 'kind'])).toBe('Rekind isn’t a word. “kind” second is right — now a front part meaning “not”.');
+    expect(said(unkind, ['un', 'help'])).toBe('Unhelp isn’t a word. “un-” first is right — now the root word.');
+    // An add-on astray: said where it goes only when it's not in the word, with what's right kept (code review round 2:
+    // "“-less” … try it second!" led to "Kindless").
+    expect(said(unkind, ['less', 'kind'])).toBe('Lesskind isn’t a word. “kind” second is right — now a front part meaning “not”.');
+    expect(said(unkind, ['less', 'help'])).toBe('“-less” goes at the end. It starts with a part meaning “not”.');
+    expect(said(unkind, ['help', 'un'])).toBe('Helpun isn’t a word. “un-” is in it — but first!');
+    expect(said(jobOf('medium', 'kinder'), ['kind', 're'])).toBe('Kindre isn’t a word. “kind” first is right — now an end part meaning “more”.');
+    expect(said(jobOf('medium', 'helpful'), ['re', 'un'])).toBe('Both are add-ons — it needs a root word! It ends with a part meaning “full of”.');
+    expect(said(jobOf('medium', 'helpful'), ['ful', 'est'])).toBe('Both are add-ons — it needs a root word! “-ful” is in it — but second!');
+    expect(said(jobOf('medium', 'helper'), ['help', 'est'])).toBe('Helpest isn’t a word. “help” first is right — now an end part meaning “one who”.');
+    expect(said(jobOf('medium', 'kinder'), ['view', 'est'])).toBe('Viewest isn’t a word. It ends with a part meaning “more”.');
 
     const telescope = jobOf('tricky', 'telescope');
-    expect(forgeWords(telescope, ['tele', 'graph']).said).toBe('Telegraph is a real word: an old machine that sent messages by wire. Not this one!');
-    expect(forgeWords(jobOf('tricky', 'photograph'), ['photo', 'graphy']).said).toBe('Photography is a real word: taking pictures with a camera. Not this one!');
-    expect(forgeWords(telescope, ['tele', 'micro']).said).toBe('Telemicro isn’t a word. “tele” first is right — now a part meaning “look”.');
-    expect(forgeWords(telescope, ['auto', 'scope']).said).toBe('Autoscope isn’t a word. “scope” second is right — now a part meaning “far” first.');
-    expect(forgeWords(telescope, ['photo', 'wave']).said).toBe('Photowave isn’t a word. You need a part meaning “far” and one meaning “look”.');
+    expect(said(telescope, ['tele', 'graph'])).toBe('Telegraph is a real word: an old machine that sent messages by wire. Keep “tele”!');
+    expect(said(jobOf('tricky', 'photograph'), ['photo', 'graphy'])).toBe('Photography is a real word: taking pictures with a camera. Keep “photo”!');
+    expect(said(jobOf('tricky', 'autograph'), ['auto', 'graphy'])).toBe('Autography is a real word: handwriting itself, not a name signed. Keep “auto”!');
+    expect(said(telescope, ['tele', 'micro'])).toBe('Telemicro isn’t a word. “tele” first is right — now a part meaning “look”.');
+    expect(said(telescope, ['auto', 'scope'])).toBe('Autoscope isn’t a word. “scope” second is right — now a part meaning “far” first.');
+    // One part's meaning, not both printed on the tiles (UX review round 2).
+    expect(said(telescope, ['photo', 'wave'])).toBe('Photowave isn’t a word. It starts with a part meaning “far”.');
+  });
+
+  it('no advice sends the kid round: doing what an add-on line says never gets the same line again (UX review round 2: a loop)', () => {
+    for (const band of ['gentle', 'medium'] as const)
+      for (const id of BAND_FAMILIES[band])
+        for (const word of FAMILY_BY_ID[id].words) {
+          const job: Job = { band, family: id, word, tiles: [] };
+          for (const x of pool(band))
+            for (const y of pool(band)) {
+              if (x === y) continue;
+              const first = forgeWords(job, [x, y]).said;
+              expect(first, `${word.word} ${x}+${y}`).not.toMatch(/try it (first|second)/);
+              if (/goes at the (end|front)/.test(first)) expect(forgeWords(job, [y, x]).said, `${word.word} ${y}+${x}`).not.toMatch(/goes at the (end|front)/);
+            }
+        }
   });
 
   it('a hint before a try; every wrong try short enough for the bar on a phone (code and UX review round 1: clamped at 320 × 568)', () => {
@@ -164,7 +196,7 @@ describe('the forge’s words', () => {
               const tried = a === b ? null : forgeWords({ band, family: id, word, tiles: [] }, [a, b]);
               if (tried && !tried.right && tried.said.length > longest.length) longest = tried.said;
             }
-    expect(longest.length, longest).toBeLessThanOrEqual(92);
+    expect(longest.length, longest).toBeLessThanOrEqual(95);
   });
 
   it('the ticket and what a word teaches: an add-on with its hyphen, a root with its meaning', () => {
@@ -175,5 +207,12 @@ describe('the forge’s words', () => {
     expect(learnedLine(jobOf('medium', 'unkind'))).toBe(`Unkind: un- + kind. ${FAMILY_BY_ID.kind.note}`);
     expect(learnedLine(jobOf('tricky', 'telescope'))).toBe(`Telescope: tele (“far”) + scope (“look”). ${FAMILY_BY_ID.tele.note}`);
     expect(['un', 'ful', 'tele', 'sun'].map((p) => partText(p, p === 'tele' ? 'tricky' : 'medium'))).toEqual(['un-', '-ful', 'tele', 'sun']);
+    // The reward recaps each word's build (UX review round 2: only the last word's line).
+    expect(builtLine(jobOf('gentle', 'cats'))).toBe('Cats: cat + -s.');
+    expect(builtLine(jobOf('tricky', 'biography'))).toBe('Biography: bio (“life”) + graphy (“writing”).');
+  });
+
+  it('an end part’s hyphen kept with it on a line (UX review round 2: "add -" / "es"); a front part’s, and a word’s own, left be', () => {
+    expect(keepHyphens('Add -s; after s, add -es. Un- turns it: word-smith, “-ful” (-less).')).toBe('Add -\u2060s; after s, add -\u2060es. Un- turns it: word-smith, “-\u2060ful” (-\u2060less).');
   });
 });

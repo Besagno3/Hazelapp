@@ -416,6 +416,10 @@ Old Ringwood is the tree who loses count of his rings.
   germs"), so a root is worked out, not matched — the Expert band (§3.3)
   takes the tiles' meanings away. The family is named, with its mark, only
   once its word is forged.
+- **Review round 2:** no advice can lead to another miss — a right part is
+  kept ("Keep “tele”!"), two add-ons need a root word; Tricky's first hint
+  names one meaning; a wall page is read in a place kept for it, so nothing
+  moves under the finger; the reward recaps the round's three words.
 
 ## 6. The PRs
 
