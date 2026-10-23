@@ -268,15 +268,24 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 - **Expert (§8, PR 13):** gear ratios in numbers. A job is said in turns a
   minute — "Make the Great Hands turn clockwise ↻, 45 times a minute. The
   crank turns 15 times a minute; the machine's gear has 8 teeth." — or in
-  turning force — "…with four times the crank's turning force. Its gear has
-  32 teeth." — never as "twice as fast"; the kid works out the ratio and
-  picks the crank's gear from four (8, 16, 24, 32 teeth: each job is made by
-  exactly one), and joins it up the right way round. Tock says a miss in the
-  job's numbers with the rule ("turned 30 times a minute, not 45. Turns out =
-  turns in × crank teeth ÷ machine teeth."), and a right run the ratio and
-  the trade ("24 teeth turning 8 is 3 : 1 — 15 turns a minute became 45,
-  with a third of the crank's turning force."). Every machine right at its
-  first turn of the crank is the Expert seal.
+  turning force — "…with four times the crank's turning force. The
+  machine's gear has 32 teeth." — never as "twice as fast"; the kid works
+  out the ratio and picks the crank's gear from four (8, 16, 24, 32 teeth:
+  each job is made by exactly one), and joins it up the right way round.
+  Tock says a miss in the job's numbers with the rule ("turned 30 times a
+  minute, not 45. Turns out = turns in × crank teeth ÷ machine teeth."; a
+  force job's is headed "Not enough force" or "Too much force"), and a right
+  run the gear ratio as a school book gives it, driven : driver, and the
+  trade ("A 24-tooth crank gear turning an 8-tooth machine gear: the gear
+  ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became
+  45, with a third of the crank's turning force."). Every machine right at
+  its first turn of the crank is the Expert seal. After review round 1: the
+  job stays in sight in the step card on a short screen (it was scrolled
+  away as the four gears were picked); a peg tapped after a miss starts no
+  wait (the next was swallowed); every gear's teeth are the same size as
+  drawn (the 32's were deep and all ink); the reward keeps the first missed
+  machine's working; the title card's second step shows a big gear turning
+  a small one.
 
 ### 5.4 🪞 Mirror Mural — Creativity · Madame Hue, the Grand Gallery, Chromaria
 

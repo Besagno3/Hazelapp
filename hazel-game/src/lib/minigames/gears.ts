@@ -17,8 +17,8 @@ import type { PlayBand } from '../../content/minigames';
  * one peg apart, so a gear on a peg touches a gear on each of its six
  * neighbours. Distances are in pegs; a 16-tooth gear's radius is half a peg.
  * The crank sits left of the board's entry peg and the machine right of its
- * exit peg, each sliding on its axle so that its gear (8, 16 or 24 teeth)
- * touches that peg's gear and no other.
+ * exit peg, each sliding on its axle so that its gear (8, 16, 24 or — on
+ * Expert — 32 teeth) touches that peg's gear and no other.
  */
 
 /** Which way something turns, seen from the front. The crank always turns clockwise. */
@@ -100,7 +100,8 @@ export function boardBox(b: Board, biggest: Teeth): { x: number; y: number; w: n
   const xs = b.pegs.map((p) => pegAt(p).x);
   const reach = radius(biggest) + HANDLE + 0.04;
   const x0 = Math.min(...xs, at.crank.x - reach) - 0.06;
-  const x1 = Math.max(...xs, at.machine.x + radius(biggest)) + 0.2;
+  // Room for the biggest machine gear's teeth and the frame's stroke (code review round 1, PR 13: Expert's 32 touched it).
+  const x1 = Math.max(...xs, at.machine.x + radius(biggest)) + 0.24;
   const y0 = Math.min(-0.62, at.crank.y - reach - 0.04);
   const y1 = Math.max(pegAt({ c: 0, r: 2 }).y + 0.62, at.crank.y + reach + 0.04);
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
@@ -192,9 +193,9 @@ export const MACHINE_BY_ID = Object.fromEntries(MACHINES.map((m) => [m.id, m])) 
 export interface Job {
   machine: MachineId;
   board: Board;
-  /** The way it must turn (Medium and Tricky). */
+  /** The way it must turn (Medium, Tricky and Expert). */
   turn?: Turn;
-  /** Tricky: the machine's gear, and how fast it must turn against the crank. */
+  /** Tricky and Expert: the machine's gear, and how fast it must turn against the crank. */
   teeth: Teeth;
   speed?: number;
   /** Expert: the crank's turns a minute, when the job's said in turns a minute. */
@@ -311,10 +312,7 @@ export function speedWords(speed: number): string {
   if (s === 1) return 'at the same speed as the crank';
   if (s === 2) return 'twice as fast as the crank';
   if (s === 3) return 'three times as fast as the crank';
-  if (s === 4) return 'four times as fast as the crank';
   if (s === 1.5) return 'one and a half times as fast as the crank';
-  if (Math.abs(s - 4 / 3) < 1e-3) return 'one and a third times as fast as the crank';
-  if (s === 0.75) return 'three quarters as fast as the crank';
   if (s === 0.5) return 'half as fast as the crank';
   if (s === 0.25) return 'a quarter as fast as the crank';
   if (Math.abs(s - 1 / 3) < 1e-3) return 'a third as fast as the crank';
@@ -324,31 +322,42 @@ export function speedWords(speed: number): string {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** Every force a run on Expert can give (its crank gear against its machine's), said: "four times", "a third of". */
+const FORCE: [number, string][] = [
+  [4, 'four times'],
+  [3, 'three times'],
+  [2, 'twice'],
+  [1.5, 'one and a half times'],
+  [4 / 3, 'one and a third times'],
+  [0.75, 'three quarters of'],
+  [2 / 3, 'two thirds of'],
+  [0.5, 'half'],
+  [1 / 3, 'a third of'],
+];
+
+/** How much force, short: "four times", "a third". */
+export function forceAmount(force: number): string {
+  const f = Math.round(force * 1000) / 1000;
+  if (f === 1) return 'the same';
+  return (FORCE.find(([n]) => Math.abs(n - f) < 1e-3)?.[1] ?? `${f} times`).replace(/ of$/, '');
+}
+
 /** Expert: the turning force a machine gets, against the crank's — the speed's inverse: "four times the crank's turning force". */
 export function forceWords(force: number): string {
   const f = Math.round(force * 1000) / 1000;
   if (f === 1) return 'the same turning force as the crank';
-  const by: [number, string][] = [
-    [4, 'four times'],
-    [3, 'three times'],
-    [2, 'twice'],
-    [1.5, 'one and a half times'],
-    [4 / 3, 'one and a third times'],
-    [0.75, 'three quarters of'],
-    [2 / 3, 'two thirds of'],
-    [0.5, 'half'],
-    [1 / 3, 'a third of'],
-    [0.25, 'a quarter of'],
-  ];
-  const w = by.find(([n]) => Math.abs(n - f) < 1e-3)?.[1] ?? `${f} times`;
-  return `${w} the crank’s turning force`;
+  return `${FORCE.find(([n]) => Math.abs(n - f) < 1e-3)?.[1] ?? `${f} times`} the crank’s turning force`;
 }
 
-/** Two gears' teeth as a ratio, driver to driven: "24 : 8" is "3 : 1". */
-export function ratioWords(driver: number, driven: number): string {
+/**
+ * The gear ratio as a school book gives it — driven : driver, the machine's
+ * teeth to the crank's — and in lowest terms: "8 : 24 = 1 : 3" (code and UX
+ * review round 1: "24 teeth turning 8 is 3 : 1" read the other way round).
+ */
+export function ratioWords(machine: number, crank: number): string {
   const g = (a: number, b: number): number => (b === 0 ? a : g(b, a % b));
-  const k = g(driver, driven);
-  return `${driver / k} : ${driven / k}`;
+  const k = g(machine, crank);
+  return k === 1 ? `${machine} : ${crank}` : `${machine} : ${crank} = ${machine / k} : ${crank / k}`;
 }
 
 /** Expert: the machine's turns a minute for a speed against the crank's. */
@@ -367,7 +376,7 @@ export function jobWords(job: Job): string {
   // Expert, in numbers: the ratio is the kid's to work out (§8.5).
   if (job.rpm !== undefined && job.speed !== undefined)
     return `${way}, ${turnsAMinute(job, job.speed)} times a minute. The crank turns ${job.rpm} times a minute; the machine’s gear has ${job.teeth} teeth.`;
-  if (job.force && job.speed !== undefined) return `${way} with ${forceWords(1 / job.speed)}. Its gear has ${job.teeth} teeth.`;
+  if (job.force && job.speed !== undefined) return `${way} with ${forceWords(1 / job.speed)}. The machine’s gear has ${job.teeth} teeth.`;
   return job.speed === undefined ? `${way}.` : `${way}, ${speedWords(job.speed)}. Its gear has ${job.teeth} teeth.`;
 }
 
@@ -409,15 +418,15 @@ function expertVerdict(job: Job, r: Run, v: Verdict): string {
     case 'not-joined':
       return `The gears turned, but they don’t reach ${m.name}. Gears only turn each other where they touch.`;
     case 'jammed':
-      return 'Jammed: three gears that all touch push each other both ways. Take out one marked !.';
+      return 'Three gears that all touch push each other both ways. Take out one of the gears marked !.';
     case 'wrong-way':
       return r.kind === 'turns'
-        ? `${cap(m.name)} turned ${turnWords(r.turn)}, with ${gears(r.between)} between. An odd number between keeps the crank’s way round; an even number turns it back.`
+        ? `${cap(m.name)} turned ${turnWords(r.turn)}, with ${gears(r.between)} between. An odd number between keeps the crank’s way round; an even number turns it the other way.`
         : '';
     case 'too-fast':
     case 'too-slow': {
       if (r.kind !== 'turns' || job.speed === undefined) return '';
-      if (job.force) return `${cap(m.name)} got ${forceWords(1 / r.speed)}, not ${forceWords(1 / job.speed)}. Force out = force in × machine teeth ÷ crank teeth.`;
+      if (job.force) return `${cap(m.name)} got ${forceWords(1 / r.speed)}, not ${forceAmount(1 / job.speed)}. Force out = force in × machine teeth ÷ crank teeth.`;
       return `${cap(m.name)} turned ${turnsAMinute(job, r.speed)} times a minute, not ${turnsAMinute(job, job.speed)}. Turns out = turns in × crank teeth ÷ machine teeth.`;
     }
     default:
@@ -434,10 +443,12 @@ export function learnedLine(job: Job, r: Run, crank: number): string {
   if (r.kind !== 'turns') return '';
   const m = MACHINE_BY_ID[job.machine];
   if (job.speed !== undefined && (job.rpm !== undefined || job.force)) {
-    const ratio = `${crank} teeth turning ${job.teeth} is ${ratioWords(crank, job.teeth)}`;
+    // "an 8-tooth", "a 16-tooth".
+    const an = (n: number) => (/^(8|11|18)/.test(String(n)) ? 'an' : 'a');
+    const ratio = `${cap(an(crank))} ${crank}-tooth crank gear turning ${an(job.teeth)} ${job.teeth}-tooth machine gear: the gear ratio, machine : crank, is ${ratioWords(job.teeth, crank)}`;
     if (job.rpm !== undefined)
-      return `${ratio} — ${job.rpm} turns a minute became ${turnsAMinute(job, r.speed)}, with ${forceWords(1 / r.speed)}. The gears between change only the way.`;
-    return `${ratio} — ${speedWords(r.speed)}, with ${forceWords(1 / r.speed)}: speed traded for force.`;
+      return `${ratio}, so ${job.rpm} turns a minute became ${turnsAMinute(job, r.speed)}, with ${forceWords(1 / r.speed)}.`;
+    return `${ratio}, so it turns ${speedWords(r.speed)}, with ${forceWords(1 / r.speed)}: speed traded for force.`;
   }
   if (job.speed !== undefined) {
     const how = crank > job.teeth ? `A big gear turning a small one makes it go faster` : crank < job.teeth ? `A small gear turning a big one makes it go slower` : 'Two gears the same size turn at the same speed';

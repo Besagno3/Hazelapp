@@ -61,6 +61,10 @@ const HEADS: Record<Verdict, string> = {
   'too-slow': 'Too slow',
 };
 
+/** Expert's headings where they differ (§8.3: plainly; a force job's miss in force — UX review round 1, PR 13). */
+const EXPERT_HEADS: Partial<Record<Verdict, string>> = { right: 'It works', jammed: 'Jammed' };
+const FORCE_HEADS: Partial<Record<Verdict, string>> = { 'too-fast': 'Not enough force', 'too-slow': 'Too much force' };
+
 /** The crank's gear sizes, by name (not "Medium": that's a band, review round 1). */
 const SIZE_NAME: Record<Teeth, string> = { 8: 'Small', 16: 'Middle', 24: 'Big', 32: 'Biggest' };
 
@@ -74,9 +78,10 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * pegs between the crank and the machine and turns the crank: every gear the
  * crank reaches turns, each the other way from the one turning it. Gentle
  * joins them; Medium needs the machine to turn the right way (count the gears
- * between); Tricky picks the crank's gear for the speed too. A run that isn't
- * right shows what turned and says why; nothing is lost. No timer. Rules:
- * `lib/minigames/gears.ts`.
+ * between); Tricky picks the crank's gear for the speed too; Expert (§8.5)
+ * says the job in turns a minute or turning force, for the kid to work out
+ * the ratio. A run that isn't right shows what turned and says why; nothing is
+ * lost. No timer. Rules: `lib/minigames/gears.ts`.
  */
 export default function ClocktowerGears({ def, band, round, onPage, onFinish }: PlayProps) {
   const expert = band === 'expert';
@@ -101,6 +106,11 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   const [spotOn, setSpotOn] = useState(0);
   // Bumped when the kid goes back to change the gears: focus goes back to the board.
   const [again, setAgain] = useState(0);
+  // Turns of the crank: each starts the wait for the buttons that come up with what happened.
+  const [runs, setRuns] = useState(0);
+  // Expert's reward keeps the working of the first machine missed, not the round's last (UX review round 1, as the
+  // Bakery's).
+  const missedLesson = useRef<string | null>(null);
   const known = (id: MachineId) => !!flags[pageFlag(def.id, id)];
   const verdict = result?.verdict ?? null;
   const right = verdict === 'right';
@@ -131,17 +141,34 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   // kid's finger on a phone (review round 2, as the bakery's) — with Tricky's crank gears just above it. Not where
   // the board scrolls with the page (a phone on its side under 640 px): it'd go before the kid had seen it.
   const goRef = useRef<HTMLButtonElement>(null);
+  // Where the job line sticks (a short screen), the crank's gears (or what's on the pegs) come up just under it, Turn
+  // the crank under them: "nearest" left them under the line after Change the gears (UX review round 1).
+  const jobRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     if (result) return;
+    const behavior = still ? ('auto' as const) : ('smooth' as const);
+    const line = jobRef.current;
+    const under = line?.parentElement?.querySelector('[role="group"], [role="status"]');
+    if (line && under && getComputedStyle(line).position === 'sticky') {
+      let sc = line.parentElement;
+      while (sc && !/(auto|scroll)/.test(getComputedStyle(sc).overflowY)) sc = sc.parentElement;
+      if (sc && typeof sc.scrollTo === 'function') {
+        // The line sticks inside the scroller's padding.
+        const pad = parseFloat(getComputedStyle(sc).paddingTop) || 0;
+        sc.scrollTo({ top: sc.scrollTop + under.getBoundingClientRect().top - sc.getBoundingClientRect().top - pad - line.offsetHeight - 8, behavior });
+        return;
+      }
+    }
     const b = boardEl.current;
     if (b && window.matchMedia?.('(max-width: 639px)').matches && getComputedStyle(b).position !== 'sticky') return;
-    goRef.current?.scrollIntoView?.({ block: 'nearest', behavior: still ? 'auto' : 'smooth' });
+    goRef.current?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [done, again, !!result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A step's buttons wait a moment as it starts (§2.4): a double tap's second tap pressed what came under it — Turn the
   // crank's second on Change the gears or Next machine (what happened unseen), Next's on a peg of the next board.
-  // Taps within a step aren't held back: placing gears one after another is quick.
-  const settled = useSettled(`${done}:${again}:${result ? 'ran' : 'set'}`);
+  // Taps within a step aren't held back: placing gears one after another is quick — after a miss too, though the first
+  // peg tapped clears it (code and UX review round 1: the wait was keyed on a result showing, so it swallowed the next).
+  const settled = useSettled(`${done}:${again}:${runs}`);
   // A press to act on: a key's at once (no click count — a quick keyboard kid isn't held back), a tap's once settled.
   const pressOk = (e: { detail: number }) => e.detail === 0 || settled();
 
@@ -180,12 +207,15 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     const r = run(job.board, placed, crank, job.teeth);
     const v = check(job, r);
     setResult({ run: r, verdict: v, crank });
+    setRuns((n) => n + 1);
     if (v === 'right') {
       sfx('chest');
       setNewPage(onPage(job.machine, machine.short));
-      setLessons((l) => [...l, learnedLine(job, r, crank)]);
+      const lesson = learnedLine(job, r, crank);
+      setLessons((l) => [...l, lesson]);
       setRights((n) => n + 1);
       if (!missed) setSpotOn((n) => n + 1);
+      else missedLesson.current ??= lesson;
     } else {
       sfx('wrong');
       setMissed(true);
@@ -202,7 +232,8 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     if (!right || !pressOk(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      onFinish({ title: 'The Clocktower ticks again!', learned: lessons[lessons.length - 1] ?? '', spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
+      const last = lessons[lessons.length - 1] ?? '';
+      onFinish({ title: 'The Clocktower ticks again!', learned: expert ? (missedLesson.current ?? last) : last, spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
       return;
     }
     setDone((n) => n + 1);
@@ -223,7 +254,8 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     // Expert, plainly (§8.3): the job and what to do, no cheering.
     if (right) line = `${EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next machine.' : 'That’s the last one.'}`;
     else if (result) line = 'Not yet. Look at what turned, then change the gears.';
-    else line = `${jobWords(job)} Work out the crank’s gear, then join them.`;
+    // Not the job again: the ticket and the step card say it (UX review round 1: three sentences twice over).
+    else line = 'Work out the ratio from the job, then pick the crank’s gear and join them up.';
   } else if (right) line = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'On to the next machine!' : 'That’s the last one!'}`;
   else if (result) line = 'Tick… tock… not quite! Look at what turned, then change the gears and try again.';
   else if (!job.turn) line = `${cap(machine.name)} has stopped! Put gears on the pegs from the crank to it — gears that touch turn each other.`;
@@ -232,7 +264,9 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
     line = `${cap(machine.name)} must turn ${turnWords(job.turn)}, ${speedWords(job.speed)} — its gear has ${job.teeth} teeth. Pick the crank’s gear: only it and the machine’s gear change the speed.`;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto sm:overflow-hidden" style={boardH ? { scrollPaddingTop: boardH } : undefined}>
+    // Nothing anchored to the scroll: Take all the gears off coming up below moved the crank's gears under the job line
+    // (UX review round 1, as Mirror Mural's panel).
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [overflow-anchor:none] sm:overflow-hidden" style={boardH ? { scrollPaddingTop: boardH } : undefined}>
       {/* The Clocktower's room above the board from `sm` up; a phone and a short screen keep just the board (review
           round 2: on a phone a strip of it scrolled away at the first step, and slid the board under a tap). */}
       <div className="grid flex-none grid-cols-1 sm:min-h-0 sm:flex-1 sm:grid-cols-[minmax(0,1fr)_300px] sm:grid-rows-[minmax(0,40fr)_minmax(0,60fr)] lg:grid-cols-[minmax(0,1fr)_380px] sm:[@media(max-height:500px)]:grid-rows-[minmax(0,1fr)]">
@@ -278,7 +312,10 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
           </div>
         </section>
 
-        <aside aria-label={`The job and the ${def.collection}`} className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
+        <aside
+          aria-label={`The job and the ${def.collection}`}
+          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4"
+        >
           <HostBubble npcId={def.host} line={line} phoneStrip />
           <div className="order-1 sm:order-none">
             <Ticket heading={`FIX ${machine.short.toUpperCase()}`} ready={right} icon={<MachineBadge id={job.machine} />} id="cg-job">
@@ -287,17 +324,26 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
           </div>
 
           <div className={cn(windowClass, 'flex flex-col gap-3 p-3.5 [@media(max-height:500px)]:order-first')}>
-            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2]">
+            {/* Not on a short screen, where the result and its button fit only without it. */}
+            <p className="text-[13px] font-bold uppercase tracking-wide text-[#c9c5f2] [@media(max-height:500px)]:hidden">
               Machine {done + 1} of {JOBS_PER_ROUND}
             </p>
 
             {!result && (
               <>
                 <h2 className={cn(pixelHeadClass, 'text-[26px]')}>Step 1 · Place the gears</h2>
-                <JobLine job={job} />
-                <p className="text-[15px] leading-snug text-[#e4e1ff]">Tap a peg to put a gear on it — tap again to take it off. Gears that touch turn each other.</p>
+                <JobLine ref={jobRef} job={job} />
+                {/* On a short screen Expert leaves this to the title card: the job, its four gears and Turn fit under the
+                    job line that way. */}
+                <p className={cn('text-[15px] leading-snug text-[#e4e1ff]', expert && '[@media(max-height:500px)]:hidden')}>
+                  Tap a peg to put a gear on it — tap again to take it off. Gears that touch turn each other.
+                </p>
                 {tricky && (
-                  <div role="group" aria-label="The crank’s gear" className={cn('grid gap-2', expert ? 'grid-cols-4 sm:grid-cols-2 lg:grid-cols-4' : 'grid-cols-3')}>
+                  <div
+                    role="group"
+                    aria-label="The crank’s gear"
+                    className={cn('grid gap-2', expert ? 'grid-cols-4 sm:grid-cols-2 lg:grid-cols-4 sm:[@media(max-height:500px)]:grid-cols-4' : 'grid-cols-3')}
+                  >
                     {CRANK_TEETH[band].map((t) => (
                       <button
                         key={t}
@@ -306,16 +352,18 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
                         aria-pressed={crank === t}
                         className={cn(
                           'flex min-h-[64px] flex-col items-center justify-center rounded-lg border-[3px] px-1 text-center text-[13px] font-bold leading-tight',
+                          // Four in a row on a short screen (UX review round 1: two by two, the job was scrolled away).
+                          expert && '[@media(max-height:500px)]:min-h-[52px] [@media(max-height:500px)]:px-0.5 [@media(max-height:500px)]:text-[12px]',
                           crank === t ? 'border-amber-300 bg-[#3a3486]' : 'border-[#5a55a8] bg-[#24215a] hover:bg-[#2f2b70]',
                           focusRing,
                         )}
                       >
-                        <svg width="34" height="34" viewBox="-40 -40 80 80" aria-hidden="true">
-                          {/* Each its size against the others; Expert's 32 too, inside its button. */}
-                          <GearShape teeth={t} r={radius(t) * (expert ? 40 : 64)} spokes={false} />
+                        <svg width="34" height="34" viewBox="-40 -40 80 80" aria-hidden="true" className={cn(expert && '[@media(max-height:500px)]:h-[26px] [@media(max-height:500px)]:w-[26px]')}>
+                          {/* Each its size against the others, the biggest's teeth inside the box (code and UX review round 1: the 32 and Tricky's 24 were clipped). */}
+                          <GearShape teeth={t} r={radius(t) * (expert ? ICON_EXPERT : ICON_TRICKY)} spokes={false} />
                         </svg>
                         {SIZE_NAME[t]}
-                        <span className="block font-semibold text-[#c9c5f2]">{t} teeth</span>
+                        <span className="block whitespace-nowrap font-semibold text-[#c9c5f2]">{t} teeth</span>
                       </button>
                     ))}
                   </div>
@@ -338,15 +386,21 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
               <>
                 {/* Heard with what happened, as focus lands. */}
                 <h2 ref={resultHead} tabIndex={-1} aria-describedby="cg-result" className={cn(pixelHeadClass, 'self-start rounded text-[28px] text-white', focusRing)}>
-                  {expert && verdict === 'jammed' ? 'Jammed' : HEADS[verdict]}
+                  {(expert && job.force && FORCE_HEADS[verdict]) || (expert && EXPERT_HEADS[verdict]) || HEADS[verdict]}
                 </h2>
-                <p id="cg-result" className={cn('rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22]', right ? 'bg-amber-300' : 'bg-[#d4d0f5]')}>
+                <p
+                  id="cg-result"
+                  className={cn(
+                    'rounded-lg px-3 py-2 text-[15px] font-bold text-[#1b0f22] [@media(max-height:500px)]:py-1.5 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-snug',
+                    right ? 'bg-amber-300' : 'bg-[#d4d0f5]',
+                  )}
+                >
                   {right ? learnedLine(job, result.run, result.crank) : verdictWords(job, result.run, verdict)}
-                  {right && newPage && ` ${cap(machine.name)} is in your book!`}
+                  {right && newPage && ` ${cap(machine.name)} is in your book${expert ? '.' : '!'}`}
                 </p>
                 {right ? (
                   <button ref={goRef} type="button" onClick={next} className={cn(goldClass, 'text-lg')}>
-                    {done + 1 < JOBS_PER_ROUND ? 'Next machine' : 'Next — that’s the last one!'}
+                    {done + 1 < JOBS_PER_ROUND ? 'Next machine' : expert ? 'Next — that’s the last one' : 'Next — that’s the last one!'}
                   </button>
                 ) : (
                   <button ref={goRef} type="button" onClick={change} className={cn(goldClass, 'text-lg')}>
@@ -374,6 +428,10 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
 /** Room under the board for its labels, in px (two lines on a narrow screen). */
 const LABELS_PX = 76;
 
+/** The crank gears' icons, units to a peg in their 80-unit box: the biggest (Tricky's 24, Expert's 32) fits, teeth and all. */
+const ICON_TRICKY = 48;
+const ICON_EXPERT = 36;
+
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const gearsWord = (n: number) => `${NUM[n] ?? n} gear${n === 1 ? '' : 's'}`;
@@ -383,17 +441,25 @@ function listWords(items: readonly string[]): string {
   return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
 }
 
-/** The job, in the step card on a phone or a short screen (the ticket is further down there). */
-function JobLine({ job }: { job: Job }) {
+/**
+ * The job, in the step card on a phone or a screen up to 800 px high (the ticket's further up, scrolled away as the
+ * step's buttons come into view) — and stuck at the card's top on a short screen where the board isn't, smaller up to
+ * 500 px (UX review round 1: at 844 × 390 Expert's numbers were never in sight as the crank's gear was picked).
+ */
+const JobLine = forwardRef<HTMLParagraphElement, { job: Job }>(function JobLine({ job }, ref) {
   return (
-    <p aria-hidden="true" className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:501px)]:hidden">
-      <span className="flex-none">
+    <p
+      ref={ref}
+      aria-hidden="true"
+      className="flex items-center gap-2 rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[15px] leading-snug text-[#1b0f22] sm:[@media(min-height:801px)]:hidden sm:[@media(max-height:600px)]:sticky sm:[@media(max-height:600px)]:top-0 sm:[@media(max-height:600px)]:z-10 sm:[@media(max-height:600px)]:shadow-[0_2px_0_#1b0f22] [@media(max-height:500px)]:sticky [@media(max-height:500px)]:top-0 [@media(max-height:500px)]:z-10 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-height:500px)]:leading-tight [@media(max-height:500px)]:shadow-[0_2px_0_#1b0f22]"
+    >
+      <span className="flex-none [@media(max-height:500px)]:hidden">
         <MachineBadge id={job.machine} />
       </span>
       <b>{jobWords(job)}</b>
     </p>
   );
-}
+});
 
 /** A machine's emoji on a brass plate. */
 function MachineBadge({ id }: { id: MachineId }) {

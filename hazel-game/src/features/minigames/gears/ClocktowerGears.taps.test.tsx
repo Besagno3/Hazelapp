@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 
 // A double tap (PR 13): a step's buttons wait a moment as it starts, so the second tap of a double doesn't press what
 // came under the finger — Turn the crank's on Next machine or Change the gears, Next's on a peg of the next board. The
@@ -73,6 +73,38 @@ describe('⚙️ a double tap', () => {
     wait();
     tap(screen.getByRole('button', { name: 'Change the gears' }));
     expect(screen.queryByRole('heading', { name: 'Not joined yet' })).toBeNull();
+  });
+
+  it('after a miss, gears go on one after another at once — the peg that clears it starts no wait (code and UX review round 1: the next was swallowed)', () => {
+    play();
+    wait();
+    tap(peg(middle[0]));
+    tap(screen.getByRole('button', { name: 'Turn the crank ↻' }));
+    expect(screen.getByRole('heading', { name: 'Not joined yet' })).toBeInTheDocument();
+    wait();
+    tap(peg(middle[1]));
+    tap(peg(middle[2]));
+    tap(peg(middle[3]));
+    expect(screen.getByText('Four gears on the pegs.')).toBeInTheDocument();
+  });
+
+  it('Expert: a crank gear waits as a round starts and after Change the gears (its second tap would pick one)', () => {
+    render(<ClocktowerGears def={MINIGAMES['clocktower-gears']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const size = (name: RegExp) => within(screen.getByRole('group', { name: 'The crank’s gear' })).getByRole('button', { name });
+    tap(size(/^Small/));
+    expect(size(/^Small/)).toHaveAttribute('aria-pressed', 'false');
+    wait();
+    for (const p of middle) tap(peg(p));
+    tap(size(/^Small/));
+    tap(screen.getByRole('button', { name: 'Turn the crank ↻' }));
+    // A miss (four in a row is the wrong way round).
+    wait();
+    tap(screen.getByRole('button', { name: 'Change the gears' }));
+    tap(size(/^Middle/));
+    expect(size(/^Middle/)).toHaveAttribute('aria-pressed', 'false');
+    wait();
+    tap(size(/^Middle/));
+    expect(size(/^Middle/)).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('a key isn’t held back: a peg pressed from the keyboard as a round starts', () => {

@@ -183,11 +183,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   `EXPERT_TEETH` (8, 16, 24, 32; each job made by exactly one, and the
   board's frame holds the 32, `biggestFor`), a miss is said in the job's
   numbers with the rule and a right run with the ratio (`ratioWords`), and
-  the machines right at their first run are `spotOn`. On every band a
-  step's buttons wait `SETTLE_MS` as it starts (`useSettled`: the pegs, the
-  crank's gears, Turn the crank, Change the gears, Next machine — gears
-  placed one after another aren't held back, nor is a key), so a double
-  tap's second doesn't press what came under the finger. Each peg is an SVG `role="button"` (Enter /
+  the machines right at their first run are `spotOn`; the gear ratio is
+  said driven : driver (`ratioWords(machine, crank)`: "8 : 24 = 1 : 3"), a
+  force job's miss is headed in force (`FORCE_HEADS`) and said with
+  `forceAmount` ("not four times"), and the reward keeps the first missed
+  machine's lesson. The job line (`JobLine`) is in the step card up to 800 px
+  high, and sticks at its top up to 600 px from `sm` (and on any screen up
+  to 500 px, where the board doesn't stick); up to 500 px it's smaller and
+  Expert's four gears stand in a row, and as a step starts the crank's
+  gears (or what's on the pegs) are scrolled to just under it, so the job,
+  the gears and Turn the crank are in sight together; the scrollers aren't
+  anchored (`overflow-anchor: none`: Take all the gears off coming up below
+  had moved the gears under the line). On every band a step's buttons wait `SETTLE_MS` as it
+  starts (`useSettled`, keyed on the machine, `again` — Change the gears and
+  Take all the gears off — and the runs: the pegs, the crank's gears, Turn
+  the crank, Change the gears, Take all the gears off, Next machine — gears
+  placed one after another aren't held back, after a miss either, nor is a
+  key), so a double tap's second doesn't press what came under the finger.
+  `GearShape` sizes a tooth's depth and outline by the space between teeth,
+  so every gear's teeth match. Each peg is an SVG `role="button"` (Enter /
   Space, a held key once; a drawn focus ring) named by row and place, what it
   touches and, after a run, what its gear did ("Middle row, peg 1: a gear,
   turning anticlockwise ↺. Take it off. Touches the crank, top row peg 1 and

@@ -26,7 +26,8 @@ const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
 const { MINIGAME_PAGE_XP } = await import('../../../content/items');
-const { MACHINE_IDS } = await import('../../../lib/minigames/gears');
+const { MACHINE_IDS, boardBox, jobFor, learnedLine, roundQueue, run, solve } = await import('../../../lib/minigames/gears');
+type GearJob = import('../../../lib/minigames/gears').Job;
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
@@ -319,12 +320,29 @@ describe('⚙️ Clocktower Gears, a whole round (docs/DESIGN-MINIGAMES.md §5.3
 
 describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', () => {
   const sizes = () => within(screen.getByRole('group', { name: 'The crank’s gear' }));
+  const SIZE_RE: Record<number, RegExp> = { 8: /^Small/, 16: /^Middle/, 24: /^Big(?!gest)/, 32: /^Biggest/ };
+  const ROWS = ['Top row', 'Middle row', 'Bottom row'];
+  /** Does a job the fewest-gears way (`solve`), and turns the crank. */
+  function solveIt(job: GearJob) {
+    const s = solve(job)!;
+    for (const i of s.placed) {
+      const p = job.board.pegs[i];
+      fireEvent.click(peg(new RegExp(`^${ROWS[p.r]}, peg ${job.board.pegs.filter((q) => q.r === p.r && q.c <= p.c).length}:`)));
+    }
+    fireEvent.click(sizes().getByRole('button', { name: SIZE_RE[s.crank] }));
+    turnCrank();
+    return s;
+  }
 
   it('turns a minute: four crank gears, a miss said in numbers with the rule, the ratio on a right run; a miss, then two right — spot on 2 of 3', () => {
     const { onFinish } = play('expert');
     expect(screen.getByText('Make the Great Hands turn clockwise ↻, 45 times a minute. The crank turns 15 times a minute; the machine’s gear has 8 teeth.', { selector: '#cg-job' })).toBeInTheDocument();
-    // Tock, plainly (§8.3).
-    expect(screen.getAllByText(/Work out the crank’s gear, then join them\./).length).toBeGreaterThan(0);
+    // Tock, plainly (§8.3) — and not the job again (UX review round 1); the job in the step card too, for a short screen.
+    expect(screen.getByText('Work out the ratio from the job, then pick the crank’s gear and join them up.')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Make the Great Hands turn clockwise ↻, 45 times a minute\./)).toHaveLength(2);
+    // The frame holds Expert's 32 (code review round 1).
+    const f = boardBox(jobFor('expert', 0, 0).board, 32);
+    expect(board()).toHaveAttribute('viewBox', `${f.x * 100} ${f.y * 100} ${f.w * 100} ${f.h * 100}`);
     expect(sizes().getAllByRole('button').map((b) => b.textContent)).toEqual(['Small8 teeth', 'Middle16 teeth', 'Big24 teeth', 'Biggest32 teeth']);
     expect(sizes().getAllByRole('button').every((b) => b.getAttribute('aria-pressed') === 'false')).toBe(true);
     // Up and over the top: five between, so it turns the crank's way.
@@ -338,38 +356,78 @@ describe('⚙️ Clocktower Gears on Expert: gear ratios in numbers (§8.5)', ()
     fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
     fireEvent.click(sizes().getByRole('button', { name: /^Big(?!gest)/ }));
     turnCrank();
-    expect(screen.getByRole('heading', { name: 'It works!' })).toHaveAccessibleDescription(
-      /^24 teeth turning 8 is 3 : 1 — 15 turns a minute became 45, with a third of the crank’s turning force\. The gears between change only the way\./,
+    expect(screen.getByRole('heading', { name: 'It works' })).toHaveAccessibleDescription(
+      /^A 24-tooth crank gear turning an 8-tooth machine gear: the gear ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became 45, with a third of the crank’s turning force\. The Great Hands is in your book\.$/,
     );
     expect(screen.getByText('Right. Next machine.')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
 
     // Turning force, right first time: four times the force is a quarter of the speed.
-    expect(screen.getByText('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. Its gear has 32 teeth.', { selector: '#cg-job' })).toBeInTheDocument();
+    expect(screen.getByText('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. The machine’s gear has 32 teeth.', { selector: '#cg-job' })).toBeInTheDocument();
     place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 3:/, /^Middle row, peg 4:/);
     fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
     turnCrank();
-    expect(screen.getByRole('heading', { name: 'It works!' })).toHaveAccessibleDescription(/^8 teeth turning 32 is 1 : 4 — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force\./);
+    expect(screen.getByRole('heading', { name: 'It works' })).toHaveAccessibleDescription(
+      /^An 8-tooth crank gear turning a 32-tooth machine gear: the gear ratio, machine : crank, is 32 : 8 = 4 : 1, so it turns a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force\./,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
 
     // 20 a minute to 40, on a 16: the biggest crank gear.
     place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 3:/, /^Middle row, peg 4:/);
     fireEvent.click(sizes().getByRole('button', { name: /^Biggest/ }));
     turnCrank();
-    expect(screen.getByRole('heading', { name: 'It works!' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
-    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
+    expect(screen.getByRole('heading', { name: 'It works' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next — that’s the last one' }));
+    // Spot on 2 of 3 — and the reward keeps the missed machine's working, not the round's last (UX review round 1).
+    const hands = jobFor('expert', 0, 0);
+    expect(onFinish).toHaveBeenCalledWith(
+      expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(hands, run(hands.board, new Set([3, 0, 1, 2, 6]), 24, hands.teeth), 24) }),
+    );
   });
 
-  it('a jam on Expert is said plainly, and is a miss', () => {
+  it('a jam on Expert is said plainly, and costs the seal (code review round 1: only that the round went on was checked)', () => {
     // Round 1's first job: the Weathervane, on a board with a top row.
     const { onFinish } = play('expert', 1);
+    const queue = roundQueue(() => false, 1);
     // Three that all touch: the crank's peg, the one after it, and the one above both.
     place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Top row, peg 1:/);
     fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
     turnCrank();
-    expect(screen.getByRole('heading', { name: 'Jammed' })).toHaveAccessibleDescription('Jammed: three gears that all touch push each other both ways. Take out one marked !.');
-    expect(onFinish).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Jammed' })).toHaveAccessibleDescription('Three gears that all touch push each other both ways. Take out one of the gears marked !.');
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take all the gears off' }));
+    for (let i = 0; i < 3; i++) {
+      solveIt(jobFor('expert', 1, i, queue));
+      expect(screen.getByRole('heading', { name: 'It works' })).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
+  });
+
+  it('a run with no gear touching the crank costs the seal too; a force job’s miss is headed in force (UX review round 1: "Too fast" over too little force)', () => {
+    const { onFinish } = play('expert');
+    place(/^Middle row, peg 4:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'Only the crank turned' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Take all the gears off' }));
+    solveIt(jobFor('expert', 0, 0));
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+    // The Hour Bell wants four times the force: the Middle gives twice — not enough; then right.
+    place(/^Middle row, peg 1:/, /^Middle row, peg 2:/, /^Middle row, peg 3:/, /^Middle row, peg 4:/);
+    fireEvent.click(sizes().getByRole('button', { name: /^Middle/ }));
+    turnCrank();
+    expect(screen.getByRole('heading', { name: 'Not enough force' })).toHaveAccessibleDescription(
+      'The Hour Bell got twice the crank’s turning force, not four times. Force out = force in × machine teeth ÷ crank teeth.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Change the gears' }));
+    fireEvent.click(sizes().getByRole('button', { name: /^Small/ }));
+    turnCrank();
+    fireEvent.click(screen.getByRole('button', { name: 'Next machine' }));
+    solveIt(jobFor('expert', 0, 2));
+    fireEvent.click(screen.getByRole('button', { name: /^Next/ }));
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 1, of: 3 } }));
   });
 });
 

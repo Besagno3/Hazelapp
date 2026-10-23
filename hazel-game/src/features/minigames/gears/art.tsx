@@ -16,7 +16,7 @@ const STEEL = '#cbd5e1';
  * middle of the teeth), centred on 0,0. Every gear's teeth are the same size,
  * so a bigger gear has more of them.
  */
-function gearPath(teeth: number, r: number, depth = 9): string {
+function gearPath(teeth: number, r: number, depth: number): string {
   const outer = r + depth / 2;
   const inner = r - depth / 2;
   const step = (Math.PI * 2) / teeth;
@@ -39,9 +39,14 @@ function gearPath(teeth: number, r: number, depth = 9): string {
 
 /** A gear, centred on 0,0: brass with a dark hub, or `fill`. */
 export function GearShape({ teeth, r, fill = BRASS, stroke = INK, spokes = true }: { teeth: number; r: number; fill?: string; stroke?: string; spokes?: boolean }) {
+  // A tooth's depth and outline go by the space between teeth, the same on every gear of a set — not by its size
+  // (UX review round 1, PR 13: a 32-tooth gear's teeth came out twice as deep, and all ink).
+  const pitch = (2 * Math.PI * r) / teeth;
+  const depth = Math.min(pitch * 0.5, Math.max(7, r * 0.2));
+  const line = Math.min(pitch * 0.2, Math.max(3, r * 0.08));
   return (
     <g>
-      <path d={gearPath(teeth, r, Math.max(7, r * 0.2))} fill={fill} stroke={stroke} strokeWidth={Math.max(3, r * 0.08)} strokeLinejoin="round" />
+      <path d={gearPath(teeth, r, depth)} fill={fill} stroke={stroke} strokeWidth={line} strokeLinejoin="round" />
       <circle r={r * 0.72} fill="none" stroke={BRASS_DARK} strokeWidth={Math.max(2, r * 0.06)} />
       {spokes &&
         [0, 60, 120].map((deg) => (
@@ -104,6 +109,23 @@ export function StepJoin() {
           />
         </g>
       ))}
+    </svg>
+  );
+}
+
+/** Expert's step 2: a big gear turning a small one, the small one going round faster (its arrow the longer). */
+export function StepRatio() {
+  return (
+    <svg width="60" height="52" viewBox="0 0 240 200" aria-hidden="true">
+      <g transform="translate(84 112)">
+        <GearShape teeth={15} r={60} spokes={false} />
+      </g>
+      <g transform="translate(166 112) rotate(12)">
+        <GearShape teeth={5} r={20} fill="#f2c45a" spokes={false} />
+      </g>
+      <path d="M44 40 A 70 70 0 0 1 104 34" fill="none" stroke="#fcd34d" strokeWidth="10" strokeLinecap="round" />
+      <path d="M150 70 A 44 44 0 1 1 210 92" fill="none" stroke="#fcd34d" strokeWidth="10" strokeLinecap="round" />
+      <path d="M200 80 L212 96 L222 78" fill="none" stroke="#fcd34d" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

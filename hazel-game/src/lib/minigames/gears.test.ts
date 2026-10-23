@@ -8,6 +8,7 @@ import {
   biggestFor,
   board,
   boardBox,
+  forceAmount,
   forceWords,
   ratioWords,
   roundQueue,
@@ -127,6 +128,10 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
             expect(y).toBeLessThanOrEqual(f.y + f.h);
           }
         }
+        // The biggest machine gear, its teeth and outline inside the frame's stroke (8 units in) — code review round 1,
+        // PR 13: Expert's 32 touched it.
+        const machine = ends(job.board, biggestFor(band), biggestFor(band)).machine;
+        expect(machine.x + radius(biggestFor(band)) + 0.14, band).toBeLessThanOrEqual(f.x + f.w - 0.08);
         // And every peg's gear.
         for (const p of job.board.pegs) {
           const { x, y } = pegAt(p);
@@ -318,15 +323,41 @@ describe('Expert: gear ratios in numbers — turns a minute, and turning force (
 
   it('the job in numbers; a ratio in lowest terms; force the speed’s inverse', () => {
     expect(jobWords(expert[0])).toBe('Make the Great Hands turn clockwise ↻, 45 times a minute. The crank turns 15 times a minute; the machine’s gear has 8 teeth.');
-    expect(jobWords(expert[1])).toBe('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. Its gear has 32 teeth.');
-    expect(ratioWords(24, 8)).toBe('3 : 1');
-    expect(ratioWords(24, 32)).toBe('3 : 4');
-    expect(ratioWords(16, 16)).toBe('1 : 1');
+    expect(jobWords(expert[1])).toBe('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. The machine’s gear has 32 teeth.');
+    // Driven : driver, as a school book has it (code and UX review round 1).
+    expect(ratioWords(8, 24)).toBe('8 : 24 = 1 : 3');
+    expect(ratioWords(32, 24)).toBe('32 : 24 = 4 : 3');
+    expect(ratioWords(16, 16)).toBe('16 : 16 = 1 : 1');
+    expect(ratioWords(3, 2)).toBe('3 : 2');
     expect(forceWords(1)).toBe('the same turning force as the crank');
     expect(forceWords(0.75)).toBe('three quarters of the crank’s turning force');
     expect(forceWords(4 / 3)).toBe('one and a third times the crank’s turning force');
+    expect(forceAmount(4)).toBe('four times');
+    expect(forceAmount(1 / 3)).toBe('a third');
     expect(speedWords(0.25)).toBe('a quarter as fast as the crank');
-    expect(speedWords(4 / 3)).toBe('one and a third times as fast as the crank');
+  });
+
+  it('every speed and force a run can give has its words — none said as a bare number (code review round 1)', () => {
+    const speeds = new Set<number>();
+    const forces = new Set<number>();
+    for (const band of ['tricky', 'expert'] as const) {
+      for (const job of jobs(band)) {
+        for (const c of CRANK_TEETH[band]) {
+          const speed = c / job.teeth;
+          const right = Math.abs(speed - job.speed!) < 1e-9;
+          // Tricky says a speed; Expert a force job's speed on a right run — and the force of a force job's every run,
+          // and of a right run on the others.
+          if (band === 'tricky' || (job.force && right)) speeds.add(speed);
+          if (band === 'expert' && (job.force || right)) forces.add(1 / speed);
+        }
+      }
+    }
+    for (const v of speeds) expect(speedWords(v), String(v)).not.toMatch(/\d/);
+    for (const f of forces) {
+      expect(forceWords(f), String(f)).not.toMatch(/\d/);
+      expect(forceAmount(f), String(f)).not.toMatch(/\d/);
+    }
+    expect(forces.size).toBe(10);
   });
 
   it('a miss says what happened in the job’s own numbers, and the rule — never the gear; a right run, the ratio and the trade', () => {
@@ -338,16 +369,18 @@ describe('Expert: gear ratios in numbers — turns a minute, and turning force (
     const line = set(0, 1, 2, 3);
     const weak = run(bell.board, line, 16, bell.teeth);
     expect(check(bell, weak)).toBe('too-fast');
-    expect(verdictWords(bell, weak, 'too-fast')).toBe('The Hour Bell got twice the crank’s turning force, not four times the crank’s turning force. Force out = force in × machine teeth ÷ crank teeth.');
+    expect(verdictWords(bell, weak, 'too-fast')).toBe('The Hour Bell got twice the crank’s turning force, not four times. Force out = force in × machine teeth ÷ crank teeth.');
     const wrongWay = run(hands.board, set(3, 4, 5, 6), 24, hands.teeth);
     expect(verdictWords(hands, wrongWay, check(hands, wrongWay))).toBe(
-      'The Great Hands turned anticlockwise ↺, with four gears between. An odd number between keeps the crank’s way round; an even number turns it back.',
+      'The Great Hands turned anticlockwise ↺, with four gears between. An odd number between keeps the crank’s way round; an even number turns it the other way.',
     );
     for (const v of ['empty', 'not-joined', 'jammed'] as const) expect(verdictWords(hands, { kind: 'empty' }, v)).not.toMatch(/!$|Clunk/);
     const ok = run(hands.board, over, 24, hands.teeth);
-    expect(learnedLine(hands, ok, 24)).toBe('24 teeth turning 8 is 3 : 1 — 15 turns a minute became 45, with a third of the crank’s turning force. The gears between change only the way.');
+    expect(learnedLine(hands, ok, 24)).toBe(
+      'A 24-tooth crank gear turning an 8-tooth machine gear: the gear ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became 45, with a third of the crank’s turning force.',
+    );
     expect(learnedLine(bell, run(bell.board, line, 8, bell.teeth), 8)).toBe(
-      '8 teeth turning 32 is 1 : 4 — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force.',
+      'An 8-tooth crank gear turning a 32-tooth machine gear: the gear ratio, machine : crank, is 32 : 8 = 4 : 1, so it turns a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force.',
     );
   });
 });
