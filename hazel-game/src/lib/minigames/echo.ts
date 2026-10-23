@@ -169,28 +169,51 @@ export const EXPERT_ASKS: Record<TuneId, readonly Interval[]> = {
   'lightly-row': ['m2', 'P4', 'm3'],
 };
 
-/** The first two of the notes (in order) that make an interval, or null. */
-export function pairMaking(notes: readonly Note[], want: Interval): [number, number] | null {
-  for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) if (intervalOf(notes[i], notes[j]) === want) return [i, j];
-  return null;
+/** Every two of the notes (in order) that make an interval. */
+export function pairsMaking(notes: readonly Note[], want: Interval): [number, number][] {
+  const pairs: [number, number][] = [];
+  for (let i = 0; i < notes.length; i++) for (let j = i + 1; j < notes.length; j++) if (intervalOf(notes[i], notes[j]) === want) pairs.push([i, j]);
+  return pairs;
 }
 
-/** The pair of notes an Expert echo asks about: a perfect 5th where the notes make one, else the tune's turn's. */
-export function pairFor(tune: TuneId, notes: readonly Note[], round: number): [number, number] {
+/**
+ * The pair of notes an Expert echo asks about: a perfect 5th where the notes
+ * make one, else the tune's interval for its `turn` — and of the pairs that
+ * make it, a different one each time it comes round (code review round 1:
+ * always the first, so most started at note 1).
+ */
+export function pairFor(tune: TuneId, notes: readonly Note[], turn: number): [number, number] {
   const asks = EXPERT_ASKS[tune];
-  return pairMaking(notes, 'P5') ?? pairMaking(notes, asks[round % asks.length]) ?? [0, notes.length - 1];
+  const fifths = pairsMaking(notes, 'P5');
+  if (fifths.length) return fifths[0];
+  const pairs = pairsMaking(notes, asks[turn % asks.length]);
+  return pairs[Math.floor(turn / asks.length) % pairs.length] ?? [0, notes.length - 1];
 }
+
+/**
+ * Expert's third tune, the longest, in turn: the three whose notes make a
+ * minor 2nd or 3rd, a 4th or a 5th — so every round asks one of those, and
+ * Lightly Row's 5th comes every third round (code review round 1: by the
+ * songbook's turn it came once in eight, and the others asked only major 2nds
+ * and 3rds).
+ */
+export const EXPERT_THIRD: readonly TuneId[] = ['lightly-row', 'old-macdonald', 'ode-to-joy'];
 
 /**
  * Which tunes come up in a round: those not in the songbook yet first (so
  * every round can fill pages), then the rest in turn from where the round
- * would have them — only tunes the band can play at its longest.
+ * would have them — only tunes the band can play at its longest. On Expert
+ * the third is `EXPERT_THIRD`'s turn.
  */
 export function roundQueue(band: PlayBand, known: (id: TuneId) => boolean, round: number): TuneId[] {
   const can = TUNES.filter((t) => playable(band, t, LENGTHS[band][2])).map((t) => t.id);
   const start = (round * ECHOES_PER_ROUND) % can.length;
   const turn = [...can.slice(start), ...can.slice(0, start)];
-  return [...turn.filter((id) => !known(id)), ...turn.filter((id) => known(id))];
+  const queue = [...turn.filter((id) => !known(id)), ...turn.filter((id) => known(id))];
+  if (band !== 'expert') return queue;
+  const third = EXPERT_THIRD[round % EXPERT_THIRD.length];
+  const rest = queue.filter((id) => id !== third);
+  return [...rest.slice(0, 2), third, ...rest.slice(2)];
 }
 
 /** The `i`th echo of a round: its tune from the `queue`, its length by its place, its mode by the band. */
@@ -199,7 +222,9 @@ export function echoFor(band: PlayBand, round: number, i: number, queue?: readon
   const t = TUNE_BY_ID[q[i % q.length]];
   const notes = t.opening.slice(0, LENGTHS[band][i]);
   const mode: Mode = band === 'tricky' ? TRICKY_MODES[i] : band === 'expert' ? EXPERT_MODES[i] : 'ear';
-  const pair = band === 'expert' ? pairFor(t.id, notes, round) : null;
+  // A tune's turn: the round, and one more each time the songbook's gone round (UX and code review round 1: by the round
+  // alone, a tune read always asked one interval and heard the other).
+  const pair = band === 'expert' ? pairFor(t.id, notes, round + Math.floor((round * ECHOES_PER_ROUND + i) / TUNES.length)) : null;
   if (mode !== 'wrong') return { tune: t.id, mode, notes, played: notes, wrongAt: null, chimes: CHIMES[band], pair };
   // A note in the middle changed by a step — up, unless it's at the top — so the shape around it gives it away.
   const at = 1 + ((round + i) % (notes.length - 2));
@@ -231,6 +256,9 @@ export const noteWords = (n: Note) => `${n} (${CHIME[n].name})`;
 
 const ORDINAL_NUM = ['', '', '2nd', '3rd', '4th', '5th'];
 
+/** An interval's kind, by its semitones (code review round 1: a 4th or 5th had none). */
+const KIND: Record<Interval, string> = { m2: 'minor', M2: 'major', m3: 'minor', M3: 'major', P4: 'perfect', P5: 'perfect' };
+
 /** The interval an Expert echo asks: its two notes, and what they make. */
 export function asked(echo: Echo): { a: Note; b: Note; at: readonly [number, number]; interval: Interval } | null {
   if (!echo.pair) return null;
@@ -239,30 +267,36 @@ export function asked(echo: Echo): { a: Note; b: Note; at: readonly [number, num
   return interval ? { a: echo.notes[i], b: echo.notes[j], at: echo.pair, interval } : null;
 }
 
-/** Expert's question: which two notes — by their place in the tune, not their names (finding those is the job). */
-export function intervalQuestion(echo: Echo): string {
+/** How an Expert interval's counted: both ends in — the step from one note to the next is a 2nd (UX review round 1: an off-by-one was invited). */
+export const countHow = (echo: Echo) =>
+  echo.mode === 'staff' ? 'Count the lines and spaces from one to the other, both notes included.' : 'Count the chimes from one to the other, both included.';
+
+/** Expert's question: which two notes — by their place in the tune, not their names (finding those is the job) — and, unless `bare`, how to count. */
+export function intervalQuestion(echo: Echo, bare = false): string {
   const q = asked(echo);
   if (!q) return '';
-  const how = echo.mode === 'staff' ? 'Count the lines and spaces from one to the other.' : 'Count the chimes from one to the other.';
-  return `From note ${q.at[0] + 1} to note ${q.at[1] + 1}: what interval? ${how}`;
+  const ask = `From note ${q.at[0] + 1} to note ${q.at[1] + 1}: what interval?`;
+  return bare ? ask : `${ask} ${countHow(echo)}`;
 }
 
 /**
  * After the interval's named — the method either way: the letter names
- * counted give the number, the semitones between make it major or minor
- * ("E up to G: 3 letter names, E F G — a 3rd; 3 semitones — minor."). Plain.
+ * counted, in the way the tune goes, give the number; the semitones between
+ * each two, added up, make it major, minor or perfect ("E up to G: 3 letter
+ * names, E F G — a 3rd; E–F 1 + F–G 2 = 3 semitones — minor."). The chimes
+ * are evenly spaced, so where the 1 comes from is said (UX review round 1).
+ * Plain.
  */
 export function intervalWords(echo: Echo, said: Interval): string {
   const q = asked(echo);
   if (!q) return '';
-  const lo = height(q.a) < height(q.b) ? q.a : q.b;
-  const hi = lo === q.a ? q.b : q.a;
-  const letters = NOTES.slice(height(lo), height(hi) + 1);
+  const up = height(q.b) > height(q.a);
+  const letters = up ? NOTES.slice(height(q.a), height(q.b) + 1) : NOTES.slice(height(q.b), height(q.a) + 1).reverse();
   const semis = Math.abs(SEMITONES[q.a] - SEMITONES[q.b]);
-  const way = height(q.b) > height(q.a) ? 'up' : 'down';
-  const span = ORDINAL_NUM[letters.length];
-  const quality = q.interval.startsWith('m') ? ' — minor' : q.interval.startsWith('M') ? ' — major' : '';
-  const method = `${q.a} ${way} to ${q.b}: ${letters.length} letter names, ${letters.join(' ')} — a ${span}; ${semis} semitone${semis === 1 ? '' : 's'}${quality}.`;
+  // Each step a no-break space from its count, so "E–F 1" stays on a line.
+  const steps = letters.slice(1).map((n, k) => `${letters[k]}–${n}\u00a0${Math.abs(SEMITONES[n] - SEMITONES[letters[k]])}`);
+  const count = steps.length > 1 ? `${steps.join(' + ')} = ${semis} semitones` : `${semis} semitone${semis === 1 ? '' : 's'}`;
+  const method = `${q.a} ${up ? 'up' : 'down'} to ${q.b}: ${letters.length} letter names, ${letters.join(' ')} — a ${ORDINAL_NUM[letters.length]}; ${count} — ${KIND[q.interval]}.`;
   return said === q.interval ? `Yes, a ${INTERVAL_NAME[q.interval]}. ${method}` : `Not a ${INTERVAL_NAME[said]}. ${method} A ${INTERVAL_NAME[q.interval]}.`;
 }
 
@@ -310,6 +344,8 @@ export function spotWords(echo: Echo & { mode: 'wrong' }, at: number): string {
 export function tapWords(echo: Echo, i: number, n: Note): string {
   const j = judge(echo, i, n);
   // Counted, so two of the same note in a row are each said (a reader hears a line only when it changes).
+  // On Expert (an interval asked), plainly (code review round 1).
+  if (j === 'right' && echo.pair) return i + 1 === echo.notes.length ? 'That’s the whole tune.' : `${n}, ${i + 1} of ${echo.notes.length}.`;
   if (j === 'right') return i + 1 === echo.notes.length ? 'That’s the whole tune!' : `${n} — yes! ${i + 1} of ${echo.notes.length}.`;
   return `That was ${n}. The ${ORDINAL[i]} note is ${j} — ${j === 'higher' ? 'a shorter chime, further right' : 'a longer chime, further left'}.`;
 }

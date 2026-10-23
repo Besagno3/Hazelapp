@@ -12,13 +12,19 @@ vi.mock('../../../machines/gameFlow', async (orig) => ({
   sendFlow: () => {},
 }));
 const playMusic = vi.fn();
+const sfx = vi.fn();
 vi.mock('../../../lib/audio', async (orig) => ({
   ...(await orig<typeof import('../../../lib/audio')>()),
   playMusic: (...a: unknown[]) => playMusic(...a),
-  sfx: () => {},
+  sfx: (...a: unknown[]) => sfx(...a),
 }));
-// A step's buttons always ready here (the wait after a step starts is tested in EchosCall.taps.test).
+// A step's buttons always ready here (the wait after a step starts is tested in EchosCall.taps.test), and a key's press
+// on the chime or staff note focus has just moved to (a double Enter's second: tested there too).
 vi.mock('../useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
+vi.mock('../keys', async (orig) => ({
+  ...(await orig<typeof import('../keys')>()),
+  useFocusMoved: () => ({ mark: () => {}, fresh: () => false, tooSoon: () => false }),
+}));
 const playTone = vi.fn();
 const wakeTones = vi.fn();
 vi.mock('../../../lib/tones', () => ({ playTone: (...a: unknown[]) => playTone(...a), wakeTones: () => wakeTones() }));
@@ -54,6 +60,7 @@ beforeEach(() => {
   recordActivity.mockClear();
   playTone.mockClear();
   wakeTones.mockClear();
+  sfx.mockClear();
   setUp(2);
   useSettingsStore.setState({ sfx: false });
 });
@@ -465,19 +472,23 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
     expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('Read: up or down?');
   });
 
-  it('Expert: read the staff and name the interval between the two notes marked — the method either way; hear one and name it; no colour names on the chimes; spot on 2 of 3', () => {
+  it('Expert: read the staff and name the interval between the two notes marked — the method either way; hear one and name it, its two notes played alone; no colour names; spot on 2 of 3, the missed tune’s lesson', () => {
     vi.useFakeTimers();
     setUp(9);
     const { onFinish } = play('expert');
     const queue = roundQueue('expert', () => false, 0);
-    const [buns, mary, frere] = [0, 1, 2].map((i) => echoFor('expert', 0, i, queue));
+    const [buns, mary, row] = [0, 1, 2].map((i) => echoFor('expert', 0, i, queue));
+    expect([buns.tune, mary.tune, row.tune]).toEqual(['hot-cross-buns', 'mary', 'lightly-row']);
     const key = (n: string) => within(chimes()).getByRole('button', { name: n });
     // A staff tune: the interval first, by its notes' places — Hot Cross Buns, E D C E D, notes 1 and 3.
-    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toHaveFocus();
-    expect(screen.getByRole('heading', { name: 'Step 1 · Name the interval' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('heading', { name: 'Step 1 · The interval' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Step 1 · The interval' })).toHaveAccessibleDescription(
       'Read the five notes on the staff: name the interval Lyra asks about, then play them on the chimes.',
     );
-    expect(screen.getAllByText('From note 1 to note 3: what interval? Count the lines and spaces from one to the other.').length).toBeGreaterThan(0);
+    const question = 'From note 1 to note 3: what interval? Count the lines and spaces from one to the other, both notes included.';
+    expect(document.getElementById('ec-question')).toHaveTextContent(question);
+    expect(lyra()).toContain(question);
+    expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('Read: the interval');
     const staff = within(screen.getByRole('group', { name: 'The staff' }));
     expect(staff.getAllByRole('img').map((x) => x.getAttribute('aria-label'))).toEqual([
       'Note 1: on the bottom line, asked about',
@@ -486,58 +497,125 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
       'Note 4: on the bottom line',
       'Note 5: just under the staff',
     ]);
+    // Marked in sight too: ringed.
+    expect(staff.getAllByRole('img').map((x) => x.classList.contains('ring-amber-700'))).toEqual([true, false, true, false, false]);
     // The chimes say their letters only (§8.3: less handed over).
     expect(within(chimes()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['C', 'D', 'E', 'F', 'G']);
     expect(within(chimes()).queryByText('red')).toBeNull();
     const ivs = within(screen.getByRole('group', { name: /^From note 1 to note 3/ }));
     expect(ivs.getAllByRole('button').map((b) => b.textContent)).toEqual(['Minor 2nd', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th']);
-    // A wrong one: the method, the answer — and on to playing it.
+    // A wrong one: the method, step by step, the way the tune goes — and on to playing it.
     fireEvent.click(ivs.getByRole('button', { name: 'Minor 3rd' }));
-    expect(screen.getAllByText('Not a minor 3rd. E down to C: 3 letter names, C D E — a 3rd; 4 semitones — major. A major 3rd.').length).toBeGreaterThan(0);
+    expect(sfx).toHaveBeenLastCalledWith('select');
+    expect(screen.getAllByText('Not a minor 3rd. E down to C: 3 letter names, E D C — a 3rd; E–D 2 + D–C 2 = 4 semitones — major. A major 3rd.').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Step 2 · Play it' })).toBeInTheDocument();
-    for (const n of buns.notes) fireEvent.click(key(n));
+    // The marks are the question's: gone as it's played.
+    expect(staff.getAllByRole('img').some((x) => /asked about/.test(x.getAttribute('aria-label') ?? '') || x.classList.contains('ring-amber-700'))).toBe(false);
+    fireEvent.click(key('E'));
+    expect(lyra()).toContain('E, 1 of 5.');
+    for (const n of buns.notes.slice(1)) fireEvent.click(key(n));
     expect(screen.getByRole('heading', { name: 'Hot Cross Buns!' })).toHaveAccessibleDescription(`${learnedLine(buns)} Hot Cross Buns is in the Songbook!`);
     expect(learnedLine(buns)).toMatch(/E to C is a major 3rd, 4 semitones/);
-    expect(lyra()).toMatch(/Right\. Next tune\.$/);
+    // Played right, but not spot on: not "Right." (it read as the interval's).
+    expect(lyra()).toMatch(/Played back — the interval was the miss\. Next tune\.$/);
     fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
 
-    // Heard: listen, then the interval — Mary, notes 1 and 2 marked in the slots.
-    listen();
+    // Heard: Mary, notes 1 and 2 marked in the slots from the start — the listening can be aimed at them.
+    const slotText = () => within(screen.getByRole('list', { name: /notes played$/ })).getAllByRole('listitem').map((li) => li.textContent);
+    expect(slotText()).toEqual(['Note 1, asked about, not played yet', 'Note 2, asked about, not played yet', 'Note 3, not played yet', 'Note 4, not played yet', 'Note 5, not played yet', 'Note 6, not played yet']);
+    expect(screen.getByText(/^Lyra plays 6 notes; I’ll ask about notes 1 and 2, marked\./)).toBeInTheDocument();
+    expect(lyra()).toContain('The start of a tune: 6 notes, two of them marked.');
+    fireEvent.click(listenButton());
+    expect(lyra()).toContain('Watch the chimes.');
+    act(() => void vi.advanceTimersByTime(10_000));
+    // By letter alone, as the chimes are.
+    expect(heard()).toBe('Lyra played 6 notes: E, D, C, D, E, E.');
+    expect(lyra()).toContain('Again, or on to my question?');
     fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
-    expect(screen.getByRole('heading', { name: 'Step 2 · Name the interval' })).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: /notes played$/ })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Note 1, asked about, not played yet', 'Note 2, asked about, not played yet', 'Note 3, not played yet', 'Note 4, not played yet', 'Note 5, not played yet', 'Note 6, not played yet']);
+    expect(screen.getByRole('heading', { name: 'Step 2 · The interval' })).toBeInTheDocument();
+    expect(document.querySelector('[aria-current="step"]')).toHaveTextContent('The interval');
     expect(asked_(mary)).toBe('M2');
+    // Its two notes alone, to compare by ear.
+    playTone.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: '▶ Notes 1 and 2' }));
+    act(() => void vi.advanceTimersByTime(10_000));
+    expect(playTone.mock.calls.map((c) => c[0])).toEqual([CHIME.E.hz, CHIME.D.hz]);
+    expect(heard()).toBe('Lyra played notes 1 and 2: E, D.');
+    // Again, the whole tune — and named while she plays: it stops her, the chimes ready at once.
+    fireEvent.click(screen.getByRole('button', { name: '↻ Listen again' }));
+    act(() => void vi.advanceTimersByTime(800));
+    expect(screen.getAllByRole('button', { name: '♪ Listening…' }).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Major 2nd' }));
-    expect(screen.getAllByText('Yes, a major 2nd. E down to D: 2 letter names, D E — a 2nd; 2 semitones — major.').length).toBeGreaterThan(0);
+    expect(sfx).toHaveBeenLastCalledWith('correct');
+    expect(key('C')).not.toHaveAttribute('aria-disabled');
+    expect(screen.getAllByText('Yes, a major 2nd. E down to D: 2 letter names, E D — a 2nd; 2 semitones — major.').length).toBeGreaterThan(0);
     for (const n of mary.notes) fireEvent.click(key(n));
+    expect(slotText()[0]).toBe('E');
+    expect(lyra()).toMatch(/That’s it\. Next tune\.$/);
     fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
 
-    // Read again, right first time.
-    fireEvent.click(screen.getByRole('button', { name: cap(INTERVAL_NAME[asked_(frere)]) }));
-    for (const n of frere.notes) fireEvent.click(key(n));
+    // Read again: Lightly Row's 5th, notes 1 and 7, right first time.
+    expect(screen.getByRole('group', { name: /^From note 1 to note 7: what interval\?/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Perfect 5th' }));
+    for (const n of row.notes) fireEvent.click(key(n));
+    expect(lyra()).toMatch(/Exactly\. That’s the last\.$/);
     fireEvent.click(screen.getByRole('button', { name: 'Take a bow!' }));
-    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(frere) }));
+    // The lesson's the missed tune's, as the other games' Experts (UX and code review round 1).
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 }, learned: learnedLine(buns) }));
   });
 
-  it('Expert: a wrong chime as it’s played back costs the seal too', () => {
+  it('Expert: a wrong chime as it’s played back costs the seal too; every tune spot on is 3 of 3, with the last tune’s lesson', () => {
     vi.useFakeTimers();
     setUp(9);
-    const { onFinish } = play('expert');
     const queue = roundQueue('expert', () => false, 0);
     const key = (n: string) => within(chimes()).getByRole('button', { name: n });
-    for (let i = 0; i < 3; i++) {
-      const e = echoFor('expert', 0, i, queue);
-      if (e.mode === 'ear') {
-        listen();
-        fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
+    for (const slip of [true, false]) {
+      const { onFinish, unmount } = play('expert');
+      for (let i = 0; i < 3; i++) {
+        const e = echoFor('expert', 0, i, queue);
+        if (e.mode === 'ear') {
+          listen();
+          fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
+        }
+        // Slipping: the first tune's interval named wrong; the second's right, but a wrong chime played back.
+        fireEvent.click(screen.getByRole('button', { name: slip && i === 0 ? 'Perfect 4th' : cap(INTERVAL_NAME[asked_(e)]) }));
+        if (slip && i === 1) fireEvent.click(key(e.notes[0] === 'G' ? 'C' : 'G'));
+        for (const n of e.notes) fireEvent.click(key(n));
+        if (slip && i === 0) expect(lyra()).toMatch(/Played back — the interval was the miss\. Next tune\.$/);
+        if (slip && i === 1) expect(lyra()).toMatch(/Played back, after a wrong chime\. Next tune\.$/);
+        fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next tune' : 'Take a bow!' }));
       }
-      fireEvent.click(screen.getByRole('button', { name: cap(INTERVAL_NAME[asked_(e)]) }));
-      // On the first tune, a wrong chime first.
-      if (i === 0) fireEvent.click(key(e.notes[0] === 'G' ? 'C' : 'G'));
-      for (const n of e.notes) fireEvent.click(key(n));
-      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next tune' : 'Take a bow!' }));
+      const first = echoFor('expert', 0, 0, queue);
+      const last = echoFor('expert', 0, 2, queue);
+      expect(onFinish).toHaveBeenCalledWith(expect.objectContaining(slip ? { spotOn: { right: 1, of: 3 }, learned: learnedLine(first) } : { spotOn: { right: 3, of: 3 }, learned: learnedLine(last) }));
+      unmount();
     }
-    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 2, of: 3 } }));
+  });
+
+  it('Expert: the tune being played keeps its Songbook page shut, and no page shows its notes, till it’s echoed', () => {
+    vi.useFakeTimers();
+    setUp(9, Object.fromEntries(['hot-cross-buns', 'mary', 'frere-jacques', 'au-clair', 'aunt-rhody', 'ode-to-joy', 'old-macdonald', 'lightly-row'].map((t) => [pageFlag('echos-call', t), true])));
+    play('expert');
+    const e = echoFor('expert', 0, 0, roundQueue('expert', () => true, 0));
+    expect(e.tune).toBe('hot-cross-buns');
+    const book = within(screen.getByRole('region', { name: 'Songbook' }));
+    const page = (name: string) => book.getByRole('button', { name: `${name}. Read the page` });
+    // Names only (Mary's page starts as Hot Cross Buns does).
+    expect(page('Hot Cross Buns')).toHaveTextContent(/^Hot Cross Buns$/);
+    expect(page('Mary Had a Little Lamb')).toHaveTextContent(/^Mary Had a Little Lamb$/);
+    fireEvent.click(page('Hot Cross Buns'));
+    expect(lyra()).toContain('Hot Cross Buns: its page opens once you’ve echoed it.');
+    expect(book.queryByText('Starts:')).toBeNull();
+    fireEvent.click(page('Mary Had a Little Lamb'));
+    expect(lyra()).toContain('same three notes as Hot Cross Buns');
+    expect(book.queryByText('Starts:')).toBeNull();
+    // Echoed: every page whole again.
+    fireEvent.click(screen.getByRole('button', { name: cap(INTERVAL_NAME[asked_(e)]) }));
+    for (const n of e.notes) fireEvent.click(within(chimes()).getByRole('button', { name: n }));
+    expect(page('Hot Cross Buns')).toHaveTextContent('Hot Cross BunsEDCEDCC');
+    fireEvent.click(page('Hot Cross Buns'));
+    expect(lyra()).toContain('Long ago, bakers sang it');
+    expect(book.getByText('Starts:').parentElement).toHaveTextContent('Starts:EDCEDCC');
   });
 
   it('each step on a phone scrolls the page back to the board’s top — as little as shows its gold button; a tune’s result, to its Next', () => {
@@ -579,6 +657,18 @@ describe('🎵 Echo’s Call, a round (docs/DESIGN-MINIGAMES.md §5.5)', () => {
       play('gentle');
       // The listen step's: Next's place, kept under Listen.
       expect(into.mock.contexts.at(-1)).toHaveTextContent('Next — up or down?');
+      cleanup();
+      // Expert's interval step: the last of the six, so all are in view (UX review round 1) — heard, the two notes'
+      // button under them.
+      vi.useFakeTimers();
+      play('expert');
+      expect(into.mock.contexts.at(-1)).toHaveTextContent('Perfect 5th');
+      fireEvent.click(screen.getByRole('button', { name: 'Perfect 5th' }));
+      for (const n of echoFor('expert', 0, 0).notes) fireEvent.click(within(chimes()).getByRole('button', { name: n }));
+      fireEvent.click(screen.getByRole('button', { name: 'Next tune' }));
+      listen();
+      fireEvent.click(screen.getByRole('button', { name: 'Next — the interval' }));
+      expect(into.mock.contexts.at(-1)).toHaveTextContent('▶ Notes 1 and 2');
     } finally {
       Element.prototype.scrollIntoView = was;
     }
