@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { JOBS_PER_ROUND, SETS, SET_BY_ID, check, checkWords, jobFor, jobWords, learnedLine, roundQueue, yearWords, type Event, type SetId } from '../../../lib/minigames/timeline';
+import {
+  BCE_WORDS,
+  JOBS_PER_ROUND,
+  SETS,
+  SET_BY_ID,
+  check,
+  checkWords,
+  dateOf,
+  jobFor,
+  jobWords,
+  learnedLine,
+  roundQueue,
+  type Job,
+  type SetId,
+  type TimelineEvent,
+} from '../../../lib/minigames/timeline';
 import { BAND_LABEL, pageFlag } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { CharacterPortrait } from '../../../components/CharacterPortrait';
@@ -29,12 +44,13 @@ const STEP_CHIPS = ['Tap the oldest card', 'Then the next, in order', 'Check the
  * card catalog: soggy cards wash in, and the kid puts them on the timeline in
  * the order they happened — each card tapped goes in the next empty place,
  * oldest first (one tapped on the timeline comes back) — and checks; the ones
- * in the wrong place float back, with a hint of why ("A bulb needs electricity
- * in homes — gas lamps lit streets first"), the right ones stay. Every tap is
- * in the tray: on a phone, no scrolling to and fro between it and the line. Gentle has 3–4 cards far
- * apart, Medium five, Tricky 6–7 with their years (BCE counting down). Three
- * sets a round, each a page of the timeline book. No timer. Rules:
- * `lib/minigames/timeline.ts`.
+ * in the wrong place float back, with a clue for the first wrong place ("After
+ * gas street lamps came the electric light bulb — a light bulb needs
+ * electricity in people's homes"), the right ones stay. Every tap is among the
+ * washed-up cards: on a phone, no scrolling to and fro between them and the
+ * line. Gentle has 3–4 cards far apart, Medium five, Tricky 6–7 with their
+ * years (BCE counting down). Three sets a round, each a page of the timeline
+ * book. No timer. Rules: `lib/minigames/timeline.ts`.
  */
 export default function IndexTimeline({ def, band, round, onPage, onFinish }: PlayProps) {
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
@@ -45,7 +61,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   const job = useMemo(() => jobFor(band, round, done, queue), [band, round, done, queue]);
   const set = SET_BY_ID[job.set];
   const n = job.events.length;
-  const byId = useMemo(() => Object.fromEntries(job.events.map((ev) => [ev.id, ev])) as Record<string, Event>, [job]);
+  const byId = useMemo(() => Object.fromEntries(job.events.map((ev) => [ev.id, ev])) as Record<string, TimelineEvent>, [job]);
   const [step, setStep] = useState<Step>('place');
   // Each place's card (by id), and which are checked right (they stay).
   const [placed, setPlaced] = useState<(string | null)[]>(() => Array(n).fill(null));
@@ -53,18 +69,29 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   // The cards that just floated back (a splash as they land).
   const [back, setBack] = useState<readonly string[]>([]);
   const [said, setSaid] = useState<string | null>(null);
+  // The last check's words, kept by the step's box till the next check (UX review round 1: the next tap wiped them).
+  const [clue, setClue] = useState<string | null>(null);
+  // Where the last card went, said by Index (a reader hears each one land: UX review round 1).
+  const [landed, setLanded] = useState<string | null>(null);
+  // Checks this drawer: a wrong one starts the wait again (code review round 1: a double tap on Check wiped its clue).
+  const [checks, setChecks] = useState(0);
   const [newPage, setNewPage] = useState(false);
   const [lessons, setLessons] = useState<string[]>([]);
   const [rights, setRights] = useState(0);
   const [read, setRead] = useState<SetId | null>(null);
   const known = (id: SetId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
-  const settled = useSettled(`${step}:${done}`);
+  const settled = useSettled(`${step}:${done}:${checks}`);
   const inTray = (id: string) => !placed.includes(id);
   const left = job.dealt.filter(inTray).length;
   const showYears = job.years || step === 'done';
 
-  /** A card in the tray tapped: it goes in the next empty place, oldest first. */
+  // Where focus goes once a card's placed, or cards float back — its button's gone (code review round 1: focus fell to
+  // the page): the next card left, or Check.
+  const focusTo = useRef<string | null>(null);
+  const card = (id: string) => document.querySelector<HTMLButtonElement>(`[data-card="${id}"]`);
+
+  /** A washed-up card tapped: it goes in the next empty place, oldest first. */
   function place(id: string) {
     if (step !== 'place' || !settled()) return;
     setRead(null);
@@ -75,6 +102,13 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     setPlaced(next);
     setBack([]);
     setSaid(null);
+    setLanded(`${byId[id].name}: place ${k + 1} of ${n}.`);
+    // From the keyboard (or a reader), on to the next card in the tray — or Check, once they're all placed.
+    if (document.activeElement === card(id)) {
+      const rest = job.dealt.filter((x) => x !== id && !next.includes(x));
+      const from = job.dealt.indexOf(id);
+      focusTo.current = [...rest.filter((x) => job.dealt.indexOf(x) > from), ...rest][0] ?? 'check';
+    }
     sfx('select');
   }
 
@@ -84,7 +118,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     setRead(null);
     const id = placed[k];
     if (!id) {
-      setSaid('Tap a card in the tray — it goes in the next empty place.');
+      setSaid('Tap a washed-up card — it goes in the next empty place.');
       return;
     }
     if (locked[k]) {
@@ -92,7 +126,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
       return;
     }
     setPlaced(placed.map((x, j) => (j === k ? null : x)));
-    setSaid(`${byId[id].name} is back in the tray.`);
+    setSaid(`${byId[id].name} is back with the washed-up cards.`);
     sfx('select');
   }
 
@@ -100,11 +134,13 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     if (step !== 'place' || !settled()) return;
     setRead(null);
     if (left) {
-      setSaid(`Every card on the timeline first — ${left === 1 ? 'one is' : `${left} are`} still in the tray.`);
+      setSaid(`Every card on the timeline first — ${left} still to place.`);
       return;
     }
     const right = check(job, placed);
-    setSaid(checkWords(job, right, placed));
+    const words = checkWords(job, right, placed);
+    setSaid(words);
+    setLanded(null);
     if (right.every(Boolean)) {
       sfx('chest');
       setLocked(right);
@@ -115,9 +151,14 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
       return;
     }
     sfx('wrong');
+    setClue(words);
+    setChecks((c) => c + 1);
+    const floated = placed.filter((id, k): id is string => !!id && !right[k]);
     setLocked(right);
-    setBack(placed.filter((id, k): id is string => !!id && !right[k]));
+    setBack(floated);
     setPlaced(placed.map((id, k) => (right[k] ? id : null)));
+    // From the keyboard, on to the first card back.
+    if (document.activeElement === goRef.current) focusTo.current = job.dealt.find((x) => floated.includes(x)) ?? null;
   }
 
   function next() {
@@ -134,16 +175,27 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     setLocked(Array(j.events.length).fill(false));
     setBack([]);
     setSaid(null);
+    setClue(null);
+    setLanded(null);
+    setChecks(0);
     setNewPage(false);
   }
 
-  // Focus where each step starts: the tray's first card; what was filed.
+  // Focus where each step starts: its heading (no ring — the first card lit up as if it were the answer: UX review round
+  // 1); what was filed.
   const tray = useRef<HTMLDivElement>(null);
+  const stepHead = useRef<HTMLHeadingElement>(null);
   const doneHead = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (step === 'done') doneHead.current?.focus({ preventScroll: true });
-    else tray.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+    else stepHead.current?.focus({ preventScroll: true });
   }, [step, done]);
+  useEffect(() => {
+    const to = focusTo.current;
+    focusTo.current = null;
+    if (to === 'check') goRef.current?.focus({ preventScroll: true });
+    else if (to) card(to)?.focus({ preventScroll: true });
+  }, [placed]);
 
   // As each step starts, the page scrolls back to the board's top on a phone (a set filed: at least that, with Next);
   // where the page doesn't scroll, the step's gold button comes into view.
@@ -165,12 +217,17 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another drawer?' : 'The catalog thanks you!'}`;
+  const ask = left === n ? 'Which came first? Tap the oldest card.' : left ? 'And next? Tap the card that came after.' : 'All on the line — check the order!';
   let line: string;
   if (read) line = `${SET_BY_ID[read].name}: ${SET_BY_ID[read].note}`;
-  else if (step === 'done') line = cheerLine;
+  else if (step === 'done') line = said ? `${said} ${cheerLine}` : cheerLine;
   else if (said) line = said;
-  else if (left === n) line = `Oh dear, the ${set.name.toLowerCase()} cards washed out of their drawer! Which came first? Tap the oldest.`;
-  else line = left ? 'And next? Tap the card that came after.' : 'All on the line — check the order!';
+  else if (landed) line = `${landed} ${ask}`;
+  // Tricky's years said as it starts, where a kid sees them (UX review round 1: only on the ticket).
+  else if (left === n) line = `Oh dear, the ${set.name.toLowerCase()} cards washed out of their drawer! ${ask}${job.years ? ` ${BCE_WORDS}` : ''}`;
+  else line = ask;
+  // The step's box: what Index said, or the last check's clue, or what to do now — never empty (UX review round 1).
+  const tip = left === n && job.years ? `${ask} In BCE, a bigger year is longer ago.` : left && left < n ? `${ask} ${left} still to place.` : ask;
 
   const chipAt = step === 'done' ? 3 : left === 0 ? 2 : left < n ? 1 : 0;
 
@@ -191,11 +248,11 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
           className="flex flex-col gap-3 bg-[#173a47] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:overflow-y-auto split:border-t-4 split:border-[#1b0f22] split:p-4 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-row [@media(max-height:500px)]:gap-1.5 split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(orientation:portrait)]:row-start-1 split:[@media(orientation:portrait)]:border-t-0 split:[@media(max-height:500px)]:p-2"
         >
           {/* On a phone held upright, the cards and the timeline side by side, the cards first: a tap and where it lands both in
-              sight (bench: Tricky's seven places pushed the cards under the fold, each landing out of sight). */}
+              sight (bench: Tricky's seven places pushed the cards under the fold, each landing out of sight). The cards come
+              first for the keyboard too; from 560 px wide the timeline's shown above them. */}
           <div className="flex min-w-0 flex-col gap-3 [@media(max-width:559px)]:grid [@media(max-width:559px)]:grid-cols-2 [@media(max-width:559px)]:items-start [@media(max-width:559px)]:gap-2 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-1 [@media(max-height:500px)]:gap-1.5">
-            <Timeline events={job.events} placed={placed} locked={locked} byId={byId} showYears={showYears} done={step === 'done'} onTap={takeBack} />
             {step === 'place' && (
-              <div ref={tray} role="group" aria-label={`The washed-up cards: ${left} to place`} className="flex flex-col gap-1.5 [@media(max-width:559px)]:order-first">
+              <div ref={tray} role="group" aria-label={`The washed-up cards: ${left} to place`} className="flex flex-col gap-1.5">
                 <p aria-hidden="true" className="text-[13px] font-bold uppercase tracking-wide text-[#bfe3ec] [@media(max-height:500px)]:hidden">
                   Washed-up cards
                 </p>
@@ -204,14 +261,17 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
                 <div className="grid grid-cols-2 gap-1.5 [@media(max-width:559px)]:grid-cols-1 [@media(min-width:560px)]:grid-cols-3 [@media(min-width:560px)_and_(max-height:500px)]:grid-flow-col [@media(min-width:560px)_and_(max-height:500px)]:auto-cols-fr [@media(min-width:560px)_and_(max-height:500px)]:grid-cols-none [@media(min-width:900px)_and_(min-height:501px)]:grid-cols-4">
                   {job.dealt.map((id) =>
                     inTray(id) ? (
-                      <CardButton key={id} ev={byId[id]} showYear={job.years} splash={back.includes(id) && !still} onTap={() => place(id)} />
+                      <CardButton key={id} ev={byId[id]} when={job.years ? dateOf(job, byId[id]) : null} splash={back.includes(id) && !still} onTap={() => place(id)} />
                     ) : (
-                      <span key={id} aria-hidden="true" className="min-h-[60px] rounded-md border-2 border-dashed border-[#3f6f7d] [@media(max-height:500px)]:min-h-[52px] [@media(max-width:559px)]:min-h-11" />
+                      <CardSlot key={id} ev={byId[id]} when={job.years ? dateOf(job, byId[id]) : null} />
                     ),
                   )}
                 </div>
               </div>
             )}
+            <div className="[@media(min-width:560px)]:order-first">
+              <Timeline job={job} placed={placed} locked={locked} byId={byId} showYears={showYears} nextAt={step === 'place' ? placed.indexOf(null) : -1} done={step === 'done'} onTap={takeBack} />
+            </div>
           </div>
           <div
             className={cn(
@@ -228,7 +288,8 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
             </p>
             {step === 'done' ? (
               <>
-                <h2 id="it-step" ref={doneHead} tabIndex={-1} aria-describedby="it-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white [@media(max-height:500px)]:text-[20px]', focusRing)}>
+                {/* Focused from script, no ring (it carried the title card's: UX review round 1) — as the stage's heading. */}
+                <h2 id="it-step" ref={doneHead} tabIndex={-1} aria-describedby="it-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white focus:outline-none [@media(max-height:500px)]:text-[20px]')}>
                   {set.name}, in order!
                 </h2>
                 {/* Index's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
@@ -248,25 +309,30 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
             ) : (
               <>
                 {/* On a short screen the step's a bar under the board: its heading and how to play left to Index and the bar's words. */}
-                <h2 id="it-step" tabIndex={-1} aria-describedby="it-job" className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none [@media(max-height:500px)]:sr-only [@media(max-width:559px)_and_(max-height:700px)]:sr-only', focusRing)}>
+                <h2
+                  id="it-step"
+                  ref={stepHead}
+                  tabIndex={-1}
+                  aria-describedby="it-job"
+                  className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none focus:outline-none [@media(max-height:500px)]:sr-only [@media(max-width:559px)_and_(max-height:700px)]:sr-only')}
+                >
                   Put them in order
                 </h2>
                 <p id="it-do" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:hidden [@media(max-width:559px)_and_(max-height:700px)]:hidden">
                   Tap the cards in the order they happened, oldest first — each goes in the next place. Tap one on the line to take it
-                  back. {left ? `${left} still to place.` : 'All placed — check them!'}
+                  back.
                 </p>
                 {/* What Index said of the last check, by the timeline too: on a phone her bubble's below the fold. Room for
                     the longest, so nothing under it moves; not read out — her bubble is. */}
                 <div className="flex flex-col gap-2.5 [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-center [@media(max-height:500px)]:gap-2 [@media(max-width:559px)_and_(max-height:700px)]:flex-row [@media(max-width:559px)_and_(max-height:700px)]:items-center [@media(max-width:559px)_and_(max-height:700px)]:gap-2">
                   <p className="flex min-h-[5.25rem] items-center rounded-md bg-[#24215a] px-2.5 text-[15px] font-bold leading-snug [@media(max-height:500px)]:min-h-[2.75rem] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px] [@media(max-width:559px)_and_(max-height:700px)]:min-h-[3.25rem] [@media(max-width:559px)_and_(max-height:700px)]:flex-1 [@media(max-width:559px)_and_(max-height:700px)]:py-1 [@media(max-width:559px)_and_(max-height:700px)]:text-[13px]">
                     {/* At most three lines on a short screen (Index's bubble beside the board says it all), so the bar stays under the
-                        tray — five on a small phone held upright. */}
-                    {said ? (
-                      <span className="[@media(max-height:500px)]:line-clamp-3 [@media(max-width:559px)_and_(max-height:700px)]:line-clamp-5">{said}</span>
+                        tray — five on a small phone held upright. What she said; else the last check's clue, kept till the next;
+                        else what to do now. */}
+                    {said || clue ? (
+                      <span className="[@media(max-height:500px)]:line-clamp-3 [@media(max-width:559px)_and_(max-height:700px)]:line-clamp-5">{said ?? clue}</span>
                     ) : (
-                      <span className="hidden font-normal text-[#e4e1ff] [@media(max-height:500px)]:inline [@media(max-width:559px)_and_(max-height:700px)]:inline">
-                        Tap the cards oldest first — each goes in the next place. {left ? `${left} still to place.` : 'All placed — check them!'}
-                      </span>
+                      <span className="font-normal text-[#e4e1ff]">{tip}</span>
                     )}
                   </p>
                   {/* Short, on a short screen: the words beside it get the room (said in full all the same). */}
@@ -316,112 +382,177 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   );
 }
 
-/** A card: its picture and name (its year on Tricky) — soggy parchment; picked, lifted in gold; just floated back, a splash. */
-function CardFace({ ev, showYear }: { ev: Event; showYear: boolean }) {
+/**
+ * A card: its picture and name (and when, once said) — soggy parchment. Its
+ * name and when go under the picture on a card, beside it in a row (`row`:
+ * the classes that make it one, by the screen).
+ */
+function CardFace({ ev, when, row = '[@media(max-width:559px)]:items-start' }: { ev: TimelineEvent; when: string | null; row?: string }) {
   return (
     <>
       <span aria-hidden="true" className="text-2xl leading-none [@media(max-height:500px)]:text-lg [@media(max-height:500px)]:leading-none">
         {ev.emoji}
       </span>
-      {/* Its name and year together: under the picture on a card, beside it in a row. */}
-      <span className="flex min-w-0 flex-col items-center gap-0.5 [@media(max-width:559px)]:items-start">
+      <span className={cn('flex min-w-0 flex-col items-center gap-0.5', row)}>
         <span className="text-[13px] font-bold leading-tight [@media(max-height:500px)]:text-[11px] [@media(max-height:500px)]:leading-tight">{ev.name}</span>
-        {showYear && <span className="rounded bg-[#1b0f22] px-1 text-[11px] font-black leading-tight text-amber-200 [@media(max-height:500px)]:text-[10px] [@media(max-height:500px)]:leading-tight">{yearWords(ev)}</span>}
+        {when && <span className="rounded bg-[#1b0f22] px-1 text-[11px] font-black leading-tight text-amber-200 [@media(max-height:500px)]:text-[10px] [@media(max-height:500px)]:leading-tight">{when}</span>}
       </span>
     </>
   );
 }
 
-function CardButton({ ev, showYear, splash, onTap }: { ev: Event; showYear: boolean; splash: boolean; onTap: () => void }) {
+/** A washed-up card's box: on a phone held upright, a slim row like the timeline's places beside it. */
+const CARD_BOX =
+  'flex min-h-[60px] flex-col items-center justify-center gap-0.5 rounded-md border-[3px] px-1 py-1 text-center [@media(max-height:500px)]:min-h-[52px] [@media(max-height:500px)]:py-0.5 [@media(max-width:559px)]:min-h-11 [@media(max-width:559px)]:flex-row [@media(max-width:559px)]:justify-start [@media(max-width:559px)]:gap-1.5 [@media(max-width:559px)]:px-1.5 [@media(max-width:559px)]:text-left';
+
+function CardButton({ ev, when, splash, onTap }: { ev: TimelineEvent; when: string | null; splash: boolean; onTap: () => void }) {
   return (
     <button
       type="button"
+      data-card={ev.id}
       onClick={onTap}
-      aria-label={`${ev.name}${showYear ? `, ${yearWords(ev)}` : ''}`}
-      className={cn(
-        // On a phone held upright, a slim row like the timeline's places beside it.
-        'flex min-h-[60px] flex-col items-center justify-center gap-0.5 rounded-md border-[3px] border-[#1b0f22] bg-[#f4e8c8] px-1 py-1 text-center text-[#1b0f22] shadow-[2px_2px_0_#1b0f22] hover:bg-[#fff4d6] [@media(max-height:500px)]:min-h-[52px] [@media(max-height:500px)]:py-0.5 [@media(max-width:559px)]:min-h-11 [@media(max-width:559px)]:flex-row [@media(max-width:559px)]:justify-start [@media(max-width:559px)]:gap-1.5 [@media(max-width:559px)]:px-1.5 [@media(max-width:559px)]:text-left',
-        splash && 'cg-shake',
-        focusRing,
-      )}
+      aria-label={`${ev.name}${when ? `, ${when}` : ''}`}
+      className={cn(CARD_BOX, 'border-[#1b0f22] bg-[#f4e8c8] text-[#1b0f22] shadow-[2px_2px_0_#1b0f22] hover:bg-[#fff4d6]', splash && 'cg-shake', focusRing)}
     >
-      <CardFace ev={ev} showYear={showYear} />
+      <CardFace ev={ev} when={when} />
     </button>
   );
 }
 
 /**
+ * Where a card placed was: dashed, and the card's own size — its face there,
+ * unseen — so the cards around it never move (code review round 1: a slot only
+ * its least height, and the tray shifted under a finger).
+ */
+function CardSlot({ ev, when }: { ev: TimelineEvent; when: string | null }) {
+  return (
+    <span aria-hidden="true" className={cn(CARD_BOX, 'border-dashed border-[#3f6f7d]')}>
+      <span className="invisible contents">
+        <CardFace ev={ev} when={when} />
+      </span>
+    </span>
+  );
+}
+
+/**
  * The timeline: a place per card, oldest at the start; a card on it tapped
- * comes back to the tray; one checked right stays, ticked. Across on a screen
- * held sideways, down on one held upright — there each place a slim row, so
- * the line and the tray fit together.
+ * comes back to the washed-up cards; one checked right stays, ticked; the next
+ * empty place marked. Across on a screen held sideways, down on one held
+ * upright — there each place a slim row, so the line and the cards fit
+ * together. From 560 px wide, where the cards are under the line, every place
+ * holds every card's face, unseen but its own, so it's as big as the biggest
+ * from the start — the line never grows as they land, nor as the years come
+ * out (UX review round 1, and the bench: the cards under it moved).
  */
 function Timeline({
-  events,
+  job,
   placed,
   locked,
   byId,
   showYears,
+  nextAt,
   done,
   onTap,
 }: {
-  events: readonly Event[];
+  job: Job;
   placed: readonly (string | null)[];
   locked: readonly boolean[];
-  byId: Record<string, Event>;
+  byId: Record<string, TimelineEvent>;
   showYears: boolean;
+  nextAt: number;
   done: boolean;
   onTap: (k: number) => void;
 }) {
-  const n = events.length;
+  const n = job.events.length;
+  const upright = '[@media(orientation:portrait)]:items-start [@media(max-width:559px)]:items-start';
+  // Every card's face in one cell: the one on it shown (its year once said), the rest unseen with theirs.
+  const faces = (shown: TimelineEvent | null) => (
+    <span className="grid min-w-0 flex-1 [@media(min-width:560px)_and_(orientation:landscape)]:w-full [@media(min-width:560px)_and_(orientation:landscape)]:flex-none">
+      {job.events.map((ev) => (
+        <span
+          key={ev.id}
+          aria-hidden="true"
+          className={cn(
+            'flex min-w-0 items-center gap-2 [grid-area:1/1] [@media(min-width:560px)_and_(orientation:landscape)]:flex-col [@media(min-width:560px)_and_(orientation:landscape)]:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:gap-0.5',
+            // Under 560 px wide the cards are beside the line, not under it: a place growing moves none of them, and the
+            // line keeps to slim rows (bench: at 320 × 568 it ran off the screen).
+            ev !== shown && 'invisible [@media(max-width:559px)]:hidden',
+          )}
+        >
+          <CardFace ev={ev} when={ev !== shown || showYears ? dateOf(job, ev) : null} row={upright} />
+        </span>
+      ))}
+    </span>
+  );
   return (
     <div className="flex flex-col gap-1">
-      {/* Its ends, as it runs: across on a screen held sideways, down on one held upright. */}
+      {/* Its ends, as it runs: across on a screen held sideways; down on one held upright, the oldest at the top. */}
       <div aria-hidden="true" className="flex items-center justify-between text-[13px] font-bold text-[#bfe3ec]">
         <span className="hidden [@media(min-width:560px)_and_(orientation:landscape)]:inline">◀ Oldest</span>
         <span className="hidden [@media(min-width:560px)_and_(orientation:landscape)]:inline">Newest ▶</span>
-        <span className="[@media(min-width:560px)_and_(orientation:landscape)]:hidden">Oldest at the top ▼</span>
+        <span className="[@media(min-width:560px)_and_(orientation:landscape)]:hidden">Oldest</span>
       </div>
-      <ol
-        aria-label="The timeline, oldest first"
-        aria-describedby="it-do"
-        className="relative grid gap-1.5 [@media(min-width:560px)_and_(orientation:landscape)]:grid-flow-col [@media(min-width:560px)_and_(orientation:landscape)]:auto-cols-fr"
-      >
-        {/* The line through time, behind the places. */}
+      <div className="relative">
+        {/* The line through time, behind the places (beside the list, not in it). */}
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-2 top-1/2 hidden h-1 -translate-y-1/2 rounded bg-amber-300/70 [@media(min-width:560px)_and_(orientation:landscape)]:block" />
-        {events.map((_, k) => {
-          const id = placed[k];
-          const ev = id ? byId[id] : null;
-          const right = locked[k];
-          return (
-            <li key={k} className="relative">
-              <button
-                type="button"
-                onClick={() => onTap(k)}
-                aria-disabled={done || undefined}
-                aria-label={`Place ${k + 1} of ${n}${k === 0 ? ', the oldest' : k === n - 1 ? ', the newest' : ''}${ev ? `: ${ev.name}${showYears ? `, ${yearWords(ev)}` : ''}${right ? ', right' : ''}` : ', empty'}`}
-                className={cn(
-                  // Held upright, a slim row (its number, picture, name, year); sideways, a card.
-                  'relative flex min-h-11 w-full flex-row items-center gap-2 rounded-md border-[3px] px-2 py-1 text-left [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:min-h-[60px] [@media(min-width:560px)_and_(orientation:landscape)]:flex-col [@media(min-width:560px)_and_(max-height:500px)]:min-h-[52px] [@media(min-width:560px)_and_(max-height:500px)]:py-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:gap-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:px-1 [@media(min-width:560px)_and_(orientation:landscape)]:text-center',
-                  ev ? 'bg-[#f4e8c8] text-[#1b0f22] shadow-[2px_2px_0_#1b0f22]' : 'border-dashed border-[#7fb3c2] bg-[#1f4a5a]',
-                  ev && (right ? 'border-emerald-600' : 'border-[#1b0f22]'),
-                  focusRing,
-                )}
-              >
-                <span aria-hidden="true" className={cn('text-[15px] font-black', ev ? 'text-[#1b0f22] [@media(min-width:560px)_and_(orientation:landscape)]:hidden' : 'text-[#bfe3ec]')}>
-                  {k + 1}
-                </span>
-                {ev && <CardFace ev={ev} showYear={showYears} />}
-                {right && (
-                  <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-[#1b0f22] bg-emerald-500 text-[13px] font-black text-white">
-                    ✓
+        <ol
+          aria-label="The timeline, oldest first"
+          aria-describedby={done ? undefined : 'it-do'}
+          className="relative grid gap-1.5 [@media(min-width:560px)_and_(orientation:landscape)]:grid-flow-col [@media(min-width:560px)_and_(orientation:landscape)]:auto-cols-fr"
+        >
+          {job.events.map((_, k) => {
+            const id = placed[k];
+            const ev = id ? byId[id] : null;
+            const right = locked[k];
+            const next = k === nextAt;
+            return (
+              <li key={k} className="relative">
+                <button
+                  type="button"
+                  onClick={() => onTap(k)}
+                  aria-disabled={done || undefined}
+                  aria-label={`Place ${k + 1} of ${n}${k === 0 ? ', the oldest' : k === n - 1 ? ', the newest' : ''}${ev ? `: ${ev.name}${showYears ? `, ${dateOf(job, ev)}` : ''}${right ? ', right' : ''}` : `, empty${next ? ', next' : ''}`}`}
+                  className={cn(
+                    // Held upright, a slim row (its number, picture, name, year); sideways, a card.
+                    'relative flex min-h-11 w-full flex-row items-center gap-2 rounded-md border-[3px] px-2 py-1 text-left [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:min-h-[60px] [@media(min-width:560px)_and_(orientation:landscape)]:flex-col [@media(min-width:560px)_and_(max-height:500px)]:min-h-[52px] [@media(min-width:560px)_and_(max-height:500px)]:py-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:gap-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:px-1 [@media(min-width:560px)_and_(orientation:landscape)]:text-center',
+                    ev ? 'bg-[#f4e8c8] text-[#1b0f22] shadow-[2px_2px_0_#1b0f22]' : 'border-dashed bg-[#1f4a5a]',
+                    // The next empty place, in gold: where the next card goes (UX review round 1: after a check, nothing said).
+                    !ev && (next ? 'border-amber-300' : 'border-[#7fb3c2]'),
+                    ev && (right ? 'border-emerald-600 pr-6 [@media(min-width:560px)_and_(orientation:landscape)]:pr-1' : 'border-[#1b0f22]'),
+                    focusRing,
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'text-[15px] font-black',
+                      ev
+                        ? 'text-[#1b0f22] [@media(min-width:560px)_and_(orientation:landscape)]:hidden'
+                        : // Sideways, over the room kept for a card.
+                          cn(
+                            next ? 'text-amber-300' : 'text-[#bfe3ec]',
+                            '[@media(min-width:560px)_and_(orientation:landscape)]:absolute [@media(min-width:560px)_and_(orientation:landscape)]:inset-0 [@media(min-width:560px)_and_(orientation:landscape)]:flex [@media(min-width:560px)_and_(orientation:landscape)]:flex-col [@media(min-width:560px)_and_(orientation:landscape)]:items-center [@media(min-width:560px)_and_(orientation:landscape)]:justify-center',
+                          ),
+                    )}
+                  >
+                    {k + 1}
+                    {!ev && next && <span className="ml-1.5 text-[12px] font-bold [@media(min-width:560px)_and_(orientation:landscape)]:ml-0 [@media(min-width:560px)_and_(orientation:landscape)]:block">next</span>}
                   </span>
-                )}
-              </button>
-            </li>
-          );
-        })}
-      </ol>
+                  {faces(ev)}
+                  {right && (
+                    <span aria-hidden="true" className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#1b0f22] bg-emerald-500 text-[11px] font-black text-white">
+                      ✓
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      <span aria-hidden="true" className="text-[13px] font-bold text-[#bfe3ec] [@media(min-width:560px)_and_(orientation:landscape)]:hidden">
+        Newest
+      </span>
     </div>
   );
 }
@@ -469,10 +600,11 @@ function TimelineBook({ known, read, onRead }: { known: (id: SetId) => boolean; 
                 onClick={() => onRead(s.id)}
                 aria-pressed={read === s.id}
                 aria-label={`${s.name}. Read the page`}
-                className={cn('flex min-h-[52px] w-full items-center gap-2 rounded border-[3px] bg-[#fff6dc] px-1.5 py-1 text-left hover:bg-white', read === s.id ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}
+                className={cn('flex min-h-[52px] w-full min-w-0 items-center gap-2 rounded border-[3px] bg-[#fff6dc] px-1.5 py-1 text-left hover:bg-white', read === s.id ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}
               >
                 <SetCard id={s.id} size={34} />
-                <span aria-hidden="true" className="text-[13px] font-bold leading-tight text-[#1b0f22]">
+                {/* Wraps rather than run out of a narrow page (UX review round 1: at 200% zoom). */}
+                <span aria-hidden="true" className="min-w-0 text-[13px] font-bold leading-tight text-[#1b0f22] [overflow-wrap:anywhere]">
                   {s.name}
                 </span>
               </button>

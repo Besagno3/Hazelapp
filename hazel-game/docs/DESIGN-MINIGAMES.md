@@ -344,7 +344,11 @@ Old Ringwood is the tree who loses count of his rings.
   events are inventions, discoveries and buildings, no wars, disasters or
   religion. Tricky's years are on its cards; Gentle's and Medium's come out
   when the drawer's filed. Index gives a quest too, so 📜 shows quietly over
-  its offer; the first round gives a Forget-Me-Knot.
+  its offer; the first round gives a Forget-Me-Knot. Review round 1: a clue
+  is about the first wrong place and names only cards on the board (most
+  named a card not dealt); Medium deals no two cards closer than 30 years
+  (it had 1885 and 1889, with no years shown); Tricky says what BCE means as
+  it starts; the next empty place is marked.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 

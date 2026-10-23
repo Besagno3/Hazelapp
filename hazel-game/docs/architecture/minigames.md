@@ -292,15 +292,24 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Index, the Sunken Archive — she gives a quest too; `lib/minigames/
   timeline.ts`, `features/minigames/timeline/`): putting things in the
   order they happened. Eight sets of seven (`SETS`: inventions, discoveries
-  and buildings — no wars, disasters or religion — each event a year,
-  "about" where it's rough, and a clue why it comes after the one before);
-  a band picks 3–4, five or 6–7 of a set (`PICKS`), dealt out of order
-  (`deal`), Tricky with years (`yearWords`: BCE counting down). Each card
-  tapped goes in the next empty place, oldest first, and one on the line
-  tapped comes back — every tap in the tray, so a phone needn't scroll to
-  and fro (held upright under 560 px wide, the tray and the timeline side
-  by side, the step a bar kept under them); the tray keeps each card's spot,
-  so it never reflows under a finger. "Check the order" (`check`, `checkWords`, `hintFor`) keeps the
-  right ones and floats the rest back with a clue. The
+  and buildings — no wars, disasters or religion, tested — each event a
+  year, "about" where it's rough, a name to say mid-sentence and a `why`
+  naming no other card); Gentle and Tricky pick 3–4 or 6–7 of a set
+  (`PICKS`), Medium five whose neighbours are `MIN_GAP` years apart (as
+  Gentle's), dealt with at most a third in place (`deal`); Tricky with
+  years (`yearWords`: BCE counting down; `BCE_WORDS` said as it starts),
+  the others "years ago" once filed (`whenWords`). Each card tapped goes in
+  the next empty place (marked "next"), oldest first, and one on the line
+  tapped comes back — every tap among the washed-up cards, so a phone
+  needn't scroll to and fro (held upright under 560 px wide, they and the
+  timeline side by side, the step a bar kept under them); each card leaves
+  a slot its own size (`CardSlot`) and, held sideways, an empty place keeps
+  a card's room, so nothing moves under a finger. "Check the order"
+  (`check`, `checkWords`, `clueFor`: the first wrong place and the card for
+  it, naming only cards dealt) keeps the right ones and floats the rest back,
+  the clue kept by the timeline till the next check; a check starts the wait
+  again. Focus starts on the step's heading; a card placed from the keyboard
+  moves it on to the next card left, or Check; a wrong check, to the first
+  card back; each landing is said by Index. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).
