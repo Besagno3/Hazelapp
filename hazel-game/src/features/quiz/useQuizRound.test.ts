@@ -64,8 +64,8 @@ describe('useQuizRound — a quiz that starts at once (#163)', () => {
     expect(result.current.question?.id).toBe('s1');
     expect(result.current.number).toBe(0);
     // The battle's way: the rest asked for in the background, knowing what's here.
-    expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 4, 5, { flavor: undefined, have: [] });
-    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 5, [q('s1'), q('s2'), q('s3')], undefined);
+    expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 4, 5, { flavor: undefined, have: [], kid: 'kid-1' });
+    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 5, [q('s1'), q('s2'), q('s3')], undefined, 'kid-1');
   });
 
   it('reaching a question before the rest arrives waits, and takes it when it lands — none asked twice', async () => {

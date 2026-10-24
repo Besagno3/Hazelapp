@@ -636,3 +636,46 @@ describe('levels played unread survive a reload on a device with its own copy (#
     expect(readUnreadSteps('kid-1')).toBeNull();
   });
 });
+
+describe('XP earned as Player 2 on this device, owed until the kid loads here (#188, lib/kidXp)', () => {
+  it('the row read: paid through addXp once the load is in — written up, and owed no more', async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push({ data: ROW, error: null });
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await vi.waitFor(() => expect(useProfileStore.getState().profile).toMatchObject({ xp: 5040, level: 12, levelXp: 80 }));
+    await vi.waitFor(() => expect(updates().at(-1)).toMatchObject({ xp: 5040, level: 12, level_xp: 80 }));
+    expect(localStorage.getItem('hazel-owed-xp-kid-1')).toBeNull();
+  });
+
+  it("the read failed: it's held like any XP until the row is read", async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push(FAILED);
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await vi.waitFor(() => expect(useProfileStore.getState().unread).toMatchObject({ xp: 40 }));
+    expect(updates()).toEqual([]);
+    expect(localStorage.getItem('hazel-owed-xp-kid-1')).toBeNull();
+  });
+
+  it('no row yet: the new row is made first, then the XP goes onto it', async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    reads.push({ data: null, error: null });
+    await useProfileStore.getState().loadProfile('kid-1', birth);
+    await vi.waitFor(() => expect(updates().at(-1)).toMatchObject({ xp: 40 }));
+    const kinds = writes.map((w) => w.kind);
+    expect(kinds.indexOf('upsert')).toBeLessThan(kinds.lastIndexOf('update'));
+  });
+
+  it('the game put away while the row is read: it stays owed', async () => {
+    localStorage.setItem('hazel-owed-xp-kid-1', '40');
+    let answer: (v: Answer) => void = () => {};
+    reads.push(new Promise<Answer>((r) => (answer = r)));
+    const loading = useProfileStore.getState().loadProfile('kid-1', birth);
+    useProfileStore.getState().clearProfile();
+    answer({ data: ROW, error: null });
+    await loading;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(localStorage.getItem('hazel-owed-xp-kid-1')).toBe('40');
+    expect(updates()).toEqual([]);
+  });
+});
+

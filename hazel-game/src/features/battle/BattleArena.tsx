@@ -82,6 +82,12 @@ import { avatarById } from '../../content/avatars';
 import { combatState, useBattleStore } from '../../store/battleStore';
 import { useSaveStore } from '../../store/saveStore';
 import { useProfileStore } from '../../store/profileStore';
+import { useFamilyStore } from '../../store/familyStore';
+import { usePlayerTwoStore } from '../../store/playerTwoStore';
+import { playerOneSeat, playerTwoSeat } from '../../lib/playerTwo';
+import { giveKidXp } from '../../lib/kidXp';
+import { CHEER_CHARGE, defenderFor, partnerLevel, partnerPick } from '../../lib/coop';
+import type { SeatIndex } from '../../lib/duel';
 import { sendFlow } from '../../machines/gameFlow';
 import { pushLibrary, wakeAfterDefeat, wakeInnName, wakeShelter } from '../../lib/save';
 import { boatAfterDefeat, defeatBoatLine } from '../../content/boat';
@@ -91,8 +97,8 @@ import { useKeyboardStore } from '../../store/keyboardStore';
 import type { LibraryEntry, Question } from '../../types';
 import { BattleHud } from './BattleHud';
 import { BattleStage } from './BattleStage';
-import { CommandMenu, CompanionMenu, ItemMenu, SpellMenu, SwapMenu } from './BattleMenus';
-import { BattleResult } from './BattleResult';
+import { CommandMenu, CompanionMenu, ItemMenu, PartnerMenu, SpellMenu, SwapMenu } from './BattleMenus';
+import { BattleResult, type PartnerPay } from './BattleResult';
 import { DefendTimer } from './DefendTimer';
 import { TypeBurst } from './TypeBurst';
 import { COMPANION_STRIKE, EMBER_BREATH, HERO_STRIKE, pairChoreo, type Choreo } from './choreography';
@@ -111,6 +117,9 @@ const nowMs = () => performance.now();
 /**
  * `hide` = wrong options crossed out before the player starts (Pip's peek).
  * `seq` = which ask this is (unique per battle) — keys the question card.
+ * `who` = whose question it is in a co-op battle (#187): 1 = Player 2 (by
+ * default the kid playing's). `pairStep` = a co-op Pair Attack's answer:
+ * Player 2's first (1), then the kid playing's (2).
  */
 type Turn =
   | { kind: 'command' }
@@ -118,17 +127,29 @@ type Turn =
   | { kind: 'items' }
   | { kind: 'companion' }
   | { kind: 'swap' }
-  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion'; question: Question; hide?: number; seq?: number }
-  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number; seq?: number }
-  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number }
-  | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number }
+  /** Player 2's move in a co-op battle (#187): the companion's, or a cheer. */
+  | { kind: 'partner' }
+  | { kind: 'question'; mode: 'attack' | 'guard' | 'companion' | 'cheer'; question: Question; hide?: number; seq?: number; who?: SeatIndex }
+  | { kind: 'question'; mode: 'spell'; spell: Spell; question: Question; hide?: number; seq?: number; who?: SeatIndex }
+  | { kind: 'question'; mode: 'pair'; pair: PairAttack; question: Question; hide?: number; seq?: number; who?: SeatIndex; pairStep?: 1 | 2 }
+  | { kind: 'enemy-question'; question: Question; hide?: number; seq?: number; who?: SeatIndex }
   | { kind: 'message'; text: string; next: () => void }
   /** The name race (#165 item 4): type the critter's name before it moves. */
   | { kind: 'race'; word: string }
   /** A boss winding up its power move, and a line of the song that breaks it (#165 item 6). */
   | { kind: 'song'; line: string; move: string }
-  | { kind: 'victory'; xp: number; coins: number; lucky: boolean; firstWin: boolean; drop: ConsumableId | null; badge: string | null; bonus: TypingBonus | null }
-  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null };
+  | {
+      kind: 'victory';
+      xp: number;
+      coins: number;
+      lucky: boolean;
+      firstWin: boolean;
+      drop: ConsumableId | null;
+      badge: string | null;
+      bonus: TypingBonus | null;
+      partner: PartnerPay | null;
+    }
+  | { kind: 'defeat'; xp: number; boatLine: string | null; shelter: { line: string; place: string } | null; partner: PartnerPay | null };
 
 type QuestionTurn = Extract<Turn, { kind: 'question' | 'enemy-question' }>;
 
@@ -229,6 +250,10 @@ export default function BattleArena() {
   const addXp = useProfileStore((s) => s.addXp);
   const setSkillLevel = useProfileStore((s) => s.setSkillLevel);
   const recordActivity = useProfileStore((s) => s.recordActivity);
+  // 👥 Co-op (#187): Player 2 plays the companion — turned on in 📜 Menu, for the session.
+  const playerTwo = usePlayerTwoStore((s) => (s.coop ? s.playerTwo : null));
+  const kids = useFamilyStore((s) => s.kids);
+  const activeKidId = useFamilyStore((s) => s.activeKidId);
 
   const powerUps = profile?.powerUps ?? {};
   const avatar = avatarById(save?.avatarId ?? null);
@@ -240,20 +265,30 @@ export default function BattleArena() {
   const keyBoss = enemy ? keyForBoss(enemy.id) : undefined;
   const spells = save ? spellsKnown(save) : [];
 
+  // The two players in co-op (#187): the kid playing, and Player 2 at their own
+  // level — a guest's pace counted from this fight's (eased by mercy below, as the hero's are).
+  const one = playerOneSeat(kids.find((k) => k.id === activeKidId), profile, age, topic);
+  const liveTwo = playerTwo && enemy ? playerTwoSeat(playerTwo, { ...one, skillLevel: clampLevel(enemy.level) }, topic) : null;
+
   // Locked for the whole fight, re-locked per encounter:
   // - Ember's stage — a win can hatch the egg or grow Ember, but that reveal
   //   belongs to the world cutscene, not a sprite swap on the victory panel.
   // - The loss count behind mercy (easier questions) — recording this fight's
   //   loss must not re-key the question pool (and flash a loading screen over
   //   the defeat).
+  // - Player 2 and their level (#187) — a new pick, or a kid's levels read
+  //   late, would re-key their pools mid-fight (and bring the intro back over it).
   const liveEmber = emberStatus(save?.flags ?? {}).stage;
-  const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar }));
+  const [locked, setLocked] = useState(() => ({ for: enemy?.instanceId, ember: liveEmber, losses: lossesSoFar, two: liveTwo }));
   if (enemy && locked.for !== enemy.instanceId) {
-    setLocked({ for: enemy.instanceId, ember: liveEmber, losses: lossesSoFar });
+    setLocked({ for: enemy.instanceId, ember: liveEmber, losses: lossesSoFar, two: liveTwo });
   }
   const ember = locked.ember;
   const mercy = mercyFor(locked.losses);
   const mercyDrop = mercy.levelDrop;
+  const two = locked.two;
+  const coop = two !== null;
+  const twoLevel = two ? partnerLevel(two.skillLevel, mercyDrop) : undefined;
 
   // The active companion (🔄 Swap) lives in the save, so it survives reloads;
   // fall back to Ember if the saved pick isn't in this save's party.
@@ -290,11 +325,23 @@ export default function BattleArena() {
     enemy ? clampLevel(enemy.level + SPELL_LEVEL_BONUS - mercy.levelDrop) : undefined,
     'spell',
   );
+  // Player 2's own pools (#187), asked for as them at their level; none in a fight alone.
+  const { questions: twoQs, loading: twoLoading } = useBattleQuestions(topic, BATTLE_QUESTION_COUNT, twoLevel, undefined, {
+    seat: two ?? undefined,
+    off: !two,
+  });
+  const { questions: twoSpellQs } = useBattleQuestions(
+    topic,
+    SPELL_POOL_COUNT,
+    twoLevel === undefined ? undefined : clampLevel(twoLevel + SPELL_LEVEL_BONUS),
+    'spell',
+    { seat: two ?? undefined, off: !two },
+  );
   // The encounter flash plays while the first questions load (#158 review);
-  // nothing in the battle starts until both are done.
+  // nothing in the battle starts until both are done (and Player 2's, #187).
   const [introDone, setIntroDone] = useState(false);
   const finishIntro = useCallback(() => setIntroDone(true), []);
-  const waiting = loading || !introDone;
+  const waiting = loading || twoLoading || !introDone;
   // The pool and where the battle is in it, read when a question is asked:
   // a move often asks from a callback made a render earlier, before the pool
   // grew (#158 review) — the refs always hold the latest.
@@ -308,6 +355,25 @@ export default function BattleArena() {
   const spellPoolRef = useRef(spellQs);
   spellPoolRef.current = spellQs;
   const spellIdxRef = useRef(0);
+  // Player 2's pools and where the fight is in them (#187), read as the hero's are.
+  const twoPoolRef = useRef(twoQs);
+  twoPoolRef.current = twoQs;
+  const twoIdxRef = useRef(0);
+  const twoSpellPoolRef = useRef(twoSpellQs);
+  twoSpellPoolRef.current = twoSpellQs;
+  const twoSpellIdxRef = useRef(0);
+  /** Each player's right answers, for the result's team line (co-op, #187). */
+  const [teamRight, setTeamRight] = useState<[number, number]>([0, 0]);
+  /** Player 2's right answers on bank questions — their XP (a starter pays none, #153). */
+  const twoBankRight = useRef(0);
+  /**
+   * The enemy's blows so far, plain and power apart: whose turn it is to block
+   * (co-op). Counted apart, so a boss's power moves come at both players
+   * (the owner's call) — on one count its rhythm sent every one to the hero's.
+   */
+  const blows = useRef({ attack: 0, power: 0 });
+  /** A Time Ripple froze the enemy: in co-op its lost turn comes after Player 2's move. */
+  const skipEnemy = useRef(false);
   const [answers, setAnswers] = useState<boolean[]>([]);
   // The answers that move the saved skill level: bank questions only (#153).
   // Starter questions repeat — six a band — so knowing them isn't a new level.
@@ -488,6 +554,13 @@ export default function BattleArena() {
     qIndexRef.current += 1;
     return shuffleAnswers(q);
   };
+  /** Player 2's next question (#187), from their own pool — round and round, never one the hero's holds (`partnerPick`). */
+  const nextTwoQuestion = () => {
+    const heroIds = new Set([...poolRef.current, ...boostPool.current.qs].map((q) => q.id));
+    const q = partnerPick(twoPoolRef.current, heroIds, twoIdxRef.current);
+    twoIdxRef.current += 1;
+    return shuffleAnswers(q);
+  };
   /** The level this battle's regular questions are asked at (before any speed boost). */
   const baseQLevel = clampLevel(enemy.level - mercy.levelDrop);
   /** Pose a question turn, spending Pip's peek on it if one is waiting. */
@@ -529,11 +602,22 @@ export default function BattleArena() {
     applyCombat(next);
   }
 
-  function recordAnswer(correct: boolean, q: Question, picked: number) {
-    setAnswers((a) => [...a, correct]);
+  /**
+   * An answer is in. `who` 1 is Player 2's (#187): it fills the team's charge
+   * and streak like any, but only the kid playing's answers move their level,
+   * the speed trigger, the Library and their XP — Player 2's right answers on
+   * bank questions are counted for their own (`twoBankRight`, `payPartner`).
+   */
+  function recordAnswer(correct: boolean, q: Question, picked: number, who: SeatIndex = 0) {
+    const mine = who === 0;
+    if (correct && coop) setTeamRight((t) => (mine ? [t[0] + 1, t[1]] : [t[0], t[1] + 1]));
     const starter = isStarterId(q.id);
-    answerCount.current += 1;
-    if (!starter) rampAnswers.current.push(correct);
+    if (!mine && correct && !starter) twoBankRight.current += 1;
+    if (mine) {
+      setAnswers((a) => [...a, correct]);
+      answerCount.current += 1;
+      if (!starter) rampAnswers.current.push(correct);
+    }
     const s = combatState();
     // Keen Eye (Talon): a right answer also mends a little.
     const mend = correct ? Math.min(s.playerMaxHp, s.playerHp + keenEyeHeal(style)) - s.playerHp : 0;
@@ -541,10 +625,12 @@ export default function BattleArena() {
     if (mend > 0) float(`🎯 +${mend}`, 'hero', 'text-emerald-300');
     // A hinted / peeked answer isn't evidence the questions are too easy, and
     // nor is a starter question's (#153).
-    const ms = helped.current || starter ? Infinity : nowMs() - askedAt.current;
-    const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
-    speedRun.current = step.run;
-    if (step.boosted) raiseQuestionLevel();
+    if (mine) {
+      const ms = helped.current || starter ? Infinity : nowMs() - askedAt.current;
+      const step = speedStep(speedRun.current, correct, ms, age, speedBoost.current);
+      speedRun.current = step.run;
+      if (step.boosted) raiseQuestionLevel();
+    }
     if (correct) {
       const next = streak + 1;
       setStreak(next);
@@ -555,7 +641,7 @@ export default function BattleArena() {
       }
     } else {
       setStreak(0);
-      misses.current.push({ question: q, picked });
+      if (mine) misses.current.push({ question: q, picked });
     }
   }
 
@@ -624,7 +710,7 @@ export default function BattleArena() {
     // "Light a candle!" is done: the banner says so instead of still asking
     // (it answers the trickster callout, so it doesn't wait behind it, #97c).
     if (id === 'candle' && enemy?.behavior === 'trickster') showBanner('Your Glimmer Candle is lit!', 2500, '🕯️', { answers: TRICKSTER_CALLOUT });
-    say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, enemyTurn);
+    say(`${avatar!.name} uses a ${name}! ${emoji}${did}`, endHeroTurn);
   }
   function commandFlee() {
     updateSave((s) => ({ ...s, hp: combatState().playerHp }));
@@ -674,9 +760,9 @@ export default function BattleArena() {
         sfx('guard');
         float('🛡️', 'hero', 'text-sky-300');
         const warn = charging ? ` ${powerMove} won't get through!` : '';
-        say(`${avatar!.name} braces behind a wall of knowing!${warn}`, enemyTurn);
+        say(`${avatar!.name} braces behind a wall of knowing!${warn}`, endHeroTurn);
       } else {
-        say('The guard slips… stay sharp!', enemyTurn);
+        say('The guard slips… stay sharp!', endHeroTurn);
       }
       return;
     }
@@ -702,8 +788,9 @@ export default function BattleArena() {
    * The companion's strike. A correct answer also triggers its perk — Ember
    * stokes an extra ◆, Pip crosses out a wrong answer on the next question,
    * Wisp mends the hero. A wrong answer is a glancing blow (effort never zero).
+   * `then`: what follows — Player 2's strike (#187) hands on with `afterPartner`.
    */
-  function resolveCompanionStrike(wasCorrect: boolean) {
+  function resolveCompanionStrike(wasCorrect: boolean, then: () => void = endHeroTurn) {
     const dmg = boost(companionAttackDamage(wasCorrect, cPower));
     let note = '';
     let heal = 0;
@@ -729,14 +816,14 @@ export default function BattleArena() {
     const text = wasCorrect
       ? `${cMove.emoji} ${companion.name} uses ${cMove.name}!${note}`
       : `${cMove.emoji} ${companion.name}'s ${cMove.name} just grazes it… a glancing blow.`;
-    heroStrike(dmg, text, 'text-orange-300', { choreo: COMPANION_STRIKE, sound: companion.sound, heal });
+    heroStrike(dmg, text, 'text-orange-300', { choreo: COMPANION_STRIKE, sound: companion.sound, heal, then });
   }
 
-  /** Fire a Pair Attack once its super-hard question resolves. */
-  function resolvePair(pair: PairAttack, wasCorrect: boolean) {
+  /** Fire a Pair Attack once its super-hard question resolves (`then`: after a co-op one, `afterPartner`, #187). */
+  function resolvePair(pair: PairAttack, wasCorrect: boolean, then: () => void = endHeroTurn) {
     if (!wasCorrect) {
       // Same promise as spells: a miss fizzles and the charge is safe.
-      say(`${pair.emoji} ${pair.name} falls out of step… the charge is safe. Try again together!`, enemyTurn);
+      say(`${pair.emoji} ${pair.name} falls out of step… the charge is safe. Try again together!`, then);
       return;
     }
     const s = combatState();
@@ -757,7 +844,61 @@ export default function BattleArena() {
       choreo: pairChoreo(pair.id),
       sound: 'pair',
       heal,
+      then,
     });
+  }
+
+  // --- Co-op (#187) -----------------------------------------------------------
+
+  /** The hero's move is done: Player 2's turn in co-op, else the enemy's. */
+  function endHeroTurn() {
+    if (coop) setTurn({ kind: 'partner' });
+    else enemyTurn();
+  }
+  /** Player 2's move is done: the enemy's turn — or, frozen by a Time Ripple, the hero's again. */
+  function afterPartner() {
+    if (skipEnemy.current) {
+      skipEnemy.current = false;
+      setTurn({ kind: 'command' });
+    } else enemyTurn();
+  }
+  /** Player 2's next super-hard question (a co-op Pair Attack's first answer) — never one the hero's super-hard pool holds. */
+  function nextTwoSpellQuestion() {
+    const q = partnerPick(twoSpellPoolRef.current, new Set(spellPoolRef.current.map((x) => x.id)), twoSpellIdxRef.current);
+    twoSpellIdxRef.current += 1;
+    return q;
+  }
+  function partnerStrike() {
+    ask({ kind: 'question', mode: 'companion', question: nextTwoQuestion(), who: 1 });
+  }
+  function partnerCheer() {
+    ask({ kind: 'question', mode: 'cheer', question: nextTwoQuestion(), who: 1 });
+  }
+  /** A co-op Pair Attack: Player 2's super-hard answer first, then the kid playing's — both right, it fires. */
+  function partnerPair(pair: PairAttack) {
+    if (combatState().charge < pair.cost || spellQs.length === 0 || twoSpellQs.length === 0) return;
+    ask({ kind: 'question', mode: 'pair', pair, question: nextTwoSpellQuestion(), who: 1, pairStep: 1 });
+  }
+  /** A co-op Pair Attack's answer is in: Player 2's right → the kid playing's turn to answer; else it resolves. */
+  function resolvePairStep(pair: PairAttack, step: 1 | 2, wasCorrect: boolean) {
+    if (step === 1 && wasCorrect) {
+      ask({ kind: 'question', mode: 'pair', pair, question: nextSpellQuestion(), who: 0, pairStep: 2 });
+      return;
+    }
+    resolvePair(pair, wasCorrect, afterPartner);
+  }
+  /** Player 2's cheer (the companion can't fight yet): right, +CHEER_CHARGE ◆ on top of the answer's. */
+  function resolveCheer(wasCorrect: boolean) {
+    if (!wasCorrect) {
+      say(`📣 ${two!.name} cheers — keep going, ${avatar!.name}!`, afterPartner);
+      return;
+    }
+    const s = combatState();
+    const gained = Math.min(CHARGE_MAX, s.charge + CHEER_CHARGE) - s.charge;
+    applyCombat({ ...s, charge: s.charge + gained });
+    sfx('streak');
+    float(gained > 0 ? `📣 +${gained}◆` : '📣', 'hero', 'text-amber-300');
+    say(`📣 ${two!.name} cheers ${avatar!.name} on!${gained > 0 ? ' The cheer fills your spell charge!' : ''}`, afterPartner);
   }
 
   /** Cast the chosen spell once its super-hard question resolves. */
@@ -765,7 +906,7 @@ export default function BattleArena() {
     const r = resolveSpell(combatState(), spell, wasCorrect);
     if (r.kind === 'fizzle') {
       // A miss never punishes effort: the charge is safe, the spell just fizzles.
-      say(`${spell.emoji} ${spell.name} fizzles… the charge is safe. Try again!`, enemyTurn);
+      say(`${spell.emoji} ${spell.name} fizzles… the charge is safe. Try again!`, endHeroTurn);
       return;
     }
     commit(r.state, 0);
@@ -776,20 +917,20 @@ export default function BattleArena() {
         sfx('heal');
         float(`+${r.healed}`, 'hero', spell.color);
       }, IMPACT_MS);
-      say(`${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, enemyTurn);
+      say(`${spell.emoji} ${spell.name}! Bright knowing knits your wounds.`, endHeroTurn);
       return;
     }
     if (r.kind === 'remember') {
       sfx('spell');
       float('🏛️', 'hero', spell.color);
-      say(`${spell.emoji} ${spell.name}! Every name in the Hall stands with you. If a hit would make you fall, you'll stay up with 1 HP!`, enemyTurn);
+      say(`${spell.emoji} ${spell.name}! Every name in the Hall stands with you. If a hit would make you fall, you'll stay up with 1 HP!`, endHeroTurn);
       return;
     }
     if (r.kind === 'shield') {
       sfx('spell');
       later(() => sfx('guard'), IMPACT_MS);
       float('🛡️', 'hero', spell.color);
-      say(`${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, enemyTurn);
+      say(`${spell.emoji} ${spell.name}! A shield of knowing rises — the next hit will glance away.`, endHeroTurn);
       return;
     }
     // Offensive spell — super effective when a Sage's topic matches the enemy's.
@@ -840,7 +981,7 @@ export default function BattleArena() {
       heal = 0,
       skipsTurn = false,
       superEffective = false,
-      then = enemyTurn,
+      then = endHeroTurn,
     }: { refundCharge?: number; choreo?: Choreo; sound: SfxName; heal?: number; skipsTurn?: boolean; superEffective?: boolean; then?: () => void },
   ) {
     fx.perform(choreo, sound, emberGrown(ember));
@@ -876,7 +1017,13 @@ export default function BattleArena() {
       // Time Ripple (#75 item 14h): the enemy is caught in the ripple and loses
       // its turn — its plan (a power move gathering, say) waits for the next one.
       later(() => float('⏳ Frozen!', 'enemy', 'text-teal-200'), choreo.hitMs + 200);
-      say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => setTurn({ kind: 'command' }));
+      // In co-op Player 2 still has their move; the enemy's lost turn comes after it (#187).
+      say(`${text} ⏳ Time ripples round ${enemy!.name.replace(/^The /, 'the ')} — it loses its next turn!`, () => {
+        if (coop) {
+          skipEnemy.current = true;
+          setTurn({ kind: 'partner' });
+        } else setTurn({ kind: 'command' });
+      });
       return;
     }
     // `then`: what follows the blow — the enemy's turn, or the hero's own (a first strike, #165 item 4).
@@ -928,7 +1075,11 @@ export default function BattleArena() {
       say(windUpText(), () => setTurn({ kind: 'command' }));
       return;
     }
-    ask({ kind: 'enemy-question', question: nextQuestion() });
+    // In co-op the players block in turn, each with their own question (#187) —
+    // plain blows in turn, and a boss's power moves in turn too.
+    const kind = charging ? 'power' : 'attack';
+    const who = coop ? defenderFor(blows.current[kind]++) : 0;
+    ask({ kind: 'enemy-question', question: who === 1 ? nextTwoQuestion() : nextQuestion(), who });
   }
 
   /** The warning as a power move is wound up: what's coming, and that Guard blocks it. */
@@ -958,15 +1109,18 @@ export default function BattleArena() {
    * exactly as for a wrong answer (the streak breaks, the question goes to the
    * Library), with a "Time's up!" message.
    */
-  function defendTimedOut(q: Question) {
+  function defendTimedOut(q: Question, who: SeatIndex = 0) {
     sfx('wrong');
-    speedRun.current = 0;
-    setAnswers((a) => [...a, false]);
-    answerCount.current += 1;
-    if (!isStarterId(q.id)) rampAnswers.current.push(false);
-    useProfileStore.getState().noteAnswer(q, false); // a miss in 📈 Progress's tally too (#173)
     setStreak(0);
-    misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
+    // Only the kid playing's answers count for them (#187): Player 2's miss is the team's blow alone.
+    if (who === 0) {
+      speedRun.current = 0;
+      setAnswers((a) => [...a, false]);
+      answerCount.current += 1;
+      if (!isStarterId(q.id)) rampAnswers.current.push(false);
+      useProfileStore.getState().noteAnswer(q, false); // a miss in 📈 Progress's tally too (#173)
+      misses.current.push({ question: q, picked: -1 }); // no pick — the Library never shows it
+    }
     resolveEnemyQuestion(false, true);
   }
 
@@ -1105,13 +1259,33 @@ export default function BattleArena() {
     return xp;
   }
 
+  /**
+   * Player 2's XP as the fight ends (co-op, #187): their right answers at their
+   * own XP a right answer and — won — the win's XP too, as the kid playing gets
+   * it. A sibling's goes to their own game (`giveKidXp`); a guest earns none.
+   */
+  function payPartner(winXp: number): PartnerPay | null {
+    if (!two) return null;
+    const xp = two.xpPerRight > 0 ? twoBankRight.current * two.xpPerRight + winXp : 0;
+    return {
+      name: two.name,
+      icon: two.icon,
+      xp,
+      family: two.kid !== null,
+      worldOpen: two.worldOpen,
+      saving: two.kid && xp > 0 ? giveKidXp(two.kid, xp) : null,
+    };
+  }
+
   function victory() {
     burst({ particleCount: 200, spread: 80, origin: { y: 0.5 } });
     stopMusic(); // silence the battle loop under the victory jingle
     sfx('victory');
     // Far regions pay more XP for the win (#75 item 12); the answers' XP is the same everywhere.
-    const xp = settleCommon() + defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    const winXp = defeatXp(npcDefeatXp(enemy!.level), enemy!.tier) + (enemy!.isBoss ? BOSS_XP_BONUS : 0);
+    const xp = settleCommon() + winXp;
     void addXp(xp);
+    const partner = payPartner(winXp);
     markDefeated(enemy!.instanceId);
     // Read from the store, not this render: victory() runs from a message
     // callback created before a finishing move's heal (Wisp) was committed.
@@ -1151,7 +1325,7 @@ export default function BattleArena() {
     fx.clearBanners();
     // The bonus scroll (#165 item 3): one win in three, with a keyboard, a name to type for a little extra.
     const bonus = keyboard ? rollTypingBonus(avatar!.name, enemy!.name) : null;
-    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus });
+    setTurn({ kind: 'victory', xp, coins, lucky: wonLucky, firstWin: killsBefore === 0, drop, badge, bonus, partner });
   }
 
   /** The bonus scroll's name typed (#165 item 3): pay it. `TypingBonus` asks once. */
@@ -1166,6 +1340,7 @@ export default function BattleArena() {
   function defeat() {
     const xp = settleCommon();
     void addXp(xp);
+    const partner = payPartner(0);
     // Remember the loss: after a couple, this enemy eases off (mercy).
     recordLoss(lossKey(enemy!));
     // No game over (#37): wake up safe and fully healed — at the last inn
@@ -1192,7 +1367,7 @@ export default function BattleArena() {
     useBattleStore.getState().setEscortAt(null);
     fightOver.current = true;
     fx.clearBanners();
-    setTurn({ kind: 'defeat', xp, boatLine, shelter });
+    setTurn({ kind: 'defeat', xp, boatLine, shelter, partner });
   }
 
   function leave(result: 'win' | 'lose') {
@@ -1282,6 +1457,12 @@ export default function BattleArena() {
       >
         <LevelBadge placement="inline" dense />
         <StreakBadge inline dense />
+        {two && (
+          <span data-testid="coop-chip" className="rounded-full bg-indigo-950/80 border border-white/40 px-2 py-0.5 text-xs font-bold text-white">
+            <span aria-hidden>👥 </span>
+            {one.icon} {one.name} + {two.icon} {two.name}
+          </span>
+        )}
       </div>
       <BattleHud
         enemy={enemy}
@@ -1342,6 +1523,7 @@ export default function BattleArena() {
       <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6 [@media(max-height:600px)]:pt-1 [@media(max-height:600px)]:pb-2">
         {turn.kind === 'command' && (
           <CommandMenu
+            mover={two ? { name: one.name, icon: one.icon } : undefined}
             charge={charge}
             spellsLoaded={spellQs.length > 0}
             canCastAny={canCastAny}
@@ -1349,8 +1531,9 @@ export default function BattleArena() {
             isBoss={enemy.isBoss}
             powerMove={charging ? powerMove : null}
             companion={companion}
-            companionReady={cReady}
-            companionHint={cReady ? `${cMove.name} · Pair Attacks` : 'Still an egg…'}
+            // In co-op the companion is Player 2's (#187): their move comes next.
+            companionReady={cReady && !two}
+            companionHint={two ? `${two.icon} ${two.name} plays next` : cReady ? `${cMove.name} · Pair Attacks` : 'Still an egg…'}
             canSwap={party.length > 1}
             onAttack={commandAttack}
             onSpells={() => setTurn({ kind: 'cast' })}
@@ -1431,6 +1614,25 @@ export default function BattleArena() {
           />
         )}
 
+        {turn.kind === 'partner' && two && (
+          <PartnerMenu
+            player={two}
+            hero={avatar.name}
+            ready={cReady}
+            cheerCharge={CHEER_CHARGE}
+            onCheer={partnerCheer}
+            companion={companion}
+            move={cMove}
+            perkLabel={perkLabel}
+            pairs={pairs}
+            growHint={companionId === 'ember' && pairs.length < PAIR_ATTACKS.filter((p) => p.companion === 'ember').length}
+            charge={charge}
+            spellsLoaded={spellQs.length > 0 && twoSpellQs.length > 0}
+            onStrike={partnerStrike}
+            onPair={partnerPair}
+          />
+        )}
+
         {turn.kind === 'companion' && (
           <CompanionMenu
             companion={companion}
@@ -1460,14 +1662,27 @@ export default function BattleArena() {
 
         {(turn.kind === 'question' || turn.kind === 'enemy-question') && (
           <div className="w-full max-w-xl">
+            {/* Whose question it is, in co-op (#187): the duel's colours, sky and amber, with the name. */}
+            {/* Smaller on a short screen, so a 320×568 phone keeps the last answer on it. */}
+            {two && (
+              <p className="text-center mb-1.5 [@media(max-height:600px)]:mb-0.5">
+                <span
+                  data-testid="coop-asker"
+                  className={`inline-block rounded-full px-3 py-0.5 text-sm font-extrabold [@media(max-height:600px)]:py-0 [@media(max-height:600px)]:text-xs ${turn.who === 1 ? 'bg-amber-100 text-amber-900' : 'bg-sky-100 text-sky-900'}`}
+                >
+                  {turn.who === 1 ? `${two.icon} ${two.name}'s question` : `${one.icon} ${one.name}'s question`}
+                </span>
+              </p>
+            )}
             {turn.kind === 'enemy-question' && save.defendTimer ? (
               <DefendTimer
                 // Its own key: it sits beside the QuestionCard keyed by `qKey`.
                 key={`${qKey}:timer`}
-                durationMs={defendTimeMs(age, mercy.levelDrop > 0)}
+                // The countdown suits the one answering (#187): Player 2's own age.
+                durationMs={defendTimeMs(turn.who === 1 && two ? two.age : age, mercy.levelDrop > 0)}
                 stopped={answeredKey === qKey}
                 paused={pausedKey === qKey}
-                onExpire={() => defendTimedOut(turn.question)}
+                onExpire={() => defendTimedOut(turn.question, turn.who)}
                 label={charging ? `💢 ${powerMove} — answer to soften it!` : `🛡️ ${enemy.name} attacks — answer to block!`}
               />
             ) : (
@@ -1480,8 +1695,14 @@ export default function BattleArena() {
                       spell: turn.mode === 'spell' && `${turn.spell.emoji} Super-hard question — cast ${turn.spell.name}!`,
                       pair:
                         turn.mode === 'pair' &&
-                        `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`,
+                        // A co-op one's two answers (#187), short: the chip above says whose, and one line fits 320 px.
+                        (turn.pairStep === 1
+                          ? `${turn.pair.emoji} ${turn.pair.name} — ${two?.name} first!`
+                          : turn.pairStep === 2
+                            ? `${turn.pair.emoji} Now finish ${turn.pair.name}!`
+                            : `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`),
                       companion: `${cMove.emoji} Answer to help ${companion.name} strike!`,
+                      cheer: `📣 Answer to cheer ${avatar.name} on!`,
                       guard: '🛡️ Answer to raise your guard!',
                       attack: '⚔️ Answer to strike!',
                     }[turn.mode]}
@@ -1493,6 +1714,10 @@ export default function BattleArena() {
             <QuestionCard
               key={qKey}
               question={turn.question}
+              // Player 2's question is seen by them (#187) — a guest's by the kid playing.
+              seenBy={turn.who === 1 ? (two?.kid ?? undefined) : undefined}
+              // …and never counts in the kid playing's 📈 Progress tally (#173): it isn't their answer.
+              noted={turn.who !== 1}
               // Fox Sense (Kira): a free hint on top of the feathers, used first.
               // A trickster blocks hints — unless a Glimmer Candle is lit (#75 item 14g).
               hints={enemy.behavior === 'trickster' && !candleLit ? 0 : save.items.hint + (freeHint ? 1 : 0) + (candleHint ? 1 : 0)}
@@ -1522,9 +1747,9 @@ export default function BattleArena() {
               }}
               onAnswered={(correct, picked) => {
                 setAnsweredKey(qKey);
-                recordAnswer(correct, turn.question, picked);
-                // A ✍️ scribe burst (#165) after a right Attack or block answer.
-                if (correct && scribe && (turn.kind === 'enemy-question' || turn.mode === 'attack')) {
+                recordAnswer(correct, turn.question, picked, turn.who);
+                // A ✍️ scribe burst (#165) after a right Attack or block answer — the kid playing's.
+                if (correct && scribe && turn.who !== 1 && (turn.kind === 'enemy-question' || turn.mode === 'attack')) {
                   setScribeBurst({ key: qKey, mode: turn.kind === 'enemy-question' ? 'block' : 'attack', word: burstWord(avatar.name, enemy.name) });
                 }
               }}
@@ -1552,8 +1777,11 @@ export default function BattleArena() {
                 setScribeBurst(null);
                 if (turn.kind === 'enemy-question') resolveEnemyQuestion(correct);
                 else if (turn.mode === 'spell') resolveSpellQuestion(turn.spell, correct);
-                else if (turn.mode === 'pair') resolvePair(turn.pair, correct);
-                else if (turn.mode === 'companion') resolveCompanionStrike(correct);
+                else if (turn.mode === 'pair') {
+                  if (turn.pairStep) resolvePairStep(turn.pair, turn.pairStep, correct);
+                  else resolvePair(turn.pair, correct);
+                } else if (turn.mode === 'companion') resolveCompanionStrike(correct, turn.who === 1 ? afterPartner : endHeroTurn);
+                else if (turn.mode === 'cheer') resolveCheer(correct);
                 else resolvePlayerQuestion(turn.mode, correct);
               }}
             />
@@ -1592,6 +1820,15 @@ export default function BattleArena() {
             boatLine={turn.kind === 'defeat' ? turn.boatLine : null}
             bonus={turn.kind === 'victory' ? turn.bonus : null}
             holdRule={save.typingAnchor}
+            team={
+              two
+                ? [
+                    { name: one.name, icon: one.icon, right: teamRight[0] },
+                    { name: two.name, icon: two.icon, right: teamRight[1] },
+                  ]
+                : null
+            }
+            partner={turn.partner}
             onClaimBonus={claimBonus}
             onLeave={() => leave(turn.kind === 'victory' ? 'win' : 'lose')}
           />
