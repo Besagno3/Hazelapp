@@ -1,4 +1,4 @@
-import type { Band } from '../../content/minigames';
+import type { PlayBand } from '../../content/minigames';
 
 /**
  * 🐉 Ember Air Mail (docs/DESIGN-MINIGAMES.md §5.9): maps and places, with
@@ -10,8 +10,12 @@ import type { Band } from '../../content/minigames';
  * directions, the house found from its square or from a landmark ("just
  * north-east of the pond"). Tricky: a blocky map of the real world —
  * continents and oceans, north and south of the equator — then how far Ember
- * flew, by the map's scale. Three parcels a round; each kind of parcel is a
- * stamp in Pidge's album. Pure: the maps, the jobs, the moves and the words.
+ * flew, by the map's scale. Expert (§8.5): the world on a 15° grid of
+ * latitude and longitude — a city's parcel by its coordinates, then what time
+ * it is there when it's 9:00, 12:00 or 15:00 in London (its time zone, from
+ * its longitude).
+ * Three parcels a round; each kind of parcel is a stamp in Pidge's album.
+ * Pure: the maps, the jobs, the moves and the words.
  */
 
 /** A square of a map: `x` from the west edge, `y` from the north edge (north is up). */
@@ -26,11 +30,12 @@ export type Dir = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
 export const STEP: Record<Dir, readonly [number, number]> = { N: [0, -1], NE: [1, -1], E: [1, 0], SE: [1, 1], S: [0, 1], SW: [-1, 1], W: [-1, 0], NW: [-1, -1] };
 export const DIR_WORDS: Record<Dir, string> = { N: 'north', NE: 'north-east', E: 'east', SE: 'south-east', S: 'south', SW: 'south-west', W: 'west', NW: 'north-west' };
 
-/** The compass buttons each band has: four on Gentle and Tricky (a world map's squares are counted for its scale), eight on Medium. */
-export const BAND_DIRS: Record<Band, readonly Dir[]> = {
+/** The compass buttons each band has: four on Gentle and Tricky (a world map's squares are counted for its scale), eight on Medium and Expert. */
+export const BAND_DIRS: Record<PlayBand, readonly Dir[]> = {
   gentle: ['N', 'E', 'S', 'W'],
   medium: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
   tricky: ['N', 'E', 'S', 'W'],
+  expert: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
 };
 
 // ——— The stamps ———
@@ -60,11 +65,12 @@ export const STAMPS: readonly Stamp[] = [
 
 export const STAMP_BY_ID = Object.fromEntries(STAMPS.map((s) => [s.id, s])) as Record<StampId, Stamp>;
 
-/** The stamps each band's post brings (pages come from every band, §3.3). */
-export const BAND_STAMPS: Record<Band, readonly StampId[]> = {
+/** The stamps each band's post brings (pages come from every band, §3.3); Expert's from all of them (§8.4). */
+export const BAND_STAMPS: Record<PlayBand, readonly StampId[]> = {
   gentle: ['letter', 'parcel', 'basket'],
   medium: ['seeds', 'map', 'lantern'],
   tricky: ['postcard', 'shell', 'globe'],
+  expert: STAMP_IDS,
 };
 
 export const JOBS_PER_ROUND = 3;
@@ -250,19 +256,121 @@ export function regionAt(c: Cell): Region {
   return r;
 }
 
+// ——— The world on a 15° grid (Expert) ———
+
+/**
+ * Expert's world: squares of 15° of latitude and longitude, 24 across from
+ * 180° W and 12 down from the North Pole, each marked by its continent or
+ * ocean as `WORLD`'s are — drawn again at this size, so a square's what's
+ * mostly in it (a quarter of `WORLD`'s, Britain was the Atlantic): London's,
+ * Europe; every city's, its own continent (tested). Its lines are the grid's:
+ * every 15°, the equator under the 6th row, the prime meridian (0°) after the
+ * 12th column.
+ */
+export const GLOBE: readonly string[] = [
+  'rrrrrrNNNNrrrrrrrrrrrrrr',
+  'rNNNNNNNNNEaEEEEAAAAAAAA',
+  'pppNNNNNaaaEEEEEAAAAAAAp',
+  'ppppNNNNaaaEEEAAAAAAAApp',
+  'ppppNNNaaaaFFFFAAAAApppp',
+  'ppppppNSSaaFFFFiiAAAAppp',
+  'ppppppSSSSaaFFFiiiiAAUpp',
+  'pppppppSSSaaFFFiiiiUUUUp',
+  'pppppppSSaaaaFiiiiiUUUUp',
+  'pppppppSaaaaaiiiiiiiiipp',
+  'pppppppXXaaaXXXXXXXXXXXX',
+  'XXXXXXXXXXXXXXXXXXXXXXXX',
+];
+export const DEG = 15;
+export const GLOBE_W = 24;
+export const GLOBE_H = 12;
+/** Where Expert's post sets off: London's square, 45°–60° N, 0°–15° W. */
+export const GLOBE_START: Cell = { x: 11, y: 2 };
+
+/** The continent or ocean an Expert square shows. */
+export function globeRegionAt(c: Cell): Region {
+  const r = REGION_BY_CODE[GLOBE[c.y]?.[c.x] ?? ''];
+  if (!r) throw new Error(`No region at ${c.x},${c.y}`);
+  return r;
+}
+
+export const CITY_IDS = ['tokyo', 'new-york', 'johannesburg', 'beijing', 'caracas', 'athens', 'rio', 'jakarta', 'chicago', 'luanda', 'hong-kong', 'lima', 'tashkent', 'phoenix', 'addis-ababa'] as const;
+export type CityId = (typeof CITY_IDS)[number];
+
+/**
+ * A city Expert's post goes to: its latitude and longitude in whole degrees
+ * (north and east +), none on a grid line; its clock in January against
+ * London's (`zone`, hours) — each the 15° line nearest its longitude (tested:
+ * cities whose clocks don't keep to it, or change in summer where it's
+ * January, aren't here); and a true thing about it.
+ */
+export interface City {
+  id: CityId;
+  name: string;
+  lat: number;
+  long: number;
+  zone: number;
+  fact: string;
+}
+
+const city = (id: CityId, name: string, lat: number, long: number, zone: number, fact: string): City => ({ id, name, lat, long, zone, fact });
+
+export const CITIES: readonly City[] = [
+  city('tokyo', 'Tokyo', 36, 140, 9, 'Tokyo, with the towns round it, is one of the biggest cities in the world: over 30 million people.'),
+  city('new-york', 'New York', 41, -74, -5, 'New York’s subway is one of the biggest in the world, with over 400 stations.'),
+  city('johannesburg', 'Johannesburg', -26, 28, 2, 'Johannesburg grew up in the 1880s, round a gold rush.'),
+  city('beijing', 'Beijing', 40, 116, 8, 'All of China keeps Beijing’s time, though the country is as wide as five time zones.'),
+  city('caracas', 'Caracas', 10, -67, -4, 'Caracas sits in a mountain valley about 900 m up, just over the hills from the Caribbean Sea.'),
+  city('athens', 'Athens', 38, 24, 2, 'Athens is one of the oldest cities in the world, lived in for over 3,000 years.'),
+  city('rio', 'Rio de Janeiro', -23, -43, -3, 'Rio de Janeiro means “River of January”: sailors who came in January 1502 took its bay for a river.'),
+  city('jakarta', 'Jakarta', -6, 107, 7, 'Jakarta is on Java, the island with more people than any other in the world.'),
+  city('chicago', 'Chicago', 42, -88, -6, 'Chicago, on Lake Michigan, built one of the first skyscrapers, in 1885.'),
+  city('luanda', 'Luanda', -9, 13, 1, 'Luanda, on Africa’s Atlantic coast, is Angola’s capital and its biggest port.'),
+  city('hong-kong', 'Hong Kong', 22, 114, 8, 'Hong Kong has more skyscrapers than any other city.'),
+  city('lima', 'Lima', -12, -77, -5, 'Lima, Peru’s capital, has hardly any rain: it’s one of the driest capitals in the world.'),
+  city('tashkent', 'Tashkent', 41, 69, 5, 'Tashkent is the biggest city of Central Asia, on the old Silk Road.'),
+  city('phoenix', 'Phoenix', 33, -112, -7, 'Phoenix, in the desert, doesn’t change its clocks in summer.'),
+  city('addis-ababa', 'Addis Ababa', 9, 39, 3, 'Addis Ababa sits about 2,350 m up, one of the highest capital cities in the world.'),
+];
+
+export const CITY_BY_ID = Object.fromEntries(CITIES.map((c) => [c.id, c])) as Record<CityId, City>;
+
+/** A latitude or longitude, said: "36° N", "74° W", "0°". */
+export const latWords = (lat: number) => (lat ? `${Math.abs(lat)}° ${lat > 0 ? 'N' : 'S'}` : '0°');
+export const longWords = (long: number) => (long ? `${Math.abs(long)}° ${long > 0 ? 'E' : 'W'}` : '0°');
+/** A range of degrees kept on one line where it's shown: "120°–135° E" (UX review round 1: "120°–" / "135° E"). */
+export const keepRanges = (t: string) => t.replace(/°–/g, '°–\u2060').replace(/(\d°) ([NSEW])\b/g, '$1\u00a0$2');
+
+/** A city's coordinates: "36° N, 140° E". */
+export const coordsOf = (c: City) => `${latWords(c.lat)}, ${longWords(c.long)}`;
+
+/** The square holding a latitude and longitude (none on a line). */
+export const cellAt = (lat: number, long: number): Cell => ({ x: Math.floor((long + 180) / DEG), y: Math.floor((90 - lat) / DEG) });
+
+/** A square's lines, said: "30°–45° N", "135°–150° E" — the latitudes between its top and bottom, the longitudes its sides. */
+export function bandWords(c: Cell): { lat: string; long: string } {
+  const n = 90 - DEG * c.y;
+  const lat = n > 0 ? `${n - DEG}°–${n}° N` : `${-n}°–${-n + DEG}° S`;
+  const w = -180 + DEG * c.x;
+  const long = w < 0 ? `${-w - DEG}°–${-w}° W` : `${w}°–${w + DEG}° E`;
+  return { lat, long };
+}
+
 // ——— The jobs ———
 
 export type Job =
   | { band: 'gentle'; stamp: StampId; map: 'bay'; to: PlaceId }
   | { band: 'medium'; stamp: StampId; map: 'town'; to: Cell; by: 'square' | 'landmark' }
-  | { band: 'tricky'; stamp: StampId; map: 'world'; to: RegionId };
+  | { band: 'tricky'; stamp: StampId; map: 'world'; to: RegionId }
+  /** Expert: a city by its coordinates, and the hour in London (in January) as it's delivered. */
+  | { band: 'expert'; stamp: StampId; map: 'globe'; to: CityId; hour: number };
 
 /** The places Gentle's post goes to, and the order the regions and houses come up. */
 const BAY_TO: readonly PlaceId[] = ['lighthouse', 'farm', 'castle', 'harbour', 'woods', 'pond'];
 const WORLD_TO: readonly RegionId[] = ['antarctica', 'australia', 'atlantic', 'africa', 'pacific', 'south-america', 'arctic', 'asia', 'indian', 'north-america'];
 
 /** Which stamps come up in a round: those not in the album first, then the rest in turn. */
-export function roundQueue(band: Band, known: (id: StampId) => boolean, round: number): StampId[] {
+export function roundQueue(band: PlayBand, known: (id: StampId) => boolean, round: number): StampId[] {
   const can = BAND_STAMPS[band];
   const start = (round * JOBS_PER_ROUND) % can.length;
   const turn = [...can.slice(start), ...can.slice(0, start)];
@@ -270,10 +378,21 @@ export function roundQueue(band: Band, known: (id: StampId) => boolean, round: n
 }
 
 /** The `i`th parcel of a round. */
-export function jobFor(band: Band, round: number, i: number, queue?: readonly StampId[]): Job {
+export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly StampId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
   const stamp = q[i % q.length];
   const slot = round * JOBS_PER_ROUND + i;
+  if (band === 'expert') {
+    // A city a parcel, in turn (a round's three on different continents), and London's hour: 9:00, 12:00 or 15:00 in turn —
+    // one the city's clock is on the same day for.
+    // Each time round the cities, a city's hour moves on one (code review round 1: fifteen cities, three hours — each city
+    // was always asked at the same hour, a round's questions back every five rounds).
+    const to = CITY_IDS[slot % CITY_IDS.length];
+    const zone = CITY_BY_ID[to].zone;
+    const hours = LONDON_HOURS.filter((h) => h + zone >= 0 && h + zone < 24);
+    const turn = Math.floor(slot / CITY_IDS.length);
+    return { band, stamp, map: 'globe', to, hour: hours[((slot % CITY_IDS.length) + turn) % hours.length] };
+  }
   if (band === 'gentle') return { band, stamp, map: 'bay', to: BAY_TO[slot % BAY_TO.length] };
   if (band === 'medium') {
     // Round the houses in a stride, so a round's three are apart; a landmark, then a square, in turn — swapped each
@@ -285,9 +404,13 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly St
   return { band, stamp, map: 'world', to: WORLD_TO[slot % WORLD_TO.length] };
 }
 
+/** London's hours an Expert parcel's delivered at, in turn. */
+export const LONDON_HOURS = [9, 12, 15] as const;
+
 /** The map a job's flown on: its size and where Ember starts. */
 export function mapOf(job: Job): { w: number; h: number; start: Cell; wraps: boolean } {
   if (job.map === 'world') return { w: WORLD_W, h: WORLD_H, start: WORLD_START, wraps: true };
+  if (job.map === 'globe') return { w: GLOBE_W, h: GLOBE_H, start: GLOBE_START, wraps: true };
   const m = job.map === 'bay' ? BAY : TOWN;
   return { w: m.w, h: m.h, start: m.start, wraps: false };
 }
@@ -314,6 +437,7 @@ export function move(job: Job, at: Cell, dir: Dir): Cell | null {
 export function targets(job: Job): Cell[] {
   if (job.map === 'bay') return BAY.places.filter((p) => p.place === job.to).map(({ x, y }) => ({ x, y }));
   if (job.map === 'town') return [job.to];
+  if (job.map === 'globe') return [cellAt(CITY_BY_ID[job.to].lat, CITY_BY_ID[job.to].long)];
   const out: Cell[] = [];
   for (let y = 0; y < WORLD_H; y++) for (let x = 0; x < WORLD_W; x++) if (WORLD[y][x] === REGION_BY_ID[job.to].code) out.push({ x, y });
   return out;
@@ -330,10 +454,10 @@ const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight
 const squares = (n: number) => `${n} square${n === 1 ? '' : 's'}`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-/** From one square to another: across (east +, the short way round the world) and down (south +). */
-function offset(from: Cell, to: Cell, wraps: boolean): [number, number] {
+/** From one square to another: across (east +, the short way round the world — `w` squares round) and down (south +). */
+function offset(from: Cell, to: Cell, wraps: boolean, w = WORLD_W): [number, number] {
   let dx = to.x - from.x;
-  if (wraps && Math.abs(dx) > WORLD_W / 2) dx -= Math.sign(dx) * WORLD_W;
+  if (wraps && Math.abs(dx) > w / 2) dx -= Math.sign(dx) * w;
   return [dx, to.y - from.y];
 }
 
@@ -345,8 +469,8 @@ function offset(from: Cell, to: Cell, wraps: boolean): [number, number] {
  * lesson is the eight directions, and its hints never used one off the exact
  * diagonal).
  */
-export function relWords(from: Cell, to: Cell, wraps = false, diagonals = false): string {
-  const [dx, dy] = offset(from, to, wraps);
+export function relWords(from: Cell, to: Cell, wraps = false, diagonals = false, w = WORLD_W): string {
+  const [dx, dy] = offset(from, to, wraps, w);
   if (diagonals && dx && dy) {
     const d = Math.min(Math.abs(dx), Math.abs(dy));
     const rest = Math.max(Math.abs(dx), Math.abs(dy)) - d;
@@ -364,7 +488,8 @@ export function relWords(from: Cell, to: Cell, wraps = false, diagonals = false)
  * directions count across and down; eight, the longer of the two.
  */
 export function movesBetween(job: Job, from: Cell, to: Cell): number {
-  const [dx, dy] = offset(from, to, mapOf(job).wraps).map(Math.abs);
+  const { wraps, w } = mapOf(job);
+  const [dx, dy] = offset(from, to, wraps, w).map(Math.abs);
   return BAND_DIRS[job.band].length === 8 ? Math.max(dx, dy) : dx + dy;
 }
 
@@ -380,8 +505,9 @@ export function landmarkOf(job: Job): (typeof TOWN_CLUES)[number] | null {
   return TOWN_CLUES.find((t) => sameCell(t.house, job.to)) ?? null;
 }
 
-/** Where a parcel's going, said: "the castle", "the house at C5", "Australia". */
+/** Where a parcel's going, said: "the castle", "the house at C5", "Australia", "Tokyo". */
 export function destWords(job: Job): string {
+  if (job.map === 'globe') return CITY_BY_ID[job.to].name;
   if (job.map === 'bay') return `the ${PLACES[job.to].name}`;
   if (job.map === 'town') {
     const c = landmarkOf(job);
@@ -393,6 +519,7 @@ export function destWords(job: Job): string {
 /** What's on the parcel — the clue. */
 export function clueWords(job: Job): string {
   const s = STAMP_BY_ID[job.stamp].name.toLowerCase();
+  if (job.map === 'globe') return `A ${s} for ${CITY_BY_ID[job.to].name}, ${coordsOf(CITY_BY_ID[job.to])}.`;
   if (job.map === 'world') return `A ${s} ${REGION_BY_ID[job.to].clue}.`;
   return `A ${s} for ${destWords(job)}.`;
 }
@@ -400,6 +527,10 @@ export function clueWords(job: Job): string {
 /** Where Ember is, said: "by the duck pond", "over C4", "over the Pacific Ocean". */
 export function whereWords(job: Job, at: Cell): string {
   if (job.map === 'world') return `over ${regionAt(at).name}`;
+  if (job.map === 'globe') {
+    const { lat, long } = bandWords(at);
+    return `over ${globeRegionAt(at).name}, ${lat}, ${long}`;
+  }
   const map = job.map === 'bay' ? BAY : TOWN;
   const here = placeAt(map, at);
   const ref = job.map === 'town' ? `over ${gridRef(at)}` : '';
@@ -426,12 +557,22 @@ function howWords(job: Job & { map: 'town' }): string {
  */
 export function missWords(job: Job, at: Cell, misses = 2, moved = true): string {
   const to = nearest(job, at);
-  const way = relWords(at, to, mapOf(job).wraps, BAND_DIRS[job.band].length === 8);
+  const way = relWords(at, to, mapOf(job).wraps, BAND_DIRS[job.band].length === 8, mapOf(job).w);
   // Not flown yet: say so, not just the square (UX review round 2: it read as the line already by the map).
-  const yet = moved ? '' : ' Ember hasn’t flown yet!';
+  const yet = moved ? '' : ` Ember hasn’t flown yet${job.map === 'globe' ? '.' : '!'}`;
   if (job.map === 'world') {
     const r = REGION_BY_ID[job.to];
     return misses < 2 ? `That’s ${regionAt(at).name}.${yet} ${cap(r.name)} is ${r.spot} — find its name on the map.` : `That’s ${regionAt(at).name}.${yet} ${cap(r.name)} is ${way}.`;
+  }
+  if (job.map === 'globe') {
+    // Plainly (§8.3): where Ember is, by its lines; the first time, how to find the city's square by its; then which way.
+    const c = CITY_BY_ID[job.to];
+    const here = bandWords(at);
+    const there = bandWords(cellAt(c.lat, c.long));
+    const was = `This square is ${here.lat}, ${here.long}.${yet}`;
+    // The other side of the equator or of 0°, said (UX review round 1: "15°–30° N" for "15°–30° S", one letter apart).
+    const side = [here.lat.slice(-1) !== there.lat.slice(-1) ? `${there.lat.slice(-1)} is ${there.lat.endsWith('N') ? 'north' : 'south'} of the equator.` : '', here.long.slice(-1) !== there.long.slice(-1) ? `${there.long.slice(-1)} is ${there.long.endsWith('E') ? 'east' : 'west'} of 0°.` : ''].filter(Boolean).join(' ');
+    return misses < 2 ? `${was} ${c.name}, ${coordsOf(c)}, is in the square between ${there.lat} and ${there.long}.${side ? ` ${side}` : ''}` : `${was} ${c.name} is ${way}.`;
   }
   if (job.map === 'bay') {
     const here = placeAt(BAY, at);
@@ -458,6 +599,7 @@ export function routeWords(route: readonly Dir[]): string {
 
 /** Pidge's opening for a parcel: the clue, and how to find where it's going. */
 export function openingWords(job: Job): string {
+  if (job.map === 'globe') return `${clueWords(job)} Find its square by the grid’s lines, then steer Ember there.`;
   if (job.map === 'bay') return `${clueWords(job)} Can you see it on the map? Steer Ember there with the compass, then deliver it!`;
   if (job.map === 'town') return `${clueWords(job)} ${howWords(job)} Steer Ember there!`;
   return `${clueWords(job)} Where in the world is that? Steer Ember there!`;
@@ -470,6 +612,8 @@ export function openingWords(job: Job): string {
  * the world, where it is on the map.
  */
 export function targetWords(job: Job, at: Cell, misses = 0): string {
+  // Expert's place is its coordinates, in the clue: reading them is the work.
+  if (job.map === 'globe') return '';
   if (job.map === 'bay') return delivered(job, at) ? `The ${PLACES[job.to].name} is here.` : `The ${PLACES[job.to].name} is ${relWords(at, nearest(job, at))}.`;
   if (job.map === 'town') {
     const c = landmarkOf(job);
@@ -487,6 +631,7 @@ export function targetWords(job: Job, at: Cell, misses = 0): string {
  * below the fold).
  */
 export function howToFind(job: Job): string {
+  if (job.map === 'globe') return 'Latitude up the side, north and south of the equator; longitude along the bottom, west of 0° on the left, east on the right. Each square is 15° each way.';
   if (job.map === 'bay') return `Find the ${PLACES[job.to].name}’s picture on the map, then steer Ember there.`;
   if (job.map === 'town') return howWords(job);
   // Not named: which place fits the clue is Tricky's work (UX review round 2: "Find Australia" gave it away).
@@ -496,6 +641,7 @@ export function howToFind(job: Job): string {
 
 /** The ticket: the job, and how to play it. */
 export function jobWords(job: Job): string {
+  if (job.map === 'globe') return `Fly it to ${CITY_BY_ID[job.to].name}, ${coordsOf(CITY_BY_ID[job.to])}: its square is between the grid’s lines, every 15°. Then say what time it is there.`;
   if (job.map === 'bay') return `Fly the ${STAMP_BY_ID[job.stamp].name.toLowerCase()} to the ${PLACES[job.to].name}: steer Ember north, east, south or west.`;
   if (job.map === 'town') return `Fly it to ${destWords(job)}. A square is named by its letter along, then its number up — like C5.`;
   return `Fly it ${REGION_BY_ID[job.to].clue}. North is up; the equator runs across the middle.`;
@@ -547,9 +693,72 @@ export function squaresAway(job: Job): number {
   return Math.round(Math.hypot(...offset(start, rulerTo(job), wraps)));
 }
 
+// ——— Time zones (Expert) ———
+
+/** An hour on a 24-hour clock: "09:00", "21:00", midnight "00:00" (UX review round 1: "0:00"). */
+export const clockWords = (h: number) => `${String(h).padStart(2, '0')}:00`;
+
+/** Expert's time: what it is in the city when it's `job.hour` in London (in January) — on a 24-hour clock. */
+export const cityHour = (job: Job & { map: 'globe' }) => (job.hour + CITY_BY_ID[job.to].zone + 24) % 24;
+
+/** The 15° line the other side of a city's longitude from its clock's — an hour off. */
+const otherLine = (c: City) => (c.long / DEG > c.zone ? c.zone + 1 : c.zone - 1);
+
+/**
+ * Expert's four times to pick from, earliest first: the right one and the
+ * other 15° line's (an hour off), and the two the wrong way (behind for east,
+ * ahead for west) — so which way the clocks go picks a pair, and the line
+ * nearest the city picks in it (code review round 1: of three, the wrong way
+ * was the odd one out). Where the other line is 0° (Luanda), its wrong way's
+ * London's own hour again, so the line beyond instead.
+ */
+export function timeChoices(job: Job & { map: 'globe' }): number[] {
+  const c = CITY_BY_ID[job.to];
+  const other = otherLine(c);
+  const fourth = other === 0 ? 2 * c.zone - other : -other;
+  const all = [c.zone, other, -c.zone, fourth].map((z) => (job.hour + z + 24) % 24);
+  return [...new Set(all)].sort((a, b) => a - b);
+}
+
+/** Expert's ask, once it's delivered: the city's longitude first, what the time hangs on (UX review round 1: it was only on the ticket, hidden on a short screen). */
+export const timeAsk = (job: Job & { map: 'globe' }) => {
+  const c = CITY_BY_ID[job.to];
+  return `${c.name} is at ${longWords(c.long)}. It’s ${clockWords(job.hour)} in London, in January: what time is it there?`;
+};
+
+/** How it's worked out: the 15° line nearest its longitude, an hour each, ahead to the east and behind to the west. */
+export function zoneWords(job: Job & { map: 'globe' }): string {
+  const c = CITY_BY_ID[job.to];
+  const n = Math.abs(c.zone);
+  const line = longWords(c.zone * DEG);
+  const ahead = c.zone > 0;
+  return `${c.name} is at ${longWords(c.long)}: the nearest 15° line is ${line}, so its clock is ${n} ${n === 1 ? 'hour' : 'hours'} ${ahead ? 'ahead of' : 'behind'} London’s. ${clockWords(job.hour)} ${ahead ? '+' : '−'} ${n} = ${clockWords(cityHour(job))}.`;
+}
+
+/** After a time's picked: right, how it's worked out; wrong, what's wrong with it (pick again). Plain. */
+export function timeWords(job: Job & { map: 'globe' }, picked: number): string {
+  if (picked === cityHour(job)) return zoneWords(job);
+  const c = CITY_BY_ID[job.to];
+  const at = (z: number) => (job.hour + z + 24) % 24;
+  // The wrong way — at the clock's line or the other (not the other line's own: Luanda's is London's hour) — and the day it
+  // is, where it's another (UX review round 2: Tokyo's 23:00 is later than 09:00 — the evening before).
+  const wrong = [-c.zone, -otherLine(c)].find((z) => picked !== at(otherLine(c)) && picked === at(z));
+  if (wrong !== undefined) {
+    const raw = job.hour + wrong;
+    const day = raw < 0 ? ' — the evening before' : raw >= 24 ? ' — the next morning' : '';
+    return `Not ${clockWords(picked)}${day}: ${c.zone > 0 ? 'east of London, clocks are ahead — later in the day' : 'west of London, clocks are behind — earlier in the day'}.`;
+  }
+  return `Not ${clockWords(picked)}: take the 15° line nearest ${longWords(c.long)} — an hour for each 15° from 0°.`;
+}
+
 /** What a delivery teaches, for the fact card and the reward. */
 export function learnedLine(job: Job, route: readonly Dir[]): string {
   const stamp = STAMP_BY_ID[job.stamp];
+  if (job.map === 'globe') {
+    const c = CITY_BY_ID[job.to];
+    const n = Math.abs(c.zone);
+    return `${c.name}, ${coordsOf(c)}: ${Math.abs(c.long)} ÷ 15 is about ${n}, so its clock is ${n} ${n === 1 ? 'hour' : 'hours'} ${c.zone > 0 ? 'ahead of' : 'behind'} London’s in January. ${c.fact}`;
+  }
   // The world's: its place, and how far (its stamp's note is in the album — with it, the card was too long for a phone).
   if (job.map === 'world') {
     const n = squaresAway(job);

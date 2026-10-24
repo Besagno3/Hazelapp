@@ -615,11 +615,11 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
-  airmail/`): maps and directions. Three maps: the bay (`BAY`, 5 × 5,
+  airmail/`): maps and directions. Four maps: the bay (`BAY`, 5 × 5,
   Gentle), the town (`TOWN`, 6 × 6, its squares named by `gridRef`, eight
   houses each just beside a landmark, `TOWN_CLUES`) and the world (`WORLD`,
   12 × 6 squares of 30°, each marked by its continent or ocean, the equator
-  under the 3rd row, east and west joined). A job (`jobFor`) is a stamp's
+  under the 3rd row, east and west joined) — and Expert's globe, below. A job (`jobFor`) is a stamp's
   kind of post (`STAMPS`, three a band) to a place, a house (by its square or
   a landmark) or a continent or ocean (`REGIONS`, each a clue and a fact).
   The compass (`BAND_DIRS`: four, eight, four) moves Ember a square
@@ -638,8 +638,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   the compass where the column's narrow, `narrow`); the side panel splits
   off on the `wide` screen (`tailwind.config.js`: from 768 px wide with
   height, or from 1000 px — not the stage's `split`: a phone held sideways
-  gives the world its width); the post office scene's left out for the
-  world and on a tablet held upright; on a short phone held sideways what Pidge said goes
+  gives the world its width); the post office scene and the map key are
+  the bay's and the town's only (the world's maps are wide and short), the
+  scene left out on a tablet held upright; on a short phone held sideways what Pidge said goes
   under the map when there's room (`saidUnder`), and on a short split
   screen a stamp's card goes beside it. Pidge's bubble re-reads the same
   words (a zero-width space every other time); for a reader the map is
@@ -648,7 +649,44 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   delivery's named it). A game's focus moved from script shows its ring for
   the keyboard only: `features/minigames/lastInput.ts` (`lastInputWasKey`)
   listens from the stage's load, as `:focus-visible` matches after a mouse
-  click on the title card's button too. **🔨 Word
+  click on the title card's button too. On Expert (`map: 'globe'`, §8.5)
+  the world is `GLOBE` — 24 × 12 squares of 15° (`DEG`, `GLOBE_W`,
+  `GLOBE_H`), drawn again at that size (a quarter of `WORLD`'s made
+  Britain the Atlantic), `globeRegionAt` — from London's square
+  (`GLOBE_START`), eight directions (`BAND_DIRS.expert`), east and west
+  joined; every stamp (`BAND_STAMPS.expert`). A job is a city (`CITIES`:
+  whole-degree latitude and longitude off every line, its January clock
+  against London's, `zone`, the 15° line nearest its longitude — tested —
+  and a fact) in turn, and London's hour (`LONDON_HOURS`, one its clock
+  keeps the same day, moving on each time round the cities). `cellAt` is
+  its square, `bandWords` a square's lines; the clue, `whereWords`,
+  `missWords` (a wrong square's lines, then where the city's are — and
+  which side of the equator or 0° — then which way) and `howToFind` say
+  them; a move says the way and the continent, the lines for a reader only
+  (`say`'s second part, a `sr-only` span in Pidge's bubble; `#am-where`
+  has them too); `offset` and `relWords` take the map's width; a range is
+  kept on its line where it's shown (`keepRanges`: the bubble, the line by
+  the map, the clue, the ticket, the time card and the fact). Delivered, step
+  `time`: `timeAsk` (the city's longitude first), four times from
+  `timeChoices` (the right one, `cityHour`, and the other 15° line's,
+  `otherLine`; both the wrong way — Luanda's other line is 0°, so the line
+  beyond), `timeWords` (`zoneWords` when right; else what's wrong — and
+  the day, past midnight — picked again), `clockWords` "09:00"; why 15° is
+  an hour (`WHY_HOUR`) in the card, on a short screen by Pidge. The map's lines are numbered round it —
+  latitudes in a left gutter (`LAT_GUTTER`), longitudes in a row under it
+  (`LONG_ROW`; `layout.ts`'s `globeLabels`, `globeLongCols`, `latLabel`,
+  `longLabel`: every 30° from 12 px squares, bare numbers under 24 px but
+  W and E by 0°, the 180° ends from 18 px, else 60°) — the
+  equator and the prime meridian drawn stronger, the continents' names
+  placed for the globe (`GLOBE_LABEL`), left off under 14 px. A key flies
+  Ember at once (a tap waits as a parcel starts). The world's maps split
+  only held sideways (`SPLIT_WIDE_MAP`): on a tablet held upright the side
+  panel's under the board; the globe's side panel is 300 px on a laptop
+  too. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
+  with a miss on the way."); the seal's `spotOn` counts parcels delivered
+  first go with the time right first pick, the reward keeping the first
+  missed parcel's lesson; the times and Next wait for a tap's second, not a
+  key's (`ready(e)`). **🔨 Word
   Forge** (`ink-dot`, Scrivener Dot, Inkwell Cove — no quest of her own, so
   🔨 is her gold offer; `lib/minigames/forge.ts`, `features/minigames/
   forge/`): how words are built. Nine families of three words (`FAMILIES`,

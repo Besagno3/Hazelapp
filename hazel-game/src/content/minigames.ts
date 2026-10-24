@@ -351,6 +351,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Stamp album',
     pages: 9,
     bandNote: 'Medium: the town, its squares named like C5, and eight directions. Tricky: the whole world, and how far by the map’s scale.',
+    expert: {
+      note: 'Expert: latitude and longitude on a 15° grid — a city found by its coordinates — and time zones: what time it is there.',
+      hello: 'Today’s post goes to cities by their coordinates, on a map ruled every 15°. Fly each to its square, then tell me what time it is there when it’s London’s hour.',
+      steps: [
+        { title: 'Find the square', text: 'Latitude up the side, north or south of the equator; longitude along the bottom, east or west of 0°. A city’s square is between the lines either side of it.' },
+        { title: 'Deliver', text: 'Steer Ember there — eight ways — and deliver.' },
+        { title: 'What time?', text: 'The Earth turns 360° in 24 hours, so each 15° of longitude is an hour: ahead to the east, behind to the west, by the line nearest. Right square and right time first go wins the Expert seal. No timer.' },
+      ],
+    },
     music: 'sailing',
     backdrop: '/backgrounds/port-lantern.png',
     firstItem: 'hint',

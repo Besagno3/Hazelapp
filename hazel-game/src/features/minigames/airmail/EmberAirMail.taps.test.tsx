@@ -30,8 +30,10 @@ afterEach(() => {
 });
 
 const wait = (ms = SETTLE_MS) => act(() => void (now += ms));
-const pidge = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
-const press = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }));
+// What Pidge says, a range's joiners as plain spaces (they keep "120°–135° E" on a line).
+const pidge = () => (document.querySelector('[aria-live="polite"]')?.textContent ?? '').replace(/\u2060/g, '').replace(/\u00a0/g, ' ');
+// A tap: a click with a count (a key's has none, and acts at once).
+const press = (name: string | RegExp) => fireEvent.click(screen.getByRole('button', { name }), { detail: 1 });
 const where = () => screen.getByRole('group', { name: /^The map of/ });
 
 describe('🐉 a double tap', () => {
@@ -47,11 +49,11 @@ describe('🐉 a double tap', () => {
     press('Fly east');
     press(/Deliver/);
     expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toBeInTheDocument();
-    // The second tap of the double, on Next as it comes: nothing.
-    press('Next parcel');
+    // The second tap of the double, on Next as it comes: nothing (a tap: a click with a count) — a key's acts at once.
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }), { detail: 1 });
     expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toBeInTheDocument();
     wait();
-    press('Next parcel');
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }), { detail: 1 });
     expect(screen.queryByRole('heading', { name: 'Letter delivered!' })).not.toBeInTheDocument();
     // The next parcel's start waits too.
     press('Fly south');
@@ -91,5 +93,40 @@ describe('🐉 a double tap', () => {
     wait();
     press(/Deliver/);
     expect(pidge()).toMatch(/The house is \d square/);
+  });
+});
+
+describe('🐉 Expert from the keyboard', () => {
+  it('an arrow key or a compass button’s Enter as a parcel starts flies at once (UX review round 1: unsaid, it went nowhere); a tap there waits', () => {
+    render(<EmberAirMail def={MINIGAMES['ember-air-mail']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    press('Fly east');
+    expect(where()).toHaveAccessibleDescription(/Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    fireEvent.keyDown(where(), { key: 'ArrowRight' });
+    expect(where()).toHaveAccessibleDescription(/Ember is over Europe, 45°–60° N, 0°–15° E\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Fly east' }), { detail: 0 });
+    expect(where()).toHaveAccessibleDescription(/Ember is over Europe, 45°–60° N, 15°–30° E\./);
+  });
+});
+
+describe('🐉 Expert’s time, a double tap', () => {
+  it('a time tapped as the question comes (Deliver was under the finger) isn’t picked; a moment later it is; a key at once', () => {
+    render(<EmberAirMail def={MINIGAMES['ember-air-mail']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    wait();
+    // Tokyo, from London's square: one south-east, then nine east.
+    press('Fly south-east');
+    for (let k = 0; k < 9; k++) {
+      wait();
+      press('Fly east');
+    }
+    wait();
+    press(/Deliver/);
+    expect(screen.getByRole('heading', { name: 'What time is it?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '00:00' }), { detail: 1 });
+    expect(pidge()).not.toContain('Not 00:00');
+    fireEvent.click(screen.getByRole('button', { name: '00:00' }), { detail: 0 });
+    expect(pidge()).toContain('Not 00:00');
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: '18:00' }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: /delivered\.$/ })).toBeInTheDocument();
   });
 });

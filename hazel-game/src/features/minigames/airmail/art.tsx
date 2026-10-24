@@ -74,3 +74,27 @@ export function StepDeliver() {
     </svg>
   );
 }
+
+/** Expert's step 1: a grid of latitude and longitude, a city's dot in one square. */
+export function StepGrid() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="20" y="40" width="160" height="120" fill="#3d7fb8" stroke={INK} strokeWidth="8" />
+      <path d="M60 40 V160 M100 40 V160 M140 40 V160 M20 80 H180 M20 120 H180" stroke={PAPER} strokeWidth="4" />
+      <path d="M100 40 V160 M20 120 H180" stroke="#fcd34d" strokeWidth="6" strokeDasharray="10 7" />
+      <circle cx="122" cy="98" r="11" fill="#ef4444" stroke={INK} strokeWidth="5" />
+    </svg>
+  );
+}
+
+/** Expert's step 3: two clocks, an hour apart for each 15°. */
+export function StepClock() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <circle cx="60" cy="100" r="44" fill={PAPER} stroke={INK} strokeWidth="8" />
+      <path d="M60 100 V68 M60 100 H84" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <circle cx="146" cy="100" r="44" fill="#fcd34d" stroke={INK} strokeWidth="8" />
+      <path d="M146 100 V68 M146 100 L126 118" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+    </svg>
+  );
+}

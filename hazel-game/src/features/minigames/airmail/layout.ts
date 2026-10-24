@@ -90,3 +90,42 @@ export function fitMap({ w, h, split, screenH, clue, ratio, gutter, under, done 
     };
   return { beside: false, size: Math.floor(Math.min(w - gutter, Math.max(MIN_MAP, below))), saidUnder: false, stack: false, narrow: w - CARD_CHROME - compass - 12 < DELIVER_MIN };
 }
+
+/**
+ * Expert's world map's labels, by a square's size (px; null before the map's
+ * measured): its longitudes every 30° (two columns) wherever a number fits
+ * between two lines — 12 px squares, the number alone under 24 px but for the
+ * two by 0°, which say W and E (UX review round 1: on a phone every 90°, five
+ * lines to count; round 2: no side said which was west) — else every 60°; the
+ * 180° ends where they clear the 150s (18 px; UX review round 2: 2 px apart at
+ * 16); the continents' names from 14 px (at 11 px they piled up: the bench,
+ * 568 × 320).
+ */
+export function globeLabels(cell: number | null): { longStep: number; bare: boolean; ends: boolean; named: boolean } {
+  return { longStep: cell !== null && cell < 12 ? 4 : 2, bare: cell !== null && cell < 24, ends: cell === null || cell >= 18, named: cell === null || cell >= 14 };
+}
+
+/** Expert's longitudes labelled under the map, by a square's size: each column of the 24 and its label. */
+export function globeLongCols(cell: number | null): { col: number; text: string }[] {
+  const { longStep, bare, ends } = globeLabels(cell);
+  return Array.from({ length: 24 / longStep + 1 }, (_, n) => n * longStep)
+    .filter((col) => ends || (col > 0 && col < 24))
+    .map((col) => ({ col, text: bare && Math.abs(col - 12) === longStep ? `${longStep * 15}${col < 12 ? 'W' : 'E'}` : longLabel(col, bare) }));
+}
+
+/** Expert's latitudes labelled, by row (every 30°, the equator the 6th). */
+export const GLOBE_LAT_ROWS = [2, 4, 6, 8, 10] as const;
+
+/** A latitude's label at the foot of row `row - 1`: "60°N", "0°", "30°S". */
+export function latLabel(row: number): string {
+  const v = 90 - 15 * row;
+  return v ? `${Math.abs(v)}°${v > 0 ? 'N' : 'S'}` : '0°';
+}
+
+/** A longitude's label at column `col`'s west side (of 24): "150°W", "0°", "180°" — or bare, "150". */
+export function longLabel(col: number, bare: boolean): string {
+  const v = -180 + 15 * col;
+  if (!v) return '0°';
+  if (Math.abs(v) === 180) return bare ? '180' : '180°';
+  return bare ? String(Math.abs(v)) : `${Math.abs(v)}°${v > 0 ? 'E' : 'W'}`;
+}
