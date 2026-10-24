@@ -40,7 +40,7 @@ export const usePlayerTwoStore = create<PlayerTwoStore>((set, get) => ({
       birthYear: kid.birthYear,
       birthMonth: kid.birthMonth,
     };
-    set({ playerTwo: { ...base, skillLevels: {}, powerUps: {}, worldOpen: false }, loading: true });
+    set({ playerTwo: { ...base, skillLevels: {}, powerUps: {}, worldOpen: null }, loading: true });
     const play = await readKidPlay(kid.id);
     if (gen !== pickGen) return;
     set({ playerTwo: { ...base, ...play }, loading: false });
