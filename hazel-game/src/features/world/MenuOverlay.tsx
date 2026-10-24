@@ -150,6 +150,9 @@ export default function MenuOverlay({
           </div>
         </div>
 
+        {/* Co-op battles (#187): Player 2 plays the companion — so here, under Ember, not 1,400 px down a phone's menu (#191). */}
+        <CoopPanel />
+
         {/* The mini-games found so far, and where (docs/DESIGN-MINIGAMES.md §3.6). */}
         <MiniGamesPanel flags={save.flags} />
 
@@ -255,9 +258,6 @@ export default function MenuOverlay({
             ))}
           </div>
         </div>
-
-        {/* Co-op battles (#187): Player 2 plays the companion. */}
-        <CoopPanel />
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <div className="font-bold text-sm mb-2">⚔️ Battle</div>

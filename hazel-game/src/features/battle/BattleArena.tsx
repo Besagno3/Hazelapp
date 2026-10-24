@@ -890,7 +890,7 @@ export default function BattleArena() {
   /** Player 2's cheer (the companion can't fight yet): right, +CHEER_CHARGE ◆ on top of the answer's. */
   function resolveCheer(wasCorrect: boolean) {
     if (!wasCorrect) {
-      say(`📣 ${two!.name} cheers — keep going, ${avatar!.name}!`, afterPartner);
+      say(`📣 ${two!.name} cheers — keep going, ${one.name}!`, afterPartner);
       return;
     }
     const s = combatState();
@@ -898,7 +898,7 @@ export default function BattleArena() {
     applyCombat({ ...s, charge: s.charge + gained });
     sfx('streak');
     float(gained > 0 ? `📣 +${gained}◆` : '📣', 'hero', 'text-amber-300');
-    say(`📣 ${two!.name} cheers ${avatar!.name} on!${gained > 0 ? ' The cheer fills your spell charge!' : ''}`, afterPartner);
+    say(`📣 ${two!.name} cheers ${one.name} on!${gained > 0 ? ' The cheer fills your spell charge!' : ''}`, afterPartner);
   }
 
   /** Cast the chosen spell once its super-hard question resolves. */
@@ -1518,6 +1518,17 @@ export default function BattleArena() {
         ghost={enemy.role === 'echo'}
       />
 
+      {/* Co-op (#191): each hand-over said, in a live region of its own — the phone changes hands here. */}
+      {two && (
+        <p role="status" className="sr-only" data-testid="coop-turn-said">
+          {turn.kind === 'partner'
+            ? `Over to ${two.name}.`
+            : ['command', 'cast', 'items', 'companion', 'swap'].includes(turn.kind)
+              ? `Over to ${one.name}.`
+              : ''}
+        </p>
+      )}
+
       {/* Bottom box: commands / question / message / results (tighter on a
           short screen, so a boss fight's commands fit 320×568, #158b) */}
       <div className="relative z-20 flex justify-center p-2 pb-4 sm:p-4 sm:pb-6 [@media(max-height:600px)]:pt-1 [@media(max-height:600px)]:pb-2">
@@ -1617,7 +1628,7 @@ export default function BattleArena() {
         {turn.kind === 'partner' && two && (
           <PartnerMenu
             player={two}
-            hero={avatar.name}
+            hero={one.name}
             ready={cReady}
             cheerCharge={CHEER_CHARGE}
             onCheer={partnerCheer}
@@ -1702,7 +1713,7 @@ export default function BattleArena() {
                             ? `${turn.pair.emoji} Now finish ${turn.pair.name}!`
                             : `${turn.pair.emoji} Super-hard question — ${turn.pair.name} with ${companion.name}!`),
                       companion: `${cMove.emoji} Answer to help ${companion.name} strike!`,
-                      cheer: `📣 Answer to cheer ${avatar.name} on!`,
+                      cheer: `📣 Answer to cheer ${one.name} on!`,
                       guard: '🛡️ Answer to raise your guard!',
                       attack: '⚔️ Answer to strike!',
                     }[turn.mode]}
