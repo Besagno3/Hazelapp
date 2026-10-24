@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural and 🎵 Echo's Call.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call and ✨ Vela's Star Charts.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -218,6 +218,43 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   step's buttons wait as it starts (`useSettled`), and the listen step's
   Next as it first appears too (a second settle, keyed on `heard` — for it
   alone); a held Enter rings a chime once. Under the chimes, which way is
-  higher; the staff's geometry is `staffY` / `STAFF_LINES` in `echo.ts`. The
+  higher; the staff's geometry is `staffY` / `STAFF_LINES` in `echo.ts`.
+  **✨ Vela's Star Charts** (`coast-stargazer`, Vela, Starfall Coast — no
+  quest of her own, so ✨ is her gold offer; `lib/minigames/stars.ts`,
+  `features/minigames/stars/`): star pictures and how far starlight travels.
+  Nine pictures (`PICTURES`: stars on a 100 × 100 sky, lines between them, a
+  note, and one star's light-travel time — rounded, or "at least"); Gentle's
+  four with a dotted outline, Medium's five with only the card, Tricky all
+  nine on a sky turned (`TURNS`), the years on the card (`learnedLine`).
+  Every picture is the real sky's way round — turned, never mirrored
+  (`stars.test` checks three stars of each against their J2000 positions);
+  a turned one is said without "up" (`turnedLooks`, `looksWords`, and
+  `turnWords` for how far). Each job (`jobFor`) adds tiny extras, seeded,
+  clear of every star and every line drawn (`EXTRA_GAP`, `segmentGap`).
+  Joining: tap a star, then one it's joined to (`isLine`, `lineKey`,
+  `joinWords`, kind either way); the last tapped stays picked, and tapped
+  again stays picked; with every line from it joined, a tap on another
+  starts the next stroke; "Show me a line" makes two glow and picks the
+  first, from the star picked if it can. Medium's Little Dipper first finds
+  the North Star: the Big Dipper's bowl drawn top right (`POINTER_GUIDE`,
+  `GUIDE_BOWL`), Merak then Dubhe (`POINTERS`), then the arrow to Polaris
+  (`pointerArrow`). The sky is one pointer target, acting as the finger
+  lifts (a press that moves `SWIPE_PX` or is cancelled is the page
+  scrolling): a tap picks the nearest star within reach (`TAP_REACH`, 7% of
+  the sky but at least `TAP_REACH_PX` on a small one), so small stars are
+  easy to hit; from the keyboard one star is in the tab order (a picture's,
+  never one of the others) and the arrow keys move to the nearest that way;
+  each star is said by where it is (`placeWords`; alike ones numbered) and,
+  picked or joined, its name — placed under, over, beside or at a corner of
+  its star, whichever covers least (`nameSpots`, pure, tested for every
+  sky), on a small sky only the picked star's and the last line's while
+  joining. The hunt's words are `HUNT_WORDS`, tested against where
+  `POINTER_GUIDE` draws its stars. The step's card — the picture card, the
+  lines joined, the hint, what Vela said (not live — her bubble is) — is
+  beside the sky or under it, whichever lets the sky be bigger
+  (`useSkySize`: on a phone, the screen's height under the header, the
+  card's top kept in sight; the same card width all through a picture, so
+  the sky doesn't change at the payoff), the whole column up to 700 px high;
+  a fact card taller than its room scrolls to its Next. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

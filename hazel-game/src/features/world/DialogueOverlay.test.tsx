@@ -589,6 +589,15 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(useSaveStore.getState().save!.flags['quest:song-of-colors:offered']).toBeUndefined();
   });
 
+  it('Vela, who gives no quest, offers ✨ Vela’s Star Charts as the thing to do, from her first line (PR 6)', () => {
+    render(<DialogueOverlay npcId="coast-stargazer" />);
+    expect(screen.getByText('▼ Next')).toBeInTheDocument(); // not her last line
+    const game = screen.getByText('✨ Vela’s Star Charts');
+    expect(game.className).toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'star-charts' });
+  });
+
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
     const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
     quests.override = (id) =>
