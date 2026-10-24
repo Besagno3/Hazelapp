@@ -209,6 +209,21 @@ describe('👥 co-op battles (#187)', () => {
     expect(screen.getByText('What is 30 + 30?')).toBeInTheDocument();
   });
 
+  it('the hand-over is marked: each menu wears the mover\'s pill, and a screen reader hears "Over to …" (#191)', () => {
+    const roll = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    onTestFinished(() => roll.mockRestore());
+    start();
+    expect(screen.getByTestId('coop-mover')).toHaveTextContent("🐼 Ada's move!");
+    expect(screen.getByTestId('coop-mover')).toHaveClass('bg-sky-100');
+    expect(screen.getByTestId('coop-turn-said')).toHaveTextContent('Over to Ada.');
+    fireEvent.click(screen.getByText('Attack'));
+    answer('4');
+    readOnTo(/Mia's turn/);
+    expect(screen.getByTestId('coop-mover')).toHaveTextContent("🦊 Mia's turn — 🐉 Ember!");
+    expect(screen.getByTestId('coop-mover')).toHaveClass('bg-amber-100');
+    expect(screen.getByTestId('coop-turn-said')).toHaveTextContent('Over to Mia.');
+  });
+
   it("Mia never gets the question the hero's pool holds, though her batch has it", () => {
     share.on = true;
     start();
@@ -264,7 +279,10 @@ describe('👥 co-op battles (#187)', () => {
     answer('60');
     readOnTo('Victory!');
     expect(screen.getByTestId('team-line')).toHaveTextContent('🐼 Ada 0 right · 🦊 Mia 1 right');
-    expect(screen.getByText(/0 correct answers/)).toBeInTheDocument();
+    // The stats are named as Ada's, and the team line and Mia's XP come right under them (#191) — not below the tips and bonus scroll.
+    expect(screen.getByTestId('result-stats')).toHaveTextContent(/^🐼 Ada: 0 correct answers/);
+    expect(screen.getByTestId('result-stats').nextElementSibling).toBe(screen.getByTestId('team-line'));
+    expect(screen.getByTestId('team-line').nextElementSibling).toBe(screen.getByTestId('partner-xp'));
     // The win's own XP only: Ada answered nothing right, and Mia's right answer isn't hers.
     expect(addXp).toHaveBeenCalledTimes(1);
     expect(addXp).toHaveBeenCalledWith(defeatXp(npcDefeatXp(enemy.level), enemy.tier));
@@ -354,12 +372,12 @@ describe('👥 co-op battles (#187)', () => {
     fireEvent.click(screen.getByText('Guard'));
     answer('5');
     readOnTo(/Mia's turn/);
-    expect(screen.getByText(/cheer Valor on/)).toBeInTheDocument();
+    expect(screen.getByText(/cheer Ada on/)).toBeInTheDocument();
     const before = combatState().charge;
-    fireEvent.click(screen.getByRole('button', { name: /Cheer Valor on/ }));
-    expect(screen.getByText(/Answer to cheer Valor on/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Cheer Ada on/ }));
+    expect(screen.getByText(/Answer to cheer Ada on/)).toBeInTheDocument();
     answer('60');
     expect(combatState().charge).toBe(before + 2);
-    expect(screen.getByText(/Mia cheers Valor on/)).toBeInTheDocument();
+    expect(screen.getByText(/Mia cheers Ada on/)).toBeInTheDocument();
   });
 });

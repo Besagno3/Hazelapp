@@ -149,6 +149,9 @@ export default function MenuOverlay({
           </div>
         </div>
 
+        {/* Co-op battles (#187): Player 2 plays the companion — so here, under Ember, not 1,400 px down a phone's menu (#191). */}
+        <CoopPanel />
+
         {/* Battle party: who can be swapped in (🔄 Swap in battle — a free action) */}
         <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">
           <span className="font-bold mr-2">Battle friends:</span>
@@ -251,9 +254,6 @@ export default function MenuOverlay({
             ))}
           </div>
         </div>
-
-        {/* Co-op battles (#187): Player 2 plays the companion. */}
-        <CoopPanel />
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <div className="font-bold text-sm mb-2">⚔️ Battle</div>

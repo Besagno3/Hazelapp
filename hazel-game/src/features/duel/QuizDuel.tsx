@@ -56,13 +56,14 @@ function payDuel(seats: BySeat<Seat>, result: DuelResult): DuelPay {
 }
 
 /** Each player's colours: the kid playing sky, Player 2 amber — and always their name and emoji beside, never the colour alone. */
-const SEAT_LOOK: BySeat<{ chip: string; on: string; text: string; button: string; pick: string }> = [
+const SEAT_LOOK: BySeat<{ chip: string; on: string; text: string; button: string; pick: string; asker: string }> = [
   {
     chip: 'border-sky-200 bg-sky-50',
     on: 'border-sky-500 ring-4 ring-sky-200',
     text: 'text-sky-800',
     button: 'bg-sky-700 hover:bg-sky-800',
     pick: 'hover:border-sky-400',
+    asker: 'bg-sky-100 text-sky-900',
   },
   {
     chip: 'border-amber-200 bg-amber-50',
@@ -70,6 +71,7 @@ const SEAT_LOOK: BySeat<{ chip: string; on: string; text: string; button: string
     text: 'text-amber-900',
     button: 'bg-amber-700 hover:bg-amber-800',
     pick: 'hover:border-amber-400',
+    asker: 'bg-amber-100 text-amber-900',
   },
 ];
 
@@ -182,7 +184,7 @@ function DuelSetup({ playerOne, onStart }: { playerOne: string; onStart: (topic:
         </div>
         <button
           onClick={() => sendFlow({ type: 'EXIT_DUEL' })}
-          className="mt-4 text-sm font-semibold text-white/90 hover:text-white hover:underline"
+          className="mt-4 min-h-11 px-3 text-sm font-semibold text-white/90 hover:text-white hover:underline"
         >
           ← Back to the Training Grounds
         </button>
@@ -251,14 +253,23 @@ function DuelPlay({
   }, [shownId, seenBy]);
 
   // Each new turn says whose it is, and takes the focus there: the Next just
-  // tapped is gone, so a keyboard would otherwise start from the top.
+  // tapped is gone, so a keyboard would otherwise start from the top. The
+  // card's top — the scoreboard and "<name>'s turn" — comes into view first:
+  // on a sideways phone they sat above the screen for the whole duel (#191).
+  const card = useRef<HTMLDivElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
+    const top = card.current;
+    if (typeof top?.scrollIntoView === 'function') {
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      top.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+    }
     heading.current?.focus({ preventScroll: true });
   }, [turn]);
 
   // On a small or sideways phone the 💡 explanation pushes Next below the
-  // fold once an answer is picked: bring it into view (as the quiz does).
+  // fold once an answer is picked: bring it into view (as the quiz does), and
+  // give it the focus — the answer just picked is out of play (#191).
   const nextButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (selected === null) return;
@@ -266,6 +277,7 @@ function DuelPlay({
     const raf = requestAnimationFrame(() => {
       const btn = nextButton.current;
       if (typeof btn?.scrollIntoView === 'function') btn.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+      btn?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(raf);
   }, [selected]);
@@ -306,9 +318,10 @@ function DuelPlay({
 
   return (
     <div className={PAGE}>
-      <ScreenTopBar />
+      {/* Two players on one screen: no Switch mid-duel (End duel is the way out), and not the kid playing's level beside Player 2 (#191). */}
+      <ScreenTopBar badges={false} switchable={false} />
       <div className="flex-1 w-full flex items-center justify-center">
-        <div className={CARD}>
+        <div ref={card} className={cn(CARD, 'scroll-mt-2')}>
           <Scoreboard seats={seats} scores={scores} active={seat} />
           <div className="flex items-baseline justify-between gap-2 mb-3 [@media(max-height:500px)]:mb-2">
             <h2 ref={heading} tabIndex={-1} className={cn('text-xl font-extrabold focus:outline-none', SEAT_LOOK[seat].text)}>
@@ -358,6 +371,7 @@ function DuelPlay({
                 key={`${turn}-${q.id}`}
                 q={q}
                 seat={seat}
+                player={player}
                 selected={selected}
                 nextLabel={isLast ? 'See who won! 🏆' : `Next: ${next.name}'s turn →`}
                 onAnswer={handleAnswer}
@@ -378,6 +392,7 @@ function DuelPlay({
 function DuelQuestion({
   q,
   seat,
+  player,
   selected,
   nextLabel,
   onAnswer,
@@ -386,6 +401,8 @@ function DuelQuestion({
 }: {
   q: Question;
   seat: SeatIndex;
+  /** Whose question it is — said on the question too, so the next player knows it's theirs wherever the page sits (#191). */
+  player: Seat;
   selected: number | null;
   nextLabel: string;
   onAnswer: (idx: number) => void;
@@ -402,6 +419,16 @@ function DuelQuestion({
 
   return (
     <motion.div ref={card} initial={{ x: 40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -40, opacity: 0 }}>
+      <p
+        data-testid="duel-asker"
+        className={cn(
+          'inline-block rounded-full px-3 py-0.5 mb-2 text-sm font-extrabold [@media(max-height:500px)]:mb-1 [@media(max-height:500px)]:text-xs',
+          SEAT_LOOK[seat].asker,
+        )}
+      >
+        <span aria-hidden>{player.icon} </span>
+        {player.name}'s question
+      </p>
       <h3 className="text-lg sm:text-xl font-semibold mb-4 min-h-[3.5rem] [@media(max-height:500px)]:mb-2 [@media(max-height:500px)]:min-h-0">{q.text}</h3>
       <div className="space-y-2.5 [@media(max-height:500px)]:space-y-2">
         {q.options.map((opt, idx) => {
@@ -411,7 +438,7 @@ function DuelQuestion({
           else if (idx === selected) cls += 'border-red-400 bg-red-50 text-red-600';
           else cls += 'border-gray-200 opacity-50';
           return (
-            <button key={idx} onClick={() => onAnswer(idx)} disabled={selected !== null} className={cls}>
+            <button key={idx} onClick={() => onAnswer(idx)} aria-disabled={selected !== null} className={cls}>
               {opt}
             </button>
           );
@@ -536,7 +563,7 @@ function DuelResults({
 
   return (
     <div className={PAGE}>
-      <ScreenTopBar />
+      <ScreenTopBar badges={false} />
       <div className="flex-1 w-full flex items-center justify-center">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={CARD}>
           <div className="text-center mb-4">
@@ -602,7 +629,7 @@ function DuelResults({
             >
               New players or topic
             </button>
-            <button onClick={() => sendFlow({ type: 'EXIT_DUEL' })} className="w-full text-sm text-gray-600 hover:underline py-1.5">
+            <button onClick={() => sendFlow({ type: 'EXIT_DUEL' })} className="w-full min-h-11 text-sm text-gray-600 hover:underline py-1.5">
               Back to the Training Grounds
             </button>
           </div>

@@ -119,6 +119,17 @@ export function BattleResult({
   onLeave: () => void;
 }) {
   const won = result === 'victory';
+  // Co-op (#187): the team line and Player 2's XP right under the stats, which name whose they are —
+  // below the tips and the bonus scroll they were under the fold, and the visible XP read as the team's (#191).
+  const teamLines = team && (
+    <>
+      <p className="text-sm text-sky-100 font-semibold mt-1" data-testid="team-line">
+        <span aria-hidden>🤝 </span>
+        {team.map((p) => `${p.icon} ${p.name} ${p.right} right`).join(' · ')}
+      </p>
+      {partner && <PartnerXp partner={partner} />}
+    </>
+  );
   // A critter with "!" marks pays more (#75 item 12) — say why the numbers are bigger.
   const farBonus = won && dangerMarks(enemy.tier ?? BASE_TIER) !== '';
   return (
@@ -152,10 +163,12 @@ export function BattleResult({
               )}
             </>
           )}
-          <p className="text-sm text-white/80">
+          <p className="text-sm text-white/80" data-testid="result-stats">
+            {team && `${team[0].icon} ${team[0].name}: `}
             {correctCount} correct answers · 🪙 +{coins}
             {lucky ? ' 🍀' : ''} · ⭐ +{xp} XP
           </p>
+          {teamLines}
           {farBonus && <p className="text-sm text-orange-200 font-semibold mt-1">💪 Tough-critter bonus: extra coins and XP!</p>}
           {firstWin && (
             <p className="text-sm text-yellow-200 font-semibold mt-1">⭐ First time beating {aName(enemy.name)} — bonus coins!</p>
@@ -178,20 +191,17 @@ export function BattleResult({
             You're safe, rested, and{' '}
             {correctCount > 0 ? `kept ${correctCount} answers' worth of XP!` : 'ready to try again!'}
           </p>
+          {teamLines}
           {boatLine && <p className="text-sm text-sky-200 font-semibold mt-2">{boatLine}</p>}
           {/* Lost at sea, where the boat went comes first: with the tip too, a
               320×568 phone pushed the button off the screen. Nothing's lost —
               a critter that eases off says so in the battle itself (#114). */}
-          {tip && !boatLine && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
+          {/* In co-op the team lines take the tip's room on a short screen: with both, a 320×568 phone pushed the button off (#191). */}
+          {tip && !boatLine && (
+            <p className={`text-sm text-amber-200 font-semibold mt-2 ${team ? '[@media(max-height:600px)]:hidden' : ''}`}>💡 {tip}</p>
+          )}
         </>
       )}
-      {team && (
-        <p className="text-sm text-sky-100 font-semibold mt-2" data-testid="team-line">
-          <span aria-hidden>🤝 </span>
-          {team.map((p) => `${p.icon} ${p.name} ${p.right} right`).join(' · ')}
-        </p>
-      )}
-      {partner && <PartnerXp partner={partner} />}
       <button
         onClick={onLeave}
         className="mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"

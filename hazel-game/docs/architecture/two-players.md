@@ -5,9 +5,12 @@
 - **Two players (#186, `lib/playerTwo.ts`, `store/playerTwoStore.ts`,
   `features/duel/`):** **Player 2** is another kid of the family — who
   types their own PIN first (`PlayerTwoPicker`'s `PinPad`, the limits and
-  locks of "Who's playing?"; the screen's own buttons wait meanwhile,
-  `onAsking`; a kid already picked this session, or with no PIN yet, isn't
-  asked; #188) — whose levels, power-ups and open world are read once
+  locks of "Who's playing?", in a full-screen layer of its own — a
+  `ModalLayer` portalled to `body`, so the 📜 Menu's scroll box can't hide its
+  keys, its words or its way out; Escape and "← That's not me" close it and
+  focus goes back to the tile tapped, #191; the screen's own buttons wait
+  meanwhile, `onAsking`; a kid already picked this session, or with no PIN
+  yet, isn't asked; #188) — whose levels, power-ups and open world are read once
   (`readKidPlay`: their `profiles` row and their save's `worldUnlocked`, each
   within `LEVELS_WAIT_MS` (3 s), else this device's copies, else none — every
   topic at their age's start; no save at all is a world not open, a save that
@@ -18,8 +21,8 @@
   pitches them to their own age (it never takes an age from the app, B8),
   charges their budget and keeps their seen questions their own — or a
   **guest** (a friend or a grown-up): a name (optional, `guestName`, ≤ 20,
-  "Guest") and a pace, 🌱 Easier / ⚖️ Same as <kid> / 🔥 Harder
-  (`GUEST_PACE_OFFSET` −2 / 0 / +2 levels from the kid playing's own for the
+  "Guest") and a pace, 🌱 Easier / ⚖️ Same as <kid> / 🔥 Harder (the emoji
+  above the word, smaller under 360 px, so a word never breaks at 320 px; `GUEST_PACE_OFFSET` −2 / 0 / +2 levels from the kid playing's own for the
   topic); a guest's questions are asked for under the kid playing, so they're
   written for that kid's age (the picker says so). `playerOneSeat` /
   `playerTwoSeat` turn them into a `Seat` (`QuestionSeat` in `types` — kid,
@@ -73,10 +76,18 @@
   next round. The screen: a scoreboard (sky for the kid playing, amber for
   Player 2, the player's turn a thick ring — names and emoji always beside
   the colour), "<name>'s turn" (focused each turn, the Next just tapped
-  being gone), the topic and that player's level, the question as the quiz
-  shows it with ✅ / ❌ words, 💡, 🚩, and "Next: <name>'s turn →" in the
-  next player's colour (a second tap never skips a turn); "End duel" takes
-  two taps (`SWITCH_ARM_MS` / `SWITCH_CONFIRM_GAP_MS`). Results: "<name>
+  being gone, and the card's top scrolled into view first — on a sideways
+  phone the scoreboard sat above the screen, #191), the topic and that
+  player's level, a "🦊 Mia's question" chip in the player's colour (as
+  co-op's), the question as the quiz shows it with ✅ / ❌ words (answers
+  `aria-disabled` once picked, and Next takes the focus), 💡, 🚩, and "Next:
+  <name>'s turn →" in the next player's colour (a second tap never skips a
+  turn); "End duel" takes two taps (`SWITCH_ARM_MS` /
+  `SWITCH_CONFIRM_GAP_MS`) and is the only way out mid-duel: the top bar has
+  no Switch player there ("Switch" read as handing over the turn, and threw
+  the duel away) and, on the duel's screens, no level or streak badge (the
+  kid playing's, beside Player 2's own XP — `ScreenTopBar`'s `badges` /
+  `switchable`, #191). Results: "<name>
   wins!" or "It's a tie!" (focused, confetti), "5 to 2. Great try, <name>!",
   both scores, "What <name> missed (n)" folded per player, a fun fact,
   🔁 Rematch (same players and topic, fresh questions), "New players or
@@ -85,8 +96,10 @@
   played for the kid playing even with none), the footnotes `DUEL_XP_NOTE`.
   Music: the Training Grounds'.
   **👥 Co-op battles (#187, `lib/coop.ts`, `features/world/CoopPanel.tsx`):**
-  📜 Menu → "👥 Play together": "Two players" (off) opens the same
-  `PlayerTwoPicker`, "👥 Play together!" (`aria-disabled` until Player 2 is
+  📜 Menu → "👥 Play together" (under Ember's card, not at the foot of a
+  phone's long menu; each step hands the keyboard on within the panel — the
+  question, the "on" words, the row back — never to the top of the menu,
+  #191): "Two players" (off) opens the same `PlayerTwoPicker`, "👥 Play together!" (`aria-disabled` until Player 2 is
   picked and their levels read) sets `playerTwoStore.coop` (only ever with a
   Player 2; `putAwayGame` clears it); on, it says who plays the companion,
   and "Stop playing together" turns it off (Player 2 kept). In a battle
@@ -102,11 +115,15 @@
   (`partnerPick`: round and round the rest; when all are shared — offline
   starters, or a guest at the kid's own level asking the hero's exact
   request — half a round out of step), regular and super-hard alike. Each round: the kid playing's
-  command (the menu says "<name>'s move!", and the companion button is
-  greyed "🦊 <name> plays next"), then **Player 2's turn** (`turn.kind
+  command (the menu wears a sky "🐼 <name>'s move!" pill, and the companion
+  button is greyed "🦊 <name> plays next"), then **Player 2's turn** (an
+  amber "🦊 <name>'s turn — …" pill — the phone changes hands at the menus,
+  so they wear the questions' colours; a screen reader hears "Over to
+  <name>." from a live region of its own, #191; `turn.kind
   'partner'`, `PartnerMenu`, no ← Back): the companion's strike or a Pair
   Attack on a question of theirs, or — while the companion can't fight yet
-  (Ember an egg) — 📣 a cheer (`mode 'cheer'`: right, `CHEER_CHARGE` ◆ on
+  (Ember an egg) — 📣 a cheer for the kid playing by their name, not the
+  hero's (`mode 'cheer'`: right, `CHEER_CHARGE` ◆ on
   top of the answer's own). Every hero move's hand-over is `endHeroTurn`
   (Player 2's turn in co-op, else the enemy's); Player 2's is `afterPartner`
   (the enemy's turn — or, after a Time Ripple, `skipEnemy`, the hero's
@@ -128,4 +145,9 @@
   no ✍️ scribe burst on Player 2's; `defendTimedOut(…, who)` likewise.
   Player 2's questions are marked seen by them (`QuestionCard`'s `seenBy`).
   The result adds a team line (`BattleResult`'s `team`: "🤝 🐼 Ada 3 right ·
-  🦊 Mia 2 right"; `correctCount` stays the kid playing's).
+  🦊 Mia 2 right"; `correctCount` stays the kid playing's, and the stats line
+  says so — "🐼 Ada: 3 correct answers · …"); the team line and Player 2's
+  XP come right under it, before the tips, drops and the bonus scroll (they
+  were under the fold, and the visible XP read as the team's, #191); lost, on
+  a short screen the 💡 tip gives them its room, so the way out stays on a
+  320×568 screen.
