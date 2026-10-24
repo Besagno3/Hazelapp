@@ -10,7 +10,10 @@
   asked; #188) — whose levels, power-ups and open world are read once
   (`readKidPlay`: their `profiles` row and their save's `worldUnlocked`, each
   within `LEVELS_WAIT_MS` (3 s), else this device's copies, else none — every
-  topic at their age's start, no XP) and whose
+  topic at their age's start; no save at all is a world not open, a save that
+  couldn't be read (and no copy) is `worldOpen: null` — no XP, and the screens
+  say "Mia's XP couldn't be counted this time." (`xpUnknownLine`), never that
+  her world is closed, #189) and whose
   questions are asked for **as them** (`profileId` = their id), so the server
   pitches them to their own age (it never takes an age from the app, B8),
   charges their budget and keeps their seen questions their own — or a
@@ -28,14 +31,22 @@
   world is open, #122; a guest none) — the kid playing's through `addXp`, a
   sibling's straight to their row (`lib/kidXp.ts` `giveKidXp`: a read, then
   an update guarded on the XP read — read again if their own device wrote in
-  between, up to `GUARD_TRIES`; their streak and play day follow; this
-  device's copy of their profile moves too; one kid's writes in turn). What
-  can't be written is owed on this device (`hazel-owed-xp-<kid>`), paid with
-  the next XP given them here or when they next load here — through `addXp`
-  (`payOwedXp` in `profileStore`: once that load's own write has landed, the
-  same kid still loaded, so it goes the way any XP does: held while unread,
-  today's XP for 📈 Progress). A saved gift goes into their day's record too
-  (`addDayXp`). 📈 Progress's answers tally (#173) is the kid playing's
+  between, up to `GUARD_TRIES`; each read or update gives up after
+  `WRITE_TIMEOUT_MS` (10 s), and an update whose answer was lost is read back
+  before it's kept owed — it may have landed; this device's copy of their
+  profile moves too; one kid's writes in turn). Once saved, the day counts as
+  played for them with its XP (`addDayXp`, then `flushPlayDays(kid, { now:
+  true })` — nothing else sends another kid's day from this device, #189).
+  Nothing is lost to a hung connection or a closed tab (#189): while it's
+  being written the gift is kept as *sending* (`hazel-owed-xp-sending-<kid>`,
+  with when); what can't be written is owed (`hazel-owed-xp-<kid>`). Both are
+  paid with the next XP given them here or when they next load here — a
+  sending gift only once it's `SENDING_STALE_MS` (2 min) old, so one still
+  being written is never paid twice — through `addXp` (`payOwedXp` in
+  `profileStore`: once that load's own write has landed, the same kid still
+  loaded, so it goes the way any XP does: held while unread, today's XP for
+  📈 Progress). Removing the kid or closing the account forgets both
+  (`forgetOwedXp`). 📈 Progress's answers tally (#173) is the kid playing's
   only: `QuestionCard`'s `noted` is off for Player 2's battle questions, and
   the duel notes the kid playing's answers, never Player 2's. The screens say it (`kidXpWords`: "Saving…",
   "Saved to Mia's game.", "⭐ Mia reached level 4!", "It'll be added the next

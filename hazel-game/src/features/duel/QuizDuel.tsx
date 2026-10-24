@@ -13,7 +13,7 @@ import { pickFact } from '../../lib/funFacts';
 import { cn } from '../../lib/utils';
 import { kidName, playerOneSeat, playerTwoSeat, type Seat } from '../../lib/playerTwo';
 import { duelScores, duelWinner, duelXp, otherSeat, DUEL_QUESTIONS_EACH, DUEL_TURNS, type BySeat, type SeatIndex } from '../../lib/duel';
-import { giveKidXp, kidXpWords, xpStartsLine, type KidXpResult } from '../../lib/kidXp';
+import { giveKidXp, kidXpWords, xpStartsLine, xpUnknownLine, type KidXpResult } from '../../lib/kidXp';
 import { useSettled } from '../../hooks/useSettled';
 import { useCalmWait, FIRST_WAIT_DELAY_MS, LONG_WAIT_MS, WAIT_DELAY_MS, WAIT_MIN_MS } from '../quiz/useCalmWait';
 import { SWITCH_ARM_MS, SWITCH_CONFIRM_GAP_MS } from '../auth/SwitchPlayerButton';
@@ -489,12 +489,13 @@ function XpLine({ seat, s, xp, sibling }: { seat: Seat; s: SeatIndex; xp: number
       </li>
     );
   }
-  // A family kid whose world isn't open yet: XP starts there (#122).
-  if (!seat.worldOpen && (s === 0 || seat.kid)) {
+  // A family kid whose world isn't open yet: XP starts there (#122) — or whose save couldn't be read.
+  const family = s === 0 || seat.kid !== null;
+  if (family && seat.worldOpen !== true) {
     return (
       <li className="text-gray-600">
         <span aria-hidden="true">{seat.icon} </span>
-        {xpStartsLine(seat.name)}
+        {seat.worldOpen === null ? xpUnknownLine(seat.name) : xpStartsLine(seat.name)}
       </li>
     );
   }

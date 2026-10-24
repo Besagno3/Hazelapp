@@ -366,6 +366,17 @@ describe('🆚 Quiz Duel — the results (#186)', () => {
     expect(giveKidXp).not.toHaveBeenCalled();
   });
 
+  it("when Mia's save couldn't be read, no XP for her — and it says so, not that her world is closed (#188 review)", async () => {
+    readKidPlay.mockResolvedValue({ skillLevels: { math: 5 }, powerUps: {}, worldOpen: null });
+    await startWithMia();
+    for (let t = 0; t < 10; t++) await play(true);
+    expect(await screen.findByRole('heading', { name: "It's a tie!" })).toBeInTheDocument();
+    expect(screen.getByText("Mia's XP couldn't be counted this time.")).toBeInTheDocument();
+    expect(screen.queryByText(/XP starts for Mia/)).toBeNull();
+    expect(giveKidXp).not.toHaveBeenCalled();
+    expect(addXp).toHaveBeenCalledWith(50);
+  });
+
   it('a guest earns nothing, and nothing is said for them', async () => {
     render(<QuizDuel />);
     fireEvent.click(screen.getByRole('button', { name: /A friend or grown-up/ }));

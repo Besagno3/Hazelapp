@@ -5,7 +5,7 @@ import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
 import type { TypingBonus as Bonus } from '../../content/typing';
 import { TypingBonus } from './TypingBonus';
-import { kidXpWords, xpStartsLine, type KidXpResult } from '../../lib/kidXp';
+import { kidXpWords, xpStartsLine, xpUnknownLine, type KidXpResult } from '../../lib/kidXp';
 import { useSettled } from '../../hooks/useSettled';
 
 /** A co-op battle's Player 2 (#187): the XP they earned, and where it went — a sibling's to their own game (`lib/kidXp.ts`). */
@@ -15,8 +15,8 @@ export interface PartnerPay {
   xp: number;
   /** A family kid: a guest earns nothing, and nothing is said. */
   family: boolean;
-  /** Their world is open, so they earn XP (#122). */
-  worldOpen: boolean;
+  /** Their world is open, so they earn XP (#122); null: their save couldn't be read. */
+  worldOpen: boolean | null;
   /** The write to their profile, when they earned some. */
   saving: Promise<KidXpResult> | null;
 }
@@ -35,6 +35,8 @@ function PartnerXp({ partner }: { partner: PartnerPay }) {
           </span>{' '}
           {kidXpWords(partner.name, saved)}
         </>
+      ) : partner.worldOpen === null ? (
+        xpUnknownLine(partner.name)
       ) : !partner.worldOpen ? (
         xpStartsLine(partner.name)
       ) : null}

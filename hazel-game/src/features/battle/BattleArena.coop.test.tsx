@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, within, act, cleanup } from '@testing-library/react';
 import type { BattleEnemy, Kid, Profile, Question, QuestionSeat } from '../../types';
 import type { PlayerTwo } from '../../lib/playerTwo';
@@ -170,6 +170,10 @@ describe('👥 co-op battles (#187)', () => {
   });
 
   it("each round: Ada's move, then Mia's companion move with her own question, then the enemy — blocked in turn", () => {
+    // Plain blows only: from its second turn a critter may wind up a power move instead (a roll, `nextIntent`),
+    // and a wind-up has no blow to block — this test is about who blocks, not when it charges.
+    const roll = vi.spyOn(Math, 'random').mockReturnValue(0.99);
+    onTestFinished(() => roll.mockRestore());
     start();
     expect(screen.getByTestId('coop-chip')).toHaveTextContent('👥 🐼 Ada + 🦊 Mia');
     expect(screen.getByText("Ada's move!")).toBeInTheDocument();
@@ -298,6 +302,15 @@ describe('👥 co-op battles (#187)', () => {
     answer('4');
     readOnTo('Victory!');
     expect(screen.getByTestId('partner-xp')).toHaveTextContent('XP starts for Mia once Mia opens the world.');
+    expect(giveKidXp).not.toHaveBeenCalled();
+    cleanup();
+
+    // Her save couldn't be read: no XP either, said as it is (#188 review).
+    start({ hp: 1, two: { ...MIA_KID, worldOpen: null } });
+    fireEvent.click(screen.getByText('Attack'));
+    answer('4');
+    readOnTo('Victory!');
+    expect(screen.getByTestId('partner-xp')).toHaveTextContent("Mia's XP couldn't be counted this time.");
     expect(giveKidXp).not.toHaveBeenCalled();
     cleanup();
 
