@@ -606,11 +606,11 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
-  airmail/`): maps and directions. Three maps: the bay (`BAY`, 5 × 5,
+  airmail/`): maps and directions. Four maps: the bay (`BAY`, 5 × 5,
   Gentle), the town (`TOWN`, 6 × 6, its squares named by `gridRef`, eight
   houses each just beside a landmark, `TOWN_CLUES`) and the world (`WORLD`,
   12 × 6 squares of 30°, each marked by its continent or ocean, the equator
-  under the 3rd row, east and west joined). A job (`jobFor`) is a stamp's
+  under the 3rd row, east and west joined) — and Expert's globe, below. A job (`jobFor`) is a stamp's
   kind of post (`STAMPS`, three a band) to a place, a house (by its square or
   a landmark) or a continent or ocean (`REGIONS`, each a clue and a fact).
   The compass (`BAND_DIRS`: four, eight, four) moves Ember a square
@@ -629,8 +629,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   the compass where the column's narrow, `narrow`); the side panel splits
   off on the `wide` screen (`tailwind.config.js`: from 768 px wide with
   height, or from 1000 px — not the stage's `split`: a phone held sideways
-  gives the world its width); the post office scene's left out for the
-  world and on a tablet held upright; on a short phone held sideways what Pidge said goes
+  gives the world its width); the post office scene and the map key are
+  the bay's and the town's only (the world's maps are wide and short), the
+  scene left out on a tablet held upright; on a short phone held sideways what Pidge said goes
   under the map when there's room (`saidUnder`), and on a short split
   screen a stamp's card goes beside it. Pidge's bubble re-reads the same
   words (a zero-width space every other time); for a reader the map is
@@ -648,17 +649,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   whole-degree latitude and longitude off every line, its January clock
   against London's, `zone`, the 15° line nearest its longitude — tested —
   and a fact) in turn, and London's hour (`LONDON_HOURS`, one its clock
-  keeps the same day). `cellAt` is its square, `bandWords` a square's
-  lines; the clue, `whereWords`, `missWords` (a wrong square's lines, then
-  where the city's are, then which way) and `howToFind` say them; `offset`
-  and `relWords` take the map's width. Delivered, step `time`: `timeAsk`,
-  three times from `timeChoices` (the right one, `cityHour`; the wrong
-  way; the other 15° line's), `timeWords` (`zoneWords` when right; else
-  what's wrong, picked again). The map's lines are numbered round it —
+  keeps the same day, moving on each time round the cities). `cellAt` is
+  its square, `bandWords` a square's lines; the clue, `whereWords`,
+  `missWords` (a wrong square's lines, then where the city's are — and
+  which side of the equator or 0° — then which way) and `howToFind` say
+  them; a move says the way and the continent, the lines for a reader only
+  (`say`'s second part, a `sr-only` span in Pidge's bubble; `#am-where`
+  has them too); `offset` and `relWords` take the map's width; a range is
+  kept on its line where it's shown (`keepRanges`). Delivered, step
+  `time`: `timeAsk` (the city's longitude first), four times from
+  `timeChoices` (the right one, `cityHour`, and the other 15° line's,
+  `otherLine`; both the wrong way — Luanda's other line is 0°, so the line
+  beyond), `timeWords` (`zoneWords` when right; else what's wrong, picked
+  again), `clockWords` "09:00". The map's lines are numbered round it —
   latitudes in a left gutter (`LAT_GUTTER`), longitudes in a row under it
-  (`LONG_ROW`, every 30° from 24 px squares, else 60°, under 14 px 90°) —
-  the equator and the prime meridian drawn stronger, the continents' names
-  placed for the globe (`GLOBE_LABEL`), left off the smallest map. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
+  (`LONG_ROW`; `layout.ts`'s `globeLabels`, `latLabel`, `longLabel`: every
+  30° from 12 px squares, bare numbers under 24 px, else 60°) — the
+  equator and the prime meridian drawn stronger, the continents' names
+  placed for the globe (`GLOBE_LABEL`), left off under 14 px. A key flies
+  Ember at once (a tap waits as a parcel starts). Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
   with a miss on the way."); the seal's `spotOn` counts parcels delivered
   first go with the time right first pick, the reward keeping the first
   missed parcel's lesson; the times and Next wait for a tap's second, not a

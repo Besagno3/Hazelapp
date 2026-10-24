@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CARD_CHROME, DELIVER_MIN, GUTTER, MIN_MAP, SCALE_LINE, compassSide, fitMap, type FitIn } from './layout';
+import { CARD_CHROME, DELIVER_MIN, GLOBE_LAT_ROWS, GUTTER, MIN_MAP, SCALE_LINE, compassSide, fitMap, globeLabels, latLabel, longLabel, type FitIn } from './layout';
 
 // The board's room (less its padding) at a few screens, as the game measures it: a split screen's board, a phone's width
 // and its height under the header.
@@ -55,5 +55,27 @@ describe('🐉 where the card goes and how big the map is (code review round 2: 
     const done = fit({ w: 954, h: 498, screenH: 650, split: true, done: true });
     expect(fly.beside).toBe(true);
     expect(done.size).toBe(fly.size);
+  });
+});
+
+describe('🐉 Expert’s map labels, by a square’s size (code review round 1: untested in jsdom; UX review round 1: every 90° on a phone)', () => {
+  const cols = (cell: number | null) => {
+    const l = globeLabels(cell);
+    return Array.from({ length: 24 / l.longStep + 1 }, (_, n) => n * l.longStep)
+      .filter((c) => l.ends || (c > 0 && c < 24))
+      .map((c) => longLabel(c, l.bare));
+  };
+  it('longitudes every 30° wherever a number fits, with E and W from 24 px squares; every 60° under 12 px', () => {
+    expect(cols(28)).toEqual(['180°', '150°W', '120°W', '90°W', '60°W', '30°W', '0°', '30°E', '60°E', '90°E', '120°E', '150°E', '180°']);
+    expect(cols(18)).toEqual(['180', '150', '120', '90', '60', '30', '0°', '30', '60', '90', '120', '150', '180']);
+    // The ends dropped where they'd touch the 150s.
+    expect(cols(13)).toEqual(['150', '120', '90', '60', '30', '0°', '30', '60', '90', '120', '150']);
+    expect(cols(10)).toEqual(['120', '60', '0°', '60', '120']);
+    // Before the map's measured: in full.
+    expect(cols(null)).toEqual(cols(28));
+  });
+  it('the continents’ names from 14 px; latitudes every 30°, the equator 0°', () => {
+    expect([10, 13, 14, 30, null].map((c) => globeLabels(c).named)).toEqual([false, false, true, true, true]);
+    expect(GLOBE_LAT_ROWS.map(latLabel)).toEqual(['60°N', '30°N', '0°', '30°S', '60°S']);
   });
 });

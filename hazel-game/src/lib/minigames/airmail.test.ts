@@ -377,6 +377,9 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
     expect(globeRegionAt(cellAt(-32, 116)).id).toBe('australia');
     expect(globeRegionAt(cellAt(25, -150)).id).toBe('pacific');
     expect(globeRegionAt(cellAt(-80, 0)).id).toBe('antarctica');
+    // South of Australia, west of Tasmania's 147° E, is the Indian Ocean (code review round 1: it was the Pacific).
+    expect(globeRegionAt(cellAt(-50, 140)).id).toBe('indian');
+    expect(globeRegionAt(cellAt(-50, 155)).id).toBe('pacific');
     // London, 51.5° N, 0.1° W.
     expect(cellAt(51.5, -0.1)).toEqual(GLOBE_START);
     expect(bandWords(GLOBE_START)).toEqual({ lat: '45°–60° N', long: '0°–15° W' });
@@ -406,6 +409,11 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
     for (const word of ['war', 'battle', 'army', 'soldier', 'weapon', 'flood', 'earthquake', 'plague', 'god', 'temple', 'church', 'religio', 'pray']) expect(text, word).not.toMatch(new RegExp(`\\b${word}`));
     expect(coordsOf(CITY_BY_ID.tokyo)).toBe('36° N, 140° E');
     expect(coordsOf(CITY_BY_ID.rio)).toBe('23° S, 43° W');
+    // Every city's coordinates and January clock, pinned to the atlas (code review round 1: a sign flipped passed).
+    expect(Object.fromEntries(CITIES.map((c) => [c.id, [c.lat, c.long, c.zone]]))).toEqual({
+      tokyo: [36, 140, 9], 'new-york': [41, -74, -5], johannesburg: [-26, 28, 2], beijing: [40, 116, 8], 'los-angeles': [34, -118, -8], athens: [38, 24, 2], rio: [-23, -43, -3],
+      bangkok: [14, 101, 7], chicago: [42, -88, -6], luanda: [-9, 13, 1], 'hong-kong': [22, 114, 8], lima: [-12, -77, -5], tashkent: [41, 69, 5], phoenix: [33, -112, -7], 'addis-ababa': [9, 39, 3],
+    });
   });
 
   it('the jobs: the globe, eight directions, every stamp; a city a parcel, a round’s three on three continents; London’s hour one its clock keeps the same day', () => {
@@ -422,6 +430,14 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
       expect(fewest(j), j.to).toBeLessThanOrEqual(12);
     }
     expect(new Set(all.map((j) => j.hour))).toEqual(new Set(LONDON_HOURS));
+    expect(LONDON_HOURS).toEqual([9, 12, 15]);
+    // Each time round the cities, a city's hour moves on (code review round 1: each was always asked at the same hour, a
+    // round's questions back every five rounds): every hour its clock keeps the same day — Tokyo's 9:00 and 12:00 (at 15:00
+    // it's tomorrow there).
+    const by = jobs('expert', 15).map(globe);
+    for (const id of CITY_IDS) expect(new Set(by.filter((j) => j.to === id).map((j) => j.hour)).size, id).toBe(id === 'tokyo' ? 2 : 3);
+    expect([...new Set(by.filter((j) => j.to === 'tokyo').map((j) => j.hour))].sort()).toEqual([12, 9]);
+    expect(by.slice(15).map((j) => j.hour)).not.toEqual(by.slice(0, 15).map((j) => j.hour));
     // Round the back of the world: west off the map's edge comes back from the east.
     expect(move(all[0], { x: 0, y: 3 }, 'W')).toEqual({ x: 23, y: 3 });
     expect(move(all[0], { x: 23, y: 3 }, 'NE')).toEqual({ x: 0, y: 2 });
@@ -440,31 +456,52 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
     expect(targetWords(j, GLOBE_START)).toBe('');
     expect(missWords(j, { x: 20, y: 2 }, 1)).toBe('This square is 45°–60° N, 120°–135° E. Tokyo, 36° N, 140° E, is in the square between 30°–45° N and 135°–150° E.');
     expect(missWords(j, { x: 20, y: 2 }, 2)).toBe('This square is 45°–60° N, 120°–135° E. Tokyo is 1 square south-east.');
-    expect(missWords(j, GLOBE_START, 2, false)).toMatch(/Ember hasn’t flown yet!/);
+    // Plainly (code review round 1: "yet!").
+    expect(missWords(j, GLOBE_START, 2, false)).toMatch(/Ember hasn’t flown yet\. Tokyo is/);
+    // Far off, the way's across the 24-wide map (code review round 1: by the 12 of the world's, it was the wrong way).
+    expect(missWords(j, GLOBE_START, 2)).toBe('This square is 45°–60° N, 0°–15° W. Tokyo is 1 square south-east, then 9 east.');
+    // The other side of the equator or of 0°, said (UX review round 1: one letter apart).
+    const jo = { ...j, to: 'johannesburg' as const };
+    expect(missWords(jo, cellAt(26, 28), 1)).toBe('This square is 15°–30° N, 15°–30° E. Johannesburg, 26° S, 28° E, is in the square between 15°–30° S and 15°–30° E. S is south of the equator.');
+    expect(missWords({ ...j, to: 'lima' as const }, cellAt(-12, 77), 1)).toMatch(/ W is west of 0°\.$/);
+    expect(missWords(j, cellAt(-36, -140), 1)).toMatch(/ N is north of the equator\. E is east of 0°\.$/);
     // The short way round: from the Americas to Tokyo, west across the Pacific.
     expect(relWords({ x: 3, y: 3 }, { x: 21, y: 3 }, true, true, GLOBE_W)).toBe('6 squares west');
   });
 
-  it('the time: three choices — the right one, the wrong way, an hour off by the other line — and how it’s worked out', () => {
+  it('the time: four choices — the right one and an hour off by the other line, both the wrong way — and how it’s worked out', () => {
     const j = globe(jobFor('expert', 0, 0)); // Tokyo at London's 9:00
     expect(j.hour).toBe(9);
-    expect(timeAsk(j)).toBe('It’s 9:00 in London, in January. What time is it in Tokyo?');
-    expect(timeChoices(j)).toEqual([0, 18, 19]);
-    expect(timeWords(j, 18)).toBe('Tokyo is at 140° E: the nearest 15° line is 135° E, so its clock is 9 hours ahead of London’s. 9:00 + 9 = 18:00.');
+    // Its longitude first, what the time hangs on (UX review round 1: only on the ticket).
+    expect(timeAsk(j)).toBe('Tokyo is at 140° E. It’s 09:00 in London, in January: what time is it there?');
+    // Which way picks a pair, the nearest line picks in it (code review round 1: of three, the wrong way was the odd one).
+    expect(timeChoices(j)).toEqual([0, 18, 19, 23]);
+    expect(timeWords(j, 18)).toBe('Tokyo is at 140° E: the nearest 15° line is 135° E, so its clock is 9 hours ahead of London’s. 09:00 + 9 = 18:00.');
     expect(timeWords(j, 18)).toBe(zoneWords(j));
-    expect(timeWords(j, 0)).toBe('Not 0:00: east of London, clocks are ahead — later in the day.');
+    expect(timeWords(j, 0)).toBe('Not 00:00: east of London, clocks are ahead — later in the day.');
+    expect(timeWords(j, 23)).toBe('Not 23:00: east of London, clocks are ahead — later in the day.');
     expect(timeWords(j, 19)).toBe('Not 19:00: take the 15° line nearest 140° E — an hour for each 15° from 0°.');
+    // Luanda's other line is 0°, London's own hour: the line beyond instead of a second London.
+    const lu = { ...j, to: 'luanda' as const, hour: 12 };
+    expect(timeChoices(lu)).toEqual([11, 12, 13, 14]);
+    expect(timeWords(lu, 12)).toMatch(/^Not 12:00: take the 15° line nearest 13° E/);
+    expect(timeWords(lu, 14)).toMatch(/^Not 14:00: take the 15° line/);
+    expect(timeWords(lu, 11)).toMatch(/^Not 11:00: east of London, clocks are ahead/);
+    // On a 24-hour clock: Tokyo at London's 15:00 is midnight (a job never asks it — tomorrow there).
+    expect(cityHour({ ...j, hour: 15 })).toBe(0);
     const ny = globe(jobFor('expert', 0, 1));
     expect(ny.to).toBe('new-york');
     expect(timeWords(ny, cityHour(ny))).toBe(`New York is at 74° W: the nearest 15° line is 75° W, so its clock is 5 hours behind London’s. ${clockWords(ny.hour)} − 5 = ${clockWords(ny.hour - 5)}.`);
     expect(timeWords(ny, ny.hour + 5)).toMatch(/west of London, clocks are behind — earlier in the day\.$/);
-    for (const x of jobs('expert', 10).map(globe)) {
+    for (const x of jobs('expert', 15).map(globe)) {
       const c = timeChoices(x);
-      expect(c, x.to).toHaveLength(3);
+      expect(c, x.to).toHaveLength(4);
       expect(c).toContain(cityHour(x));
       expect(c.every((h) => h >= 0 && h < 24)).toBe(true);
+      // Every wrong one says what's wrong with it.
+      for (const h of c) if (h !== cityHour(x)) expect(timeWords(x, h), `${x.to} ${h}`).toMatch(/^Not \d\d:00: /);
     }
-    expect(clockWords(9)).toBe('9:00');
+    expect([9, 0, 21].map(clockWords)).toEqual(['09:00', '00:00', '21:00']);
   });
 
   it('the lesson: its coordinates, its clock, a true thing about it — plainly', () => {

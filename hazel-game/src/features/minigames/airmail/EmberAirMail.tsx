@@ -4,7 +4,6 @@ import {
   BAND_DIRS,
   BAY,
   CITY_BY_ID,
-  DEG,
   DIR_WORDS,
   EQUATOR_ROW,
   GLOBE_START,
@@ -25,7 +24,9 @@ import {
   destWords,
   farChoices,
   farSeed,
+  bandWords,
   globeRegionAt,
+  keepRanges,
   gridRef,
   howToFind,
   jobFor,
@@ -69,7 +70,7 @@ import { lastInputWasKey } from '../lastInput';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
 import { StampCard } from './art';
-import { GUTTER, SCALE_LINE, fitMap, type Fit } from './layout';
+import { GLOBE_LAT_ROWS, GUTTER, SCALE_LINE, fitMap, globeLabels, latLabel, longLabel, type Fit } from './layout';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
@@ -171,6 +172,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   const [path, setPath] = useState<Cell[]>(() => [map.start]);
   const [route, setRoute] = useState<Dir[]>([]);
   const [said, setSaid] = useState<string | null>(null);
+  const [saidSr, setSaidSr] = useState<string | null>(null);
   // Each time Pidge says something: the same words again are a change her bubble reads out (code review round 1: four
   // "East! Ember's over Asia." were one).
   const [beat, setBeat] = useState(0);
@@ -192,14 +194,19 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   // A tap waits; a key acts at once (Expert's time).
   const ready = (e: { detail: number }) => e.detail === 0 || settled();
   const at = path[path.length - 1];
-  function say(words: string | null) {
+  // `sr`: words for a reader only, after what's said (Expert's square's lines).
+  function say(words: string | null, sr: string | null = null) {
     setSaid(words);
+    setSaidSr(sr);
     setBeat((b) => b + 1);
   }
 
-  /** One square on with the compass; off the map's edge, a bump and a word. */
-  function fly(dir: Dir) {
-    if (step !== 'fly' || !settled()) return;
+  /**
+   * One square on with the compass; off the map's edge, a bump and a word. A tap waits as a step starts; a key acts at
+   * once (Expert's UX review round 1: an arrow key as a parcel started went nowhere, unsaid).
+   */
+  function fly(dir: Dir, key = false) {
+    if (step !== 'fly' || (!key && !settled())) return;
     setRead(null);
     const to = move(job, at, dir);
     if (!to) {
@@ -216,6 +223,9 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
     const wrapped = (job.map === 'world' || job.map === 'globe') && Math.abs(to.x - at.x) > 1 ? ` Round the back of the world${expert ? '.' : '!'}` : '';
     // On Gentle, there: what to do now (UX review round 2: no nudge — the youngest's lesson is the way, not finding Deliver).
     const there = job.map === 'bay' && delivered(job, to) ? ' Now tap Deliver!' : '';
+    // Expert's: the way and the continent or ocean, its lines for a reader only — read off the grid, not the words (UX review
+    // round 1: flown east till the words held 140° E, the grid needn't be read).
+    if (job.map === 'globe') return void say(`${capitalise(DIR_WORDS[dir])}.${wrapped} Ember’s over ${globeRegionAt(to).name}.`, `${bandWords(to).lat}, ${bandWords(to).long}.`);
     say(`${capitalise(DIR_WORDS[dir])}${expert ? '.' : '!'}${wrapped} Ember’s ${whereWords(job, to)}.${there}`);
   }
 
@@ -394,7 +404,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   }, [step, done, layout]);
 
   const cheerLine = expert
-    ? `${missed ? 'Delivered, with a miss on the way.' : EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next parcel.' : 'That’s the sack.'}`
+    ? `${missed ? 'Delivered, with a miss on the way.' : EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next parcel.' : 'That’s the last one.'}`
     : `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next parcel?' : 'The sack’s empty!'}`;
   // Tricky's question: how far the place is from where the post set off, in a straight line — its ruler drawn on the map —
   // whichever way Ember flew (UX review rounds 1 and 2). Pidge just asks: the card has it all, and the heading's described
@@ -407,7 +417,8 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   else if (step === 'done') line = said ? `${said} ${cheerLine}` : cheerLine;
   else if (said) line = said;
   else if (step === 'far') line = farAsk;
-  else if (step === 'time' && job.map === 'globe') line = `Delivered. ${timeAsk(job)}`;
+  // The card has it all, the heading's described by it (UX review round 1: a reader heard it twice).
+  else if (step === 'time' && job.map === 'globe') line = `Delivered. What time is it in ${CITY_BY_ID[job.to].name}?`;
   else line = openingWords(job);
   // A zero-width space, every other time: the same words said again are read again.
   if (beat % 2) line += '\u200b';
@@ -420,11 +431,12 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
   // delivery said it) — the world's only once a wrong delivery's named it (UX review round 2).
   const target = targetWords(job, at, misses);
   // By the map till the first move: how to find the place (UX review round 1: on a phone, it was below the fold).
-  const fallback = route.length || misses ? where : howToFind(job);
+  const fallback = route.length || misses ? (job.map === 'globe' ? `Ember is over ${globeRegionAt(at).name}.` : where) : howToFind(job);
 
-  // The post office scene over the board — not for the world's map, wide and short, nor on a tablet held upright (UX review
-  // round 2: at 1024 × 768 it left the world 310 px wide; as Index's Timeline leaves it out there).
-  const scene = job.map !== 'world';
+  // The post office scene over the board — not for the world's maps, wide and short, nor on a tablet held upright (UX review
+  // round 2: at 1024 × 768 it left the world 310 px wide; as Index's Timeline leaves it out there; Expert's review round 1:
+  // its globe 297 px).
+  const scene = job.map === 'bay' || job.map === 'town';
   return (
     <div ref={page} className="flex min-h-0 flex-1 flex-col overflow-y-auto wide:overflow-hidden">
       <div
@@ -474,7 +486,7 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                 if (!d) return;
                 e.preventDefault();
                 // Held down, one square: its repeats fly nowhere (code review round 1: five squares, round the world).
-                if (!e.repeat) fly(d);
+                if (!e.repeat) fly(d, true);
               }}
             />
             {saidUnder && step === 'fly' && layout && <SaidLine said={said} goRef={setGo} fallback={fallback} className="mt-2" width={layout.size} />}
@@ -518,11 +530,13 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
                   What time is it?
                 </h2>
                 <p id="am-far" className="text-[15px] leading-snug text-[#e4e1ff] [@media(max-height:500px)]:text-[14px]">
-                  {timeAsk(job)} Each 15° of longitude is an hour: ahead to the east, behind to the west.
+                  {/* Why 15° is an hour (UX review round 1: the rule was said, never why). */}
+                  {timeAsk(job)} The Earth turns 360° in 24 hours, so each 15° of longitude is an hour: ahead to the east, behind to the west.
                 </p>
-                <div ref={setGo} role="group" aria-label={`What time is it in ${CITY_BY_ID[job.to].name}?`} className="grid grid-cols-3 gap-2">
+                {/* Four in a row (review round 1: in two, the last was under a short screen's foot at 568 × 320). */}
+                <div ref={setGo} role="group" aria-label={`What time is it in ${CITY_BY_ID[job.to].name}?`} className="grid grid-cols-4 gap-1.5">
                   {timeChoices(job).map((h) => (
-                    <button key={h} type="button" onClick={(e) => pickTime(h, e)} onKeyDown={noRepeat} className={cn(outlineClass, 'min-h-12 whitespace-nowrap border-2 px-1 text-[17px] leading-tight')}>
+                    <button key={h} type="button" onClick={(e) => pickTime(h, e)} onKeyDown={noRepeat} className={cn(outlineClass, 'min-h-12 whitespace-nowrap border-2 px-0.5 text-[16px] leading-tight [@media(max-height:500px)]:min-h-11')}>
                       {clockWords(h)}
                     </button>
                   ))}
@@ -600,13 +614,23 @@ export default function EmberAirMail({ def, band, round, onPage, onFinish }: Pla
           aria-label={`The job and the ${def.collection}`}
           className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:overflow-y-auto wide:border-l-4 wide:p-4"
         >
-          <HostBubble npcId={def.host} line={line} phoneStrip />
+          <HostBubble
+            npcId={def.host}
+            line={
+              <>
+                {keepRanges(line)}
+                {saidSr && said && !read && step === 'fly' && <span className="sr-only"> {saidSr}</span>}
+              </>
+            }
+            phoneStrip
+          />
           <div className="[@media(max-height:500px)]:hidden">
             <Ticket heading={stamp.name.toUpperCase()} ready={step === 'done'} icon={<StampCard id={job.stamp} size={44} />} id="am-job">
               {jobWords(job)}
             </Ticket>
           </div>
-          {job.map !== 'world' && <MapKey map={job.map === 'bay' ? BAY : TOWN} />}
+          {/* The bay's and the town's: their places' pictures (Expert's review round 1: on the globe, a town's key). */}
+          {(job.map === 'bay' || job.map === 'town') && <MapKey map={job.map === 'bay' ? BAY : TOWN} />}
           <Album known={known} read={read} fresh={step === 'done' && newPage ? job.stamp : null} onRead={(id) => settled() && setRead(id)} />
         </aside>
       </div>
@@ -637,7 +661,7 @@ function SaidLine({ said, goRef, fallback, className, width }: { said: string | 
         className,
       )}
     >
-      {said ?? fallback ?? ''}
+      {keepRanges(said ?? fallback ?? '')}
     </p>
   );
 }
@@ -726,7 +750,7 @@ function PlaceIcon({ id }: { id: PlaceId }) {
 }
 
 /** The compass: a button a direction (four or eight round Ember's square), each flying her one square that way. */
-function Compass({ dirs, at, job, onFly }: { dirs: readonly Dir[]; at: Cell; job: Job; onFly: (d: Dir) => void }) {
+function Compass({ dirs, at, job, onFly }: { dirs: readonly Dir[]; at: Cell; job: Job; onFly: (d: Dir, key: boolean) => void }) {
   const ARROW: Record<Dir, string> = { N: '↑', NE: '↗', E: '→', SE: '↘', S: '↓', SW: '↙', W: '←', NW: '↖' };
   const SPOT: Record<Dir, string> = { NW: 'col-start-1 row-start-1', N: 'col-start-2 row-start-1', NE: 'col-start-3 row-start-1', W: 'col-start-1 row-start-2', E: 'col-start-3 row-start-2', SW: 'col-start-1 row-start-3', S: 'col-start-2 row-start-3', SE: 'col-start-3 row-start-3' };
   return (
@@ -736,7 +760,7 @@ function Compass({ dirs, at, job, onFly }: { dirs: readonly Dir[]; at: Cell; job
         <button
           key={d}
           type="button"
-          onClick={() => onFly(d)}
+          onClick={(e) => onFly(d, e.detail === 0)}
           onKeyDown={noRepeat}
           aria-label={`Fly ${DIR_WORDS[d]}`}
           className={cn(outlineClass, 'flex flex-col items-center justify-center border-2 p-0 leading-none', d === 'N' && 'border-amber-300', SPOT[d])}
@@ -780,7 +804,7 @@ const GLOBE_LABEL: Record<RegionId, [number, number]> = {
   asia: [19, 1.5],
   australia: [21, 7.6],
   antarctica: [6, 11.5],
-  pacific: [2, 6],
+  pacific: [2, 7.3],
   atlantic: [9.5, 4],
   indian: [16.5, 8.4],
   arctic: [17, 0.5],
@@ -862,21 +886,12 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
     else runs.push([c]);
   }
   const label = job.map === 'bay' ? 'The map of the bay' : town ? 'The map of the town, squares A1 to F6' : globe ? 'The map of the world, on a grid of latitude and longitude every 15°' : 'The map of the world';
-  // Expert's lines labelled: every 30° of latitude; of longitude every 30° where two squares hold "150°W" beside an end's
-  // "180°" (24 px squares), else 60°, or 90° on the smallest map (the bench: at 844 × 390, 20 px squares, they touched).
-  const latLines = globe ? [2, 4, 6, 8, 10] : [];
-  const longStep = cell !== null && cell >= 24 ? 2 : cell === null || cell >= 14 ? 4 : 6;
-  // The smallest map's names left off: the coordinates are the job, and at 11 px they piled up (the bench: 568 × 320).
-  const named = !globe || cell === null || cell >= 14;
-  const longLines = globe ? Array.from({ length: w / longStep + 1 }, (_, n) => n * longStep) : [];
-  const latText = (row: number) => {
-    const v = 90 - DEG * row;
-    return v ? `${Math.abs(v)}°${v > 0 ? 'N' : 'S'}` : '0°';
-  };
-  const longText = (col: number) => {
-    const v = -180 + DEG * col;
-    return v && Math.abs(v) !== 180 ? `${Math.abs(v)}°${v > 0 ? 'E' : 'W'}` : v ? '180°' : '0°';
-  };
+  // Expert's lines labelled: every 30° of latitude; of longitude by the squares' size (`globeLabels`: every 30° where a
+  // number fits, bare under 24 px), its continents' names where they fit.
+  const latLines = globe ? GLOBE_LAT_ROWS : [];
+  const labels = globeLabels(cell);
+  const named = !globe || labels.named;
+  const longLines = globe ? Array.from({ length: w / labels.longStep + 1 }, (_, n) => n * labels.longStep).filter((col) => labels.ends || (col > 0 && col < w)) : [];
   return (
     <div className="flex flex-col items-center gap-1">
       {/* The town's numbers up its side, 1 at the bottom; its letters along the bottom. */}
@@ -886,7 +901,7 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
           <div aria-hidden="true" className="absolute inset-y-1 left-0" style={{ width: LAT_GUTTER }}>
             {latLines.map((row) => (
               <span key={row} className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[11px] font-black leading-none text-amber-200" style={{ top: `${(row / h) * 100}%` }}>
-                {latText(row)}
+                {latLabel(row)}
               </span>
             ))}
           </div>
@@ -1030,7 +1045,7 @@ const MapView = forwardRef<HTMLDivElement, MapViewProps>(function MapView({ job,
               className={cn('absolute top-0.5 whitespace-nowrap text-[11px] font-black leading-none text-amber-200', col === 0 ? '' : col === w ? '-translate-x-full' : '-translate-x-1/2')}
               style={{ left: `${(col / w) * 100}%` }}
             >
-              {longText(col)}
+              {longLabel(col, labels.bare)}
             </span>
           ))}
         </div>
