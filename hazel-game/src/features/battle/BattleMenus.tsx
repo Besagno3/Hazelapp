@@ -15,6 +15,9 @@ const OPTION =
   'bg-white/10 hover:bg-white/20 disabled:opacity-60 disabled:hover:bg-white/10 rounded-xl px-3 py-2 text-left transition';
 const HEADER = 'text-xs text-white/60 uppercase tracking-widest';
 
+/** Whose move it is in a co-op battle (#191): the pill the questions wear — sky for the kid playing, amber for Player 2. */
+const MOVER_PILL = 'inline-block rounded-full px-3 py-0.5 text-sm font-extrabold normal-case tracking-normal [@media(max-height:600px)]:py-0 [@media(max-height:600px)]:text-xs';
+
 function BackButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -133,11 +136,11 @@ export function CommandMenu({
               <span className="hidden sm:inline">💢 {powerMove} is coming — Guard to block it!</span>
             </>
           ) : mover ? (
-            <>
+            // The phone changes hands here: the same name pill as the questions' (#191).
+            <span data-testid="coop-mover" className={`${MOVER_PILL} bg-sky-100 text-sky-900`}>
               <span aria-hidden>{mover.icon} </span>
-              <span className="sm:hidden">{mover.name}'s move!</span>
-              <span className="hidden sm:inline">{mover.name}'s move — every command is a question!</span>
-            </>
+              {mover.name}'s move!
+            </span>
           ) : (
             <>
               <span className="sm:hidden">Your move!</span>
@@ -338,7 +341,7 @@ export function PartnerMenu({
   ...moves
 }: CompanionMovesProps & {
   player: { name: string; icon: string };
-  /** The hero's name, cheered on. */
+  /** The kid playing's name, cheered on — a sibling may not know the hero's (#191). */
   hero: string;
   /** The companion can fight. */
   ready: boolean;
@@ -347,9 +350,11 @@ export function PartnerMenu({
 }) {
   return (
     <div className={SUBMENU} data-testid="partner-menu">
-      <p className={`${HEADER} mb-1`}>
-        <span aria-hidden>{player.icon} </span>
-        {player.name}'s turn — {ready ? `${moves.companion.emoji} ${moves.companion.name}!` : `cheer ${hero} on!`}
+      <p className="mb-1.5">
+        <span data-testid="coop-mover" className={`${MOVER_PILL} bg-amber-100 text-amber-900`}>
+          <span aria-hidden>{player.icon} </span>
+          {player.name}'s turn — {ready ? `${moves.companion.emoji} ${moves.companion.name}!` : `cheer ${hero} on!`}
+        </span>
       </p>
       <ChargeRow charge={moves.charge} />
       {ready ? (
