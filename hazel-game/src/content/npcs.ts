@@ -1178,6 +1178,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'La la LAAA! In Chromaria every colour has a note. Red is a trumpet. Blue is a cello. Gray is… a sigh.',
+      'Come and play my chimes! I ring the start of an old tune, you ring it back — every one you echo goes in my Songbook.',
       {
         text: 'Our Song of Colors plays in every street now. Can you hear yourself in it? You are the high, brave part!',
         ifFlag: 'quest:song-of-colors:done',

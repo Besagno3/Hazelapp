@@ -5,6 +5,7 @@ import { PotionLabLogo, StepGuess, StepPour, StepStir } from './potionLab/art';
 import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import { GearsLogo, StepCrank, StepJoin, StepPeg } from './gears/art';
 import { MuralLogo, StepMirror, StepMix, StepPaint } from './mural/art';
+import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
 import type { PlayProps } from './types';
 
 /**
@@ -38,5 +39,10 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./mural/MirrorMural')),
     Logo: MuralLogo,
     steps: [StepMix, StepPaint, StepMirror],
+  },
+  'echos-call': {
+    Play: retryableLazy(() => import('./echo/EchosCall')),
+    Logo: EchoLogo,
+    steps: [StepListen, StepShape, StepPlay],
   },
 };

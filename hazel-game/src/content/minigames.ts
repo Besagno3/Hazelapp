@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -45,8 +45,8 @@ export interface MiniGameDef {
   pages: number;
   /** A line under the band chooser (the Potion Lab: more jars on the harder bands). */
   bandNote?: string;
-  /** Its music, while the stage is up (`App` steps aside, as for the Spire). */
-  music: MusicTrack;
+  /** Its music, while the stage is up (`App` steps aside, as for the Spire); null: quiet, so a game's own notes are heard. */
+  music: MusicTrack | null;
   /** The picture behind the title card and the reward (a zone's battle backdrop). */
   backdrop: string;
   /** Given once, the first time a round is finished. */
@@ -145,6 +145,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'town',
     backdrop: '/backgrounds/chromaria.png',
     firstItem: 'mirror',
+  },
+  'echos-call': {
+    id: 'echos-call',
+    name: 'Echo’s Call',
+    emoji: '🎵',
+    topic: 'music',
+    host: 'chromaria-musician',
+    place: 'The Music House · Chromaria',
+    where: 'Bard Lyra, Chromaria',
+    playLabel: 'Let’s play!',
+    againLabel: 'More tunes',
+    hello: 'La la LAAA! My chimes ring in colours. I play the start of a tune — you play it back!',
+    steps: [
+      { title: 'Listen', text: 'Lyra plays the start of an old tune. Each chime lights up as it rings — sound on or off.' },
+      { title: 'Up or down?', text: 'Did it end higher, lower or the same? A higher note rings from a shorter chime.' },
+      { title: 'Play it back', text: 'Tap the chimes in the same order. Every tune goes in Lyra’s Songbook!' },
+    ],
+    collection: 'Songbook',
+    pages: 8,
+    bandNote: 'Gentle: three chimes and five of the eight tunes. Medium: all five chimes and all eight. Tricky: read the notes on a staff, and spot a wrong one.',
+    music: null,
+    backdrop: '/backgrounds/chromaria.png',
+    firstItem: 'ward',
   },
 };
 

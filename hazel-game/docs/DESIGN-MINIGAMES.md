@@ -253,12 +253,25 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
 
 - **Loop:** Lyra plays a short tune on five coloured chimes → the kid plays it
   back. Listen again any time. A tune grows a note each round.
-- **Gentle:** three chimes, high or low, 2–3 notes.
+- **Gentle:** three chimes, high or low, 2–4 notes.
 - **Medium:** five chimes (a five-note scale), 4–6 notes; "did it go up or
   down?".
 - **Tricky:** read the tune from notes on a staff, or find the wrong note.
 - **Collection:** Lyra's songbook — the openings of eight old public-domain
   tunes.
+- **Built (PR 5):** the tunes are Hot Cross Buns, Mary Had a Little Lamb,
+  Frère Jacques, Au Clair de la Lune, Go Tell Aunt Rhody, Ode to Joy, Old
+  MacDonald and Lightly Row (Old MacDonald for Jingle Bells, whose first
+  seven notes are all E), each on C–G; Gentle's three chimes are C D E, which
+  play the first five (its band note says "five of the eight", and Lyra says
+  when a kid knows them all). A round is three tunes, each a note longer; a tune
+  listened to or read asks its shape (higher, lower, the same) before it's
+  played back. Tricky reads one from the staff and, in another, spots Lyra's
+  wrong note on the staff (listen → spot → play it right: no shape question).
+  The chimes light as they ring, so it's all there with the sound off (the
+  default); Lyra asks for it, and a "Sounds" switch turns sound effects on. Lyra also gives a
+  quest, so 🎵 shows quietly over its offer; the first round gives a Rainbow
+  Ward.
 
 ### 5.6 ✨ Vela's Star Charts — Space · Vela, Vela's Observatory, Starfall Coast
 
