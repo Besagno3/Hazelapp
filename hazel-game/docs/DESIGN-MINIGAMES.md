@@ -473,16 +473,27 @@ Old Ringwood is the tree who loses count of his rings.
   the dry line at 500 mm. The kid slides the beam till its thin rings sit
   under the dry years and its wide ones under the wet; a wrong place says
   what's wrong and one thing to try. Then the year its last ring grew, by
-  the bark, from four: its first ring's year, and a year either side. The
-  record has a tick a year and a label every fifth; the beam's years are
-  said only once it's dated. The lesson is the rain in its thin rings'
+  the bark, from four: its first ring's year, and two of the years round
+  the last's — both before, one either side, or both after, in turn, so
+  where the answer sits says nothing. The record has a label every fifth
+  year, then a tick a year right over the beam, so each ring's nearest mark
+  is its own tick; while it's dated a gold guide runs from the last ring up
+  to its tick, and a near miss says to count the ticks from the labelled
+  year. The beam's years are said only once it's dated. The lesson is the rain in its thin rings'
   years and the year its tree was cut. Ringwood speaks plainly. Every beam
   lined up at the first check and dated at the first pick is the Expert
   seal. Sapwood, missing outer rings and a living tree's statistics would
   need more than the grove's record — not built (§8.5). On a split screen
   a beam's card (Tricky's too) gives the strips the room: its words are in
   Ringwood's bubble beside it; on a short phone they're the box's, and the
-  strips are shorter, so Check starts in view.
+  strips are shorter, so Check starts in view. Review round 1: the done
+  card grew over the record on a short split screen, the record's year
+  labels painted over the lesson — the strips keep their room and the card
+  scrolls, over them; what Ringwood said sits under the slide buttons, so a
+  long verdict moves nothing under a finger, a short line on a split
+  screen; the tip says to tap along the record (or the core); the beam has
+  its bark; the dry line a pale halo, its key in its own colour; a reader
+  hears each ring with the rain over it; beams, not trees, on Expert.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 

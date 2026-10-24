@@ -481,16 +481,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   `DRY_MM`, a fair or wet one well over — from the same `weather`, so the
   fit is `matchesAt`'s); `lineUpWords` says what's wrong at a wrong place,
   then the kid dates the last ring from four (`dateChoices`: the first
-  ring's year and a year either side of the last's; `datedWords`). The
-  record (`RainRecord`) draws its years a tick each, a label every fifth,
-  and says the beam's years only once it's dated; a reader hears the rain
-  over the beam, its rings' widths and where it is on the record. Ringwood
+  ring's year and two round the last's, before, either side or after in
+  turn by the beam, inside the record; `datedWords`, a near miss saying to
+  count the ticks from the labelled fifth year). The record (`RainRecord`)
+  draws its bars (the dry line haloed), a label every fifth year, then a
+  tick a year over the beam (`data-track`, tapped along to slide it), the
+  beam with its bark (`data-bark`), and while it's dated a guide from the
+  last ring to its tick (`data-guide`); it says the beam's years only once
+  it's dated; a reader hears each ring with the rain over it and which of
+  the record's years it starts under (`ordinal`, 21st as such). Ringwood
   speaks plainly; lined up at the first check and dated at the first pick
   is `spotOn`; the reward keeps the first missed beam's lesson. On a split
-  screen a beam's card is compact (his words are in his bubble beside it;
-  up to 700 px high, the slide buttons and the gold one in a row), so the
-  strips aren't under it; on a phone up to 640 px high its words are the
-  box's and the strips shorter, so the gold button starts in view. A step's buttons wait for a tap's second, not a
+  screen a beam's card is compact (up to 700 px high, the slide buttons and
+  the gold one in a row), the strips keep at least 150 px and the card
+  scrolls, over them (`relative z-[1]`: the record's year labels are
+  positioned); what he said is under a beam's buttons — a short line on a
+  split screen — so it moves nothing under a finger; on a phone up to
+  640 px high the strips are shorter, so the gold button starts in view. A step's buttons wait for a tap's second, not a
   key's (`ready(e)`); the wood's rings wait for both, as focus is moved
   onto one as its step starts.
   **📜 Index's Timeline** (`archive-index`,

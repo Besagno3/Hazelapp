@@ -298,25 +298,43 @@ describe('🌳 Ringwood’s Rings, a round (docs/DESIGN-MINIGAMES.md §5.7)', ()
     // The record: a bar a year, the dry line; the years every fifth; the beam's years not given till it's dated.
     const record = screen.getByRole('group', { name: /^The grove’s rainfall record/ });
     expect(record.querySelectorAll('rect[data-year]')).toHaveLength(30);
+    // Each bar as tall as its year's rain (a full bar is 1,000 mm), each ring's as its width (3 mm full) — code review round 1:
+    // untested.
+    for (const bar of Array.from(record.querySelectorAll('rect[data-year]'))) expect(Number(bar.getAttribute('height'))).toBeCloseTo((rainfall(Number(bar.getAttribute('data-year'))) / 1000) * 60, 5);
     expect(within(record).getByText('dry: under 500')).toBeInTheDocument();
     expect(['1995', '2000', '2005', '2010', '2015', '2020'].every((y) => within(record).queryByText(y))).toBe(true);
     expect(within(record).getByText('The beam’s rings, mm')).toBeInTheDocument();
-    // A reader hears the rings' widths and the rain over them, and where the beam is on the record.
+    // A reader hears each ring with the rain over it, and which of the record's years it starts under (UX review round 1: two
+    // lists to hold in mind; "its year").
     expect(screen.getByRole('button', { name: 'Slide ▶' })).toHaveAccessibleDescription(
-      `The beam’s rings, mm: ${first.beam.map(ringMm).join(', ')}. The rain above them, mm: ${first.rings.slice(0, 10).map(rainfall).join(', ')}. The record runs from 1995 to 2024; the beam’s first ring is under its year 1.`,
+      `Each of the beam’s rings, and the rain over it: ${first.beam.map((y, k) => `${ringMm(y)} mm under ${rainfall(first.rings[k])}`).join('; ')}. The record runs from 1995 to 2024; the beam’s first ring is under the record’s first year.`,
     );
+    // Beams, not trees, on Expert; the bark drawn at the last ring; no guide till it's dated (UX review round 1).
+    expect(screen.getByText(/^Beam 1 of 3$/)).toBeInTheDocument();
+    expect(record.querySelector('[data-bark]')).not.toBeNull();
+    expect(record.querySelector('[data-guide]')).toBeNull();
+    // How to slide, said where the card's words are a reader's (UX review round 1: the tap along the record was hidden).
+    expect(screen.getByText(/^Tap along the record \(or ◀ ▶\)/)).toBeInTheDocument();
     // Checked in the wrong place: what's wrong and one thing to try — and the seal's gone for this beam.
     fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
     expect(said()).toBe(lineUpWords(first, 0));
     for (let k = 0; k < fitOffset(first); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+    // From the button, as a browser has it (code review round 1: the heading kept focus from the step before, so this passed
+    // without the focus moving).
+    screen.getByRole('button', { name: 'Do they line up?' }).focus();
     fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
     expect(screen.getByRole('heading', { name: 'Date it' })).toHaveFocus();
+    // Its years not given till it's dated (code review round 1: untested) — the guide from its last ring up to its tick.
+    expect(screen.queryByText(/The beam’s rings, mm: \d/)).toBeNull();
+    expect(record.querySelector('[data-guide]')).not.toBeNull();
     expect(said()).toBe(`They line up: every thin ring sits under a dry year, every wide one under a wet year. ${dateAsk}`);
     expect(screen.getByRole('listitem', { current: 'step' })).toHaveTextContent('Date it');
+    // The years' group says what's asked (code review round 1: untested).
+    expect(screen.getByRole('group', { name: 'Date it' })).toHaveAccessibleDescription(dateAsk);
     const years = within(screen.getByRole('group', { name: 'Date it' }));
-    expect(years.getAllByRole('button').map((b) => b.textContent)).toEqual(['1996', '2004', '2005', '2006']);
-    fireEvent.click(years.getByRole('button', { name: '2004' }));
-    expect(said()).toBe(datedWords(first, 2004));
+    expect(years.getAllByRole('button').map((b) => b.textContent)).toEqual(['1996', '2005', '2006', '2007']);
+    fireEvent.click(years.getByRole('button', { name: '2006' }));
+    expect(said()).toBe(datedWords(first, 2006));
     fireEvent.click(years.getByRole('button', { name: String(end) }));
     expect(screen.getByRole('heading', { name: `Cut in ${end}` })).toHaveAccessibleDescription(`${learnedLine(first)} Silver Birch is in the grove book.`);
     expect(screen.getByText(`The beam’s rings, mm: 1996–${end}`)).toBeInTheDocument();
@@ -375,5 +393,49 @@ describe('🌳 Ringwood’s Rings, a round (docs/DESIGN-MINIGAMES.md §5.7)', ()
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Three trees read!' })).toBeInTheDocument());
     expect(save().flags[starFlag('ringwoods-rings', 1)]).toBe(true);
     expect(save().items.clover).toBe(defaultSave().items.clover + 1);
+  });
+});
+
+describe('🌳 Expert, more (code review round 1)', () => {
+  it('a beam wrong only in the line-up, one wrong only in the year, one right: spot on 1 of 3, the first missed beam’s lesson', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const jobs = [0, 1, 2].map((i) => jobFor('expert', 0, i, queue));
+    jobs.forEach((job, i) => {
+      if (job.kind !== 'rain') throw new Error('a rain job');
+      const end = job.beam[job.beam.length - 1];
+      if (i === 0) fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+      for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+      const years = within(screen.getByRole('group', { name: 'Date it' }));
+      if (i === 1) fireEvent.click(years.getByRole('button', { name: String(job.beam[0]) }));
+      fireEvent.click(years.getByRole('button', { name: String(end) }));
+      expect(bubble()).toMatch(i < 2 ? /Dated, with a miss on the way\./ : /That’s all three\.$/);
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next beam' : 'All done' }));
+    });
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three beams dated!', learned: learnedLine(jobs[0]), spotOn: { right: 1, of: 3 } });
+  });
+
+  it('a tap along the record brings the beam’s middle under it — at the ends, it stops there', () => {
+    setUp(6, {}, 14);
+    play('expert');
+    const job = jobFor('expert', 0, 0);
+    if (job.kind !== 'rain') throw new Error('a rain job');
+    const track = document.querySelector('[data-track]')!;
+    const n = job.rings.length;
+    box(track, n * 10, 160);
+    const under = () => document.getElementById('rr-under')!.textContent ?? '';
+    // A year's column tapped: the beam's middle ring under it.
+    const k = fitOffset(job) + Math.floor(job.beam.length / 2);
+    tapAt(track, k * 10 + 5, 40);
+    expect(under()).toMatch(new RegExp(`the beam’s first ring is under the record’s ${['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh'][fitOffset(job)]} year\\.$`));
+    fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }));
+    expect(screen.getByRole('heading', { name: 'Date it' })).toBeInTheDocument();
+  });
+
+  it('the record’s years past the fourteenth said rightly: 21st, 22nd, 23rd', async () => {
+    const { ordinal } = await import('../../../lib/minigames/rings');
+    expect([0, 13, 14, 20, 21, 22, 23, 110].map(ordinal)).toEqual(['first', 'fourteenth', '15th', '21st', '22nd', '23rd', '24th', '111th']);
   });
 });
