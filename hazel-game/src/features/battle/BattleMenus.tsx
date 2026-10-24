@@ -81,6 +81,7 @@ function CommandButton({
  * not an escape that asks nothing (#158b review).
  */
 export function CommandMenu({
+  mover,
   charge,
   spellsLoaded,
   canCastAny,
@@ -99,6 +100,8 @@ export function CommandMenu({
   onSwap,
   onFlee,
 }: {
+  /** Whose move it is, in a co-op battle (#187): the kid playing, by name. */
+  mover?: { name: string; icon: string };
   charge: number;
   spellsLoaded: boolean;
   canCastAny: boolean;
@@ -128,6 +131,12 @@ export function CommandMenu({
               {/* The move's name is in the status box and on Guard: a phone says just what to do. */}
               <span className="sm:hidden">💢 Guard to block it!</span>
               <span className="hidden sm:inline">💢 {powerMove} is coming — Guard to block it!</span>
+            </>
+          ) : mover ? (
+            <>
+              <span aria-hidden>{mover.icon} </span>
+              <span className="sm:hidden">{mover.name}'s move!</span>
+              <span className="hidden sm:inline">{mover.name}'s move — every command is a question!</span>
             </>
           ) : (
             <>
@@ -286,19 +295,7 @@ export function ItemMenu({
   );
 }
 
-/** The active companion's strike (with its perk) and its Pair Attacks. */
-export function CompanionMenu({
-  companion,
-  move,
-  perkLabel,
-  pairs,
-  growHint,
-  charge,
-  spellsLoaded,
-  onStrike,
-  onPair,
-  onBack,
-}: {
+interface CompanionMovesProps {
   companion: CompanionDef;
   move: { name: string; emoji: string };
   perkLabel: string;
@@ -309,14 +306,85 @@ export function CompanionMenu({
   spellsLoaded: boolean;
   onStrike: () => void;
   onPair: (pair: PairAttack) => void;
-  onBack: () => void;
-}) {
+}
+
+/** The active companion's strike (with its perk) and its Pair Attacks. */
+export function CompanionMenu({ onBack, ...moves }: CompanionMovesProps & { onBack: () => void }) {
   return (
     <div className={SUBMENU}>
       <p className={`${HEADER} mb-1`}>
-        {companion.emoji} {companion.name} — fight side by side!
+        {moves.companion.emoji} {moves.companion.name} — fight side by side!
       </p>
-      <ChargeRow charge={charge} />
+      <ChargeRow charge={moves.charge} />
+      <CompanionMoves {...moves} pairLine="Pair Attacks — one super-hard answer, double the power" />
+      <BackButton onClick={onBack} />
+    </div>
+  );
+}
+
+/**
+ * Player 2's turn in a co-op battle (#187): the companion's strike or a Pair
+ * Attack, each a question at Player 2's own level (a Pair Attack asks the kid
+ * playing one too) — or, while the companion can't fight yet (Ember still an
+ * egg), a cheer for the hero: +`cheerCharge` ◆ when right. No ← Back: every
+ * turn is a question, and Player 2 always has one.
+ */
+export function PartnerMenu({
+  player,
+  hero,
+  ready,
+  cheerCharge,
+  onCheer,
+  ...moves
+}: CompanionMovesProps & {
+  player: { name: string; icon: string };
+  /** The hero's name, cheered on. */
+  hero: string;
+  /** The companion can fight. */
+  ready: boolean;
+  cheerCharge: number;
+  onCheer: () => void;
+}) {
+  return (
+    <div className={SUBMENU} data-testid="partner-menu">
+      <p className={`${HEADER} mb-1`}>
+        <span aria-hidden>{player.icon} </span>
+        {player.name}'s turn — {ready ? `${moves.companion.emoji} ${moves.companion.name}!` : `cheer ${hero} on!`}
+      </p>
+      <ChargeRow charge={moves.charge} />
+      {ready ? (
+        <CompanionMoves {...moves} pairLine={`Pair Attacks — a super-hard answer each, ${player.name} first`} />
+      ) : (
+        <button onClick={onCheer} className={`${OPTION} w-full`}>
+          <span className="font-bold text-sm">
+            <span className="mr-1.5">📣</span>
+            Cheer {hero} on
+            <span className="ml-1.5 text-xs text-amber-300">+{cheerCharge}◆</span>
+          </span>
+          <span className="block text-xs text-white/70 mt-0.5">
+            {moves.companion.name} can't fight yet — a right answer adds spell charge!
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** A companion's strike and its Pair Attacks — the companion's menu, and Player 2's turn (#187). */
+function CompanionMoves({
+  companion,
+  move,
+  perkLabel,
+  pairs,
+  growHint,
+  charge,
+  spellsLoaded,
+  onStrike,
+  onPair,
+  pairLine,
+}: CompanionMovesProps & { pairLine: string }) {
+  return (
+    <>
       <button onClick={onStrike} className={`${OPTION} w-full mb-2`}>
         <span className="font-bold text-sm">
           <span className="mr-1.5">{move.emoji}</span>
@@ -327,9 +395,7 @@ export function CompanionMenu({
           {companion.name} attacks! {companion.perkLine}
         </span>
       </button>
-      <p className="text-xs text-white/70 mb-1.5 uppercase tracking-widest">
-        Pair Attacks — one super-hard answer, double the power
-      </p>
+      <p className="text-xs text-white/70 mb-1.5 uppercase tracking-widest">{pairLine}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {pairs.map((pair) => {
           const affordable = charge >= pair.cost && spellsLoaded;
@@ -354,8 +420,7 @@ export function CompanionMenu({
       {growHint && (
         <p className="text-xs text-white/60 mt-2 italic">Restore crystals to help Ember grow — bigger Ember, bigger combos!</p>
       )}
-      <BackButton onClick={onBack} />
-    </div>
+    </>
   );
 }
 
