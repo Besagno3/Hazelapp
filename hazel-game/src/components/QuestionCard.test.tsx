@@ -14,11 +14,18 @@ describe('QuestionCard — on screen = seen (#134)', () => {
   it('marks its question seen once it shows, and the next one when it changes', () => {
     markSeen.mockClear();
     const { rerender } = render(<QuestionCard question={q} onAnswered={() => {}} onContinue={() => {}} />);
-    expect(markSeen).toHaveBeenCalledWith('q');
+    // For the kid playing (no one named).
+    expect(markSeen).toHaveBeenCalledWith('q', undefined);
     fireEvent.click(screen.getByRole('button', { name: '4' }));
     expect(markSeen).toHaveBeenCalledTimes(1);
     rerender(<QuestionCard question={{ ...q, id: 'q2' }} onAnswered={() => {}} onContinue={() => {}} />);
-    expect(markSeen).toHaveBeenLastCalledWith('q2');
+    expect(markSeen).toHaveBeenLastCalledWith('q2', undefined);
+  });
+
+  it("a co-op battle's Player 2 question is seen by them (#187)", () => {
+    markSeen.mockClear();
+    render(<QuestionCard question={q} seenBy="kid-2" onAnswered={() => {}} onContinue={() => {}} />);
+    expect(markSeen).toHaveBeenCalledWith('q', 'kid-2');
   });
 });
 
