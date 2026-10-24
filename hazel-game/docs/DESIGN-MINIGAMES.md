@@ -265,6 +265,33 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   Tricky's crank starts with no gear picked, and its ticket says the
   machine's teeth. Tock also gives a quest, so ⚙️ shows quietly over its
   offer; the first round gives a Spark Cell.
+- **Expert (§8, PR 13):** gear ratios in numbers. A job is said in turns a
+  minute — "Make the Great Hands turn clockwise ↻, 45 times a minute. The
+  crank turns 15 times a minute; the machine's gear has 8 teeth." — or in
+  turning force — "…with four times the crank's turning force. The
+  machine's gear has 32 teeth." — never as "twice as fast"; the kid works
+  out the ratio and picks the crank's gear from four (8, 16, 24, 32 teeth:
+  each job is made by exactly one), and joins it up the right way round.
+  Tock says a miss in the job's numbers with the rule ("turned 30 times a
+  minute, not 45. Turns out = turns in × crank teeth ÷ machine teeth."; a
+  force job's is headed "Not enough force" or "Too much force"), and a right
+  run the gear ratio as a school book gives it, driven : driver, and the
+  trade ("A 24-tooth crank gear turning an 8-tooth machine gear: the gear
+  ratio, machine : crank, is 8 : 24 = 1 : 3, so 15 turns a minute became
+  45, with a third of the crank's turning force."). Every machine right at
+  its first turn of the crank is the Expert seal. After review round 1: the
+  job stays in sight in the step card on a short screen (it was scrolled
+  away as the four gears were picked); a peg tapped after a miss starts no
+  wait (the next was swallowed); every gear's teeth are the same size as
+  drawn (the 32's were deep and all ink); the reward keeps the first missed
+  machine's working; the title card's second step shows a big gear turning
+  a small one. After round 2: the right run's lesson bridges the ratio to
+  the turns ("…is 8 : 24 = 1 : 3: the machine turns 3 times for each turn
+  of the crank, so…"); the step-start scroll moves only as far as Turn the
+  crank and the job need (it had scrolled a phone on its side's board away,
+  and Gentle's how-to); the job line sticks on Expert only; Enter on the
+  crank's peg straight after Change the gears is a double Enter's second;
+  the title card's gears turn opposite ways.
 
 ### 5.4 🪞 Mirror Mural — Creativity · Madame Hue, the Grand Gallery, Chromaria
 
@@ -549,7 +576,7 @@ world, with the same host.
 |---|---|---|
 | 🧪 Potion Lab | The pH scale in numbers, counted in tens: an order asks for "a thousand times as acidic as pure water"; the kid guesses the jar's pH, 0–14, and Tadpole says where it sits and what neutralises it. | "Lemon juice is about pH 2: five steps below 7, so a hundred thousand times as acidic as pure water." |
 | 🥧 Dot's Bakery | Ratios, rates and percentage change, boxed in pie: a share in a ratio, enough for so many people, a percentage more or less than last week's — the amount is the kid's to work out. | "25% less pie than last week's 2 pies"; "the smaller share of 1 pie, split 3 : 5" |
-| ⚙️ Clocktower Gears | Gear ratios: the ratio of teeth, two pairs in a train, speed traded for turning force. | "A 40 driving a 10, then a 30 driving a 15: how fast?" |
+| ⚙️ Clocktower Gears | Gear ratios in numbers: a machine's turns a minute from the crank's, or the turning force it needs — the kid works out the ratio and picks the crank's gear (8 to 32 teeth); the gears between still set only the way round. (Two pairs in a train — a compound gear — would need a new kind of peg: not built.) | "The crank turns 15 times a minute: make it turn 45"; "four times the crank's turning force" |
 | 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = c, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a shape onto another. | "Reflect (2, 5) in y = x." |
 | 🎵 Echo's Call | Intervals and keys: name the interval (a second to an octave), major or minor, which note a scale needs, sharps and flats on the staff. | "C up to G is a…" |
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth; the pole star's altitude as your latitude; right ascension and declination on a chart. | "Polaris is 52° up: how far north are you?" |

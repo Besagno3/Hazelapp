@@ -16,7 +16,7 @@ const STEEL = '#cbd5e1';
  * middle of the teeth), centred on 0,0. Every gear's teeth are the same size,
  * so a bigger gear has more of them.
  */
-function gearPath(teeth: number, r: number, depth = 9): string {
+function gearPath(teeth: number, r: number, depth: number): string {
   const outer = r + depth / 2;
   const inner = r - depth / 2;
   const step = (Math.PI * 2) / teeth;
@@ -38,10 +38,30 @@ function gearPath(teeth: number, r: number, depth = 9): string {
 }
 
 /** A gear, centred on 0,0: brass with a dark hub, or `fill`. */
-export function GearShape({ teeth, r, fill = BRASS, stroke = INK, spokes = true }: { teeth: number; r: number; fill?: string; stroke?: string; spokes?: boolean }) {
+export function GearShape({
+  teeth,
+  r,
+  fill = BRASS,
+  stroke = INK,
+  spokes = true,
+  toothDepth,
+}: {
+  teeth: number;
+  r: number;
+  fill?: string;
+  stroke?: string;
+  spokes?: boolean;
+  /** A set of gears drawn together give theirs, so their teeth match (the title card's big and small). */
+  toothDepth?: number;
+}) {
+  // A tooth's depth and outline go by the space between teeth, the same on every gear of a set — not by its size
+  // (UX review round 1, PR 13: a 32-tooth gear's teeth came out twice as deep, and all ink).
+  const pitch = (2 * Math.PI * r) / teeth;
+  const depth = toothDepth ?? Math.min(pitch * 0.5, Math.max(7, r * 0.2));
+  const line = Math.min(pitch * 0.2, Math.max(3, r * 0.08));
   return (
     <g>
-      <path d={gearPath(teeth, r, Math.max(7, r * 0.2))} fill={fill} stroke={stroke} strokeWidth={Math.max(3, r * 0.08)} strokeLinejoin="round" />
+      <path d={gearPath(teeth, r, depth)} fill={fill} stroke={stroke} strokeWidth={line} strokeLinejoin="round" />
       <circle r={r * 0.72} fill="none" stroke={BRASS_DARK} strokeWidth={Math.max(2, r * 0.06)} />
       {spokes &&
         [0, 60, 120].map((deg) => (
@@ -104,6 +124,29 @@ export function StepJoin() {
           />
         </g>
       ))}
+    </svg>
+  );
+}
+
+/**
+ * Expert's step 2: a big gear turning a small one — the big clockwise, the
+ * small the other way round and faster (its arrow nearly a whole turn).
+ */
+export function StepRatio() {
+  return (
+    <svg width="60" height="52" viewBox="0 0 240 200" aria-hidden="true">
+      <g transform="translate(84 112)">
+        <GearShape teeth={15} r={60} spokes={false} toothDepth={10} />
+      </g>
+      <g transform="translate(166 112) rotate(12)">
+        <GearShape teeth={5} r={20} fill="#f2c45a" spokes={false} toothDepth={10} />
+      </g>
+      {/* The big gear's arc over its top, clockwise ↻; the small one's round its right, anticlockwise ↺ — clear of
+          where they meet. */}
+      <path d="M26 63 A 76 76 0 0 1 142 63" fill="none" stroke="#fcd34d" strokeWidth="9" strokeLinecap="round" />
+      <path d="M141 51 L145 67 L129 63" fill="none" stroke="#fcd34d" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M166 146 A 34 34 0 0 0 173 79" fill="none" stroke="#fcd34d" strokeWidth="9" strokeLinecap="round" />
+      <path d="M180 70 L169 79 L180 88" fill="none" stroke="#fcd34d" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

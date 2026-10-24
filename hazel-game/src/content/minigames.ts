@@ -152,6 +152,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Machine Book',
     pages: 9,
     bandNote: 'Medium: make it turn the right way. Tricky: the right speed too.',
+    expert: {
+      note: 'Expert: gear ratios in numbers — turns a minute, and speed traded for turning force.',
+      hello: 'My machines need exact speeds now, and some need force more than speed. Join the crank to the machine, work out the ratio and pick the crank’s gear, then turn it.',
+      steps: [
+        { title: 'Tap a peg', text: 'Gears on pegs join the crank to the machine. The ones between set only the way round.' },
+        { title: 'Pick the crank’s gear', text: 'Work out the ratio from the job: only the crank’s gear and the machine’s set the speed.' },
+        { title: 'Turn the crank', text: 'Every machine right at its first turn wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'town',
     backdrop: '/backgrounds/gearfall.png',
     firstItem: 'spark',

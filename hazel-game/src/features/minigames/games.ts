@@ -3,7 +3,7 @@ import type { MiniGameId } from '../../content/minigames';
 import { retryableLazy, type RetryableLazy } from '../../lib/lazyRetry';
 import { PotionLabLogo, StepGuess, StepPh, StepPour, StepStir } from './potionLab/art';
 import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
-import { GearsLogo, StepCrank, StepJoin, StepPeg } from './gears/art';
+import { GearsLogo, StepCrank, StepJoin, StepPeg, StepRatio } from './gears/art';
 import { MuralLogo, StepMirror, StepMix, StepPaint } from './mural/art';
 import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
 import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
@@ -42,6 +42,8 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./gears/ClocktowerGears')),
     Logo: GearsLogo,
     steps: [StepPeg, StepJoin, StepCrank],
+    // Expert's second step is picking the crank's gear from the ratio, not joining them (UX review round 1).
+    expertSteps: [StepPeg, StepRatio, StepCrank],
   },
   'mirror-mural': {
     Play: retryableLazy(() => import('./mural/MirrorMural')),

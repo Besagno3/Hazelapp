@@ -32,6 +32,8 @@ export function useFocusMoved() {
   const mark = useCallback((to: string) => {
     moved.current = { to, at: performance.now() };
   }, []);
-  const tooSoon = useCallback((to: string, e: MouseEvent) => keyed(e) && moved.current?.to === to && performance.now() - moved.current.at < SETTLE_MS, []);
-  return { mark, tooSoon };
+  /** Focus moved on to `to` within `SETTLE_MS` — for a key handler, which knows it's a key (Clocktower Gears' pegs). */
+  const fresh = useCallback((to: string) => moved.current?.to === to && performance.now() - moved.current.at < SETTLE_MS, []);
+  const tooSoon = useCallback((to: string, e: MouseEvent) => keyed(e) && fresh(to), [fresh]);
+  return { mark, fresh, tooSoon };
 }

@@ -5,8 +5,13 @@ import {
   JOBS_PER_ROUND,
   MACHINES,
   MACHINE_IDS,
+  biggestFor,
   board,
   boardBox,
+  forceAmount,
+  forceWords,
+  ratioWords,
+  turnsWords,
   roundQueue,
   check,
   ends,
@@ -22,12 +27,12 @@ import {
   verdictWords,
   type Board,
 } from './gears';
-import { BANDS, MINIGAMES } from '../../content/minigames';
+import { BANDS, MINIGAMES, PLAY_BANDS } from '../../content/minigames';
 
 const set = (...k: number[]) => new Set(k);
 
 /** Every job a band hands out, over enough rounds to see each board and ask. */
-const jobs = (band: (typeof BANDS)[number]) => Array.from({ length: 36 }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
+const jobs = (band: (typeof PLAY_BANDS)[number]) => Array.from({ length: 36 }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 
 /** Every way of filling a board's pegs. */
 function* fillings(b: Board) {
@@ -109,10 +114,9 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
   });
 
   it('the frame holds the crank’s knob all the way round, at every crank size (review rounds 1 and 2)', () => {
-    for (const band of BANDS) {
+    for (const band of PLAY_BANDS) {
       for (const job of jobs(band)) {
-        const biggest = band === 'tricky' ? 24 : 16;
-        const f = boardBox(job.board, biggest);
+        const f = boardBox(job.board, biggestFor(band));
         for (const t of CRANK_TEETH[band]) {
           const at = ends(job.board, t, job.teeth).crank;
           const reach = radius(t) + HANDLE;
@@ -125,11 +129,17 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
             expect(y).toBeLessThanOrEqual(f.y + f.h);
           }
         }
+        // The biggest machine gear, its teeth and outline inside the frame's stroke (8 units in) — code review round 1,
+        // PR 13: Expert's 32 touched it.
+        const machine = ends(job.board, biggestFor(band), biggestFor(band)).machine;
+        expect(machine.x + radius(biggestFor(band)) + 0.14, band).toBeLessThanOrEqual(f.x + f.w - 0.08);
         // And every peg's gear.
         for (const p of job.board.pegs) {
           const { x, y } = pegAt(p);
           expect(x - 0.5).toBeGreaterThanOrEqual(f.x);
-          expect(y + 0.5).toBeLessThanOrEqual(f.y + f.h);
+          // Its teeth and outline (0.07 past its radius) inside the frame's stroke, top and bottom (UX review round 2).
+          expect(y - 0.57, band).toBeGreaterThanOrEqual(f.y + 0.08);
+          expect(y + 0.57, band).toBeLessThanOrEqual(f.y + f.h - 0.08);
         }
       }
     }
@@ -148,8 +158,8 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
     }
   });
 
-  it('the crank and the machine each touch only their own peg’s gear, at every size', () => {
-    for (const band of BANDS) {
+  it('the crank and the machine each touch only their own peg’s gear, at every size — Expert’s 32 too', () => {
+    for (const band of PLAY_BANDS) {
       for (const job of jobs(band)) {
         for (const c of CRANK_TEETH[band]) {
           const at = ends(job.board, c, job.teeth);
@@ -170,7 +180,7 @@ describe('a gear train (docs/DESIGN-MINIGAMES.md §5.3)', () => {
 
 describe('the jobs', () => {
   it('every job at every band can be done', () => {
-    for (const band of BANDS) for (const job of jobs(band)) expect(solve(job), `${band} ${job.machine}`).not.toBeNull();
+    for (const band of PLAY_BANDS) for (const job of jobs(band)) expect(solve(job), `${band} ${job.machine}`).not.toBeNull();
   });
 
   it('Gentle’s boards can’t jam; Medium’s and Tricky’s can, and offer both ways round', () => {
@@ -293,3 +303,95 @@ function solveStraight(b: Board): number[] {
   const r = b.pegs[b.entry].r;
   return b.pegs.flatMap((p, i) => (p.r === r ? [i] : []));
 }
+
+describe('Expert: gear ratios in numbers — turns a minute, and turning force (§8.5)', () => {
+  const expert = Array.from({ length: 8 }, (_, k) => jobFor('expert', Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
+
+  it('eight jobs on the ringed boards, each made by exactly one crank gear of the four — every one of them the answer somewhere', () => {
+    expect(CRANK_TEETH.expert).toEqual([8, 16, 24, 32]);
+    for (const j of expert) {
+      expect(solve(j), j.machine).not.toBeNull();
+      expect(CRANK_TEETH.expert.filter((c) => Math.abs(c / j.teeth - j.speed!) < 1e-9), j.machine).toHaveLength(1);
+      // Said in turns a minute, or in turning force — never as the speed against the crank.
+      expect(j.rpm !== undefined || j.force, j.machine).toBeTruthy();
+      expect(jobWords(j)).not.toMatch(/as fast as the crank/);
+      // Turns a minute come out whole, for every crank gear.
+      if (j.rpm !== undefined) for (const c of CRANK_TEETH.expert) expect(Number.isInteger((j.rpm * c) / j.teeth), `${j.machine} ${c}`).toBe(true);
+    }
+    expect(new Set(expert.map((j) => solve(j)!.crank))).toEqual(new Set([8, 16, 24, 32]));
+    expect(new Set(expert.map((j) => j.turn))).toEqual(new Set(['cw', 'ccw']));
+    expect(expert.some((j) => j.force) && expert.some((j) => j.rpm !== undefined)).toBe(true);
+    expect(biggestFor('expert')).toBe(32);
+  });
+
+  it('the job in numbers; a ratio in lowest terms; force the speed’s inverse', () => {
+    expect(jobWords(expert[0])).toBe('Make the Great Hands turn clockwise ↻, 45 times a minute. The crank turns 15 times a minute; the machine’s gear has 8 teeth.');
+    expect(jobWords(expert[1])).toBe('Make the Hour Bell turn anticlockwise ↺ with four times the crank’s turning force. The machine’s gear has 32 teeth.');
+    // Driven : driver, as a school book has it (code and UX review round 1).
+    expect(ratioWords(8, 24)).toBe('8 : 24 = 1 : 3');
+    expect(ratioWords(32, 24)).toBe('32 : 24 = 4 : 3');
+    expect(ratioWords(16, 16)).toBe('16 : 16 = 1 : 1');
+    expect(ratioWords(3, 2)).toBe('3 : 2');
+    // What the ratio means for the turns (UX review round 2).
+    expect(turnsWords(8, 24)).toBe('3 times for each turn of the crank');
+    expect(turnsWords(32, 8)).toBe('once for every 4 turns of the crank');
+    expect(turnsWords(32, 24)).toBe('3 times for every 4 turns of the crank');
+    expect(turnsWords(16, 16)).toBe('once for each turn of the crank');
+    expect(forceWords(1)).toBe('the same turning force as the crank');
+    expect(forceWords(0.75)).toBe('three quarters of the crank’s turning force');
+    expect(forceWords(4 / 3)).toBe('one and a third times the crank’s turning force');
+    expect(forceAmount(4)).toBe('four times');
+    expect(forceAmount(1 / 3)).toBe('a third');
+    expect(speedWords(0.25)).toBe('a quarter as fast as the crank');
+  });
+
+  it('every speed and force a run can give has its words — none said as a bare number (code review round 1)', () => {
+    const speeds = new Set<number>();
+    const forces = new Set<number>();
+    for (const band of ['tricky', 'expert'] as const) {
+      for (const job of jobs(band)) {
+        for (const c of CRANK_TEETH[band]) {
+          const speed = c / job.teeth;
+          const right = Math.abs(speed - job.speed!) < 1e-9;
+          // Tricky says a speed; Expert a force job's speed on a right run — and the force of a force job's every run,
+          // and of a right run on the others.
+          if (band === 'tricky' || (job.force && right)) speeds.add(speed);
+          if (band === 'expert' && (job.force || right)) forces.add(1 / speed);
+        }
+      }
+    }
+    for (const v of speeds) expect(speedWords(v), String(v)).not.toMatch(/\d/);
+    for (const f of forces) expect(forceWords(f), String(f)).not.toMatch(/\d/);
+    expect(forces.size).toBe(10);
+    // `forceAmount` says a force job's own force.
+    for (const job of jobs('expert')) if (job.force) expect(forceAmount(1 / job.speed!), job.machine).not.toMatch(/\d/);
+  });
+
+  it('a miss says what happened in the job’s own numbers, and the rule — never the gear; a right run, the ratio and the trade', () => {
+    const hands = expert[0];
+    const over = set(3, 0, 1, 2, 6); // up and over the top: five between, the crank's way round
+    const slow = run(hands.board, over, 16, hands.teeth);
+    expect(verdictWords(hands, slow, check(hands, slow))).toBe('The Great Hands turned 30 times a minute, not 45. Turns out = turns in × crank teeth ÷ machine teeth.');
+    const bell = expert[1];
+    const line = set(0, 1, 2, 3);
+    const weak = run(bell.board, line, 16, bell.teeth);
+    expect(check(bell, weak)).toBe('too-fast');
+    expect(verdictWords(bell, weak, 'too-fast')).toBe('The Hour Bell got twice the crank’s turning force, not four times. Force out = force in × machine teeth ÷ crank teeth.');
+    const wrongWay = run(hands.board, set(3, 4, 5, 6), 24, hands.teeth);
+    expect(verdictWords(hands, wrongWay, check(hands, wrongWay))).toBe(
+      'The Great Hands turned anticlockwise ↺, with four gears between. An odd number between keeps the crank’s way round; an even number turns it the other way.',
+    );
+    for (const v of ['empty', 'not-joined', 'jammed'] as const) expect(verdictWords(hands, { kind: 'empty' }, v)).not.toMatch(/!$|Clunk/);
+    const ok = run(hands.board, over, 24, hands.teeth);
+    expect(learnedLine(hands, ok, 24)).toBe(
+      'The gear ratio, machine : crank, is 8 : 24 = 1 : 3: the machine turns 3 times for each turn of the crank, so 15 turns a minute became 45, with a third of the crank’s turning force.',
+    );
+    expect(learnedLine(bell, run(bell.board, line, 8, bell.teeth), 8)).toBe(
+      'The gear ratio, machine : crank, is 32 : 8 = 4 : 1: the machine turns once for every 4 turns of the crank — a quarter as fast as the crank, with four times the crank’s turning force: speed traded for force.',
+    );
+    // Expert's empty and not-joined, word for word (code review round 2: only checked for no "!").
+    expect(verdictWords(hands, { kind: 'empty' }, 'empty')).toBe('Only the crank turned: no gear touches it. Put one on the peg next to the crank.');
+    expect(verdictWords(hands, { kind: 'empty' }, 'not-joined')).toBe('The gears turned, but they don’t reach the Great Hands. Gears only turn each other where they touch.');
+  });
+});
+
