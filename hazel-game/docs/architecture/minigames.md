@@ -29,9 +29,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
   `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
   when a round is done (a game with something just for fun before the reward
-  — Mirror Mural's free canvas — calls `onClaim()` as the round is earned: it
-  pays then, once, so leaving by 🗺️ Map keeps it, and `onFinish` only shows
-  the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
+  — Mirror Mural's free canvas — calls `onClaim(spotOn?)` as the round is
+  earned: it pays then, once, and records the Expert seal, so leaving by 🗺️
+  Map keeps both, and `onFinish` only shows the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
   saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
   `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
@@ -195,7 +195,8 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   scroll padding is its height then, so keyboard focus lands below it.
   What happened comes into sight with its button the same way. As a step starts (a
   machine, Change the gears, Take all the gears off — never a peg tap, even
-  one that clears a miss) `stepScroll` (pure, tested) moves the scroller
+  one that clears a miss) `stepScroll` (`minigames/stepScroll.ts`, pure,
+  tested; Mirror Mural's Expert uses it too) moves the scroller
   only as far as it must: Turn the crank wholly in sight, and on Tricky and
   Expert the job line — or the crank's gears under a stuck one — not under
   what sticks at the top (the line, or a phone's board); where both can't
@@ -269,17 +270,66 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   canvas goes beside them (a column at least `BESIDE_PX` wide) or under them,
   whichever leaves it bigger, compact paints where they save room; below a
   floor (26 px squares) it keeps that size and the board scrolls (`tight`;
-  the board keeps its scrollbar's room so one can't change the space). They
+  the board keeps its scrollbar's room so one can't change the space) — as
+  painting starts, the gold button into sight there (`stepScroll`, the
+  canvas's top kept). They
   stay in place, unseen, while mixing and after a match so the canvas never
   changes size; on a phone the mirror's rule sits over the canvas. A step's
   buttons wait `SETTLE_MS` as it starts (`useSettled`, shared): a double
-  tap's second tap does nothing to what came under the finger; the mirror held
-  up before a square is painted marks nothing; a held Enter paints once. The
+  tap's second tap does nothing to what came under the finger — the paints
+  and the canvas's pointer too (a key paints at once); the mirror held up
+  before a square is painted marks nothing, and says so on the gold button
+  ("Paint a square first", `aria-disabled`); a held Enter paints once. The
+  in-board scroll runs as a step starts, once the canvas has its fit, not at
+  a check, and on the free canvas (its paints stand taller) Hang it wins
+  over the canvas's top. The
   mark is sized from the canvas (container units), so a square's letter shows
   in it; the focus ring is drawn over it. On a tall enough screen Madame
   Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
   Clocktower Gears' board). The room above (this round's three frames) from
-  `sm` up. **🎵 Echo's Call** (`chromaria-musician`, Bard Lyra, Chromaria —
+  `sm` up, but not where it's narrow and short too (up to 767 × 620: the
+  board needs the height). The canvas is described by how the keys work it
+  (`mm-keys`). On Expert (`Job.expert`) the kinds are its six moves (`MOVES`:
+  `across`, `down`, `diag` — y = x, `turn`, `quarter` — quarter turns
+  clockwise, `shift` — by (3, 0); `source` for each, tested corner for
+  corner against `mapPoint`), two rounds of three; step 1 (`'name'`, no
+  pots) names the move from `Job.p` (A, inside every move's painted part,
+  each move taking it somewhere else) and `pImage` (A′): `nameAsk` (each A
+  kept with its point), `nameWords`, `MOVE_NAME`; each pair of rounds turns
+  the order of a round's three moves on one and gives each move the other A,
+  so a picture's number doesn't give its move away; the ticket
+  and the phone's line hide the move till then (`jobWords(job, named)`), and
+  the canvas is bare (`BARE`: the painted part's shape gave the move away).
+  On Expert the goal is `unfaked`: the first of `SWAPS` (the given part's
+  two colours swapped in one place) that leaves no other way of copying it
+  (`fakes`, against `OTHER_MAPS` — every kind's `source`, the square's turns
+  and mirrors, two slides, the quarter turned the wrong way in place — a
+  quarter turn anticlockwise about (3, 3) makes the same picture as the
+  clockwise ones) — every pattern is the same across and down, so a half
+  turn had painted x = 3's picture; the test writes the ways out apart from
+  `OTHER_MAPS`, and paints each picture by every move through `mapPoint`.
+  Expressions are said on one line (`tie`: no-break spaces). `marks.tsx`:
+  `Axes` puts 0–6 round the canvas inside its fitted size (`AXIS`), and
+  `MoveMarks` (an SVG in the canvas's coordinates) draws A and A′, or —
+  once a check has marked squares — the move's line, centre (with an arc
+  for how far round, clockwise) or vector, its arrowhead its own (`useId`),
+  with its rule (`ruleWords`, `markWords(n, job)`; over the canvas on a phone
+  too); `AskPicture` draws A and A′ small beside the moves on a phone (on
+  one on its side, the moves three across beside it), and Step 1 scrolls it
+  into sight with That's the move (`stepScroll`, the picture winning; from
+  `sm` the side panel, the ask winning, under a stuck bubble). The squares
+  are said by their corners ("Square (3, 5)
+  to (4, 6): bare."); while painting the given ones are in the arrow keys'
+  grid too ("…: purple, given.", `aria-disabled`), and a kid's square says
+  what it's the image of only once it's marked. The letters are drawn over
+  the line (`z-[1]`); the free canvas has its x = 3 (its lines `tie`d too);
+  Expert's title card paints with no line (`StepImage`). Its lessons are the
+  moves' (`learnedLine`; the reward's the first missed picture's), Madame
+  Hue speaks plainly, and the pictures right at their first naming and
+  first check are `spotOn`, passed to `onClaim` (typed as the game's own
+  in `PlayArea`).
+  The steps' buttons wait for a tap's second, not a key's (`e.detail`), on
+  every band. **🎵 Echo's Call** (`chromaria-musician`, Bard Lyra, Chromaria —
   she gives a quest too; `lib/minigames/echo.ts`, `features/minigames/echo/`):
   pitch, melody and reading notes — five chimes, C D E F G low to high, each
   its colour, letter and name (`CHIME`), long to short. Three tunes a round,

@@ -21,7 +21,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { GAME_SCREENS } from './games';
 import { EmberSprite, HostBubble, Stars } from './parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
-import type { RoundOutcome } from './types';
+import type { PlayProps, RoundOutcome } from './types';
 import { useSettled } from './useSettled';
 // Listening for the last input from the stage's load, so a key on the title card counts (`lastInputWasKey`).
 import './lastInput';
@@ -130,10 +130,16 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
     [update, game, addXp],
   );
 
-  // A round's pay, once: by `onClaim` before the reward (kept if the kid leaves first), or as it shows.
+  // A round's pay, once: by `onClaim` before the reward (kept if the kid leaves first), or as it shows. With it the
+  // Expert seal (§8.3): a save flag, shown, never paid — and only on Expert, from a round with something in it.
   const claimed = useRef<Earned | null>(null);
-  const onClaim = useCallback(() => {
+  const sealing = useRef<{ spot?: { right: number; of: number }; had: boolean } | null>(null);
+  const onClaim = useCallback((spotOn?: RoundOutcome['spotOn']) => {
     if (claimed.current) return;
+    const spot = band === 'expert' && spotOn && spotOn.of > 0 ? spotOn : undefined;
+    const had = !!useSaveStore.getState().save?.flags[sealFlag(game)];
+    if (spot && spot.right === spot.of && !had) setFlag(sealFlag(game));
+    sealing.current = { spot, had };
     const box: { c: Claim | null } = { c: null };
     update((s) => {
       box.c = claimRound(s, game);
@@ -146,25 +152,24 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
     claimed.current = c ? add(earned.current, c) : earned.current;
     earned.current = NOTHING;
     noteRoundPlayed(kidId, game);
-  }, [update, game, addXp, recordActivity, kidId]);
+  }, [update, game, addXp, recordActivity, kidId, band, setFlag]);
 
   const onFinish = useCallback(
     (outcome: RoundOutcome) => {
-      onClaim();
+      onClaim(outcome.spotOn);
       const total = join(claimed.current ?? NOTHING, earned.current);
       claimed.current = null;
       earned.current = NOTHING;
-      // The Expert seal (§8.3): a save flag, shown, never paid — and only on Expert, from a round with something in it.
-      const spot = band === 'expert' && outcome.spotOn && outcome.spotOn.of > 0 ? outcome.spotOn : undefined;
+      // The seal as claimed (Mirror Mural claims before its own canvas).
+      const { spot, had } = sealing.current ?? { had: false };
+      sealing.current = null;
       const sealed = !!spot && spot.right === spot.of;
-      const had = !!useSaveStore.getState().save?.flags[sealFlag(game)];
-      if (sealed && !had) setFlag(sealFlag(game));
       setReward({ ...outcome, spotOn: spot, ...total, seal: sealed ? (had ? 'again' : 'new') : spot && had ? 'held' : null });
       setPhase('reward');
       sfx('victory');
       if (!still) confetti({ particleCount: 90, spread: 75, origin: { y: 0.35 }, disableForReducedMotion: true });
     },
-    [onClaim, still, band, game, setFlag],
+    [onClaim, still],
   );
 
   // The reward's confetti doesn't fall on into the next round, or over the map (review round 2).
@@ -253,7 +258,8 @@ function PlayArea({
   round: number;
   onPage: (page: string, label: string) => boolean;
   onFinish: (o: RoundOutcome) => void;
-  onClaim: () => void;
+  // The game's own type: a narrower one would drop Expert's seal unseen (code review round 1, PR 14).
+  onClaim: NonNullable<PlayProps['onClaim']>;
   onBack: () => void;
 }) {
   const screens = GAME_SCREENS[def.id];

@@ -43,7 +43,7 @@ import { useSettled } from '../useSettled';
 import { useStickyHeight } from '../useStickyHeight';
 import { useFocusMoved } from '../keys';
 import { GearShape } from './art';
-import { stepScroll } from './stepScroll';
+import { stepScroll } from '../stepScroll';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 

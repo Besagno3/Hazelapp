@@ -320,6 +320,30 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   no picture's half is red and orange or green and blue either; the mirror
   held up before painting asks for paint first; the reward shows the picture
   hung.
+- **Expert (§8, PR 14):** transformations on a coordinate grid. The canvas
+  has axes, 0 to 6 at its lines, x across and y up from the bottom-left
+  corner, and no paint to mix: step 1 names the move from a point and its
+  image, marked on the canvas — bare till then, as the painted part's shape
+  would give the move away; on a phone drawn small beside the moves too —
+  "A (1, 4) maps to A′ (5, 4)." — from six
+  (reflect in x = 3, in y = 3 or in y = x; rotate 180° or 90° clockwise
+  about (3, 3); translate by (3, 0)), each taking A somewhere else; a wrong
+  one says where it takes A ("Reflect in y = x: A goes to (4, 1), not
+  (5, 4)."). Then the kid paints the image ("Reflect the top-left triangle
+  in the line y = x.") — the squares said by their corners' coordinates,
+  the painted part read too — and checks it. No other move paints the
+  picture right (its painted part's colours swap in one place where the
+  pattern's own mirrors would let one). No mirror line is drawn till a check
+  finds a square to fix: then the line, the centre or the vector shows (and
+  a square says what it's the image of) and Madame Hue gives the rule ("A
+  reflection in y = x swaps the coordinates: (x, y) goes to (y, x)."); the
+  lesson is the rule and one thing more (a half turn is two reflections;
+  the quarter turns, rotational symmetry of order 4; turned the other way
+  about (3, 3), the picture's the same) — on the reward, the
+  first missed picture's. Each pair of rounds turns the moves' order and
+  gives each move the other A, so the third round isn't the first again. Every move named at the first try and every image exact
+  at the first check is the Expert seal — claimed with the round's pay as
+  the third matches, so leaving from the free canvas keeps it too.
 
 ### 5.5 🎵 Echo's Call — Music · Bard Lyra, the Music House, Chromaria
 
@@ -577,7 +601,7 @@ world, with the same host.
 | 🧪 Potion Lab | The pH scale in numbers, counted in tens: an order asks for "a thousand times as acidic as pure water"; the kid guesses the jar's pH, 0–14, and Tadpole says where it sits and what neutralises it. | "Lemon juice is about pH 2: five steps below 7, so a hundred thousand times as acidic as pure water." |
 | 🥧 Dot's Bakery | Ratios, rates and percentage change, boxed in pie: a share in a ratio, enough for so many people, a percentage more or less than last week's — the amount is the kid's to work out. | "25% less pie than last week's 2 pies"; "the smaller share of 1 pie, split 3 : 5" |
 | ⚙️ Clocktower Gears | Gear ratios in numbers: a machine's turns a minute from the crank's, or the turning force it needs — the kid works out the ratio and picks the crank's gear (8 to 32 teeth); the gears between still set only the way round. (Two pairs in a train — a compound gear — would need a new kind of peg: not built.) | "The crank turns 15 times a minute: make it turn 45"; "four times the crank's turning force" |
-| 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = c, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a shape onto another. | "Reflect (2, 5) in y = x." |
+| 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = 3, y = 3, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a point onto its image, then paint the image. | "A (2, 5) maps to A′ (5, 2): which move?" |
 | 🎵 Echo's Call | Intervals and keys: name the interval (a second to an octave), major or minor, which note a scale needs, sharps and flats on the staff. | "C up to G is a…" |
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth; the pole star's altitude as your latitude; right ascension and declination on a chart. | "Polaris is 52° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's rings to a rainfall record, find the dry years in both, date it to the year. | "Thin rings — and the chart's dry years?" |
