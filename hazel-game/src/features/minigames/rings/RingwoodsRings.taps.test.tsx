@@ -30,6 +30,8 @@ afterEach(() => {
 });
 
 const wait = (ms = SETTLE_MS) => act(() => void (now += ms));
+/** A tap: a click with a click count, as a finger's is (a key's has none). */
+const tap = (el: Element) => fireEvent.click(el, { detail: 1 });
 const ring = (k: number) => fireEvent.click(document.querySelector<HTMLButtonElement>(`[data-ring="${k}"]`)!);
 
 describe('🌳 a double tap', () => {
@@ -69,17 +71,88 @@ describe('🌳 a double tap', () => {
     expect(screen.getAllByText(/^Count in from the bark/)).toHaveLength(1);
   });
 
-  it('Tricky: Slide and “Do they match?” pressed as the step starts do nothing', () => {
-    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
+  it('Tricky: Slide and “Do they match?” tapped as the step starts do nothing; a key’s at once (PR 17)', () => {
+    const { unmount } = render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
     const job = jobFor('tricky', 0, 0);
     if (job.kind !== 'match') throw new Error('a match job');
-    fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Do they match?' }));
+    tap(screen.getByRole('button', { name: 'Slide ▶' }));
+    tap(screen.getByRole('button', { name: 'Do they match?' }));
     expect(screen.getByRole('button', { name: '◀ Slide' })).toHaveAttribute('aria-disabled', 'true');
     expect(screen.queryByText(/^Not yet/)).not.toBeInTheDocument();
     wait();
-    for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Do they match?' }));
+    for (let k = 0; k < fitOffset(job); k++) tap(screen.getByRole('button', { name: 'Slide ▶' }));
+    tap(screen.getByRole('button', { name: 'Do they match?' }));
     expect(screen.getByRole('heading', { name: `Cut in ${job.beam[job.beam.length - 1]}!` })).toBeInTheDocument();
+    unmount();
+    // A key isn't held back: the focus is on the step's heading as it starts, not on a button.
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }), { detail: 0 });
+    expect(screen.getByRole('button', { name: '◀ Slide' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('Expert: a year tapped as the dating starts isn’t picked; a moment later it is; a key’s at once', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('expert', 0, 0);
+    if (job.kind !== 'rain') throw new Error('a rain job');
+    const end = String(job.beam[job.beam.length - 1]);
+    for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }), { detail: 0 });
+    expect(screen.getByRole('heading', { name: 'Date it' })).toBeInTheDocument();
+    // The second tap of a double on "Do they line up?" lands on a year: nothing.
+    tap(screen.getByRole('button', { name: end }));
+    expect(screen.getByRole('heading', { name: 'Date it' })).toBeInTheDocument();
+    wait();
+    tap(screen.getByRole('button', { name: end }));
+    expect(screen.getByRole('heading', { name: `Cut in ${end}` })).toBeInTheDocument();
+  });
+});
+
+describe('🌳 the slides’ and the done step’s waits (code review round 1: untested)', () => {
+  const tapAt = (el: Element, x: number) => {
+    fireEvent.pointerDown(el, { clientX: x, clientY: 20, button: 0 });
+    fireEvent.pointerUp(el, { clientX: x, clientY: 20, button: 0 });
+  };
+  const box = (el: Element, width: number) => {
+    el.getBoundingClientRect = () => ({ left: 0, top: 0, width, height: 120, right: width, bottom: 120, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  };
+
+  it('Expert: a tap along the record as the beam’s step starts doesn’t slide it; a moment later it does', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('expert', 0, 0);
+    if (job.kind !== 'rain') throw new Error('a rain job');
+    const track = document.querySelector('[data-track]')!;
+    box(track, job.rings.length * 10);
+    tapAt(track, 200);
+    expect(screen.getByRole('button', { name: '◀ Slide' })).toHaveAttribute('aria-disabled', 'true');
+    wait();
+    tapAt(track, 200);
+    expect(screen.getByRole('button', { name: '◀ Slide' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('Tricky: a tap along the core as the step starts doesn’t slide the beam either', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="tricky" round={0} onPage={() => true} onFinish={() => {}} />);
+    const svg = document.querySelector('[aria-label^="Two cores"] svg')!;
+    box(svg, 400);
+    tapAt(svg, 300);
+    expect(screen.getByRole('button', { name: '◀ Slide' })).toHaveAttribute('aria-disabled', 'true');
+    wait();
+    tapAt(svg, 300);
+    expect(screen.getByRole('button', { name: '◀ Slide' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('Expert: Next tapped as the beam’s dated waits (the year was under the finger); a key at once — on a year too', () => {
+    render(<RingwoodsRings def={MINIGAMES['ringwoods-rings']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('expert', 0, 0);
+    if (job.kind !== 'rain') throw new Error('a rain job');
+    const end = String(job.beam[job.beam.length - 1]);
+    for (let k = 0; k < fitOffset(job); k++) fireEvent.click(screen.getByRole('button', { name: 'Slide ▶' }), { detail: 0 });
+    fireEvent.click(screen.getByRole('button', { name: 'Do they line up?' }), { detail: 0 });
+    // A key on a year as the dating starts: at once.
+    fireEvent.click(screen.getByRole('button', { name: end }), { detail: 0 });
+    expect(screen.getByRole('heading', { name: `Cut in ${end}` })).toBeInTheDocument();
+    tap(screen.getByRole('button', { name: 'Next beam' }));
+    expect(screen.getByRole('heading', { name: `Cut in ${end}` })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next beam' }), { detail: 0 });
+    expect(screen.getByRole('heading', { name: 'Line it up' })).toBeInTheDocument();
   });
 });

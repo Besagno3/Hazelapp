@@ -492,10 +492,43 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   picture, the beam slid by ◀ ▶ or a tap along the tree's core (a slice's
   card is beside it held sideways, a core's always under it, Tricky's beside
   only on a short phone — on a short split screen under, compact), both cores'
-  rings said under them for a reader, live (`rr-under`). What Ringwood said
+  rings said under them for a reader, live (`rr-under`; on Expert a short
+  line, the rest the record's description, `rr-beam`). What Ringwood said
   is in the step's card by the wood, and till he's said something, what he
   asked — a tip; a step's start adds the next ask to what he says. The shared
   `Ticket` puts its chip by its heading, and `HostBubble` wraps a long word.
+  On Expert (§8.5, `rain`) the beam's 10–12 rings, measured (`ringMm`, which
+  follows the year's rain), slide along the grove's rainfall record
+  (`rainfall`: a bar a year over the same 30 years, a dry year under
+  `DRY_MM`, a fair or wet one well over — from the same `weather`, so the
+  fit is `matchesAt`'s); `lineUpWords` says what's wrong at a wrong place,
+  then the kid dates the last ring from four (`dateChoices`: the first
+  ring's year and two round the last's, before, either side or after in
+  turn by the beam, inside the record; `datedWords`, a near miss saying to
+  count the ticks from the labelled fifth year). The record (`RainRecord`)
+  draws its bars (the dry line haloed), a label every fifth year, then a
+  tick a year over the beam (`data-track`, tapped along to slide it), the
+  beam with its bark (`data-bark`), and while it's dated a guide from the
+  last ring to its tick (`data-guide`); it says the beam's years only once
+  it's dated; a reader hears each ring with the rain over it and which of
+  the record's years it starts under (`ordinal`, 21st as such). Ringwood
+  speaks plainly; lined up at the first check and dated at the first pick
+  is `spotOn`; the reward keeps the first missed beam's lesson. On a split
+  screen a beam's card is compact (the slide buttons and the gold one in a
+  row, what to do a reader's: his bubble's beside), the strips as tall as
+  they're drawn (no `container-type` — only a slice sizes to its room) and
+  the card under them scrolling; a finished beam's strips give their room
+  (`min-h-0` at done) and the card goes over them (`relative z-[1]`: the
+  record's year labels are positioned); each step's card starts at its top.
+  What he said is under a beam's buttons, three lines' room kept on a split
+  screen, so it moves nothing under a finger; on a phone up to 640 px high
+  the strips are shorter, so the gold button starts in view. As it slides a
+  reader hears where the beam is and the rain over its thin rings
+  (`rr-under`, live); every ring and the rain over it is the record's
+  description (`rr-beam`). `MiniGameDef.expert.playLabel` gives Play's
+  words on Expert ("Date the beams"). A step's buttons wait for a tap's second, not a
+  key's (`ready(e)`); the wood's rings wait for both, as focus is moved
+  onto one as its step starts.
   **📜 Index's Timeline** (`archive-index`,
   Index, the Sunken Archive — she gives a quest too; `lib/minigames/
   timeline.ts`, `features/minigames/timeline/`): putting things in the

@@ -84,3 +84,42 @@ export function StepMatch() {
     </svg>
   );
 }
+
+/** Expert's step 1: the rainfall record's bars, the dry line dashed, and the beam's measured rings under them — thin under the low bars. */
+export function StepRain() {
+  // The dry ones' tops under the dashed line (code review round 1: one poked over it).
+  const rain = [120, 40, 104, 36, 128, 112];
+  const ring = [34, 14, 30, 12, 38, 32];
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="14" y="16" width="172" height="104" fill="#eef4fb" stroke={INK} strokeWidth="8" />
+      {rain.map((h, k) => (
+        <rect key={k} x={26 + k * 26} y={116 - h * 0.75} width="18" height={h * 0.75} fill="#2f6fb0" />
+      ))}
+      <path d="M18 76 h164" stroke="#b4232a" strokeWidth="6" strokeDasharray="14 9" />
+      <rect x="14" y="134" width="172" height="50" fill="#c9a06c" stroke={INK} strokeWidth="8" />
+      {ring.map((h, k) => (
+        <rect key={k} x={26 + k * 26} y={180 - h} width="18" height={h} fill={BARK} />
+      ))}
+    </svg>
+  );
+}
+
+/** Expert's step 2: the beam's last ring, read against the record's years. */
+export function StepDate() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <path d="M14 70 h172" stroke={INK} strokeWidth="6" />
+      {[0, 1, 2, 3, 4, 5, 6].map((k) => (
+        <path key={k} d={`M${24 + k * 25} 70 v${k % 5 === 0 ? 18 : 10}`} stroke={INK} strokeWidth="6" />
+      ))}
+      <text x="24" y="54" textAnchor="middle" fontSize="30" fontWeight="900" fill={INK}>
+        ’10
+      </text>
+      <rect x="40" y="110" width="132" height="50" rx="4" fill="#c9a06c" stroke={INK} strokeWidth="8" />
+      <path d="M150 104 v-22" stroke="#b4232a" strokeWidth="8" strokeLinecap="round" />
+      <path d="M140 92 l10 -12 10 12" fill="none" stroke="#b4232a" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="172" y="110" width="14" height="50" rx="3" fill={BARK} stroke={INK} strokeWidth="6" />
+    </svg>
+  );
+}
