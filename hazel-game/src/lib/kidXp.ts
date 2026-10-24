@@ -176,6 +176,57 @@ export function giveKidXp(kidId: string, amount: number): Promise<KidXpResult> {
   return run;
 }
 
+/** The XP part of a kid's row, as this device last read or wrote it. */
+export type RowXp = Pick<XpRow, 'xp' | 'level' | 'level_xp'>;
+
+/**
+ * Add `amount` XP to a kid's row, never writing over a write it didn't read
+ * (#188, #190): an update guarded on the XP the row holds — `known`, as this
+ * device last read or wrote it, else read first — and, when it changed in
+ * between (another device's write), read again and added on top, up to
+ * `GUARD_TRIES`. Each read and update gives up after `WRITE_TIMEOUT_MS`; an
+ * update whose answer was lost is read back (it may have landed). `more`
+ * adds columns worked out from the row read (a sibling's streak); with it,
+ * the row is always read first. Resolves with the row it went onto and what
+ * it is now; rejects when it couldn't be written.
+ */
+export async function addRowXp(
+  kidId: string,
+  amount: number,
+  { known = null, more }: { known?: RowXp | null; more?: (row: XpRow) => Partial<XpRow> } = {},
+): Promise<{ before: RowXp; now: { xp: number; level: number; level_xp: number } }> {
+  let row: XpRow | null = known && !more ? { ...known, current_streak: null, longest_streak: null, last_played_on: null } : null;
+  for (let i = 0; i < GUARD_TRIES; i++) {
+    if (!row) {
+      const read = await readXp(kidId);
+      if (read.error) throw read.error;
+      if (!read.data) throw new Error('no profile row for this player');
+      row = read.data as XpRow;
+    }
+    const base = row;
+    const after = gainXp(levelState({ xp: base.xp ?? 0, level: base.level ?? undefined, levelXp: base.level_xp ?? undefined }), amount);
+    const xp = (base.xp ?? 0) + amount;
+    const { data, error } = await timed((signal) => {
+      const update = supabase
+        .from('profiles')
+        .update({ xp, level: after.level, level_xp: after.levelXp, ...more?.(base), updated_at: new Date().toISOString() })
+        .eq('id', kidId);
+      // Only over the XP just read: a write from another device in between means read again.
+      return (base.xp === null ? update.is('xp', null) : update.eq('xp', base.xp)).select('id').abortSignal(signal);
+    });
+    let landed = !error && Array.isArray(data) && data.length > 0;
+    if (error) {
+      // The answer was lost, not necessarily the write: look before calling it failed (it'd be paid twice).
+      const again = await readXp(kidId);
+      landed = !again.error && (again.data as XpRow | null)?.xp === xp;
+      if (!landed) throw error;
+    }
+    if (landed) return { before: { xp: base.xp, level: base.level, level_xp: base.level_xp }, now: { xp, level: after.level, level_xp: after.levelXp } };
+    row = null; // changed since it was read: read it again
+  }
+  throw new Error('the XP kept changing');
+}
+
 async function write(kidId: string, gift: number): Promise<KidXpResult> {
   const amount = gift + takeOwedXp(kidId);
   const today = todayIso();
@@ -184,46 +235,17 @@ async function write(kidId: string, gift: number): Promise<KidXpResult> {
   writeSending(kidId, [...readSending(kidId), mine]);
   const unmark = () => writeSending(kidId, readSending(kidId).filter((g) => g.at !== mine.at || g.xp !== mine.xp));
   try {
-    for (let i = 0; i < GUARD_TRIES; i++) {
-      const read = await readXp(kidId);
-      if (read.error) throw read.error;
-      if (!read.data) throw new Error('no profile row for this player');
-      const row = read.data as XpRow;
-      const before = levelState({ xp: row.xp ?? 0, level: row.level ?? undefined, levelXp: row.level_xp ?? undefined });
-      const after = gainXp(before, amount);
-      const xp = (row.xp ?? 0) + amount;
-      const currentStreak = nextStreak(row.current_streak ?? 0, row.last_played_on, today);
-      const { data, error } = await timed((signal) => {
-        const update = supabase
-          .from('profiles')
-          .update({
-            xp,
-            level: after.level,
-            level_xp: after.levelXp,
-            current_streak: currentStreak,
-            longest_streak: Math.max(row.longest_streak ?? 0, currentStreak),
-            last_played_on: today,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', kidId);
-        // Only over the XP just read: a write from their own device in between means read again.
-        return (row.xp === null ? update.is('xp', null) : update.eq('xp', row.xp)).select('id').abortSignal(signal);
-      });
-      let landed = !error && Array.isArray(data) && data.length > 0;
-      if (error) {
-        // The answer was lost, not necessarily the write: look before keeping it owed (it'd be paid twice).
-        const again = await readXp(kidId);
-        landed = !again.error && (again.data as XpRow | null)?.xp === xp;
-        if (!landed) throw error;
-      }
-      if (landed) {
-        unmark();
-        moveLocalCopy(kidId, amount, today);
-        void addDayXp(kidId, today, amount, { played: true }).then(() => flushPlayDays(kidId, { now: true }));
-        return { saved: true, level: after.level, leveledUp: after.level > before.level };
-      }
-    }
-    throw new Error('their XP kept changing');
+    const { before, now } = await addRowXp(kidId, amount, {
+      more: (row) => {
+        const currentStreak = nextStreak(row.current_streak ?? 0, row.last_played_on, today);
+        return { current_streak: currentStreak, longest_streak: Math.max(row.longest_streak ?? 0, currentStreak), last_played_on: today };
+      },
+    });
+    unmark();
+    moveLocalCopy(kidId, amount, today);
+    void addDayXp(kidId, today, amount, { played: true }).then(() => flushPlayDays(kidId, { now: true }));
+    const was = levelState({ xp: before.xp ?? 0, level: before.level ?? undefined, levelXp: before.level_xp ?? undefined }).level;
+    return { saved: true, level: now.level, leveledUp: now.level > was };
   } catch (e) {
     console.warn(`XP for player ${kidId} couldn't be saved — kept on this device for next time:`, errorMessage(e));
     unmark();

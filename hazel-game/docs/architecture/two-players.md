@@ -37,7 +37,9 @@
   between, up to `GUARD_TRIES`; each read or update gives up after
   `WRITE_TIMEOUT_MS` (10 s), and an update whose answer was lost is read back
   before it's kept owed — it may have landed; this device's copy of their
-  profile moves too; one kid's writes in turn). Once saved, the day counts as
+  profile moves too; one kid's writes in turn; the kid's own game adds its
+  XP the same way, `addRowXp`, so a gift is never written over by their open
+  game either, #190). Once saved, the day counts as
   played for them with its XP (`addDayXp`, then `flushPlayDays(kid, { now:
   true })` — nothing else sends another kid's day from this device, #189).
   Nothing is lost to a hung connection or a closed tab (#189): while it's

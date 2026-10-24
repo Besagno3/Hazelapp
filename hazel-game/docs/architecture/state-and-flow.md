@@ -142,7 +142,21 @@ Covers: the xstate game-flow machine, the feature folders, `saveStore` (write-th
   sign-out keeps both). No level is noted for today while unread. A read that answers after the kid
   changed (or the game was put away) is dropped (`readGen`). Removing the
   kid who's playing in 👪 puts their game away too (`removeKid`, #89 review
-  round 1).
+  round 1). **XP goes on top of the row, never over it (#190):** `addXp`'s
+  write adds to what the row holds (`addRowXp`, `lib/kidXp.ts` — the same
+  guarded write a sibling's gift uses), with an update guarded on the row's
+  XP as this device last read or wrote it (`rowXp`: set by the load's read,
+  or once its own write has landed — waited for no longer than
+  `WRITE_TIMEOUT_MS` — by `takeUp`'s, and by each XP write); another
+  device's write in between (a sibling's gift on Ada's tablet, the kid's
+  other tab) makes the guard miss, and the row is read and added to. This
+  device's XP writes go one at a time (`xpWrites`), so each goes onto the
+  row the one before left; XP that couldn't be written goes with the next
+  write this session (`unsentXp`) — a load clears it, its merge takes up
+  the copy that's ahead. A load first lets this device's XP writes still
+  out land or give up (`xpWritesSettled`, `WRITE_TIMEOUT_MS` at most), so
+  the row it reads has them and the merge never counts one twice. The local profile isn't moved by another device's
+  XP until the next load (the row has it; "the higher wins" then).
 
 ## Progression
 
