@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -191,6 +191,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     music: 'starfall',
     backdrop: '/backgrounds/starfall-coast.png',
     firstItem: 'candle',
+  },
+  'ringwoods-rings': {
+    id: 'ringwoods-rings',
+    name: 'Ringwood’s Rings',
+    emoji: '🌳',
+    topic: 'nature',
+    host: 'elder-ringwood',
+    place: 'Ringwood’s Hollow · Eldergrove',
+    where: 'Old Ringwood, Eldergrove',
+    playLabel: 'Let’s count!',
+    againLabel: 'More rings',
+    hello: 'Hrrrm. I keep losing count of my rings. Will you read these trees’ rings for me? Every ring is a year.',
+    steps: [
+      { title: 'Count the rings', text: 'A tree grows one ring a year. Tap them from the middle out.' },
+      { title: 'Read them', text: 'A wide ring was a wet year; a thin one, a dry year.' },
+      { title: 'Find the year', text: 'Count back from the bark — or match an old beam to a living tree!' },
+    ],
+    collection: 'Grove book',
+    pages: 8,
+    bandNote: 'Medium: read a core — find a year, then the dry years. Tricky: match an old beam’s rings to a living tree’s.',
+    music: 'spireThicket',
+    backdrop: '/backgrounds/eldergrove.png',
+    firstItem: 'clover',
   },
 };
 

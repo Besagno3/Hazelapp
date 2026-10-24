@@ -61,7 +61,8 @@ export function HostBubble({ npcId, line, phoneStrip = false, id }: { npcId: str
         id={id}
         aria-live="polite"
         className={cn(
-          'min-w-0 flex-1 rounded-xl border-[3px] border-[#1b0f22] bg-white px-3 text-[#1b0f22]',
+          // A long word wraps rather than run out of a narrow bubble (Ringwood's Rings' UX review round 2: "neighbour's").
+          'min-w-0 flex-1 rounded-xl border-[3px] border-[#1b0f22] bg-white px-3 text-[#1b0f22] [overflow-wrap:anywhere]',
           phoneStrip ? 'py-1.5 text-[15px] leading-snug sm:[@media(min-height:501px)]:py-2 sm:[@media(min-height:501px)]:text-base' : 'py-2 text-base leading-snug',
         )}
       >
@@ -85,19 +86,23 @@ export function Ticket({ heading, children, ready, icon, id }: { heading: string
     <div className="flex items-center gap-3 rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-3 py-2 text-[#1b0f22] shadow-[0_4px_0_#1b0f22]">
       {icon && <span className="flex-none">{icon}</span>}
       <div className="min-w-0 flex-1">
-        <div className="font-pixel text-xl leading-none tracking-wide text-[#a3195b]">{heading}</div>
+        {/* The chip by the heading, wrapping under it at the right where it's narrow — not a column of its own, which
+            squeezed the words to a strip in a 300 px side panel (Ringwood's Rings' UX review round 1). */}
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <div className="font-pixel text-xl leading-none tracking-wide text-[#a3195b]">{heading}</div>
+          <span
+            className={cn(
+              'ml-auto flex h-7 flex-none items-center rounded-full border-2 border-[#1b0f22] px-2.5 text-[13px] font-bold',
+              ready ? 'bg-emerald-400' : 'bg-[#e6dfc4]',
+            )}
+          >
+            {ready ? 'Ready!' : 'Waiting'}
+          </span>
+        </div>
         <div id={id} className="text-[15px] leading-snug">
           {children}
         </div>
       </div>
-      <span
-        className={cn(
-          'flex h-7 flex-none items-center rounded-full border-2 border-[#1b0f22] px-2.5 text-[13px] font-bold',
-          ready ? 'bg-emerald-400' : 'bg-[#e6dfc4]',
-        )}
-      >
-        {ready ? 'Ready!' : 'Waiting'}
-      </span>
     </div>
   );
 }
