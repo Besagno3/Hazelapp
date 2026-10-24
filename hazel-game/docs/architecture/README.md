@@ -17,6 +17,7 @@ area's non-negotiables and points here when a file of the area is read.
 | `world.md` | The overworld canvas and screen: terrain, transitions, overlays (`ModalLayer`), using things, the top bar, field spells, dungeons, inns, reachability, flying, Taleshore and Acts III–IV, the sea and sea critters, after the Spire |
 | `minigames.md` | The mini-games (#189): the host's button, the stage (zoom, title card, play, reward), bands, pages and stars paid once, the shared look, each game's rules |
 | `battle.md` | The command battle: spells, companions, hero types, timers, the speed trigger, danger tiers, mercy, the pure turn resolvers and the view split |
+| `two-players.md` | Two players on one screen (#186–#188): Player 2 (a sibling with their PIN, or a guest), the 🆚 Quiz Duel, 👥 co-op battles, a sibling's XP (`lib/kidXp.ts`) |
 | `typing.md` | Touch typing (#165): lessons, the home-row hold, scribe bursts, the name race, the Scriptorium, the song, Falling Leaves, pangram chests, pen-pal replies |
 | `questions.md` | `generate-questions`: access and budgets, the four screening layers and model settings, rechecks and reports, the review page and alerts, answer shuffling, loading without waiting, the cache and seen window |
 | `backend-and-ci.md` | Applying the schema, the migration rules, the CI jobs and SQL tests, pull requests and Vercel |
