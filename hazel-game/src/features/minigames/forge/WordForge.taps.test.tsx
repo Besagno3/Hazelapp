@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag } = await import('../../../content/minigames');
-const { jobFor } = await import('../../../lib/minigames/forge');
+const { jobFor, rootChoices, rootWords } = await import('../../../lib/minigames/forge');
 
 let now = 0;
 beforeEach(() => {
@@ -65,10 +65,21 @@ describe('🔨 a double tap', () => {
     fireEvent.click(tile(b));
     fireEvent.click(hammer());
     expect(screen.getByRole('heading', { name: 'Sunflower!' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 1 });
     expect(screen.getByRole('heading', { name: 'Sunflower!' })).toBeInTheDocument();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 1 });
+    expect(screen.queryByRole('heading', { name: 'Sunflower!' })).not.toBeInTheDocument();
+  });
+
+  it('Next from a key acts at once (no click count): only a tap’s second press is held back', () => {
+    play();
+    wait();
+    const [a, b] = jobFor('gentle', 0, 0).word.parts;
+    fireEvent.click(tile(a));
+    fireEvent.click(tile(b));
+    fireEvent.click(hammer());
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 0 });
     expect(screen.queryByRole('heading', { name: 'Sunflower!' })).not.toBeInTheDocument();
   });
 
@@ -86,6 +97,31 @@ describe('🔨 a double tap', () => {
     expect(dot()).toContain('Tap a part in the tray — it goes on the anvil.');
     fireEvent.click(page);
     expect(page).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('🔨 Expert’s root, a double tap', () => {
+  it('a meaning tapped as the question comes (Hammer was under the finger) isn’t picked; a moment later it is; a key at once', () => {
+    render(<WordForge def={MINIGAMES['word-forge']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    wait();
+    const job = jobFor('expert', 0, 0);
+    const [a, b] = job.word.parts;
+    fireEvent.click(tile(a));
+    wait();
+    fireEvent.click(tile(b));
+    wait();
+    fireEvent.click(hammer());
+    expect(screen.getByRole('heading', { name: 'What does it mean?' })).toBeInTheDocument();
+    const wrong = rootChoices(job).find((m) => !rootWords(job, m).right)!;
+    const right = rootChoices(job).find((m) => rootWords(job, m).right)!;
+    fireEvent.click(screen.getByRole('button', { name: `“${wrong}”` }), { detail: 1 });
+    expect(dot()).not.toContain(`Not “${wrong}”`);
+    fireEvent.click(screen.getByRole('button', { name: `“${wrong}”` }), { detail: 0 });
+    expect(dot()).toContain(`Not “${wrong}”`);
+    expect(screen.getByRole('button', { name: `“${wrong}”, tried` })).toBeInTheDocument();
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: `“${right}”` }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: 'Solar' })).toBeInTheDocument();
   });
 });
 

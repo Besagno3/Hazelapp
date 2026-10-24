@@ -1,9 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { ALSO, BAND_FAMILIES, FAMILIES, FAMILY_BY_ID, FAMILY_IDS, JOBS_PER_ROUND, PART_MEANS, builtLine, forgeWords, hintFor, jobFor, jobWords, keepHyphens, learnedLine, partText, realWord, roundQueue, type Job } from './forge';
+import { ALSO, BAND_FAMILIES, EXPERT_WORDS, FAMILIES, FAMILY_BY_ID, FAMILY_IDS, JOBS_PER_ROUND, PART_MEANS, ROOT_KIN, ROOT_MEANS, builtLine, forgeWords, hintFor, jobFor, jobWords, keepHyphens, learnedLine, partText, realWord, rootAsk, rootChoices, rootWords, roundQueue, type ExpertWord, type Job } from './forge';
 import { BANDS, MINIGAMES, type Band } from '../../content/minigames';
 
 const jobs = (band: Band, rounds = 6): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 const pool = (band: Band) => [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))];
+const expertPool = [...new Set(FAMILY_IDS.flatMap((id) => EXPERT_WORDS[id].flatMap((x) => x.parts)))];
+const expertJobs = (): Job[] => FAMILY_IDS.flatMap((family) => EXPERT_WORDS[family].map((word) => ({ band: 'expert' as const, family, word, tiles: [] })));
 const jobOf = (band: Band, word: string): Job => {
   const family = BAND_FAMILIES[band].find((id) => FAMILY_BY_ID[id].words.some((x) => x.word === word))!;
   return { band, family, word: FAMILY_BY_ID[family].words.find((x) => x.word === word)!, tiles: [] };
@@ -111,8 +113,36 @@ describe('the forge’s words', () => {
       expect([...not].sort().join(' '), band).toBe(NOT_WORDS[band]);
     }
     // Each real word the forge knows is one a band's tray can make.
-    const made = new Set(BANDS.flatMap((band) => pool(band).flatMap((a) => pool(band).filter((b) => b !== a).map((b) => a + b))));
+    const pairs = (parts: string[]) => parts.flatMap((a) => parts.filter((b) => b !== a).map((b) => a + b));
+    const made = new Set([...BANDS.flatMap((band) => pairs(pool(band))), ...pairs(expertPool)]);
     for (const word of Object.keys(ALSO)) expect(made.has(word), word).toBe(true);
+  });
+
+  it('Expert: every pair of its 39 roots a tray can make — its 27 words and 16 others said to be real words, the rest not-words, the rarest looked at', () => {
+    expect(expertPool).toHaveLength(39);
+    const not = new Set<string>();
+    const real = new Set<string>();
+    for (const job of expertJobs())
+      for (const a of expertPool)
+        for (const b of expertPool) {
+          if (a === b) continue;
+          const { right, said } = forgeWords(job, [a, b]);
+          if (right) expect(a + b).toBe(job.word.word);
+          else if (realWord(a + b)) {
+            expect(said, a + b).toMatch(/ is a real word: /);
+            real.add(a + b);
+          } else not.add(a + b);
+        }
+    // Its 27 words (each one hammered for another word: a real word, said so), Expert's 13 others, and 3 of Tricky's.
+    const words = expertJobs().map((job) => job.word.word);
+    expect(words.filter((w) => !real.has(w))).toEqual([]);
+    expect([...real].filter((w) => !words.includes(w)).sort()).toEqual(['argon', 'chronograph', 'chronology', 'dictator', 'geometer', 'indict', 'insist', 'micrograph', 'micrography', 'paragon', 'paragraph', 'parameter', 'polygraph', 'supply', 'telegraphy', 'telemeter']);
+    // In a big dictionary but rare, old or a name: left as not-words, each looked at.
+    const rare = ['aquameter', 'arnaut', 'asport', 'benedict', 'calligraph', 'chronography', 'geotic', 'glottic', 'inport', 'micrology', 'multigraph', 'multipara', 'multivolent', 'paralogy', 'parapathy', 'polygraphy', 'polylogy', 'polymeter', 'prefactor', 'solas', 'symar'];
+    for (const w of rare) expect(not.has(w), w).toBe(true);
+    // A new root makes new pairs: each real one into ALSO, or here, looked at.
+    expect(real.size + not.size).toBe(39 * 38);
+    expect(not.size).toBe(1439);
   });
 
   it('right; a real word meaning something else — keeping a part that’s right; the other way round; -s for -es; two add-ons; an add-on astray; no word, with a hint', () => {
@@ -214,5 +244,98 @@ describe('the forge’s words', () => {
 
   it('an end part’s hyphen kept with it on a line (UX review round 2: "add -" / "es"); a front part’s, and a word’s own, left be', () => {
     expect(keepHyphens('Add -s; after s, add -es. Un- turns it: word-smith, “-ful” (-less).')).toBe('Add -\u2060s; after s, add -\u2060es. Un- turns it: word-smith, “-\u2060ful” (-\u2060less).');
+  });
+});
+
+describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, their tiles plain; what a root means once forged', () => {
+  const solar = (): Job => expertJobs()[0];
+  const each = (f: (job: Job) => void) => expertJobs().forEach(f);
+
+  it('three words a family, all nine families; each its two roots joined, one asked about; every root §8.5 names', () => {
+    expect(expertJobs()).toHaveLength(27);
+    each((job) => {
+      const w = job.word as ExpertWord;
+      expect(w.parts.join(''), w.word).toBe(w.word);
+      expect(w.parts, w.word).toContain(w.ask);
+      for (const p of w.parts) expect(ROOT_MEANS[p], p).toBeTruthy();
+      // The meaning asked never says the asked root's, so the question isn't read off the ticket.
+      expect(w.meaning, w.word).not.toMatch(new RegExp(`\\b${ROOT_MEANS[w.ask]}\\b`));
+    });
+    for (const root of ['port', 'dict', 'spect', 'aqua', 'chrono', 'geo', 'logy', 'meter']) expect(expertPool, root).toContain(root);
+    // A root's other words are real and aren't the word itself.
+    for (const [root, kin] of Object.entries(ROOT_KIN)) for (const k of kin) expect(k, root).toContain(root);
+  });
+
+  it('a round from all nine families, starting at the next each round; a tray of the word’s roots and four others, plain', () => {
+    expect(BAND_FAMILIES.expert).toEqual(FAMILY_IDS);
+    expect(roundQueue('expert', () => false, 1)[0]).toBe('rain');
+    const job = jobFor('expert', 0, 0);
+    expect(job.word.word).toBe('solar');
+    expect(job.tiles).toHaveLength(6);
+    expect(new Set(job.tiles).size).toBe(6);
+    for (const p of job.word.parts) expect(job.tiles).toContain(p);
+    for (const p of job.tiles) expect(expertPool).toContain(p);
+    expect(job.tiles.map((p) => partText(p, 'expert'))).toEqual(job.tiles);
+    expect(jobFor('expert', 0, 0)).toEqual(job);
+    // Round 3 is each family's first word again; round 1 its second.
+    expect(jobFor('expert', 1, 0).word.word).toBe('aquatic');
+  });
+
+  it('the question: four meanings — the root’s, the other part’s, two others, none alike — the same each time; the answer in every place', () => {
+    expect(rootAsk(solar())).toBe('What does “sol” mean in solar?');
+    expect(rootChoices(solar())).toEqual(['a place for', 'people', 'to do with', 'sun']);
+    const places = [0, 0, 0, 0];
+    each((job) => {
+      const w = job.word as ExpertWord;
+      const all = rootChoices(job);
+      expect(all, w.word).toHaveLength(4);
+      expect(all.map((m) => m.slice(0, 4)).filter((m, k, a) => a.indexOf(m) !== k), w.word).toEqual([]);
+      expect(all, w.word).toContain(ROOT_MEANS[w.ask]);
+      expect(all, w.word).toContain(ROOT_MEANS[w.parts.find((p) => p !== w.ask)!]);
+      expect(rootChoices(job)).toEqual(all);
+      places[all.indexOf(ROOT_MEANS[w.ask])]++;
+    });
+    for (const n of places) expect(n).toBeGreaterThan(0);
+    for (const n of places) expect(n).toBeLessThanOrEqual(27 / 2);
+  });
+
+  it('a meaning picked: right, with the word’s build and more words with the root; the other part’s said so; another, a word to think of — plain', () => {
+    expect(rootWords(solar(), 'sun')).toEqual({ right: true, said: 'Yes: “sol” means “sun”. Solar: sol (“sun”) + ar (“to do with”). More with “sol”: parasol and solstice.' });
+    expect(rootWords(solar(), 'to do with')).toEqual({ right: false, said: 'Not “to do with”: that’s “ar”, the other part of solar.' });
+    expect(rootWords(solar(), 'people')).toEqual({ right: false, said: 'Not “people”. Think of parasol: what does it share with solar?' });
+    const calligraphy = expertJobs().find((job) => job.word.word === 'calligraphy')!;
+    expect(rootWords(calligraphy, 'earth').said).toBe('Not “earth”. Read what calligraphy means again.');
+    // The lesson: the build, then more words with the asked root — or, where it has none listed, the other part.
+    expect(learnedLine(calligraphy)).toBe('Calligraphy: calli (“beauty”) + graphy (“writing”). More with “graphy”: biography and photography.');
+    let longest = '';
+    each((job) => {
+      for (const m of rootChoices(job)) {
+        const { right, said } = rootWords(job, m);
+        expect(said).not.toContain('!');
+        if (!right && said.length > longest.length) longest = said;
+      }
+      expect(learnedLine(job)).toMatch(/ More with “[a-z]+”: [a-z]+( and [a-z]+)?\.$/);
+    });
+    expect(longest.length, longest).toBeLessThanOrEqual(95);
+  });
+
+  it('the forge’s words plain: the ticket, a hint, a wrong try — never "!", each short enough for the bar', () => {
+    expect(jobWords(solar())).toBe('Forge a word that means “powered by daylight, like a panel on a roof”: two roots on the anvil, in order, and hammer. Then: what does one of its roots mean?');
+    expect(hintFor(solar())).toBe('It starts with a part meaning “sun”.');
+    expect(forgeWords(solar(), ['ar', 'sol']).said).toBe('Arsol isn’t a word — try them the other way round.');
+    expect(forgeWords(solar(), ['sol', 'ar'])).toEqual({ right: true, said: 'Solar. Powered by daylight, like a panel on a roof.' });
+    let longest = '';
+    each((job) => {
+      expect(jobWords(job)).not.toContain('!');
+      expect(hintFor(job)).not.toContain('!');
+      for (const a of expertPool)
+        for (const b of expertPool) {
+          if (a === b) continue;
+          const { right, said } = forgeWords(job, [a, b]);
+          expect(said).not.toContain('!');
+          if (!right && said.length > longest.length) longest = said;
+        }
+    });
+    expect(longest.length, longest).toBeLessThanOrEqual(95);
   });
 });

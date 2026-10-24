@@ -83,3 +83,16 @@ export function StepHammer() {
     </svg>
   );
 }
+
+/** Expert's step 3: a root's tile, and what it means — a question mark on a card under it. */
+export function StepRoot() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="50" y="24" width="100" height="64" rx="8" fill="#fdba74" stroke={INK} strokeWidth="8" />
+      <path d="M74 56 h52" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <path d="M100 92 v14" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <rect x="40" y="110" width="120" height="66" rx="10" fill={PAPER} stroke={INK} strokeWidth="8" />
+      <path d="M86 132 q0 -14 14 -14 q14 0 14 12 q0 10 -14 14 v8 M100 166 v1" fill="none" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+    </svg>
+  );
+}

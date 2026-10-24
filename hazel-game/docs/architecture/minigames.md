@@ -690,6 +690,23 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   moves as it opens. From the keyboard, focus goes on from a part placed to the next, then
   Hammer; from a tap, to the tray. The games' keyboard guards are shared
   (`features/minigames/keys.ts`: `noRepeat` for a held Enter, `useFocusMoved`
-  for a double Enter on what focus moved to, `keyed`). The
+  for a double Enter on what focus moved to, `keyed`). On Expert (§8.5)
+  each family has three words of Latin and Greek roots (`EXPERT_WORDS`, an
+  `ExpertWord` naming the root to ask about, `ask`; its meaning never says
+  that root's), every family a round (`BAND_FAMILIES.expert`), the tray the
+  word's two and four others from every Expert word's roots, plain
+  (`partText`). `ROOT_MEANS` says what each root means — in a hint after a
+  miss, the card and the question only — and `ROOT_KIN` other words it's in.
+  Forged, step `root` (`EXPERT_CHIPS`): `rootAsk`, four meanings from
+  `rootChoices` (the root's, the other part's, two others none alike, in an
+  order by the word), `rootWords` (right, with `learnedLine`; the other
+  part's said so; another with a word the root's in to think of), a wrong
+  one marked tried and picked again. `forge.test` holds every pair of
+  Expert's 39 roots to its 27 words, 16 more in `ALSO` or a pinned count of
+  not-words, the 21 rarest named. Dot plain (`EXPERT_RIGHT_LINES`; `!` made
+  `.` in `forgeWords` and `hintFor`); the seal's `spotOn` counts words
+  forged at the first hammer with the root right first pick, the reward
+  keeping the first missed word's lesson; the meanings and Next wait for a
+  tap's second, not a key's (`ready(e)`). Every game has Expert now. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

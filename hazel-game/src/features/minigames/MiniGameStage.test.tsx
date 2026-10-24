@@ -25,7 +25,7 @@ const { default: MiniGameStage } = await import('./MiniGameStage');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
-const { openedFlag, pageFlag, sealFlag, starFlag } = await import('../../content/minigames');
+const { MINIGAMES, openedFlag, pageFlag, sealFlag, starFlag } = await import('../../content/minigames');
 const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } = await import('../../content/items');
 const { rememberedBand, roundsPlayed } = await import('../../lib/minigames');
 const { JAR_IDS } = await import('../../lib/minigames/potionLab');
@@ -167,10 +167,17 @@ describe('the Expert band (§8)', () => {
     expect(screen.getByText(/Ribbit! Orders are piling up/)).toBeInTheDocument();
     unmount();
 
-    render(<MiniGameStage game="word-forge" />);
-    const three = within(screen.getByRole('group', { name: 'How tricky?' }));
-    expect(three.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky']);
-    expect(three.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+    // Every game has Expert now (Word Forge last, PR 20); one without it still shows three bands.
+    const expert = MINIGAMES['word-forge'].expert;
+    delete MINIGAMES['word-forge'].expert;
+    try {
+      render(<MiniGameStage game="word-forge" />);
+      const three = within(screen.getByRole('group', { name: 'How tricky?' }));
+      expect(three.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky']);
+      expect(three.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      MINIGAMES['word-forge'].expert = expert;
+    }
   });
 
   it('🧪 Potion Lab on Expert: an order in tens from pure water, the pH guessed as a number; spot on every time, the seal — shown, never paid', async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { useReducedMotion } from 'framer-motion';
-import { FAMILIES, FAMILY_BY_ID, JOBS_PER_ROUND, PART_MEANS, builtLine, capitalise, forgeWords, jobFor, jobWords, keepHyphens, learnedLine, partText, roundQueue, type FamilyId } from '../../../lib/minigames/forge';
-import { BAND_LABEL, pageFlag, type Band } from '../../../content/minigames';
+import { FAMILIES, FAMILY_BY_ID, JOBS_PER_ROUND, PART_MEANS, builtLine, capitalise, forgeWords, jobFor, jobWords, keepHyphens, learnedLine, partText, rootAsk, rootChoices, rootWords, roundQueue, type FamilyId } from '../../../lib/minigames/forge';
+import { BAND_LABEL, pageFlag, type PlayBand } from '../../../content/minigames';
 import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { CharacterPortrait } from '../../../components/CharacterPortrait';
 import { sfx } from '../../../lib/audio';
@@ -10,7 +10,6 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
-import { upToTricky } from '../../../lib/minigames';
 import { noRepeat, useFocusMoved } from '../keys';
 import { lastInputWasKey } from '../lastInput';
 import { useSettled } from '../useSettled';
@@ -18,14 +17,16 @@ import { FamilyMark } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
 
-/** Forging the word; its card. */
-type Step = 'forge' | 'done';
+/** Forging the word; on Expert, what one of its roots means; its card. */
+type Step = 'forge' | 'root' | 'done';
 
-/** Dot once a word's forged, in turn. */
+/** Dot once a word's forged, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Clang! A real word, hot off the anvil!', 'Perfect — I’ll write it on the wall in my best letters.', 'You’re a born word-smith!'];
+const EXPERT_RIGHT_LINES = ['Forged.', 'That’s the word.', 'Right.'];
 
 /** The steps, along the footer: each part, then Hammer (UX review round 1: "Read the meaning" was ticked before a tap). */
 const STEP_CHIPS = ['Pick the first part', 'Then the second', 'Hammer!'];
+const EXPERT_CHIPS = ['Forge the word', 'What a root means', 'Its page'];
 
 const quote = (t: string) => `“${t}”`;
 
@@ -37,12 +38,13 @@ const quote = (t: string) => `“${t}”`;
  * other is said kindly — a real word that means something else, the other
  * way round, -s for -es, or no word, with a hint — and its parts float back.
  * Gentle joins two words, or makes more than one; Medium builds on a root
- * word; Tricky joins Greek and Latin roots, each saying what it means. Three
- * words a round. No timer. Rules: `lib/minigames/forge.ts`.
+ * word; Tricky joins Greek and Latin roots, each saying what it means; Expert
+ * (§8.5) forges from roots that don't say, then picks what one of them means.
+ * Three words a round. No timer. Rules: `lib/minigames/forge.ts`.
  */
-export default function WordForge({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
-  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
-  const band = upToTricky(playBand);
+export default function WordForge({ def, band, round, onPage, onFinish }: PlayProps) {
+  // Expert (§8.5): Latin and Greek roots, their tiles plain, and what a root means once the word's forged.
+  const expert = band === 'expert';
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);
@@ -63,10 +65,19 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
   const [tries, setTries] = useState(0);
   const [newPage, setNewPage] = useState(false);
   const [rights, setRights] = useState(0);
+  // Expert's seal (§8.3): each word forged at the first hammer and its root's meaning picked first time.
+  const [missed, setMissed] = useState(false);
+  const [spotOn, setSpotOn] = useState(0);
+  // Expert's reward teaches the first word missed, not the round's (as the other games' Expert).
+  const missedLesson = useRef<string | null>(null);
+  // Expert's meanings picked and wrong, marked.
+  const [tried, setTried] = useState<readonly string[]>([]);
   const [read, setRead] = useState<FamilyId | null>(null);
   const known = (id: FamilyId) => !!flags[pageFlag(def.id, id)];
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}:${tries}`);
+  // A press to act on: a key's at once (no click count), a tap's once settled.
+  const ready = (e: { detail: number }) => e.detail === 0 || settled();
   const moved = useFocusMoved();
   const inTray = (p: string) => !anvil.includes(p);
   const left = anvil.filter((p) => !p).length;
@@ -130,25 +141,52 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
     say(words);
     if (right) {
       sfx('chest');
-      setNewPage(onPage(job.family, family.name));
-      setRights((r) => r + 1);
-      setStep('done');
+      // Expert: forged, then what one of its roots means.
+      if (expert) return void setStep('root');
+      fileWord(missed);
       return;
     }
     sfx('wrong');
+    if (expert) setMissed(true);
     setTries((t) => t + 1);
     setBack(parts);
     setAnvil([null, null]);
     if (document.activeElement === goRef.current) focusTo.current = job.tiles[0];
   }
 
-  function next() {
-    if (step !== 'done' || !settled()) return;
+  /** The word's on the wall: its page, Dot's cheer, and on Expert the seal's count (`miss`: a wrong hammer or meaning on the way). */
+  function fileWord(miss: boolean) {
+    setNewPage(onPage(job.family, family.name));
+    setRights((r) => r + 1);
+    if (expert && !miss) setSpotOn((n) => n + 1);
+    if (expert && miss) missedLesson.current ??= learnedLine(job);
+    setStep('done');
+  }
+
+  /** Expert: a meaning picked for the word's root — right, the word's filed; wrong, said, and picked again. */
+  function pickRoot(m: string, e: { detail: number }) {
+    if (step !== 'root' || !ready(e)) return;
+    setRead(null);
+    const { right, said: words } = rootWords(job, m);
+    say(words);
+    if (!right) {
+      sfx('wrong');
+      setMissed(true);
+      setTried((t) => (t.includes(m) ? t : [...t, m]));
+      return;
+    }
+    sfx('chest');
+    fileWord(missed);
+  }
+
+  function next(e: { detail: number }) {
+    if (step !== 'done' || !ready(e)) return;
     setRead(null);
     if (done + 1 >= JOBS_PER_ROUND) {
-      // The round's three words, each how it's built (UX review round 2: only the last was named).
+      // The round's three words, each how it's built (UX review round 2: only the last was named); on Expert the first
+      // missed word's lesson, the seal's count.
       const built = Array.from({ length: JOBS_PER_ROUND }, (_, i) => builtLine(jobFor(band, round, i, queue)));
-      onFinish({ title: 'Three words forged!', learned: keepHyphens(built.join(' ')) });
+      onFinish({ title: 'Three words forged!', learned: (expert && missedLesson.current) || keepHyphens(built.join(' ')), spotOn: expert ? { right: spotOn, of: JOBS_PER_ROUND } : undefined });
       return;
     }
     setDone((d) => d + 1);
@@ -158,13 +196,17 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
     setTries(0);
     say(null);
     setNewPage(false);
+    setMissed(false);
+    setTried([]);
   }
 
   // Focus where each step starts: from the keyboard, the tray's first part; from a pointer, the tray — no ring, which lit
   // up the first part as if picked (code and UX review round 1); the word forged.
   const doneHead = useRef<HTMLHeadingElement>(null);
+  const rootHead = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (step === 'done') doneHead.current?.focus({ preventScroll: true });
+    else if (step === 'root') rootHead.current?.focus({ preventScroll: true });
     else if (lastInputWasKey()) tray.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
     else tray.current?.focus({ preventScroll: true });
   }, [step, done]);
@@ -206,22 +248,27 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
     } else go?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cheerLine = `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another?' : 'The wall’s filling up!'}`;
+  // On Expert after a miss, not "Forged." — it read as the last answer's (Echo's Call's UX review round 1).
+  const cheerLine = expert
+    ? `${missed ? 'Forged, with a miss on the way.' : EXPERT_RIGHT_LINES[(rights - 1 + EXPERT_RIGHT_LINES.length) % EXPERT_RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Next word.' : 'That’s three.'}`
+    : `${RIGHT_LINES[(rights - 1 + RIGHT_LINES.length) % RIGHT_LINES.length]} ${done + 1 < JOBS_PER_ROUND ? 'Another?' : 'The wall’s filling up!'}`;
   // What Dot says — once a part's on the anvil, which (UX review round 1: a reader never heard what landed). A page of the
   // wall is read under the wall, not by her: her bubble growing moved the page tapped, so a second tap to close it hit
   // another (UX review round 2).
   const [first, second] = anvil.map((p) => (p ? quote(partText(p, band)) : null));
   let line: string;
   if (step === 'done') line = cheerLine;
+  else if (step === 'root') line = said ? (said.startsWith('Not ') ? said : `${said} ${rootAsk(job)}`) : rootAsk(job);
   else if (said) line = said;
   else if (left === 2) line = `I need a word that means “${job.word.meaning}”. Which two parts make it?`;
   else if (left === 1) line = `${first ?? second} is on the anvil. And the second part? Tap it in the tray.`;
-  else line = `${first} and ${second} are on the anvil — hammer them together!`;
+  else line = `${first} and ${second} are on the anvil — hammer them together${expert ? '.' : '!'}`;
   line = keepHyphens(line);
   if (beat % 2) line += '​';
 
   // The next part goes in the first empty place (UX review round 2: with only the second filled, it said "Then the second").
-  const chipAt = step === 'done' ? 3 : !anvil[0] ? 0 : !anvil[1] ? 1 : 2;
+  // Expert's three: forging, the root, and the word's card (its page).
+  const chipAt = expert ? (step === 'done' ? 2 : step === 'root' ? 1 : 0) : step === 'done' ? 3 : !anvil[0] ? 0 : !anvil[1] ? 1 : 2;
   const forming = anvil.map((p) => p ?? '').join('');
 
   return (
@@ -239,7 +286,7 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
           className="flex flex-col gap-3 bg-[#2b1d3d] p-2 split:col-start-1 split:row-start-2 split:min-h-0 split:overflow-y-auto split:border-t-4 split:border-[#1b0f22] split:p-4 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-row [@media(max-height:500px)]:gap-1.5 split:[@media(max-height:700px)]:row-start-1 split:[@media(max-height:700px)]:border-t-0 split:[@media(max-height:500px)]:p-2"
         >
           <div className="flex min-w-0 flex-col gap-3 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:flex-1 [@media(max-height:500px)]:gap-1.5">
-            <Anvil anvil={anvil} band={band} forming={step === 'done' ? job.word.word : forming} done={step === 'done'} still={still} onTap={takeBack} />
+            <Anvil anvil={anvil} band={band} forming={step !== 'forge' ? job.word.word : forming} done={step !== 'forge'} still={still} onTap={takeBack} />
             {step === 'forge' && (
               <div
                 ref={tray}
@@ -258,7 +305,7 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
                 <div
                   className={cn(
                     'grid grid-cols-3 gap-1.5',
-                    band === 'tricky'
+                    band === 'tricky' || expert
                       ? '[@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:grid-flow-col [@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:auto-cols-fr [@media(min-width:560px)_and_(max-width:639px)_and_(max-height:500px)]:grid-cols-none'
                       : '[@media(min-width:560px)_and_(max-height:500px)]:grid-flow-col [@media(min-width:560px)_and_(max-height:500px)]:auto-cols-fr [@media(min-width:560px)_and_(max-height:500px)]:grid-cols-none',
                   )}
@@ -293,7 +340,8 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
               <>
                 {/* Focused from script: no ring (code review round 1). */}
                 <h2 id="wf-step" ref={doneHead} tabIndex={-1} aria-describedby="wf-result" className={cn(pixelHeadClass, 'self-start rounded text-[26px] leading-none text-white focus:outline-none [@media(max-height:500px)]:text-[20px]')}>
-                  {capitalise(job.word.word)}!
+                  {capitalise(job.word.word)}
+                  {expert ? '' : '!'}
                 </h2>
                 {/* Dot's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
                 <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
@@ -301,12 +349,45 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
                   <p id="wf-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
                     {keepHyphens(learnedLine(job))}
                     {/* Not "Graph, “write” are on the word wall!" (UX review round 1). */}
-                    {newPage && ` A new page on the word wall: ${family.name}!`}
+                    {newPage && ` A new page on the word wall: ${family.name}${expert ? '.' : '!'}`}
                   </p>
-                  <button ref={goRef} type="button" onClick={next} onKeyDown={noRepeat} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:px-4 [@media(max-height:500px)]:text-base')}>
-                    {done + 1 < JOBS_PER_ROUND ? 'Next word' : 'All forged!'}
+                  <button ref={goRef} type="button" onClick={(e) => next(e)} onKeyDown={noRepeat} className={cn(goldClass, 'min-h-12 text-lg leading-tight [@media(max-height:500px)]:flex-none [@media(max-height:500px)]:px-4 [@media(max-height:500px)]:text-base')}>
+                    {done + 1 < JOBS_PER_ROUND ? 'Next word' : expert ? 'All forged' : 'All forged!'}
                   </button>
                 </div>
+              </>
+            ) : step === 'root' ? (
+              <>
+                {/* Expert: the word forged, what one of its roots means — four to pick from; what Dot said of a wrong one under
+                    them, in a box kept its height, so the meanings never move. */}
+                <h2 id="wf-step" ref={rootHead} tabIndex={-1} aria-describedby="wf-root" className={cn(pixelHeadClass, 'self-start rounded text-[24px] leading-none focus:outline-none [@media(max-height:500px)]:text-[18px]')}>
+                  What does it mean?
+                </h2>
+                <p id="wf-root" className="rounded-md bg-[#fff6dc] px-2.5 py-1.5 text-[16px] font-bold leading-snug text-[#1b0f22] shadow-[0_3px_0_#1b0f22] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[14px]">
+                  {rootAsk(job)}
+                </p>
+                <div role="group" aria-labelledby="wf-step" aria-describedby="wf-root" className="grid grid-cols-2 gap-2 [@media(min-width:560px)_and_(max-height:500px)]:grid-cols-4">
+                  {rootChoices(job).map((m, k, all) => (
+                    <button
+                      key={m}
+                      ref={k === all.length - 1 ? goRef : undefined}
+                      type="button"
+                      onClick={(e) => pickRoot(m, e)}
+                      onKeyDown={noRepeat}
+                      aria-label={`“${m}”${tried.includes(m) ? ', tried' : ''}`}
+                      className={cn(
+                        'min-h-12 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1.5 text-[16px] font-bold leading-tight hover:bg-[#2f2b70] [@media(max-height:500px)]:min-h-11 [@media(max-height:500px)]:text-[14px]',
+                        tried.includes(m) && 'border-dashed text-[#a8a4d8] line-through',
+                        focusRing,
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <p className="flex min-h-[4.5rem] items-center rounded-md bg-[#24215a] px-2.5 py-1.5 text-[15px] leading-snug [@media(max-height:500px)]:min-h-[3.25rem] [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
+                  {said && said.startsWith('Not ') ? <span className="font-bold">{said}</span> : <span className="text-[#e4e1ff]">{said ?? 'One of the meanings is the root’s.'}</span>}
+                </p>
               </>
             ) : (
               <>
@@ -387,7 +468,7 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
       </div>
 
       <footer className="hidden flex-none flex-wrap items-center gap-3 border-t-4 border-[#1b0f22] bg-[#1e1b4b] px-5 py-2 split:flex [@media(max-height:500px)]:hidden">
-        <StepChips steps={STEP_CHIPS} current={chipAt} />
+        <StepChips steps={expert ? EXPERT_CHIPS : STEP_CHIPS} current={chipAt} />
         <span className="ml-auto text-[15px] text-[#c9c5f2]">
           {BAND_LABEL[band]} · No timer. Take your time.
         </span>
@@ -402,7 +483,7 @@ export default function WordForge({ def, band: playBand, round, onPage, onFinish
  * sits — no shake under the finger that taps it next (code and UX review round
  * 1).
  */
-function PartButton({ part, band, back, onTap }: { part: string; band: Band; back: boolean; onTap: (e: MouseEvent) => void }) {
+function PartButton({ part, band, back, onTap }: { part: string; band: PlayBand; back: boolean; onTap: (e: MouseEvent) => void }) {
   const means = band === 'tricky' && PART_MEANS[part] !== part ? PART_MEANS[part] : undefined;
   return (
     <button
@@ -428,7 +509,7 @@ function PartButton({ part, band, back, onTap }: { part: string; band: Band; bac
  * to the tray — and the word they make, glowing; once forged, the word, with a
  * pop and sparks (UX review round 1: the scene's sparks are hidden on a phone).
  */
-function Anvil({ anvil, band, forming, done, still, onTap }: { anvil: readonly (string | null)[]; band: Band; forming: string; done: boolean; still: boolean; onTap: (k: number) => void }) {
+function Anvil({ anvil, band, forming, done, still, onTap }: { anvil: readonly (string | null)[]; band: PlayBand; forming: string; done: boolean; still: boolean; onTap: (k: number) => void }) {
   return (
     <div className="flex flex-col items-center gap-1.5 rounded-lg bg-[#3b2a52] px-2 py-2 [@media(max-height:500px)]:gap-1 [@media(max-height:500px)]:py-1">
       <ol aria-label="The anvil" aria-describedby={done ? undefined : 'wf-do'} className="flex w-full max-w-[420px] items-center justify-center gap-2">

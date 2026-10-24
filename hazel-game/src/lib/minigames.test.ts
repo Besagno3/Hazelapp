@@ -143,10 +143,15 @@ describe('the band remembered on this device', () => {
   it('Expert, on a game that has it; not on one that hasn’t (§8.2)', () => {
     rememberBand('kid-a', ID, 'expert');
     expect(rememberedBand('kid-a', ID)).toBe('expert');
-    // A game without Expert yet (the last in §5's order, after Ember Air Mail, PR 19).
-    localStorage.setItem('hazel-mg-band-kid-a-word-forge', 'expert');
-    expect(MINIGAMES['word-forge'].expert).toBeUndefined();
-    expect(rememberedBand('kid-a', 'word-forge')).toBeNull();
+    // Every game has Expert now (Word Forge last, PR 20), so one is taken off for the case.
+    const expert = MINIGAMES['word-forge'].expert;
+    delete MINIGAMES['word-forge'].expert;
+    try {
+      localStorage.setItem('hazel-mg-band-kid-a-word-forge', 'expert');
+      expect(rememberedBand('kid-a', 'word-forge')).toBeNull();
+    } finally {
+      MINIGAMES['word-forge'].expert = expert;
+    }
   });
 
   it('a junk value or storage that throws is "not remembered", never an error', () => {
