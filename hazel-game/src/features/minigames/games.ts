@@ -8,6 +8,7 @@ import { MuralLogo, StepMirror, StepMix, StepPaint } from './mural/art';
 import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
 import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepMatch, StepRead } from './rings/art';
+import { StepCheck, StepPlace, StepWash, TimelineLogo } from './timeline/art';
 import type { PlayProps } from './types';
 
 /**
@@ -56,5 +57,10 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./rings/RingwoodsRings')),
     Logo: RingsLogo,
     steps: [StepCount, StepRead, StepMatch],
+  },
+  'index-timeline': {
+    Play: retryableLazy(() => import('./timeline/IndexTimeline')),
+    Logo: TimelineLogo,
+    steps: [StepWash, StepPlace, StepCheck],
   },
 };

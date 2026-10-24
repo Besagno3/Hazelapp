@@ -73,3 +73,24 @@ input::-ms-reveal {
     animation: none;
   }
 }
+
+/* A card floating back to the washed-up cards in Index's Timeline (#192): it
+   drifts down into its spot and fades in — not a shake, which read as "wrong!". */
+@keyframes it-float {
+  0% {
+    opacity: 0.3;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.it-float {
+  animation: it-float 0.5s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .it-float {
+    animation: none;
+  }
+}

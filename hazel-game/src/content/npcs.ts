@@ -1848,6 +1848,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     lines: [
       { text: "I'm Index! I put everything in alphabetical order. Even my sneezes. Ah… Bh… CHOO!", unlessFlag: questDoneFlag({ id: 'archive-letter' }) },
       { text: "Wick's note is filed under T, for Thank you. Now, where was I? Ah… Bh… CHOO! Filed under S.", ifFlag: questDoneFlag({ id: 'archive-letter' }) },
+      // After her hello or Wick's note, whichever she says (code review round 2: "too" pointed at a hello she'd dropped).
+      'Some of my cards are in time order — when things happened. The water mixed them up! Help me sort them?',
       { text: 'The Crystal of Memory shines! Every card in my catalog remembers its book again. A to Z!', ifFlag: 'crystal-history-restored' },
     ],
   },
