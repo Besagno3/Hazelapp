@@ -514,13 +514,59 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(useSaveStore.getState().save!.coins).toBe(coins + 50);
   });
 
-  it('…nor over its offer, which only “I’m on it!” takes', () => {
+  it('over its offer the game is on offer too, and leaves the quest offered — only “I’m on it!” takes it (PR 2: Baker Dot)', () => {
+    const finish = vi.fn((s: object) => ({ ...s, flags: { 'test-offered': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['Will you help me?', 'It’s a big job.'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish } : null;
+    const { unmount } = render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(finish).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.flags['test-offered']).toBeUndefined();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    unmount();
+    // Not from the offer's last line either, where ▼ Next would have taken it (review round 1) — and
+    // there "I'm on it!" is the gold button, not the game.
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    const game = screen.getByText('🧪 Potion Lab');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(finish).not.toHaveBeenCalled();
+    expect(useSaveStore.getState().save!.flags['test-offered']).toBeUndefined();
+  });
+
+  it('…and over a reminder of a quest under way, keeping its own bookkeeping from the last line, as ▼ Next would (review round 1)', () => {
+    const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'tries-reset': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['Still looking?', 'Try the pond!'], badge: 'A test quest', finishKind: null, questId: 'test', finish } : null;
+    const { unmount } = render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(finish).not.toHaveBeenCalled();
+    unmount();
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText('🧪 Potion Lab').className).toContain('bg-amber-400');
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(useSaveStore.getState().save!.flags['tries-reset']).toBe(true);
+  });
+
+  it('never over a riddle, which its own question answers (review round 1)', () => {
     quests.override = (id) =>
       id === 'verdara-merchant'
-        ? { lines: ['Will you help me?'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish: (s: object) => ({ ...s, flags: { 'test-offered': true } }) }
+        ? { lines: ['A riddle for you!'], badge: 'A test quest', finishKind: 'riddle', questId: 'test', finish: null, riddle: 'test-riddle' }
         : null;
     render(<DialogueOverlay npcId="verdara-merchant" />);
     expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+  });
+
+  it('Baker Dot offers 🥧 Dot’s Bakery over her own quest’s offer', () => {
+    render(<DialogueOverlay npcId="village-baker" />);
+    expect(screen.getByText(/Busy Morning/)).toBeInTheDocument(); // her quest's offer
+    fireEvent.click(screen.getByText('🥧 Dot’s Bakery'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'dots-bakery' });
+    expect(Object.keys(useSaveStore.getState().save!.flags).filter((f) => f.includes('bakery-deliveries'))).toEqual([]);
   });
 
   it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
@@ -534,6 +580,34 @@ describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
     expect(finish).toHaveBeenCalledTimes(1);
     expect(useSaveStore.getState().save!.flags['step-done']).toBe(true);
     expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('beside a pen-pal offer on a step’s last line, the game leaves the step and the one-time ask standing (review round 2)', async () => {
+    const { useKeyboardStore } = await import('../../store/keyboardStore');
+    const { PEN_PALS, typingLessonFlag } = await import('../../content/typing');
+    useKeyboardStore.getState().reset();
+    useKeyboardStore.getState().seen();
+    withFlags({ [typingLessonFlag('capitals')]: true });
+    const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['A letter for me?', 'Shall I write back?'], badge: 'A test quest', finishKind: 'step', questId: 'test', step: PEN_PALS[0].stepId, finish } : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('▼ Next'));
+    expect(screen.getByText('✍️ Add a line of my own')).toBeInTheDocument();
+    const game = screen.getByText('🧪 Potion Lab');
+    expect(game.className).not.toContain('bg-amber-400');
+    fireEvent.click(game);
+    expect(finish).not.toHaveBeenCalled();
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+    useKeyboardStore.getState().reset();
+  });
+
+  it('a line’s own flag is kept when the kid leaves by the game button, as ▼ Next keeps it (review round 2)', () => {
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: [{ text: 'Have you met my cousin?', setFlag: 'met-cousin' }], badge: 'A test quest', finishKind: null, questId: 'test', finish: null } : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(useSaveStore.getState().save!.flags['met-cousin']).toBe(true);
   });
 
   it('someone who runs no game offers none', () => {

@@ -12,7 +12,7 @@ import { topicInfo } from '../../content/topics';
 import { playerAge, skillLevelFor } from '../../lib/age';
 import { playMusic, sfx } from '../../lib/audio';
 import { useLazyRetry } from '../../lib/lazyRetry';
-import { bandFor, claimPage, claimRound, forgetBand, pagesFound, rememberBand, rememberedBand, starsEarned, type Claim } from '../../lib/minigames';
+import { bandFor, claimPage, claimRound, forgetBand, noteRoundPlayed, pagesFound, rememberBand, rememberedBand, roundsPlayed, starsEarned, type Claim } from '../../lib/minigames';
 import { cn } from '../../lib/utils';
 import { sendFlow } from '../../machines/gameFlow';
 import { useProfileStore } from '../../store/profileStore';
@@ -71,7 +71,8 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
   const suggested = bandFor(level);
   const [band, setBand] = useState<Band>(() => rememberedBand(kidId, game) ?? suggested);
   const [phase, setPhase] = useState<Phase>('title');
-  const [round, setRound] = useState(0);
+  // Where this kid's orders pick up: a visit doesn't start over on the same first round (review round 2).
+  const [round, setRound] = useState(() => roundsPlayed(kidId, game));
   const [reward, setReward] = useState<(RoundOutcome & Earned) | null>(null);
   const earned = useRef<Earned>(NOTHING);
   const still = useReducedMotion() ?? false;
@@ -126,15 +127,25 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
       else void recordActivity();
       const total = c ? add(earned.current, c) : earned.current;
       earned.current = NOTHING;
+      noteRoundPlayed(kidId, game);
       setReward({ ...outcome, ...total });
       setPhase('reward');
       sfx('victory');
       if (!still) confetti({ particleCount: 90, spread: 75, origin: { y: 0.35 }, disableForReducedMotion: true });
     },
-    [update, game, addXp, recordActivity, still],
+    [update, game, addXp, recordActivity, still, kidId],
+  );
+
+  // The reward's confetti doesn't fall on into the next round, or over the map (review round 2).
+  useEffect(
+    () => () => {
+      confetti.reset();
+    },
+    [],
   );
 
   function playAgain() {
+    confetti.reset();
     setRound((r) => r + 1);
     setReward(null);
     setPhase('play');
@@ -151,7 +162,8 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
       onEscape={leave}
       focusKey={`${phase}:${round}`}
       describedBy={phase === 'title' ? 'mg-hello mg-how' : undefined}
-      className="fixed inset-0 z-40 text-white"
+      // touch-manipulation: quick taps on a slice or a + never zoom the page (review round 2).
+      className="fixed inset-0 z-40 touch-manipulation text-white"
     >
       <motion.div
         data-testid="minigame-stage"
@@ -282,7 +294,7 @@ function StageHeader({ def, stars, onBack }: { def: MiniGameDef; stars: number; 
         <span aria-hidden="true">🗺️ Map</span>
       </button>
       <div className="flex min-w-0 flex-1 flex-col items-center">
-        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px]')}>
+        <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'truncate text-[30px] focus:outline-none sm:text-[38px] [@media(max-height:500px)]:text-[28px] [@media(max-width:359px)]:text-[24px]')}>
           {def.name}
         </h1>
         <span className="mt-1 hidden text-sm leading-none text-[#c9c5f2] sm:block [@media(max-height:500px)]:hidden">{def.place}</span>
@@ -474,7 +486,9 @@ function RewardScreen({
   const allFound = pagesFound(flags, def.id).length >= def.pages;
   // A phone's cheer is a size smaller (or a short screen's), so Ember and the host stay on the screen — turning the phone follows.
   const small = useMedia('(max-width: 639px), (max-height: 500px)');
-  const scale = small ? 3 : 4;
+  // A phone on its side: smaller still, so the lesson by the buttons leaves them in view (PR 2 review round 2).
+  const short = useMedia('(max-height: 500px)');
+  const scale = short ? 2 : small ? 3 : 4;
   const title = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     title.current?.focus({ preventScroll: true });
@@ -495,7 +509,7 @@ function RewardScreen({
       short: 'A star',
     });
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto bg-[#1e1b4b] px-3 pb-6 pt-6 sm:pt-8">
+    <div className="relative flex min-h-0 flex-1 flex-col items-center overflow-y-auto bg-[#1e1b4b] px-3 pb-6 pt-6 sm:pt-8 [@media(max-height:500px)]:pt-3">
       <svg aria-hidden="true" viewBox="-100 -100 200 200" className={cn('pointer-events-none fixed left-1/2 top-[38%] h-[160vmax] w-[160vmax] -translate-x-1/2 -translate-y-1/2', !still && 'motion-safe:animate-[spin_60s_linear_infinite]')}>
         {Array.from({ length: 12 }, (_, i) => {
           const a = (i * 30 * Math.PI) / 180;
@@ -504,7 +518,7 @@ function RewardScreen({
           return <path key={i} d={`M0 0 L${160 * Math.cos(a)} ${160 * Math.sin(a)} L${160 * Math.cos(b)} ${160 * Math.sin(b)} Z`} fill="#26236a" />;
         })}
       </svg>
-      <div className="relative flex w-full max-w-4xl flex-col items-center gap-4">
+      <div className="relative flex w-full max-w-4xl flex-col items-center gap-4 [@media(max-height:500px)]:gap-2">
         <h1 ref={title} tabIndex={-1} className={cn(pixelTitleClass, 'text-center text-5xl focus:outline-none sm:text-7xl [@media(max-height:500px)]:text-5xl')}>
           {reward.title}
         </h1>
@@ -522,7 +536,10 @@ function RewardScreen({
           )}
         </div>
         <Stars count={stars} size={52} className="[@media(max-height:500px)]:[&>svg]:h-10 [@media(max-height:500px)]:[&>svg]:w-10" />
-        {/* On a phone or a short screen the cards are below the fold: what's new, in one line by the buttons (review round 2). */}
+        {/* On a phone or a short screen the cards are below the fold: what was found out, and what's new, by the buttons (PR 1 / PR 2 review round 2). */}
+        <p aria-hidden="true" className="max-w-xl text-center text-[17px] leading-snug sm:[@media(min-height:501px)]:hidden">
+          💡 {reward.learned}
+        </p>
         {got.length > 0 && (
           <p aria-hidden="true" className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-[17px] font-bold text-amber-200 sm:[@media(min-height:501px)]:hidden">
             {got.map((g) => (

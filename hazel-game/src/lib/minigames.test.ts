@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { bandFor, claimPage, claimRound, pagesFound, rememberBand, rememberedBand, starsEarned, starsFor } from './minigames';
+import { bandFor, claimPage, claimRound, noteRoundPlayed, pagesFound, rememberBand, rememberedBand, roundsPlayed, starsEarned, starsFor } from './minigames';
 import { MINIGAMES, pageFlag, starFlag } from '../content/minigames';
 import { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } from '../content/items';
 import { defaultSave } from './save';
@@ -80,6 +80,32 @@ describe('claimRound', () => {
     const second = claimRound(first.save, ID);
     expect(second).toMatchObject({ xp: 0, coins: 0, stars: [], item: null });
     expect(second.save).toBe(first.save);
+  });
+});
+
+describe('rounds played, on this device (PR 2 review round 2)', () => {
+  it('count up per kid and per game, from 0', () => {
+    expect(roundsPlayed('kid-a', ID)).toBe(0);
+    noteRoundPlayed('kid-a', ID);
+    noteRoundPlayed('kid-a', ID);
+    expect(roundsPlayed('kid-a', ID)).toBe(2);
+    expect(roundsPlayed('kid-b', ID)).toBe(0);
+    expect(roundsPlayed('kid-a', 'dots-bakery')).toBe(0);
+  });
+
+  it('a junk value or storage that throws starts from 0, never an error', () => {
+    localStorage.setItem('hazel-mg-rounds-kid-a-potion-lab', '-3');
+    expect(roundsPlayed('kid-a', ID)).toBe(0);
+    localStorage.setItem('hazel-mg-rounds-kid-a-potion-lab', 'lots');
+    expect(roundsPlayed('kid-a', ID)).toBe(0);
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+    expect(() => noteRoundPlayed('kid-a', ID)).not.toThrow();
+    expect(roundsPlayed('kid-a', ID)).toBe(0);
   });
 });
 

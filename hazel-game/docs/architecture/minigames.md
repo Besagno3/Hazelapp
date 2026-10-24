@@ -12,9 +12,11 @@ and each game — so far 🧪 Potion Lab.
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
-  line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service; like a
-  service never over the host's own quest talk, and on a step through them
-  only on its last line) → `OPEN_GAME` → machine substate
+  line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service — over
+  their quest's offer too, as quiet there as "I'm on it!", leaving it
+  offered; over a reminder, keeping its own bookkeeping from the last line as
+  ▼ Next would; never over a reward or a riddle; on a step through them only
+  on its last line, which it finishes) → `OPEN_GAME` → machine substate
   `world.minigame` (context `game`) → `features/minigames/MiniGameStage`
   (a `ModalLayer`): a round window grows from the middle (`ZOOM_MS`; a fade
   with reduced motion), the title card (logo, the host's hello, three "how to
@@ -34,8 +36,11 @@ and each game — so far 🧪 Potion Lab.
   still `recordActivity`. **Bands:** `bandFor(skillLevelFor(topic))` — 1–3
   Gentle, 4–6 Medium, 7–10 Tricky — the kid may pick another, remembered per
   kid and game on this device (`rememberBand`; picking the suggested band
-  again forgets it, `forgetBand`, so it grows with the level); a mini-game
-  **never moves the question level**. No timers, no AI: each game's rules are pure in
+  again forgets it, `forgetBand`, so it grows with the level); the stage's
+  `round` starts at the rounds this kid has finished in the game on this
+  device (`roundsPlayed`, `noteRoundPlayed` as a round ends), so a visit
+  picks up a game's orders where the last left off rather than at the same
+  first round; a mini-game **never moves the question level**. No timers, no AI: each game's rules are pure in
   `lib/minigames/<game>.ts`. Each game's play screen loads on first play
   (`GAME_SCREENS[id].Play`, `retryableLazy` in a `LazyBoundary`, "The … didn't
   open. Try again."; a bug in it stays on the stage too, `PlayCrashed`, with
@@ -59,6 +64,35 @@ and each game — so far 🧪 Potion Lab.
   screen the order is in the step card too), the Brew Book (a page per jar
   with its name, read back by Tadpole and under the book, `pageLine`; a jar
   in it says "📖 In book" on the counter, never its kind), `STIR_MS` before
-  the colour shows. The
+  the colour shows. **🥧 Dot's Bakery** (`village-baker`, Baker Dot, Lumina
+  Village — she also gives a quest, so the game shows over its offer;
+  `lib/minigames/bakery.ts`, `features/minigames/bakery/`): fractions with
+  pie — three orders a morning (`orderFor(band, round, i, queue)`,
+  `ORDERS_PER_ROUND`: what's asked by the slot, who asks from `morningQueue`,
+  regulars not in the book first, since the stage starts each visit at round
+  0) from eight regulars of the village (`REGULARS`, each a real NPC with a
+  favourite pie — the Regulars' Book, a page each served right); the kid picks a cut (`CUTS`: halves and quarters on Gentle; thirds,
+  sixths and eighths too on Medium and Tricky), taps slices into the box on
+  `PieArt` (or − / +) and closes it: `check` against the order, any cut that
+  makes it right (`compare`), a box that's off said back (`boxWords`,
+  `verdictWords`) and fixable, a cut that can't make it said so (`cutHint`,
+  with "Cut it another way" as the gold button) — both naming the order as it
+  was asked (`askedWords`: Tricky's number stays a number, a shared order two
+  shares; the ticket's picture too), so converting and adding are the kid's;
+  Medium orders more than a pie; Tricky asks in percentages and decimals
+  (`numberWords`, `asNumber`) and boxes two people's orders together
+  (`Order.with`); the reward keeps the morning's "is the same as" lesson
+  (`learnedLine`; more slices than a pie has are "Three halves is the same as
+  one and a half pies."). The pies are in the step card on a phone (as wide
+  as it, so an eighth can be tapped, but no taller than about a third of the
+  screen, so the box and its button fit under them) and beside the steps from `sm` up,
+  sized from the board (up to 260 px; the scene gets 45 % of the side, 88 px
+  on a short screen) so they stay in sight. The gold button scrolls into
+  view as a step starts, never on a slice tap, and what's in the box has a
+  fixed height above − / +, so nothing moves under a kid's finger. On the
+  board a slice in the box keeps its filling, lifted with a gold outline and
+  a tick; the ticket and the closed box draw what's in it full and the rest
+  pale. The scene's customer and
+  Ember stand over the SVG as HTML (no `foreignObject`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

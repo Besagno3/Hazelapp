@@ -957,6 +957,8 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'Mmm, smell that? Honey buns, fresh out of the oven! I bake before the sun gets up. The sun is VERY lazy.',
+      // Her bakery game (docs/DESIGN-MINIGAMES.md §5.2): the 🥧 button is on offer from the first line.
+      'And the regulars want PIE today. Got a fair hand with a knife? Come and help me serve!',
       {
         text: 'Grandmother Wick and Keeper Sol both loved their buns. You are the fastest delivery hero in Lumina!',
         ifFlag: 'quest:bakery-deliveries:done',

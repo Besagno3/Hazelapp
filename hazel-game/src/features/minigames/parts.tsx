@@ -47,7 +47,9 @@ export function HostBubble({ npcId, line, phoneStrip = false, id }: { npcId: str
   const name = npcName(npc, flags);
   return (
     <div className="flex items-start gap-3">
+      {/* The bubble says who it is; the picture isn't read out (review round 2: an emoji stand-in was, as "🥐"). */}
       <div
+        aria-hidden="true"
         className={cn(
           'flex flex-none items-end justify-center overflow-hidden rounded-lg border-[3px] border-white bg-[#2f6a4c] shadow-[0_0_0_3px_#1b0f22]',
           phoneStrip ? 'h-14 w-14 sm:[@media(min-height:501px)]:h-24 sm:[@media(min-height:501px)]:w-24' : 'h-20 w-20 sm:h-24 sm:w-24',

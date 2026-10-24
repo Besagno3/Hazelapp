@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act, waitFor } from '@testing-library/react';
 
 // Reduced motion: no zoom and no stir wait, so a round plays straight through.
 vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => true,
 }));
-vi.mock('canvas-confetti', () => ({ default: () => {} }));
+vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 const sendFlow = vi.fn();
 vi.mock('../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../machines/gameFlow')>()),
@@ -25,7 +25,7 @@ const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
 const { openedFlag, pageFlag, starFlag } = await import('../../content/minigames');
 const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } = await import('../../content/items');
-const { rememberedBand } = await import('../../lib/minigames');
+const { rememberedBand, roundsPlayed } = await import('../../lib/minigames');
 const { JAR_IDS } = await import('../../lib/minigames/potionLab');
 
 const addXp = vi.fn(async () => {});
@@ -148,7 +148,8 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     expect(screen.getByText(/Fern wants a Berry Potion that glows pink/)).toBeInTheDocument();
     // Focus starts at the jars, described by the order (jsdom lays nothing out: the step card's heading, as on a phone).
     const start = screen.getByRole('heading', { name: 'Step 1 · Pick a jar' });
-    expect(start).toHaveFocus();
+    // The game loads lazily: focus lands as it mounts (review round 2 of PR 2: a flake).
+    await waitFor(() => expect(start).toHaveFocus());
     expect(start).toHaveAccessibleDescription('One Berry Potion that glows pink.');
     expect(screen.getByRole('group', { name: 'Jars on the counter' })).toHaveAccessibleDescription('One Berry Potion that glows pink.')
 
@@ -183,6 +184,8 @@ describe('🧪 Potion Lab, a whole round (§5.1)', () => {
     expect(save().items.potion).toBe(potions + 1);
     expect(save().coins).toBe(coins + MINIGAME_STAR_COINS);
     expect(addXp).toHaveBeenLastCalledWith(MINIGAME_STAR_XP);
+    // Noted on this device, so the next visit picks up at the next order (PR 2 review round 2).
+    expect(roundsPlayed('kid-1', 'potion-lab')).toBe(1);
 
     // Brew another: the next order. Lemon again pays nothing; a round that pays nothing still counts the day.
     fireEvent.click(screen.getByRole('button', { name: 'Brew another' }));

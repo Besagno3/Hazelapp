@@ -125,3 +125,29 @@ export function forgetBand(kidId: string | null, id: MiniGameId): void {
 }
 
 const bandKey = (kidId: string | null, id: MiniGameId) => `hazel-mg-band-${kidId ?? 'anon'}-${id}`;
+const roundsKey = (kidId: string | null, id: MiniGameId) => `hazel-mg-rounds-${kidId ?? 'anon'}-${id}`;
+
+/**
+ * How many rounds of a game this kid has finished on this device: where the
+ * next visit picks up, so a game's orders don't start over each time the
+ * stage opens (review round 2: every visit's first morning asked the same
+ * three). Variety, not progress — so it's the device's, like the band; 0 when
+ * storage can't be read.
+ */
+export function roundsPlayed(kidId: string | null, id: MiniGameId): number {
+  try {
+    const n = Number(localStorage.getItem(roundsKey(kidId, id)));
+    return Number.isSafeInteger(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** One more round finished (storage that can't be written just starts over next visit). */
+export function noteRoundPlayed(kidId: string | null, id: MiniGameId): void {
+  try {
+    localStorage.setItem(roundsKey(kidId, id), String(roundsPlayed(kidId, id) + 1));
+  } catch {
+    // Private mode / blocked storage.
+  }
+}

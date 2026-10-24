@@ -131,12 +131,14 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   // An innkeeper passes on the news from the road (#75 item 11), but a tired
   // hero shouldn't have to hear it first: Rest is on offer from line one.
   const offerService = !!service && (isLast || service === 'inn');
-  // A mini-game's host offers it from the first line (docs/DESIGN-MINIGAMES.md §2.1). Like a
-  // service, never over the host's own quest talk (an offer, a hint, a reward — the button
-  // would take or pay the quest, twice after a pick: review round 1); on a step through
-  // them only on its last line, which the button finishes as ✨ Learn does.
-  const game = quest && quest.finishKind !== 'step' ? null : gameHostedBy(npcId);
-  const offerGame = !!game && (!quest || isLast);
+  // A mini-game's host offers it from the first line (docs/DESIGN-MINIGAMES.md §2.1) — over
+  // their quest's offer or a reminder too, which it leaves as they were (only "I'm on it!"
+  // takes a quest: a host who gives one, Baker Dot, mustn't hide her game until it's done);
+  // never over a reward, which its own buttons pay (the game's paid it twice after a pick,
+  // review round 1); on a step through them only on its last line, which it finishes as ✨ Learn does.
+  const gameTalk = quest?.finishKind ?? null;
+  const game = gameTalk === 'complete' || gameTalk === 'riddle' ? null : gameHostedBy(npcId);
+  const offerGame = !!game && (gameTalk !== 'step' || isLast);
   // A shrine keeper's button: the trial, or (once passed) how to cast the spell.
   const taught = fieldSpellTaughtBy(npcId);
   const trialPassed = !!taught && knowsFieldSpell(taught.id, useSaveStore.getState().save?.flags ?? {});
@@ -185,7 +187,9 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
   function openGame() {
     if (!game) return;
     applyLineFlag();
-    if (quest?.finish && isLast && !offering) update(quest.finish);
+    // From the last line it does what ▼ Next would — a step through the host is finished, a reminder's own
+    // bookkeeping kept (review round 1) — except take the quest: an offer stays an offer.
+    if (gameTalk !== 'offer' && quest?.finish && isLast && !offering) update(quest.finish);
     sendFlow({ type: 'OPEN_GAME', game });
   }
 
@@ -332,9 +336,10 @@ export default function DialogueOverlay({ npcId }: { npcId: string }) {
           {offerGame && game && (
             <button
               onClick={openGame}
-              // Beside the pen-pal offer the pen is the gold action, as for a service (round 6).
+              // Beside the pen-pal offer the pen is the gold action, as for a service (round 6); beside a quest's
+              // offer it's as quiet as "I'm on it!", so it doesn't pull a kid away from the quest (review round 1).
               className={
-                offering
+                offering || gameTalk === 'offer'
                   ? 'bg-white/15 hover:bg-white/25 font-semibold rounded-lg px-4 py-1.5 text-sm min-h-11'
                   : 'bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-lg px-4 py-1.5 text-sm min-h-11'
               }

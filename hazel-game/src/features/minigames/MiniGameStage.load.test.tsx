@@ -5,7 +5,7 @@ vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => true,
 }));
-vi.mock('canvas-confetti', () => ({ default: () => {} }));
+vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 const sendFlow = vi.fn();
 vi.mock('../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../machines/gameFlow')>()),
