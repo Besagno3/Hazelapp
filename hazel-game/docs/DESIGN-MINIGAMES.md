@@ -504,16 +504,23 @@ Old Ringwood is the tree who loses count of his rings.
   lined up at the first check and dated at the first pick is the Expert
   seal. Sapwood, missing outer rings and a living tree's statistics would
   need more than the grove's record — not built (§8.5). On a split screen
-  a beam's card (Tricky's too) gives the strips the room: its words are in
-  Ringwood's bubble beside it; on a short phone they're the box's, and the
-  strips are shorter, so Check starts in view. Review round 1: the done
-  card grew over the record on a short split screen, the record's year
-  labels painted over the lesson — the strips keep their room and the card
+  a beam's card (Tricky's too) gives the strips the room: what to do is in
+  Ringwood's bubble beside it, and the card scrolls under the strips; on a
+  short phone the box says it, and the strips are shorter, so Check starts
+  in view. Review round 1: the done card grew over the record on a short
+  split screen, the record's year labels painted over the lesson — the card
   scrolls, over them; what Ringwood said sits under the slide buttons, so a
-  long verdict moves nothing under a finger, a short line on a split
-  screen; the tip says to tap along the record (or the core); the beam has
-  its bark; the dry line a pale halo, its key in its own colour; a reader
-  hears each ring with the rain over it; beams, not trees, on Expert.
+  long verdict moves nothing under a finger; the tip says to tap along the
+  record (or the core); the beam has its bark; the dry line a pale halo, its
+  key in its own colour; a reader hears each ring with the rain over it;
+  beams, not trees, on Expert. Review round 2: round 1's card covered the
+  beam's thin rings on laptops (1280 × 800, 1024 × 768) — the strips are as
+  tall as they're drawn and the card scrolls under them, its slide buttons
+  and Check in one row on every split screen; a finished beam's strips give
+  the lesson their room, and each step's card starts at its top, its
+  heading in view; a reader hears where the beam is and the rain over its
+  thin rings as it slides, not all its rings again; how to read the year is
+  in the ask; Play says "Date the beams" on Expert.
 
 ### 5.8 📜 Index's Timeline — History · Index, the Card Catalog, Sunken Archive
 

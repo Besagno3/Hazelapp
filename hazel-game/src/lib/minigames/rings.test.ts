@@ -271,7 +271,8 @@ describe('Expert: cross-dating with rainfall (§8.5)', () => {
     // Under, as the beam's drawn (code review round 1: "over").
     expect(lineUpWords(job, 0)).toBe('Not lined up: a thin ring sits under a year with more than 500 mm of rain. Slide the beam’s thinnest rings under bars below the dry line.');
     expect(dateChoices(job)).toEqual([1996, 2005, 2006, 2007]);
-    expect(dateAsk).toBe('Which year did its last ring grow — the one by the bark?');
+    // How to read it, in the ask (code review round 2: the step's tip never showed).
+    expect(dateAsk).toBe('Which year did its last ring grow — the one by the bark? Follow the gold line up to its tick on the record.');
     expect(datedWords(job, 2005)).toBe('Yes — 2005: its last ring sits under 2005 on the record, so its tree was cut in 2005.');
     expect(datedWords(job, 1996)).toBe('1996 is its first ring, nearest the middle of the tree. The last, by the bark, sits under 2005.');
     expect(datedWords(job, 2004)).toBe('Not 2004: the last ring sits under 2005, a year after 2004.');
@@ -279,6 +280,9 @@ describe('Expert: cross-dating with rainfall (§8.5)', () => {
     // Off a labelled fifth year: how to count from it (UX review round 1: "2015" sat right over a beam ending 2014).
     const r14 = { ...job, beam: years(2005, 2014) };
     expect(datedWords(r14, 2015)).toBe('Not 2015: the last ring sits under 2014, a year before 2015. Count the ticks from 2015, one a year.');
+    // The nearest labelled year, either way (code review round 2: only ends on a fifth or a year short were tested).
+    expect(datedWords({ ...job, beam: years(2002, 2011) }, 2012)).toBe('Not 2012: the last ring sits under 2011, a year before 2012. Count the ticks from 2010, one a year.');
+    expect(datedWords({ ...job, beam: years(2004, 2013) }, 2012)).toMatch(/Count the ticks from 2015, one a year\.$/);
     expect(jobWords(job)).toBe('A silver birch beam from the old mill, its rings measured, and the grove’s rainfall record from 1995. Slide the beam till its thin rings sit under the dry years, then date its last ring.');
     expect(learnedLine(job)).toBe(
       `Cross-dating with rain: the silver birch beam’s thin rings grew in the record’s dry years, 1998 (416 mm) and 2005 (405 mm). Its rings run from 1996 to 2005, so its tree was cut in 2005. ${TREE_BY_ID.birch.note}`,

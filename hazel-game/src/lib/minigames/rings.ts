@@ -370,7 +370,7 @@ export function matchWords(job: MatchJob, offset: number): string {
 }
 
 /** A list said: "2005, 2008 and 2013". */
-const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : `${xs[0] ?? ''}`);
+export const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : `${xs[0] ?? ''}`);
 
 /**
  * After "Do they line up?" on Expert: every thin ring under a dry year and
@@ -403,7 +403,8 @@ export function dateChoices(job: RainJob): number[] {
 }
 
 /** Expert's dating, asked. */
-export const dateAsk = 'Which year did its last ring grow — the one by the bark?';
+// How to read it, in the ask (code review round 2: the step's tip never showed — the box shows what Ringwood said).
+export const dateAsk = 'Which year did its last ring grow — the one by the bark? Follow the gold line up to its tick on the record.';
 
 /** After a year's picked for the beam's last ring: right, or which ring that year is. */
 export function datedWords(job: RainJob, year: number): string {
