@@ -28,6 +28,7 @@ import LazyBoundary from './components/LazyBoundary';
 import { retryableLazy } from './lib/lazyRetry';
 import TopicSelect from './features/quiz/TopicSelect';
 import QuizRound from './features/quiz/QuizRound';
+import QuizDuel from './features/duel/QuizDuel';
 import AvatarSelect from './features/battle/AvatarSelect';
 import BattleArena from './features/battle/BattleArena';
 
@@ -87,7 +88,9 @@ export default function App() {
   const screen = useFlow((s) =>
     s.matches('quiz')
       ? 'quiz'
-      : s.matches('avatarSelect')
+      : s.matches('duel')
+        ? 'duel'
+        : s.matches('avatarSelect')
         ? 'avatar'
         : s.matches('world')
           ? 'world'
@@ -212,6 +215,7 @@ export default function App() {
           (`ScreenTopBar`, #110h). */}
       {screen === 'topics' && <TopicSelect />}
       {screen === 'quiz' && <QuizRound />}
+      {screen === 'duel' && <QuizDuel />}
       {screen === 'avatar' && <AvatarSelect />}
       {screen === 'world' && (
         <LazyBoundary key={worldTry} failed={<LazyFailedScreen page={worldScreen} onLoaded={worldLoaded} title="The world didn't load" />}>
