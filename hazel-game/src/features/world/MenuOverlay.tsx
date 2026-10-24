@@ -22,6 +22,7 @@ import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
 import MiniGamesPanel from '../minigames/MiniGamesPanel';
+import CoopPanel from './CoopPanel';
 import type { FieldCast } from '../../content/fieldSpells';
 import ModalLayer from '../../components/ModalLayer';
 
@@ -254,6 +255,9 @@ export default function MenuOverlay({
             ))}
           </div>
         </div>
+
+        {/* Co-op battles (#187): Player 2 plays the companion. */}
+        <CoopPanel />
 
         <div className="bg-white/10 rounded-xl p-3 mb-3">
           <div className="font-bold text-sm mb-2">⚔️ Battle</div>
