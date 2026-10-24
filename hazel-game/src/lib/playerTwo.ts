@@ -52,8 +52,8 @@ export type PlayerTwo =
       skillLevels: SkillLevels;
       /** Their power-ups (the 📖 Scholar bonus on the XP they earn), read with their levels. */
       powerUps: PowerUps;
-      /** Their world is open, so they earn XP (#122) — read from their save. */
-      worldOpen: boolean;
+      /** Their world is open, so they earn XP (#122) — read from their save; null: it couldn't be read (no XP, said so). */
+      worldOpen: boolean | null;
     }
   | { kind: 'guest'; name: string; pace: GuestPace };
 
@@ -63,13 +63,13 @@ export interface Seat extends QuestionSeat {
   icon: string;
   /** XP a right answer pays (`seatXpPerRight`); 0 for a guest, or a kid whose world isn't open yet. */
   xpPerRight: number;
-  /** A family kid whose world is open — the one thing between them and XP (a guest: false). */
-  worldOpen: boolean;
+  /** A family kid whose world is open — the one thing between them and XP (a guest: false; null: their save couldn't be read). */
+  worldOpen: boolean | null;
 }
 
 /** XP a right answer pays a family kid: `XP_PER_CORRECT` and their Scholar bonus, once their world is open (#122). */
-export function seatXpPerRight(powerUps: PowerUps, worldOpen: boolean): number {
-  return worldOpen ? XP_PER_CORRECT + xpBonusPerCorrect(powerUps) : 0;
+export function seatXpPerRight(powerUps: PowerUps, worldOpen: boolean | null): number {
+  return worldOpen === true ? XP_PER_CORRECT + xpBonusPerCorrect(powerUps) : 0;
 }
 
 /** A guest's name as typed, tidied: trimmed, at most `MAX_KID_NAME` long, `GUEST_NAME` when empty. */
@@ -158,7 +158,8 @@ export const LEVELS_WAIT_MS = 3000;
 export interface KidPlay {
   skillLevels: SkillLevels;
   powerUps: PowerUps;
-  worldOpen: boolean;
+  /** null: neither their save nor this device's copy of it could be read. */
+  worldOpen: boolean | null;
 }
 
 /** `read` within `LEVELS_WAIT_MS`, its row (null: none) — or it throws. */
@@ -177,12 +178,12 @@ async function within(read: PromiseLike<{ data: unknown; error: unknown }>): Pro
 }
 
 /** This device's copy of a kid's save says their world is open. */
-function localWorldOpen(kidId: string): boolean {
+function localWorldOpen(kidId: string): boolean | null {
   try {
     const raw = localStorage.getItem(saveKey(kidId));
-    return raw ? (JSON.parse(raw) as { worldUnlocked?: unknown }).worldUnlocked === true : false;
+    return raw ? (JSON.parse(raw) as { worldUnlocked?: unknown }).worldUnlocked === true : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -207,7 +208,8 @@ export async function readKidPlay(kidId: string): Promise<KidPlay> {
         return null;
       }),
     within(supabase.from('saves').select('world:data->worldUnlocked').eq('profile_id', kidId).maybeSingle())
-      .then((data) => (data ? (data as { world: unknown }).world === true : null))
+      // No save at all: they've never played, so the world isn't open (known). A failed read: null, then this device's copy.
+      .then((data) => (data ? (data as { world: unknown }).world === true : false))
       .catch((e) => {
         console.warn("Player 2's save didn't load — using this device's copy:", errorMessage(e));
         return null;
