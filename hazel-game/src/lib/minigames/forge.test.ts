@@ -5,6 +5,13 @@ import { BANDS, MINIGAMES, type Band } from '../../content/minigames';
 const jobs = (band: Band, rounds = 6): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 const pool = (band: Band) => [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))];
 const expertPool = [...new Set(FAMILY_IDS.flatMap((id) => EXPERT_WORDS[id].flatMap((x) => x.parts)))];
+// A meaning as a reader would catch it in a line: each of its words but the little ones, by its first four letters (code
+// review round 2: "measures" beside a question on “meter”, "into a club" on “in”) — a little word alone, quoted.
+const LITTLE = ['with', 'to', 'do', 'of', 'the', 'one', 'who'];
+const caught = (m: string) => {
+  const words = m.split(' ').filter((x) => !LITTLE.includes(x));
+  return words.length ? new RegExp(`\\b(${words.map((x) => x.slice(0, 4)).join('|')})`, 'i') : new RegExp(`“${m}”`);
+};
 const expertJobs = (): Job[] => FAMILY_IDS.flatMap((family) => EXPERT_WORDS[family].map((word) => ({ band: 'expert' as const, family, word, tiles: [] })));
 const jobOf = (band: Band, word: string): Job => {
   const family = BAND_FAMILIES[band].find((id) => FAMILY_BY_ID[id].words.some((x) => x.word === word))!;
@@ -118,7 +125,7 @@ describe('the forge’s words', () => {
     for (const word of Object.keys(ALSO)) expect(made.has(word), word).toBe(true);
   });
 
-  it('Expert: every pair of its 40 roots a tray can make — its 27 words and 18 others said to be real words, the rest not-words, the rarest looked at', () => {
+  it('Expert: every pair of its 40 roots a tray can make — its 27 words and 20 others said to be real words, the rest not-words, the rarest looked at', () => {
     expect(expertPool).toHaveLength(40);
     const not = new Set<string>();
     const real = new Set<string>();
@@ -133,17 +140,17 @@ describe('the forge’s words', () => {
             real.add(a + b);
           } else not.add(a + b);
         }
-    // Its 27 words (each one hammered for another word: a real word, said so), Expert's 15 others — multimeter and induct
-    // since code review round 1 — and 3 of Tricky's.
+    // Its 27 words (each one hammered for another word: a real word, said so), Expert's 17 others — multimeter and induct
+    // since code review round 1, multiport and multifactor since round 2 — and 3 of Tricky's.
     const words = expertJobs().map((job) => job.word.word);
     expect(words.filter((w) => !real.has(w))).toEqual([]);
-    expect([...real].filter((w) => !words.includes(w)).sort()).toEqual(['argon', 'chronograph', 'chronology', 'dictator', 'geometer', 'indict', 'induct', 'insist', 'micrograph', 'micrography', 'multimeter', 'paragon', 'paragraph', 'parameter', 'polygraph', 'supply', 'telegraphy', 'telemeter']);
+    expect([...real].filter((w) => !words.includes(w)).sort()).toEqual(['argon', 'chronograph', 'chronology', 'dictator', 'geometer', 'indict', 'induct', 'insist', 'micrograph', 'micrography', 'multifactor', 'multimeter', 'multiport', 'paragon', 'paragraph', 'parameter', 'polygraph', 'supply', 'telegraphy', 'telemeter']);
     // In a big dictionary but rare, old or a name: left as not-words, each looked at.
     const rare = ['aquameter', 'arnaut', 'asport', 'benedict', 'calligraph', 'chronography', 'inport', 'micrology', 'multigraph', 'multipara', 'multivolent', 'paralogy', 'paramarine', 'parapathy', 'polygraphy', 'polylogy', 'polymeter', 'prefactor', 'solas', 'symar'];
     for (const w of rare) expect(not.has(w), w).toBe(true);
     // A new root makes new pairs: each real one into ALSO, or here, looked at.
     expect(real.size + not.size).toBe(40 * 39);
-    expect(not.size).toBe(40 * 39 - 27 - 18);
+    expect(not.size).toBe(40 * 39 - 27 - 20);
   });
 
   it('right; a real word meaning something else — keeping a part that’s right; the other way round; -s for -es; two add-ons; an add-on astray; no word, with a hint', () => {
@@ -261,7 +268,7 @@ describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, t
       expect(w.parts, w.word).toContain(w.ask);
       for (const p of w.parts) expect(ROOT_MEANS[p], p).toBeTruthy();
       // The meaning asked never says the asked root's, so the question isn't read off the ticket.
-      expect(w.meaning, w.word).not.toMatch(new RegExp(`\\b${ROOT_MEANS[w.ask]}\\b`));
+      expect(w.meaning, w.word).not.toMatch(caught(ROOT_MEANS[w.ask]));
     });
     for (const root of ['port', 'dict', 'spect', 'aqua', 'chrono', 'geo', 'logy', 'meter']) expect(expertPool, root).toContain(root);
     // No split that isn't the word's own (code review round 1: aqua + tic, aqua + rium).
@@ -269,6 +276,8 @@ describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, t
     expect(ROOT_MEANS.as).toBe('towards');
     // A root's other words have it in them; the word itself is left out where it's said.
     for (const [root, kin] of Object.entries(ROOT_KIN)) for (const k of kin) expect(k, root).toContain(root);
+    // Each root's other words are said in a lesson (code review round 2: aque's, marine's, tele's never were).
+    for (const root of Object.keys(ROOT_KIN)) expect(expertJobs().some((job) => learnedLine(job).includes(`More with “${root}”`)), root).toBe(true);
     expect(learnedLine(solar())).not.toMatch(/More with “sol”: solar/);
   });
 
@@ -294,6 +303,22 @@ describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, t
         expect(job.tiles.map((p) => partText(p, 'expert'))).toEqual(job.tiles);
       }
     expect(jobFor('expert', 0, 0)).toEqual(jobFor('expert', 0, 0));
+  });
+
+  it('a word with a root of the same meaning as another’s — poly and multi, aqua and aque — has that one in its tray (UX review round 2: 1 word in 27 met it)', () => {
+    const twin: Record<string, string> = { poly: 'multi', multi: 'poly', aqua: 'aque', aque: 'aqua' };
+    const met: string[] = [];
+    for (let r = 0; r < 18; r++)
+      for (const i of [0, 1, 2]) {
+        const job = jobFor('expert', r, i);
+        const t = job.word.parts.map((p) => twin[p]).find(Boolean);
+        if (!t) continue;
+        expect(job.tiles, job.word.word).toContain(t);
+        met.push(job.word.word);
+      }
+    expect([...new Set(met)].sort()).toEqual(['aquamarine', 'aquanaut', 'aqueduct', 'multiply', 'polyglot', 'polygon']);
+    expect(met).toHaveLength(12);
+    expect(forgeWords(jobFor('expert', 0, 2), ['multi', 'gon']).said).toBe('Multigon isn’t a word. “multi” means “many” too — but polygon takes the other one.');
   });
 
   it('the question: four meanings — the root’s, the other part’s, two others, none alike — the same each time; the answer in every place', () => {
@@ -352,14 +377,41 @@ describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, t
     expect(forgeWords(solar(), ['ar', 'pre']).said).toBe('Arpre isn’t a word. “ar” is in it — but second.');
     each((job) => {
       const w = job.word as ExpertWord;
-      expect(hintFor(job)).not.toContain(`“${ROOT_MEANS[w.ask]}”`);
+      expect(hintFor(job)).not.toMatch(caught(ROOT_MEANS[w.ask]));
+      // Nor a real word's meaning, said of a wrong try, in any words (code review round 2: "Induct … into a club" on “in”).
       for (const a of expertPool)
         for (const b of expertPool) {
           if (a === b) continue;
           const { right, said } = forgeWords(job, [a, b]);
-          if (!right) expect(said, `${w.word}: ${a}+${b}`).not.toContain(`“${ROOT_MEANS[w.ask]}”`);
+          if (!right) expect(said, `${w.word}: ${a}+${b}`).not.toMatch(caught(ROOT_MEANS[w.ask]));
         }
     });
+  });
+
+  it('the asked root by as few of its first letters as no other tile starts with — or whole — so a hint never points at two (code and UX review round 2: “s” for sol beside sup, again once sup was tried)', () => {
+    const solar = jobFor('expert', 0, 0);
+    expect(solar.tiles).toEqual(expect.arrayContaining(['sol', 'sup']));
+    expect(forgeWords(solar, ['sup', 'ar']).said).toBe('Supar isn’t a word. “ar” second is right — the first part starts with “so”.');
+    expect(forgeWords(jobFor('expert', 3, 1), ['dict', 'marine']).said).toBe('Dictmarine isn’t a word. “marine” second is right — the first part is “aqua”.');
+    let named = 0;
+    for (let r = 0; r < 9; r++)
+      for (const i of [0, 1, 2]) {
+        const job = jobFor('expert', r, i);
+        const { ask } = job.word as ExpertWord;
+        for (const a of job.tiles)
+          for (const b of job.tiles) {
+            if (a === b) continue;
+            const { right, said } = forgeWords(job, [a, b]);
+            const start = !right && said.match(/starts with “([a-z]+)”/)?.[1];
+            if (start) {
+              named++;
+              expect(job.tiles.filter((t) => t.startsWith(start)), said).toEqual([ask]);
+            }
+            const whole = !right && said.match(/part is “([a-z]+)”/)?.[1];
+            if (whole) expect(whole).toBe(ask);
+          }
+      }
+    expect(named).toBeGreaterThan(50);
   });
 
   it('the forge’s words plain: the ticket, a hint, a wrong try — never "!", each short enough for the bar', () => {
@@ -385,6 +437,8 @@ describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, t
     for (const id of FAMILY_IDS) {
       const page = EXPERT_PAGES[id];
       expect(page.name, id).not.toMatch(/“/);
+      // Nor an asked root's meaning in any words (code review round 2: "Water words" beside the question on “aqua”).
+      for (const job of expertJobs()) expect(page.name, `${id}: ${job.word.word}`).not.toMatch(caught(ROOT_MEANS[(job.word as ExpertWord).ask]));
       for (const x of EXPERT_WORDS[id]) expect(page.note, `${id}: ${x.word}`).toContain(x.word);
     }
     const text = [...Object.values(ALSO), ...Object.keys(ALSO), ...Object.values(ROOT_KIN).flat(), ...Object.values(ROOT_CLUE), ...Object.values(ROOT_NOTE), ...Object.values(EXPERT_PAGES).map((p) => p.note), ...expertJobs().map((j) => j.word.meaning)]

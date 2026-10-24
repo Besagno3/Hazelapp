@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type RefObject } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { EXPERT_PAGES, EXPERT_WORDS, FAMILIES, FAMILY_BY_ID, JOBS_PER_ROUND, PART_MEANS, ROOT_MEANS, builtLine, capitalise, forgeWords, jobFor, jobWords, keepHyphens, learnedLine, partText, rootAsk, rootChoices, rootWords, roundQueue, type FamilyId } from '../../../lib/minigames/forge';
 import { BAND_LABEL, pageFlag, type PlayBand } from '../../../content/minigames';
@@ -19,6 +19,9 @@ const EMPTY_FLAGS: Record<string, boolean> = {};
 
 /** Forging the word; on Expert, what one of its roots means; its card. */
 type Step = 'forge' | 'root' | 'done';
+
+/** On Expert, why a page of the wall is shut: a word's on the anvil, or its family's word is one of the next two. */
+type Shut = 'word' | 'next' | null;
 
 /** Dot once a word's forged, in turn — on Expert, plainly (§8.3). */
 const RIGHT_LINES = ['Clang! A real word, hot off the anvil!', 'Perfect — I’ll write it on the wall in my best letters.', 'You’re a born word-smith!'];
@@ -75,8 +78,15 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
   const [tried, setTried] = useState<readonly string[]>([]);
   const [read, setRead] = useState<FamilyId | null>(null);
   const known = (id: FamilyId) => !!flags[pageFlag(def.id, id)];
+  // On Expert a page is shut while a word's on the anvil (code review round 1: it gave the answer), and on a word's card for
+  // the next two words' families (code and UX review round 2: teleport's card opened "Meter is Greek for measure", and
+  // micrometer was next).
+  const coming = expert && step === 'done' ? Array.from({ length: JOBS_PER_ROUND - 1 }, (_, n) => done + 1 + n).map((k) => jobFor(band, round + Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND).family) : [];
+  const shut = (id: FamilyId): Shut => (!expert ? null : step !== 'done' ? 'word' : coming.includes(id) ? 'next' : null);
   // A step's buttons wait a moment as it starts: a double tap's second tap would press what just came under the finger.
   const settled = useSettled(`${step}:${done}:${tries}`);
+  // The wall's, a moment after a page opens too: it comes into sight, and could put another page under a double tap.
+  const wallSettled = useSettled(`${read}`);
   // A press to act on: a key's at once (no click count), a tap's once settled.
   const ready = (e: { detail: number }) => e.detail === 0 || settled();
   const moved = useFocusMoved();
@@ -249,6 +259,23 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
     } else go?.scrollIntoView?.({ block: 'nearest', behavior });
   }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A page tapped comes into sight where it's read, under the wall (UX review round 2: below the side panel's fold, or the
+  // phone's, at most sizes, so a tap looked to do nothing — even "it's shut"): in a side panel clear of Dot's bubble, else
+  // the page.
+  const readBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const box = readBox.current;
+    if (!read || !box) return;
+    const scrolls = (el: HTMLElement | null, off: string): el is HTMLElement => !!el && el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY !== off;
+    const a = side.current;
+    const s = scrolls(a, 'visible') ? a : scrolls(page.current, 'hidden') ? page.current : null;
+    if (!s) return;
+    const cover = s === a && bubble.current && getComputedStyle(bubble.current).position === 'sticky' ? bubble.current.offsetHeight : 0;
+    const top = box.getBoundingClientRect().top - s.getBoundingClientRect().top;
+    const below = top + box.offsetHeight + 8 - s.clientHeight;
+    if (below > 0) s.scrollTo?.({ top: s.scrollTop + Math.min(below, top - cover - 8), behavior: still ? 'auto' : 'smooth' });
+  }, [read]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // On Expert after a miss, not "Forged." — it read as the last answer's (Echo's Call's UX review round 1).
   // Expert's: the root named, the answer to the question (UX review round 1: "That’s the word." answered nothing asked).
   const asked = expert && 'ask' in job.word ? job.word.ask : '';
@@ -347,8 +374,9 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
                   {capitalise(job.word.word)}
                   {expert ? '' : '!'}
                 </h2>
-                {/* Dot's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one. */}
-                <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>
+                {/* Dot's cheer, in the card too: on a phone her bubble's below the fold — not on a split screen or a short one, nor
+                    on Expert, whose short card leaves her bubble in sight under it from 320 × 568 (UX review round 2: twice). */}
+                {!expert && <p className="text-[15px] font-bold leading-snug text-amber-200 split:hidden [@media(max-height:500px)]:hidden">{cheerLine}</p>}
                 <div className="flex flex-col gap-2.5 [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:items-end [@media(max-height:500px)]:gap-2">
                   <p id="wf-result" className="rounded-lg bg-amber-300 px-3 py-2 text-[15px] font-bold leading-snug text-[#1b0f22] [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:py-1 [@media(max-height:500px)]:text-[13px]">
                     {keepHyphens(learnedLine(job))}
@@ -441,10 +469,11 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
           </div>
         </section>
 
+        {/* A Tab stop where it scrolls and nothing in it takes focus, as a browser makes it: its ring shown (UX review round 2). */}
         <aside
           ref={side}
           aria-label={`The job and the ${def.collection}`}
-          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 [overflow-anchor:none] split:col-start-2 split:row-span-2 split:row-start-1 split:overflow-y-auto split:border-l-4 split:p-4"
+          className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 outline-none [overflow-anchor:none] focus-visible:outline focus-visible:outline-4 focus-visible:-outline-offset-4 focus-visible:outline-cyan-300 split:col-start-2 split:row-span-2 split:row-start-1 split:overflow-y-auto split:border-l-4 split:p-4"
         >
           {/* On a split screen, kept at the panel's top as the wall scrolls under it: on a short one it's the only place what Dot
               said is (code review round 2: a new page brought into sight scrolled it away). */}
@@ -454,7 +483,7 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
           <div className="[@media(max-height:500px)]:hidden">
             {/* The family named once its word's forged, not before (UX review round 1: "TELE, “FAR”" and a part on the ticket
                 gave the word away). */}
-            <Ticket heading={step === 'done' ? pageName.toUpperCase() : `WORD ${done + 1} OF ${JOBS_PER_ROUND}`} ready={step === 'done'} icon={<FamilyMark id={step === 'done' ? job.family : null} size={44} />}>
+            <Ticket heading={step === 'done' ? pageName.toUpperCase() : `WORD ${done + 1} OF ${JOBS_PER_ROUND}`} ready={step === 'done'} icon={<FamilyMark id={step === 'done' ? job.family : null} plain={expert} size={44} />}>
               {jobWords(job)}
             </Ticket>
           </div>
@@ -462,10 +491,11 @@ export default function WordForge({ def, band, round, onPage, onFinish }: PlayPr
             known={known}
             read={read}
             expert={expert}
-            locked={step !== 'done'}
+            shut={shut}
+            box={readBox}
             fresh={step === 'done' && newPage ? job.family : null}
-            onRead={(id) => {
-              if (!settled()) return;
+            onRead={(id, e) => {
+              if (!(e.detail === 0 || (settled() && wallSettled()))) return;
               // Pressed again, the page closes (UX review round 1: it stayed open).
               setRead((r) => (r === id ? null : id));
             }}
@@ -580,14 +610,17 @@ function Forge({ cheer }: { cheer: boolean }) {
  * review round 1) — tapped, read under the wall in a place kept for it, so
  * nothing moves and a second tap on the page closes it (UX review round 2:
  * the page read opened under the wall and scrolled into sight, and the page
- * tapped moved from under the finger).
+ * tapped moved from under the finger) — and brought into sight (`box`; UX
+ * review round 2).
  */
-function WordWall({ known, read, fresh, onRead, expert = false, locked = false }: { known: (id: FamilyId) => boolean; read: FamilyId | null; fresh: FamilyId | null; onRead: (id: FamilyId) => void; expert?: boolean; locked?: boolean }) {
+function WordWall({ known, read, fresh, onRead, expert = false, shut = () => null, box }: { known: (id: FamilyId) => boolean; read: FamilyId | null; fresh: FamilyId | null; onRead: (id: FamilyId, e: { detail: number }) => void; expert?: boolean; shut?: (id: FamilyId) => Shut; box: RefObject<HTMLDivElement> }) {
   const count = FAMILIES.filter((f) => known(f.id)).length;
   const reading = read ? FAMILY_BY_ID[read] : null;
   // On Expert its pages are its own (UX review round 1: they taught -s, and solar as a compound word): no root's meaning in a
-  // name, and a page opens once the word's forged and its root named (code review round 1: the page gave the answer).
+  // name or its mark, and a page shut while it could give an answer (code review round 1: the page gave it) — marked so,
+  // not found by a tap (UX review round 2: a shut page looked open).
   const nameOf = (id: FamilyId) => (expert ? EXPERT_PAGES[id].name : FAMILY_BY_ID[id].name);
+  const why = reading ? shut(reading.id) : null;
   return (
     <section aria-labelledby="wf-wall" className="mt-auto flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
@@ -602,20 +635,28 @@ function WordWall({ known, read, fresh, onRead, expert = false, locked = false }
         {FAMILIES.map((f) =>
           known(f.id) ? (
             <li key={f.id} data-family={f.id} className="relative">
+              {/* Its badges: over the page, under Dot's bubble as the panel scrolls (bench, review round 2: 🔒 over her words). */}
               {fresh === f.id && (
-                <span aria-hidden="true" className="absolute -right-1 -top-1 z-10 rounded-full border-2 border-[#1b0f22] bg-emerald-400 px-1.5 text-[11px] font-black leading-tight text-[#1b0f22]">
+                <span aria-hidden="true" className="absolute -right-1 -top-1 z-[1] rounded-full border-2 border-[#1b0f22] bg-emerald-400 px-1.5 text-[11px] font-black leading-tight text-[#1b0f22]">
                   New!
+                </span>
+              )}
+              {shut(f.id) && (
+                <span aria-hidden="true" className="absolute -left-1 -top-1 z-[1] rounded-full border-2 border-[#1b0f22] bg-[#c9c5f2] px-1 text-[11px] leading-tight">
+                  🔒
                 </span>
               )}
               <button
                 type="button"
-                onClick={() => onRead(f.id)}
+                onClick={(e) => onRead(f.id, e)}
                 onKeyDown={noRepeat}
                 aria-pressed={read === f.id}
-                aria-label={`${nameOf(f.id)}${fresh === f.id ? ', new' : ''}. Read the page`}
+                aria-label={`${nameOf(f.id)}${fresh === f.id ? ', new' : ''}${shut(f.id) ? `, opens ${shut(f.id) === 'word' ? 'between words' : 'after its word'}` : ''}. Read the page`}
                 className={cn('flex h-[76px] w-full flex-col items-center justify-center gap-1 rounded border-[3px] bg-[#fff6dc] px-1 hover:bg-white', read === f.id || fresh === f.id ? 'border-amber-400' : 'border-[#1b0f22]', focusRing)}
               >
-                <FamilyMark id={f.id} size={32} />
+                <span className={cn('flex', shut(f.id) && 'opacity-50')}>
+                  <FamilyMark id={f.id} plain={expert} size={32} />
+                </span>
                 <span aria-hidden="true" className="line-clamp-2 w-full break-words text-center text-[12px] font-bold leading-tight text-[#1b0f22]">
                   {nameOf(f.id)}
                 </span>
@@ -629,23 +670,29 @@ function WordWall({ known, read, fresh, onRead, expert = false, locked = false }
           ),
         )}
       </ul>
-      {/* The page read, said as it opens; held at the longest page's height where the wall sits at the panel's foot. */}
-      <div aria-live="polite" className="rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-2.5 py-2 text-[14px] leading-snug text-[#1b0f22] split:[@media(min-height:501px)]:min-h-[9.5rem]">
-        {reading && expert && locked ? (
-          <>
-            <b>{nameOf(reading.id)}</b> — its page opens once this word’s forged and its root named.
-          </>
-        ) : reading && expert ? (
-          <>
-            <b>{nameOf(reading.id)}</b> — {EXPERT_PAGES[reading.id].note} <i>{EXPERT_WORDS[reading.id].map((x) => x.word).join(', ')}.</i>
-          </>
-        ) : reading ? (
-          <>
-            <b>{reading.name}</b> — {keepHyphens(reading.note)} <i>{reading.words.map((x) => x.word).join(', ')}.</i>
-          </>
-        ) : (
-          <span className="text-[#5b4a6b]">{count ? 'Tap a page to read it.' : 'Forge a word to start the wall.'}</span>
-        )}
+      {/* The page read, said as it opens — the page alone (UX review round 2: "Tap a page to read it." was said after every
+          Next); held at the longest page's height where the wall sits at the panel's foot. */}
+      <div ref={box} className="rounded-md border-[3px] border-[#1b0f22] bg-[#fff6dc] px-2.5 py-2 text-[14px] leading-snug text-[#1b0f22] split:[@media(min-height:501px)]:min-h-[9.5rem]">
+        <span aria-live="polite">
+          {reading && why === 'word' ? (
+            <>
+              <b>{nameOf(reading.id)}</b> — pages open between words: forge this one and name its root first.
+            </>
+          ) : reading && why === 'next' ? (
+            <>
+              <b>{nameOf(reading.id)}</b> — its word’s coming up, so its page opens once that’s filed.
+            </>
+          ) : reading && expert ? (
+            <>
+              <b>{nameOf(reading.id)}</b> — {EXPERT_PAGES[reading.id].note} <i>{EXPERT_WORDS[reading.id].map((x) => x.word).join(', ')}.</i>
+            </>
+          ) : reading ? (
+            <>
+              <b>{reading.name}</b> — {keepHyphens(reading.note)} <i>{reading.words.map((x) => x.word).join(', ')}.</i>
+            </>
+          ) : null}
+        </span>
+        {!reading && <span className="text-[#5b4a6b]">{count ? 'Tap a page to read it.' : 'Forge a word to start the wall.'}</span>}
       </div>
     </section>
   );

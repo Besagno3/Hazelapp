@@ -720,7 +720,8 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   that root's; each split the word's own), the 27 in turn by `jobFor` (k =
   3 × round + i: family k mod 9, its word ⌊k/9⌋ mod 3 — the wall's queue
   left out), the tray the word's two and four others from every Expert
-  word's roots, plain (`partText`). `ROOT_MEANS` says what each root means — in a hint after a
+  word's roots, plain (`partText`) — a root of the same meaning as one of
+  its own first (poly and multi, aqua and aque). `ROOT_MEANS` says what each root means — in a hint after a
   miss, the card and the question only — and `ROOT_KIN` other words it's in.
   Forged, step `root` (`EXPERT_CHIPS`): `rootAsk`, four meanings from
   `rootChoices` (the root's, the other part's, two others none alike, in an
@@ -728,12 +729,19 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   part's said so; another with a word the root's in to think of, or with
   none a clue, `ROOT_CLUE`), a wrong one marked tried and picked again; the
   lesson adds a root's other meaning (`ROOT_NOTE`: para). A hint after a
-  miss is `expertHint`: a part by its meaning, the asked root by its first
-  letter, a part meaning the same as the right one said so; no add-on rule.
-  The wall on Expert: `EXPERT_PAGES` (each family's name without a meaning,
-  a note tying its words), a page shut while a word's on the anvil
-  (`locked`). `forge.test` holds every pair of Expert's 40 roots to its 27
-  words, 18 more in `ALSO` or a pinned count of not-words, the 20 rarest
+  miss is `expertHint`: a part by its meaning, the asked root by as few of
+  its first letters as no other tile in the tray starts with (or whole), a
+  part meaning the same as the right one said so; no add-on rule. The wall
+  on Expert: `EXPERT_PAGES` (each family's name without a meaning — by a
+  root where the answer was in it — a note tying its words), `FamilyMark`
+  `plain` (📜), a page `shut` while a word's on the anvil and on a card for
+  the next two words' families (🔒, said in its name); on every band a page
+  tapped is brought into sight (`readBox`), the wall's taps waiting a
+  moment after (`wallSettled`), and only the page read is said, not "Tap a
+  page to read it.". `forge.test` holds every wrong try's words, a hint and
+  each page name to none of the asked meaning's words (`caught`: each but
+  the little ones, by its first four letters). `forge.test` holds every pair of Expert's 40 roots to its 27
+  words, 20 more in `ALSO` or a pinned count of not-words, the 20 rarest
   named. Dot plain (`!` made `.` in `forgeWords`), the root named once
   right (`cheerLine`); the seal's `spotOn` counts words
   forged at the first hammer with the root right first pick, the reward

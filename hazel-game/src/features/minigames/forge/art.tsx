@@ -19,15 +19,17 @@ const MARKS: Record<FamilyId, string> = { sun: '☀️', rain: '🌧️', more: 
  * A family's mark: a round stamp — not a tile like the tray's parts (code and
  * UX review round 1: the family's first part on an orange tile, "un" on the
  * ticket for kinder, read as a part to pick). Decorative (`aria-hidden`).
+ * `plain` on Expert, a page for every family: its picture said what a root
+ * means (code review round 2: ☀️ by the question on “sol”).
  */
-export function FamilyMark({ id, size = 48 }: { id: FamilyId | null; size?: number }) {
+export function FamilyMark({ id, size = 48, plain = false }: { id: FamilyId | null; size?: number; plain?: boolean }) {
   return (
     <span
       aria-hidden="true"
       className="flex flex-none items-center justify-center rounded-full border-2 border-[#1b0f22] bg-[#fde68a] leading-none"
       style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
-      {id ? MARKS[id] : '🔨'}
+      {id ? (plain ? '📜' : MARKS[id]) : '🔨'}
     </span>
   );
 }

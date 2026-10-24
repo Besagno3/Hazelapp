@@ -141,16 +141,16 @@ export const EXPERT_WORDS: Record<FamilyId, readonly [ExpertWord, ExpertWord, Ex
   sun: [
     x('solar', 'sol', 'ar', 'powered by daylight, like a panel on a roof', 'sol'),
     x('solstice', 'sol', 'stice', 'the longest or the shortest day of the year', 'stice'),
-    x('parasol', 'para', 'sol', 'a light umbrella for a sunny day', 'para'),
+    x('parasol', 'para', 'sol', 'a light umbrella for shade on a bright day', 'para'),
   ],
   rain: [
-    x('aqueduct', 'aque', 'duct', 'a bridge that carries water across a valley', 'duct'),
+    x('aqueduct', 'aque', 'duct', 'a stone bridge that brings a river’s flow to a town', 'duct'),
     x('aquamarine', 'aqua', 'marine', 'a pale blue-green gem, the colour of a tropical sea', 'aqua'),
-    x('aquanaut', 'aqua', 'naut', 'a diver who lives under the sea for days at a time', 'naut'),
+    x('aquanaut', 'aqua', 'naut', 'a diver who lives and works on the sea floor for days', 'naut'),
   ],
   more: [
     x('polygon', 'poly', 'gon', 'a flat shape with three or more straight sides', 'gon'),
-    x('multiply', 'multi', 'ply', 'to take a number a given number of times, as in 3 × 4', 'multi'),
+    x('multiply', 'multi', 'ply', 'to work out sums like 3 × 4 = 12', 'multi'),
     x('polyglot', 'poly', 'glot', 'someone who speaks several languages', 'glot'),
   ],
   help: [
@@ -161,7 +161,7 @@ export const EXPERT_WORDS: Record<FamilyId, readonly [ExpertWord, ExpertWord, Ex
   kind: [
     x('benevolent', 'bene', 'volent', 'kind and generous to others', 'volent'),
     x('sympathy', 'sym', 'pathy', 'being sorry for someone who is sad', 'sym'),
-    x('philanthropy', 'phil', 'anthropy', 'giving money or time to help other people', 'phil'),
+    x('philanthropy', 'phil', 'anthropy', 'giving money or help to make life better for others', 'phil'),
   ],
   view: [
     x('inspect', 'in', 'spect', 'to check something closely for faults', 'in'),
@@ -176,10 +176,10 @@ export const EXPERT_WORDS: Record<FamilyId, readonly [ExpertWord, ExpertWord, Ex
   micro: [
     x('micrometer', 'micro', 'meter', 'a tool for checking tiny thicknesses, like a hair’s', 'meter'),
     x('microcosm', 'micro', 'cosm', 'a small place that’s like a bigger one in miniature', 'cosm'),
-    x('chronometer', 'chrono', 'meter', 'a very exact clock, carried on ships', 'chrono'),
+    x('chronometer', 'chrono', 'meter', 'a very exact clock, for finding the way at sea', 'chrono'),
   ],
   graph: [
-    x('geography', 'geo', 'graphy', 'the study of lands, seas, countries and maps', 'geo'),
+    x('geography', 'geo', 'graphy', 'the school subject of lands, seas, countries and maps', 'geo'),
     x('calligraphy', 'calli', 'graphy', 'fancy handwriting done with a special pen', 'calli'),
     x('geology', 'geo', 'logy', 'the science of rocks and how mountains form', 'logy'),
   ],
@@ -197,14 +197,16 @@ export const ROOT_MEANS: Record<string, string> = {
   geo: 'earth', graphy: 'writing', calli: 'beauty', logy: 'study of',
 };
 
-/** Other words a root's in, for the lesson ("More with “port”: transport and export"). */
+/**
+ * Other words a root's in, for the lesson ("More with “port”: transport and
+ * export") — the asked root's, or the other part's where it has none; no
+ * others, as none are said (code review round 2: aque's, marine's).
+ */
 export const ROOT_KIN: Record<string, readonly string[]> = {
   sol: ['solar', 'parasol', 'solstice'],
   para: ['parachute'],
   aqua: ['aquarium', 'aquatic', 'aquamarine'],
-  aque: ['aqueous'],
   duct: ['conduct', 'viaduct'],
-  marine: ['submarine', 'ultramarine'],
   naut: ['astronaut', 'nautical'],
   poly: ['polygon', 'polyglot', 'polyhedron'],
   gon: ['hexagon', 'octagon'],
@@ -219,11 +221,8 @@ export const ROOT_KIN: Record<string, readonly string[]> = {
   phil: ['philosophy', 'philharmonic'],
   in: ['inhale', 'include'],
   spect: ['inspect', 'spectacles', 'respect'],
-  ator: ['narrator', 'creator'],
   dict: ['dictionary', 'verdict'],
-  tele: ['telescope', 'telephone', 'television'],
   graph: ['autograph', 'photograph', 'paragraph'],
-  micro: ['microscope', 'microphone'],
   meter: ['thermometer', 'speedometer'],
   cosm: ['cosmos', 'cosmonaut'],
   chrono: ['chronology', 'chronograph'],
@@ -243,24 +242,25 @@ export const ROOT_CLUE: Record<string, string> = {
   calli: 'Think what fancy handwriting is meant to be.',
 };
 
-/** A root a tile shares with another of another meaning, said in its lesson (code review round 1: para in paragraph). */
+/** An asked root a tile shares with another of another meaning, said in its lesson (code review round 1: para in paragraph). */
 export const ROOT_NOTE: Record<string, string> = {
   para: 'Greek para, “beside”, is another: paragraph.',
 };
 
 /**
  * The word wall's pages on Expert: each family's name without a meaning (code
- * review round 1: "Graph, “write”" was in sight as "graph" was asked) and its
- * Expert words tied (UX review round 1: the page taught -s, and solar as a
- * compound word).
+ * review round 1: "Graph, “write”" was in sight as "graph" was asked) — by a
+ * root where the answer was in it (code review round 2: "Water words" beside
+ * "What does “aqua” mean?") — and its Expert words tied (UX review round 1:
+ * the page taught -s, and solar as a compound word).
  */
 export const EXPERT_PAGES: Record<FamilyId, { name: string; note: string }> = {
-  sun: { name: 'Sun words', note: 'Sol is Latin for the sun: solar, solstice (when the sun seems to stand still), and parasol (a shield against it).' },
-  rain: { name: 'Water words', note: 'Aqua is Latin for water: an aqueduct leads it, aquamarine is its colour, and an aquanaut sails under it.' },
-  more: { name: 'Many words', note: 'Poly (Greek) and multi (Latin) both mean many: a polygon has many angles, a polyglot many tongues, and to multiply is to fold many times.' },
+  sun: { name: 'Sol words', note: 'Sol is Latin for the sun: solar, solstice (when the sun seems to stand still), and parasol (a shield against it).' },
+  rain: { name: 'Aqua words', note: 'Aqua is Latin for water: an aqueduct leads it, aquamarine is its colour, and an aquanaut sails under it.' },
+  more: { name: 'Poly and multi words', note: 'Poly (Greek) and multi (Latin) both mean many: a polygon has many angles, a polyglot many tongues, and to multiply is to fold many times.' },
   help: { name: 'Help words', note: 'Helping, from Latin: support carries from under, assist stands by, and a benefactor does good.' },
   kind: { name: 'Kind words', note: 'Kindness, from Latin and Greek: benevolent wishes well, sympathy feels with, and philanthropy loves people.' },
-  view: { name: 'View words', note: 'Spect is Latin for look: to inspect looks into, a spectator looks on — and to predict says before.' },
+  view: { name: 'Spect words', note: 'Spect is Latin for look: to inspect looks into, a spectator looks on — and to predict says before.' },
   tele: { name: 'Tele words', note: 'Tele is Greek for far: teleport carries far, telegraph writes far, telepathy feels far.' },
   micro: { name: 'Micro words', note: 'Meter is Greek for measure: a micrometer measures small things, a chronometer time — and a microcosm is a small world.' },
   graph: { name: 'Graph words', note: 'Geo is Greek for earth: geography writes it, geology studies it — and calligraphy is beautiful writing.' },
@@ -352,7 +352,7 @@ export const ALSO: Record<string, string> = {
   telephoto: 'a camera lens for faraway things',
   photography: 'taking pictures with a camera',
   micrograph: 'a photo taken through a microscope',
-  micrography: 'writing in very, very tiny letters',
+  micrography: 'handwriting so tiny you need a magnifier to read it',
   photophone: 'an 1880 machine that sent sound on light',
   biograph: 'an old name for a film projector',
   bioscope: 'an old name for a cinema',
@@ -363,18 +363,21 @@ export const ALSO: Record<string, string> = {
   chronograph: 'a watch with a stopwatch built in',
   chronology: 'the order things happened in',
   dictator: 'a ruler who has all the power and shares none',
-  geometer: 'someone who studies geometry, like Euclid',
+  geometer: 'an expert in geometry, like Euclid',
   indict: 'to charge someone with a crime, in court',
-  insist: 'to say firmly that something must be so',
+  insist: 'to be firm that something must be so, and not give in',
   paragon: 'a perfect example of something',
   paragraph: 'a group of sentences about one idea',
   parameter: 'a setting that shapes how something works',
   polygraph: 'a lie-detector machine',
   supply: 'to give people what they need',
-  telemeter: 'a device that measures from far away',
-  // Too new for the big dictionary, or missed (code review round 1: "Multimeter isn’t a word").
+  telemeter: 'a device that tells how far off something is',
+  // Too new for the big dictionary, or missed (code review round 1: "Multimeter isn’t a word"; round 2: multiport,
+  // multifactor — symport, microduct and multiduct left as not-words, a lab's or a cable layer's).
   multimeter: 'a meter for volts, amps and resistance',
-  induct: 'to bring someone into a club or a job, with a welcome',
+  multiport: 'a plug or valve with several openings',
+  multifactor: 'depending on several things at once',
+  induct: 'to welcome someone as a new member of a club or team',
 };
 
 export const JOBS_PER_ROUND = 3;
@@ -419,7 +422,9 @@ const EXPERT_PARTS = (): string[] => [...new Set(FAMILY_IDS.flatMap((id) => EXPE
  * The `i`th word of a round: the family's word for the round, and a tray of
  * its parts and the band's others — for more than one, always the other
  * ending, so -s or -es is the kid's to pick (UX review round 1: in 11 rounds
- * of 12 the tray held only the right one).
+ * of 12 the tray held only the right one); on Expert, always a root of the
+ * same meaning as one of its own (poly and multi, aqua and aque), so which of
+ * the two is the kid's to pick (UX review round 2: 1 word in 27 met one).
  */
 export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly FamilyId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
@@ -431,8 +436,8 @@ export function jobFor(band: PlayBand, round: number, i: number, queue?: readonl
   const word = band === 'expert' ? EXPERT_WORDS[family.id][Math.floor(k / FAMILY_IDS.length) % 3] : family.words[round % family.words.length];
   const r = rand(round * JOBS_PER_ROUND + i + 1);
   const pool = (band === 'expert' ? EXPERT_PARTS() : [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))]).filter((p) => !word.parts.includes(p));
-  const ending = family.id === 'more' ? pool.indexOf(word.parts[1] === 's' ? 'es' : 's') : -1;
-  const others = ending >= 0 ? pool.splice(ending, 1) : [];
+  const must = band === 'expert' ? pool.findIndex((p) => word.parts.some((w) => ROOT_MEANS[p] === ROOT_MEANS[w])) : family.id === 'more' ? pool.indexOf(word.parts[1] === 's' ? 'es' : 's') : -1;
+  const others = must >= 0 ? pool.splice(must, 1) : [];
   while (others.length < OTHERS[band] && pool.length) others.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
   const tiles = [...word.parts, ...others];
   for (let k = tiles.length - 1; k > 0; k--) {
@@ -496,15 +501,22 @@ function hintWords(job: Job, tried?: readonly [string, string]): string {
 /**
  * Expert's hint, plainly: a part by its meaning — but never the root the
  * question will ask about (code review round 1: 44% of misses gave its
- * meaning away), that one by its first letter; a part that means the same as
- * the right one said so (UX review round 1: "multi" for polygon was told to
- * try "many" again).
+ * meaning away), that one by as few of its first letters as no other tile in
+ * the tray starts with, or whole (code and UX review round 2: "starts with
+ * “s”" for sol beside sup, and again once sup was tried); a part that means
+ * the same as the right one said so (UX review round 1: "multi" for polygon
+ * was told to try "many" again).
  */
 function expertHint(job: Job, tried?: readonly [string, string]): string {
-  const w = job.word as ExpertWord;
+  const w = expertWord(job);
   const [a, b] = w.parts;
-  const what = (p: string) => (p === w.ask ? `starts with ${quoted(p[0])}` : `means ${quoted(ROOT_MEANS[p])}`);
-  const twin = tried?.find((p, k) => p !== w.parts[k] && !!ROOT_MEANS[p] && ROOT_MEANS[p] === ROOT_MEANS[w.parts[k]]);
+  const start = (p: string) => {
+    let n = 1;
+    while (n < p.length && job.tiles.some((t) => t !== p && t.startsWith(p.slice(0, n)))) n++;
+    return p.slice(0, n);
+  };
+  const what = (p: string) => (p !== w.ask ? `means ${quoted(ROOT_MEANS[p])}` : start(p) === p ? `is ${quoted(p)}` : `starts with ${quoted(start(p))}`);
+  const twin = tried?.find((p, k) => p !== w.parts[k] && ROOT_MEANS[p] === ROOT_MEANS[w.parts[k]]);
   // Its meaning not said where it's the asked root's too (multi for multiply's poly).
   if (twin) return `${quoted(twin)} means ${ROOT_MEANS[twin] === ROOT_MEANS[w.ask] ? 'the same' : `${quoted(ROOT_MEANS[twin])} too`} — but ${w.word} takes the other one.`;
   if (tried?.[0] === a) return `${quoted(a)} first is right — the second part ${what(b)}.`;
@@ -581,11 +593,16 @@ export function learnedLine(job: Job): string {
 
 // ——— Expert's roots (§8.5) ———
 
+/** Expert's words only (code review round 1: a cast, and a younger word reaching here threw). */
+function expertWord(job: Job): ExpertWord {
+  const w = job.word;
+  if (!('ask' in w)) throw new Error(`${w.word} isn't an Expert word`);
+  return w;
+}
+
 /** Expert's word, its root to ask about (`ask`) and the other part. */
 function rootsOf(job: Job): { word: string; ask: string; other: string } {
-  const w = job.word;
-  // Expert's words only (code review round 1: a cast, and a younger word reaching here threw).
-  if (!('ask' in w)) throw new Error(`${w.word} isn't an Expert word`);
+  const w = expertWord(job);
   const [a, b] = w.parts;
   return { word: w.word, ask: w.ask, other: w.ask === a ? b : a };
 }
@@ -597,7 +614,7 @@ function kinLine(job: Job): string {
   const r = kin(ask).length ? ask : kin(other).length ? other : null;
   if (!r) return '';
   const k = kin(r);
-  const note = ROOT_NOTE[ask] ?? ROOT_NOTE[other];
+  const note = ROOT_NOTE[ask];
   return `More with ${quoted(r)}: ${k.join(' and ')}.${note ? ` ${note}` : ''}`;
 }
 

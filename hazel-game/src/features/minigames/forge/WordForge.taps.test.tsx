@@ -90,13 +90,39 @@ describe('🔨 a double tap', () => {
     fireEvent.click(slot(0));
     expect(dot()).toBe(before);
     const page = screen.getByRole('button', { name: 'Rain words. Read the page' });
-    fireEvent.click(page);
+    fireEvent.click(page, { detail: 1 });
     expect(page).toHaveAttribute('aria-pressed', 'false');
     wait();
     fireEvent.click(slot(0));
     expect(dot()).toContain('Tap a part in the tray — it goes on the anvil.');
-    fireEvent.click(page);
+    fireEvent.click(page, { detail: 1 });
     expect(page).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('a page opened comes into sight, and a tap as it does is let be — it could land on another page; a key acts at once (UX review round 2)', () => {
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags: { [pageFlag('word-forge', 'rain')]: true, [pageFlag('word-forge', 'sun')]: true } }, status: 'ready', remoteError: null });
+    const scrolled = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
+    const to = vi.fn();
+    HTMLElement.prototype.scrollTo = to;
+    play();
+    wait();
+    to.mockClear();
+    const rain = screen.getByRole('button', { name: 'Rain words. Read the page' });
+    const sun = screen.getByRole('button', { name: 'Sun words. Read the page' });
+    fireEvent.click(rain, { detail: 1 });
+    expect(rain).toHaveAttribute('aria-pressed', 'true');
+    expect(to).toHaveBeenCalled();
+    // The second tap of a double, on the page now under the finger: nothing.
+    fireEvent.click(sun, { detail: 2 });
+    expect(rain).toHaveAttribute('aria-pressed', 'true');
+    expect(sun).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(sun, { detail: 0 });
+    expect(sun).toHaveAttribute('aria-pressed', 'true');
+    wait();
+    fireEvent.click(sun, { detail: 1 });
+    expect(sun).toHaveAttribute('aria-pressed', 'false');
+    scrolled.mockRestore();
+    delete (HTMLElement.prototype as Partial<HTMLElement>).scrollTo;
   });
 });
 
