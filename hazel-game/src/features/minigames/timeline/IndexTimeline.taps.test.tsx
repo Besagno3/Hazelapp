@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES } = await import('../../../content/minigames');
-const { check, checkWords, jobFor, spanChoices, spanRight, spanWords } = await import('../../../lib/minigames/timeline');
+const { SET_BY_ID, check, checkWords, jobFor, spanChoices, spanRight, spanWords } = await import('../../../lib/minigames/timeline');
 
 let now = 0;
 beforeEach(() => {
@@ -165,10 +165,10 @@ describe('📜 Expert’s years, a double tap', () => {
     expect(index()).toContain(spanWords(job, wrong));
     wait();
     fireEvent.click(answers().getByRole('button', { name: `${spanRight(job).toLocaleString('en-GB')} years` }), { detail: 1 });
-    expect(screen.getByRole('heading', { name: 'Light, in order.' })).toHaveFocus();
+    expect(screen.getByRole('heading', { name: `${SET_BY_ID[job.set].name}, in order.` })).toHaveFocus();
     // Next: a tap straight away waits; a key doesn't.
     fireEvent.click(screen.getByRole('button', { name: 'Next drawer' }), { detail: 1 });
-    expect(screen.getByRole('heading', { name: 'Light, in order.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: `${SET_BY_ID[job.set].name}, in order.` })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next drawer' }), { detail: 0 });
     expect(screen.getByRole('group', { name: /^The washed-up cards: 7 to place/ })).toBeInTheDocument();
   });

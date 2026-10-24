@@ -530,6 +530,14 @@ Old Ringwood is the tree who loses count of his rings.
   breaks at its spaces inside the card (seven in a row on a short screen
   are 55 px wide), and on a phone a drawer with dates leaves the pictures
   off the line, so a place's name and date fit — Tricky's years too.
+  Review round 1: the years' answer was always the middle of three, the
+  third absurd — now four (the answer, the year 0 counted, a hundred out,
+  the years taken away) in an order by the drawer; a clue says why the card
+  goes in the gap, not a century of a card not in the slip; on short or
+  narrow screens a dated drawer drops its pictures and says "15th c.", so
+  every date starts in sight; a new teen's first drawer is Writing, its CE
+  centuries the trap; two of the "what led to what" lines said only what's
+  true of these cards (the Burj Khalifa stands on concrete walls).
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 

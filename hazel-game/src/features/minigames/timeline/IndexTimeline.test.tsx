@@ -25,7 +25,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { SET_BY_ID, check, clueFor, jobFor, learnedLine, roundQueue, spanAsk, spanRight, spanWords } = await import('../../../lib/minigames/timeline');
+const { SET_BY_ID, check, clueFor, jobFor, learnedLine, roundQueue, spanAsk, spanChoices, spanRight, spanWords } = await import('../../../lib/minigames/timeline');
 type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/timeline').Job;
 
@@ -266,16 +266,29 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
   const years = () => within(screen.getByRole('group', { name: 'How many years?' }));
 
   it('seven cards dated by century or year; in order, their years out and how many years between two; a miss on the way; the reward keeps the first miss’s lesson', () => {
+    // Expert's turn starts at Writing: with the six from it in the book, Light and Travel come first.
+    const six = ['writing', 'flight', 'food', 'music', 'buildings', 'medicine'];
+    setUp(9, Object.fromEntries(six.map((id) => [pageFlag('index-timeline', id), true])));
     const { onPage, onFinish } = play('expert');
-    const queue = roundQueue(() => false, 0);
+    const queue = roundQueue((id) => six.includes(id), 0, 'expert');
     const job = jobFor('expert', 0, 0, queue); // Light
+    expect(job.set).toBe('light');
     expect(within(tray()).getAllByRole('button')).toHaveLength(7);
     expect(card('Candles')).toHaveAccessibleName('Candles, 5th century BCE');
     expect(card('Gas street lamps')).toHaveAccessibleName('Gas street lamps, 1807');
-    expect(within(card('Candles')).getByText('5th century BCE')).toBeInTheDocument();
+    // "c." for "century" where the cards are short or narrow (UX review round 1: "century" ran out of its label), the name
+    // breaking at its syllable; the pictures left off there, with dates.
+    const label = within(card('Candles')).getByText((_, el) => el?.tagName === 'SPAN' && el.textContent === '5th century c. BCE');
+    expect(within(label).getByText('century', { exact: false })).toHaveClass('[@media(max-height:500px)]:hidden');
+    expect(within(label).getByText('c.', { exact: false })).toHaveClass('hidden', '[@media(max-height:500px)]:inline');
+    expect(label).toHaveClass('text-balance');
+    expect(card('Candles')).toHaveTextContent('Can\u00addles');
+    expect(within(card('Candles')).getByText('🕯️')).toHaveClass('[@media(max-height:500px)]:hidden', '[@media(max-width:359px)]:hidden');
     // Plainly, with a century's years as it starts (§8.3).
     expect(index()).toContain('The light cards are out of their drawer. Which came first? Tap the oldest card. Some give a century, not a year. The 5th century BCE is the years 500 to 401 BCE.');
     expect(box()).toBe('Which came first? Tap the oldest card. The 5th century BCE is the years 500 to 401 BCE.');
+    // The century's years left to Index's bubble and the ticket under 360 px (UX review round 1: the bar 102 px tall).
+    expect(within(document.querySelector<HTMLElement>('[data-bar]')!).getByText('The 5th century BCE is the years 500 to 401 BCE.', { exact: false })).toHaveClass('[@media(max-width:359px)]:hidden');
     expect(screen.getByText(/^Light: put the seven cards in order, oldest first\. A card gives its century/)).toBeInTheDocument();
     const steps = () => within(screen.getByRole('list', { name: 'Steps' })).getAllByRole('listitem');
     expect(steps().map((li) => li.textContent)).toEqual(['1Put them in order', '2Count the years', '3What led to what']);
@@ -288,22 +301,46 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(head).toHaveFocus();
     expect(steps()[1]).toHaveAttribute('aria-current', 'step');
     expect(head).toHaveAccessibleDescription(spanAsk(job));
-    expect(place(2)).toHaveAccessibleName('Place 3 of 7: Candles, about 500 BCE, right');
+    expect(spanAsk(job)).toBe('Say candles came in 500 BCE and gas street lamps in 1807: how many years from one to the other?');
+    // The two cards asked about, marked on the line (UX review round 1); the places can't be tapped now (code review round 1).
+    expect(place(2)).toHaveAccessibleName('Place 3 of 7: Candles, about 500 BCE, right, in the question');
+    expect(place(3)).toHaveAccessibleName('Place 4 of 7: Gas street lamps, 1807, right, in the question');
+    expect(place(2)).toHaveClass('ring-amber-300');
+    expect(place(4)).not.toHaveClass('ring-amber-300');
+    expect(place(2)).toHaveAttribute('aria-disabled', 'true');
     expect(index()).toContain(`All in order. Firelight in caves first, the first LED light last. ${spanAsk(job)}`);
     expect(onPage).not.toHaveBeenCalled();
-    expect(years().getAllByRole('button').map((b) => b.textContent)).toEqual(['1,307', '2,306', '2,307']);
+    // Four answers in the drawer's order (UX review round 1: the answer was always the middle of three).
+    expect(years().getAllByRole('button').map((b) => b.textContent)).toEqual(spanChoices(job).map(many));
+    expect([...spanChoices(job)].sort()).toEqual([1307, 2306, 2307, 2406]);
     expect(screen.getByText('BCE years count back to year 1; CE years count on from it.')).toBeInTheDocument();
     // The cards on the line stay put.
     fireEvent.click(place(0));
     expect(place(0)).toHaveAccessibleName('Place 1 of 7, the oldest: Firelight in caves, about 400,000 BCE, right');
-    // A wrong one: what's wrong with it; pick again.
+    // A wrong one: what's wrong with it, the button marked tried; pick again — the same one again said again (a zero-width
+    // space: code review round 1, untested). Its words scrolled to, should they be out of sight (code review round 1).
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
     fireEvent.click(years().getByRole('button', { name: '2,307 years' }));
     expect(index()).toContain(spanWords(job, 2307));
     expect(within(document.querySelector<HTMLElement>('[data-bar]')!).getByText(spanWords(job, 2307))).toBeInTheDocument();
+    expect(scrolled).toHaveBeenCalled();
+    expect(years().getByRole('button', { name: '2,307 years, tried' })).toHaveClass('line-through');
+    const once = index();
+    fireEvent.click(years().getByRole('button', { name: '2,307 years, tried' }));
+    expect(index()).not.toBe(once);
+    expect(index().replace(/\u200b/g, '')).toBe(once.replace(/\u200b/g, ''));
+    // A held key repeats nothing (code review round 1: untested).
+    const held = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+    years().getByRole('button', { name: '2,307 years, tried' }).dispatchEvent(held);
+    expect(held.defaultPrevented).toBe(true);
     expect(screen.getByRole('heading', { name: 'How many years?' })).toBeInTheDocument();
     fireEvent.click(years().getByRole('button', { name: `${many(spanRight(job))} years` }));
     const done = screen.getByRole('heading', { name: 'Light, in order.' });
     expect(done).toHaveFocus();
+    const heldNext = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+    screen.getByRole('button', { name: 'Next drawer' }).dispatchEvent(heldNext);
+    expect(heldNext.defaultPrevented).toBe(true);
     expect(done).toHaveAccessibleDescription(`${learnedLine(job)} Light is in the timeline book.`);
     expect(learnedLine(job)).toContain(SET_BY_ID.light.led);
     expect(onPage).toHaveBeenCalledWith('light', 'Light');
@@ -327,6 +364,16 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(onFinish).toHaveBeenCalledWith({ title: 'Three timelines filed!', learned: learnedLine(job), spotOn: { right: 1, of: 3 } });
   });
 
+  it('a new teen’s first drawer is Writing; all on the line, plainly (code review round 1: untested)', () => {
+    play('expert');
+    const job = jobFor('expert', 0, 0);
+    expect(job.set).toBe('writing');
+    expect(screen.getByText(/^Writing: put the seven cards in order/)).toBeInTheDocument();
+    for (const ev of job.events) fireEvent.click(card(ev.name));
+    expect(index()).toContain('All on the line — check the order.');
+    expect(index()).not.toMatch(/!/);
+  });
+
   it('a wrong check, plainly: how many stayed, and the clue with a century’s years', () => {
     // Every other set in the book: Medicine comes first.
     setUp(9, Object.fromEntries(['light', 'travel', 'writing', 'flight', 'food', 'music', 'buildings'].map((id) => [pageFlag('index-timeline', id), true])));
@@ -344,7 +391,7 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
 
   it('spot on every time: the last drawer’s lesson, 3 of 3', () => {
     const { onFinish } = play('expert', 1);
-    const queue = roundQueue(() => false, 1);
+    const queue = roundQueue(() => false, 1, 'expert');
     for (const i of [0, 1, 2]) {
       const job = jobFor('expert', 1, i, queue);
       order(job);
@@ -360,7 +407,8 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/some give only a century: the 19th century is the years 1801 to 1900/)).toBeInTheDocument();
     expect(screen.getByText(/From a BCE year to a CE year, add the two, then take 1/)).toBeInTheDocument();
-    expect(screen.getByText(/In order and counted right first time wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    // Every drawer (code review round 1: "In order and counted…", as if one were enough).
+    expect(screen.getByText(/Every drawer in order and counted right first time wins the Expert seal\. No clock\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Let’s file!' }));
     await screen.findByRole('group', { name: /^The washed-up cards: 7 to place/ });
   });

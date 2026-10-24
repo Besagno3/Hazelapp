@@ -535,27 +535,38 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   arbitrary variant: "under 560 px or upright" is two variants); long
   words in a card's name are blocks with a soft hyphen (`Breakable`), so they
   break only where they must. Expert (`jobFor('expert', …)`) deals a set's
-  seven, `years` on, with `expert.span` (`spanFor`: a BCE card under
-  `CENTURY_UP_TO` years ago to a CE card, turning with the round). A card
+  seven, `years` on, with `expert.span` (`spanFor`: a BCE card later than
+  `CENTURY_UP_TO` BCE to a CE card, turning with the round) and its `seed`;
+  Expert's rounds start at `EXPERT_FIRST` (Writing: `roundQueue`'s `band`),
+  its CE centuries first. A card
   gives its century (`cardDate`, `centuryWords`, `centuryOf`) where
   `byCentury` — no other card in the drawer in the same century, not 5000
   BCE or older, not a whole hundred CE — else its year; `dateOf` is the
-  year once it's in order. `clueFor` gives a century's years
-  (`centuryYears`) where a century card's in it; `checkWords` drops the
+  year once it's in order. `clueFor` on Expert says, plainly, why the card
+  goes in the gap (`expertWhy`): its century's years (`centuryYears`), else
+  across BCE and CE how they count, else the card before's century in the
+  same era, else in BCE which way the years go, else the two dates as the
+  cards give them; `checkWords` drops the
   "!"; `centuryTip` is said as a drawer starts and on the ticket
   (`jobWords`). In order, the `span` step asks `spanAsk` from
   `spanChoices` (the answer `spanRight` — `yearsApart`, no year 0 — the year
-  0 counted, and the years taken away); `spanWords` says the method, or
-  what's wrong with a wrong pick, which stays to pick again. Each set has a
+  0 counted, a hundred out, and the years taken away, shuffled by the
+  drawer's `seed`; an "about" year taken as it is in the ask); `spanWords`
+  says the method, or what's wrong with a wrong pick, which stays to pick
+  again, marked tried; the two cards asked about are marked on the line. Each set has a
   `led` line (what led to what among its cards, tested for no wars,
   disasters or religion); Expert's `learnedLine` is that and the years
   counted. Index plain (`EXPERT_RIGHT_LINES`, "Finish the round"); in order
   at the first check and counted at the first pick is a drawer spot on, and
   the reward keeps the first missed drawer's lesson. Taps on the years and
   Next wait for a tap's second, not a key's (`ready(e)`); a wrong count's
-  words scroll into view. A card's date breaks at its spaces, inside it
-  (no longer a no-break space before BCE), and on a phone a drawer with
-  dates leaves the pictures off the line (`CardFace`'s `pic`).
+  words scroll into view, the step's start having brought the box under
+  the answers into view. A card's date breaks at its spaces, inside it, its
+  lines balanced (`text-balance`); where the cards are short (500 px high)
+  or narrow (under 360 px) a dated drawer leaves the pictures off
+  (`DATED_PIC`, on a phone the line's too) and says "c." for "century".
+  As a drawer starts, the washed-up cards come into view clear of the bar,
+  in the page or, on a split screen, the board.
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
