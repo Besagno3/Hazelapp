@@ -115,6 +115,9 @@ describe("readKidPlay — what Player 2 plays with, read only (#186)", () => {
     expect(await readKidPlay('kid-2')).toEqual({ skillLevels: { math: 4 }, powerUps: { scholar: 1 }, worldOpen: true });
     expect(warn).toHaveBeenCalledWith("Player 2's levels didn't load — using this device's copy:", 'permission denied');
     expect(warn).toHaveBeenCalledWith("Player 2's save didn't load — using this device's copy:", 'offline');
+    // No copy of their save here either: whether their world is open is unknown (no XP, and the screens say why).
+    localStorage.removeItem(saveKey('kid-2'));
+    expect((await readKidPlay('kid-2')).worldOpen).toBeNull();
     warn.mockRestore();
   });
 
@@ -124,8 +127,8 @@ describe("readKidPlay — what Player 2 plays with, read only (#186)", () => {
     saveRead.mockReturnValue(new Promise(() => {}));
     const play = readKidPlay('kid-2');
     await vi.advanceTimersByTimeAsync(LEVELS_WAIT_MS);
-    // No copy on this device: every topic starts where a player of their age would, and no XP until the world is known open.
-    expect(await play).toEqual({ skillLevels: {}, powerUps: {}, worldOpen: false });
+    // No copy on this device: every topic starts where a player of their age would, and no XP — the world unknown, said so (#188 review).
+    expect(await play).toEqual({ skillLevels: {}, powerUps: {}, worldOpen: null });
     warn.mockRestore();
   });
 });

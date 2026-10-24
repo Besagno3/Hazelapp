@@ -21,7 +21,7 @@ describe('playerTwoStore (#186)', () => {
     const picked = usePlayerTwoStore.getState().chooseKid(kid('kid-2', 'Mia'));
     expect(usePlayerTwoStore.getState()).toMatchObject({
       loading: true,
-      playerTwo: { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 3, skillLevels: {}, powerUps: {}, worldOpen: false },
+      playerTwo: { kind: 'kid', id: 'kid-2', name: 'Mia', icon: 'fox', birthYear: 2014, birthMonth: 3, skillLevels: {}, powerUps: {}, worldOpen: null },
     });
     answer({ skillLevels: { math: 6 }, powerUps: { scholar: 2 }, worldOpen: true });
     await picked;

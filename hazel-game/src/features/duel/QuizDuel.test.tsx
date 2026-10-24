@@ -183,6 +183,27 @@ describe('🆚 Quiz Duel — picking Player 2 (#186)', () => {
     expect(usePlayerTwoStore.getState().playerTwo).toBeNull();
   });
 
+  it("the PIN pad is its own full-screen layer: Escape closes it, and focus goes back to the tile tapped (#191)", async () => {
+    render(<QuizDuel />);
+    const tile = screen.getByRole('button', { name: /Mia/ });
+    tile.focus();
+    fireEvent.click(tile);
+    const sheet = screen.getByRole('dialog', { name: "Mia's PIN" });
+    // Over the page, not inside it: a scrolling box (the 📜 Menu) can't hide its keys or its way out.
+    expect(sheet.parentElement).toBe(document.body);
+    expect(screen.getByText(/Hi, Mia!/)).toHaveFocus();
+    fireEvent.keyDown(sheet, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: "Mia's PIN" })).toBeNull();
+    expect(tile).toHaveFocus();
+    expect(usePlayerTwoStore.getState().playerTwo).toBeNull();
+    // A right PIN closes it too, focus back on Mia's tile — now picked.
+    fireEvent.click(tile);
+    await typePin('4821');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: "Mia's PIN" })).toBeNull());
+    expect(screen.getByRole('button', { name: /Mia/ })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /Mia/ })).toHaveFocus();
+  });
+
   it('a kid with no PIN yet is picked straight away', async () => {
     useFamilyStore.setState({ kids: [kid('kid-1', 'Ada', 'panda', 2019), { ...kid('kid-2', 'Mia', 'fox', 2014), hasPin: false }] });
     render(<QuizDuel />);
@@ -254,6 +275,50 @@ describe('🆚 Quiz Duel — playing (#186)', () => {
     expect(markSeen).toHaveBeenCalledWith('kid-2 L5 #0', 'kid-2');
     await screen.findByRole('heading', { name: /Ada's turn/ });
     expect(screen.getByText('2/5')).toBeInTheDocument();
+  });
+
+  it("whose turn shows wherever the page sits: the card's top comes into view each turn, and the question says whose it is (#191)", async () => {
+    const scroll = vi.fn();
+    const had = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scroll;
+    try {
+      await startWithMia();
+      await screen.findByRole('heading', { name: /Ada's turn/ });
+      expect(await screen.findByTestId('duel-asker')).toHaveTextContent("🐼 Ada's question");
+      expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }));
+      scroll.mockClear();
+      await play(true);
+      await screen.findByRole('heading', { name: /Mia's turn/ });
+      await waitFor(() => expect(screen.getByTestId('duel-asker')).toHaveTextContent("🦊 Mia's question"));
+      expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ block: 'start' }));
+    } finally {
+      Element.prototype.scrollIntoView = had;
+    }
+  });
+
+  it("mid-duel there's no Switch player (End duel is the way out) and no level badge beside the players (#191)", async () => {
+    render(<QuizDuel />);
+    expect(screen.getByRole('button', { name: 'Switch player' })).toBeInTheDocument();
+    expect(screen.getByText(/Level \d/)).toBeInTheDocument();
+    await pickMia();
+    await waitFor(() => expect(usePlayerTwoStore.getState().loading).toBe(false));
+    fireEvent.click(screen.getByRole('button', { name: /Math/ }));
+    await screen.findByRole('heading', { name: /Ada's turn/ });
+    expect(screen.queryByRole('button', { name: 'Switch player' })).toBeNull();
+    expect(screen.queryByText(/Level \d/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'End duel' })).toBeInTheDocument();
+  });
+
+  it('a picked answer hands the keyboard to Next; the answers stay in the tab order, out of play (#191)', async () => {
+    await startWithMia();
+    const question = await screen.findByRole('heading', { level: 3 });
+    const id = question.textContent!.replace(/\?$/, '');
+    fireEvent.click(screen.getByRole('button', { name: `Right ${id}` }));
+    await waitFor(() => expect(screen.getByRole('button', { name: "Next: Mia's turn →" })).toHaveFocus());
+    expect(screen.getByRole('button', { name: `Wrong ${id}` })).toHaveAttribute('aria-disabled', 'true');
+    // A second pick does nothing.
+    fireEvent.click(screen.getByRole('button', { name: `Wrong ${id}` }));
+    expect(screen.getByText('✅ Right!')).toBeInTheDocument();
   });
 
   it('Next names who goes next; a second tap never skips a player', async () => {
@@ -364,6 +429,17 @@ describe('🆚 Quiz Duel — the results (#186)', () => {
     expect(screen.getByText('XP starts for Mia once Mia opens the world.')).toBeInTheDocument();
     expect(addXp).not.toHaveBeenCalled();
     expect(giveKidXp).not.toHaveBeenCalled();
+  });
+
+  it("when Mia's save couldn't be read, no XP for her — and it says so, not that her world is closed (#188 review)", async () => {
+    readKidPlay.mockResolvedValue({ skillLevels: { math: 5 }, powerUps: {}, worldOpen: null });
+    await startWithMia();
+    for (let t = 0; t < 10; t++) await play(true);
+    expect(await screen.findByRole('heading', { name: "It's a tie!" })).toBeInTheDocument();
+    expect(screen.getByText("Mia's XP couldn't be counted this time.")).toBeInTheDocument();
+    expect(screen.queryByText(/XP starts for Mia/)).toBeNull();
+    expect(giveKidXp).not.toHaveBeenCalled();
+    expect(addXp).toHaveBeenCalledWith(50);
   });
 
   it('a guest earns nothing, and nothing is said for them', async () => {
