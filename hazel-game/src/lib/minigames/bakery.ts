@@ -1,4 +1,4 @@
-import type { Band } from '../../content/minigames';
+import type { Band, PlayBand } from '../../content/minigames';
 
 /**
  * 🥧 Dot's Bakery (docs/DESIGN-MINIGAMES.md §5.2): fractions with pie. A regular
@@ -6,8 +6,9 @@ import type { Band } from '../../content/minigames';
  * slices, puts slices in the box and closes it. Any cut that makes the amount
  * is right — two quarters is a half. A wrong box is said back, never scolded,
  * and can be fixed. Three orders make a morning (a round); each regular served
- * right is a page of the collection. Pure: the amounts, the
- * cuts, the orders, the check and the words.
+ * right is a page of the collection. On Expert (§8.5) an order is a ratio, a
+ * rate or a percentage change, and the amount is the kid's to work out. Pure:
+ * the amounts, the cuts, the orders, the check and the words.
  */
 
 /** An amount of pie, as a fraction of one pie (it may be more than 1). */
@@ -19,10 +20,11 @@ export interface Amount {
 const A = (n: number, d: number): Amount => ({ n, d });
 
 /** How many equal slices each pie can be cut into, by band. */
-export const CUTS: Record<Band, readonly number[]> = {
+export const CUTS: Record<PlayBand, readonly number[]> = {
   gentle: [2, 4],
   medium: [2, 3, 4, 6, 8],
   tricky: [2, 3, 4, 6, 8],
+  expert: [2, 3, 4, 6, 8],
 };
 
 function gcd(a: number, b: number): number {
@@ -47,6 +49,11 @@ export function add(a: Amount, b: Amount): Amount {
 /** How many pies are on the board for an amount: enough to hold it, at least one. */
 export function piesFor(a: Amount): number {
   return Math.max(1, Math.ceil(a.n / a.d));
+}
+
+/** The pies on the board: on Expert always two (every order fits), so the board doesn't say whether it's more than one. */
+export function boardPies(band: PlayBand, a: Amount): number {
+  return band === 'expert' ? 2 : piesFor(a);
 }
 
 /** Can slices of this cut make the amount exactly? */
@@ -142,6 +149,8 @@ export interface Order {
   asNumber?: boolean;
   /** A second customer's share, boxed with the first (Tricky). */
   with?: { regular: RegularId; amount: Amount; mine: Amount };
+  /** Expert: the ticket's tag ("+25%", "5 : 1"), the way in after a miss, and the working for a right box. */
+  expert?: { badge: string; how: string; working: string };
 }
 
 /** What each band orders, in turn. Every amount can be made with that band's cuts (tested). */
@@ -160,6 +169,80 @@ const ASKS: Record<Band, readonly Ask[]> = {
     { mine: A(1, 4), theirs: A(3, 8) },
   ],
 };
+
+/**
+ * Expert's orders (§8.5): a share in a ratio, a rate, or a percentage up or
+ * down — never the amount itself, which is the kid's to work out. Each fits on
+ * two pies and can be made with the cuts (tested); no two the same amount, and
+ * nine, so three mornings never repeat one (UX review round 1).
+ */
+const EXPERT_ASKS: readonly ({ amount: Amount; words: string } & NonNullable<Order['expert']>)[] = [
+  {
+    amount: A(5, 4),
+    words: '25% more pie than last week’s 1 pie',
+    badge: '+25%',
+    how: 'Work out 25% of 1 pie, then add it on.',
+    working: '25% of 1 pie is a quarter, so 25% more than 1 pie is one and a quarter pies.',
+  },
+  {
+    amount: A(5, 6),
+    words: 'the bigger share of 1 pie, split 5 : 1',
+    badge: '5 : 1',
+    // Which share, too: boxing the other is the commonest slip (UX review round 1).
+    how: 'Count the parts in 5 : 1, then take the bigger share.',
+    working: '5 : 1 splits a pie into 6 equal parts, and the bigger share is 5 of them: five sixths of a pie.',
+  },
+  {
+    amount: A(2, 3),
+    words: 'enough for 4 people, when 1 pie feeds 6',
+    badge: '4 people',
+    how: 'Work out one person’s share of a pie first.',
+    working: '1 pie feeds 6, so each person gets a sixth: 4 people need four sixths — two thirds of a pie.',
+  },
+  {
+    amount: A(3, 2),
+    words: '25% less pie than last week’s 2 pies',
+    badge: '−25%',
+    how: 'Work out 25% of 2 pies, then take it away.',
+    working: '25% of 2 pies is half a pie, so 25% less than 2 pies is one and a half pies.',
+  },
+  {
+    amount: A(4, 3),
+    // "Serve 3" with no unit read as 3 people (code and UX review round 1).
+    words: 'enough for 2 tables, when 2 pies serve 3 tables',
+    badge: '2 tables',
+    how: 'Work out one table’s share of the 2 pies first.',
+    working: '2 pies for 3 tables is two thirds of a pie a table, so 2 tables need four thirds: one and a third pies.',
+  },
+  {
+    amount: A(3, 8),
+    words: 'the smaller share of 1 pie, split 3 : 5',
+    badge: '3 : 5',
+    how: 'Count the parts in 3 : 5, then take the smaller share.',
+    working: '3 : 5 splits a pie into 8 equal parts, and the smaller share is 3 of them: three eighths of a pie.',
+  },
+  {
+    amount: A(3, 4),
+    words: '50% more pie than last week’s half pie',
+    badge: '+50%',
+    how: 'Work out 50% of half a pie, then add it on.',
+    working: '50% of half a pie is a quarter, so 50% more than half a pie is three quarters of a pie.',
+  },
+  {
+    amount: A(1, 2),
+    words: '75% less pie than last week’s 2 pies',
+    badge: '−75%',
+    how: 'Work out 75% of 2 pies, then take it away.',
+    working: '75% of 2 pies is one and a half pies, so 75% less than 2 pies leaves half a pie.',
+  },
+  {
+    amount: A(5, 3),
+    words: 'enough for 5 people, when 1 pie feeds 3',
+    badge: '5 people',
+    how: 'Work out one person’s share of a pie first.',
+    working: '1 pie feeds 3, so each person gets a third: 5 people need five thirds — one and two thirds pies.',
+  },
+];
 
 /** Orders in a morning (a round). */
 export const ORDERS_PER_ROUND = 3;
@@ -182,9 +265,13 @@ export function morningQueue(known: (id: RegularId) => boolean, round: number): 
  * one, the regulars in turn (three mornings meet all eight). A shared order's
  * second customer is someone else in the village.
  */
-export function orderFor(band: Band, round: number, i: number, queue?: readonly RegularId[]): Order {
+export function orderFor(band: PlayBand, round: number, i: number, queue?: readonly RegularId[]): Order {
   const slot = round * ORDERS_PER_ROUND + i;
   const regular = queue?.[i] ?? REGULAR_IDS[slot % REGULAR_IDS.length];
+  if (band === 'expert') {
+    const { amount, words, badge, how, working } = EXPERT_ASKS[slot % EXPERT_ASKS.length];
+    return { regular, amount, words, expert: { badge, how, working } };
+  }
   const ask = ASKS[band][slot % ASKS[band].length];
   if ('mine' in ask) {
     const other = REGULAR_IDS[(REGULAR_IDS.indexOf(regular) + 3) % REGULAR_IDS.length];
@@ -231,6 +318,7 @@ export function boxWords(count: number, cut: number): string {
  * do (review round 1).
  */
 export function askedWords(order: Order): string {
+  if (order.expert) return order.words;
   if (order.with) return `${amountWords(order.with.mine)} and ${amountWords(order.with.amount)}`;
   return order.asNumber ? order.words : amountWords(order.amount);
 }
@@ -238,6 +326,15 @@ export function askedWords(order: Order): string {
 /** After a box is closed: what happened, in a kid's words. */
 export function verdictWords(count: number, cut: number, order: Order): string {
   const v = check(count, cut, order);
+  // Expert, plainly: what's wrong and one thing to try — never the amount (§8.3). A cut that can't make it is said
+  // here, after the miss, not as the cut's picked.
+  // Too little or too much is the heading's (UX review round 1: said twice).
+  if (order.expert) {
+    if (v === 'right') return 'Right.';
+    // The cut, and the way in too: a kid who guessed the cut most needs the maths (UX review round 2).
+    if (!cutMakes(cut, order.amount)) return `${cap(SLICE[cut].many)} can’t make this order exactly. ${order.expert.how}`;
+    return order.expert.how;
+  }
   if (v === 'right') return 'Just right!';
   return v === 'too-little' ? `A little more — the order is ${askedWords(order)}.` : `A little less — the order is ${askedWords(order)}.`;
 }
@@ -249,6 +346,7 @@ export function verdictWords(count: number, cut: number, order: Order): string {
  * counted.
  */
 export function learnedLine(count: number, cut: number, order: Order): string {
+  if (order.expert) return order.expert.working;
   const boxed = simplify(A(count, cut));
   if (order.with) return `${cap(amountWords(order.with.mine))} and ${amountWords(order.with.amount)} make ${amountWords(order.amount)}.`;
   if (order.asNumber) return `${cap(order.words)} is ${amountWords(order.amount)}.`;
@@ -257,8 +355,16 @@ export function learnedLine(count: number, cut: number, order: Order): string {
   return `${cap(amountWords(order.amount))}: cut a pie into ${num(cut)} equal slices and take ${num(count)}.`;
 }
 
-/** Can this cut make the order? If not, why, for the step card: "Quarters can’t make a third of a pie exactly." */
+/** Expert, once a miss has said so: "Thirds can’t make this order exactly — cut it another way." */
+export function cantMakeWords(cut: number): string {
+  return `${cap(SLICE[cut].many)} can’t make this order exactly — cut it another way.`;
+}
+
+/**
+ * Can this cut make the order? If not, why, for the step card: "Quarters can’t make a third of a pie exactly." Not
+ * on Expert: there it's said after a miss (`verdictWords`) — told as the cut's picked, it gave the amount away.
+ */
 export function cutHint(cut: number, order: Order): string | null {
-  if (cutMakes(cut, order.amount)) return null;
+  if (order.expert || cutMakes(cut, order.amount)) return null;
   return `${cap(SLICE[cut].many)} can’t make ${askedWords(order)} exactly. Try another cut!`;
 }

@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import ModalLayer from '../../components/ModalLayer';
@@ -22,6 +22,7 @@ import { GAME_SCREENS } from './games';
 import { EmberSprite, HostBubble, Stars } from './parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, pixelTitleClass, windowClass } from './styles';
 import type { RoundOutcome } from './types';
+import { useSettled } from './useSettled';
 // Listening for the last input from the stage's load, so a key on the title card counts (`lastInputWasKey`).
 import './lastInput';
 
@@ -557,6 +558,13 @@ function RewardScreen({
 }) {
   const host = NPC_DEFS[def.host];
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
+  // A tap's second, as the reward comes up, lands on its buttons: it skipped the whole reward, the seal and all (PR 12
+  // code and UX review round 1). A tap waits a moment; a key (no click count) doesn't.
+  const settled = useSettled('reward');
+  const tapped = (e: MouseEvent, go: () => void) => {
+    if (e.detail > 0 && !settled()) return;
+    go();
+  };
   const allFound = pagesFound(flags, def.id).length >= def.pages;
   // A phone's cheer is a size smaller (or a short screen's), so Ember and the host stay on the screen — turning the phone follows.
   const small = useMedia('(max-width: 639px), (max-height: 500px)');
@@ -691,10 +699,10 @@ function RewardScreen({
           fold at 1366 × 650, 1280 × 600 and 1024 × 600). The cards follow what's new, so a phone sees that first. */}
       {/* One row, a 320 px phone too (narrower padding there: "Another morning" is the longest). */}
       <div className="relative flex flex-none justify-center gap-3 border-t-2 border-[#4b4799] bg-[#1e1b4b] px-3 py-2.5">
-        <button type="button" onClick={onBack} aria-label="Back to the map" className={cn(outlineClass, '[@media(max-width:359px)]:px-3')}>
+        <button type="button" onClick={(e) => tapped(e, onBack)} aria-label="Back to the map" className={cn(outlineClass, '[@media(max-width:359px)]:px-3')}>
           <span aria-hidden="true">🗺️ Map</span>
         </button>
-        <button type="button" onClick={onAgain} className={cn(goldClass, 'text-xl [@media(max-width:359px)]:px-3')}>
+        <button type="button" onClick={(e) => tapped(e, onAgain)} className={cn(goldClass, 'text-xl [@media(max-width:359px)]:px-3')}>
           {def.againLabel}
         </button>
       </div>

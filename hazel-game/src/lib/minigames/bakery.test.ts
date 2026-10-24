@@ -8,7 +8,9 @@ import {
   add,
   amountWords,
   askedWords,
+  boardPies,
   boxWords,
+  cantMakeWords,
   check,
   compare,
   cutHint,
@@ -196,3 +198,120 @@ describe('the box', () => {
     expect(learnedLine(5, 4, orderFor('medium', 2, 0))).toBe('Five quarters is the same as one and a quarter pies.');
   });
 });
+
+describe('Expert: ratios, rates and percentage change (§8.5)', () => {
+  const orders = Array.from({ length: 9 }, (_, k) => orderFor('expert', Math.floor(k / 3), k % 3));
+  const value = (a: { n: number; d: number }) => a.n / a.d;
+
+  it('nine orders — three mornings, none twice (UX review round 1) — each a different amount, each boxable with the cuts on the two pies always on the board', () => {
+    expect(new Set(orders.map((o) => `${simplify(o.amount).n}/${simplify(o.amount).d}`)).size).toBe(9);
+    for (const o of orders) {
+      expect(CUTS.expert.some((c) => cutMakes(c, o.amount)), o.words).toBe(true);
+      expect(value(o.amount)).toBeLessThanOrEqual(2);
+      expect(boardPies('expert', o.amount)).toBe(2);
+    }
+    // The other bands' boards are as before: enough pies to hold it.
+    expect(boardPies('gentle', A(1, 2))).toBe(1);
+    expect(boardPies('medium', A(3, 2))).toBe(2);
+    // The fourth morning starts the orders again.
+    expect(orderFor('expert', 3, 0).words).toBe(orders[0].words);
+  });
+
+  it('each order’s words work out to its amount — a percentage up or down, a share in a ratio, a rate', () => {
+    for (const o of orders) {
+      const pct = /^(\d+)% (more|less) pie than last week’s (1 pie|2 pies|half pie)$/.exec(o.words);
+      const share = /^the (bigger|smaller) share of 1 pie, split (\d+) : (\d+)$/.exec(o.words);
+      // The unit said both times (code and UX review round 1: "2 pies serve 3" read as 3 people).
+      const rate = /^enough for (\d+) (people|tables), when (\d+) pies? (?:feeds (\d+)|serve (\d+) tables)$/.exec(o.words);
+      let worked: number | null = null;
+      if (pct) worked = { '1 pie': 1, '2 pies': 2, 'half pie': 0.5 }[pct[3]]! * (1 + (pct[2] === 'more' ? 1 : -1) * (Number(pct[1]) / 100));
+      else if (share) {
+        const [a, b] = [Number(share[2]), Number(share[3])];
+        worked = (share[1] === 'bigger' ? Math.max(a, b) : Math.min(a, b)) / (a + b);
+      } else if (rate) {
+        expect(rate[2] === 'tables', o.words).toBe(rate[5] !== undefined);
+        worked = (Number(rate[1]) * Number(rate[3])) / Number(rate[4] ?? rate[5]);
+      }
+      expect(worked, o.words).not.toBeNull();
+      expect(worked, o.words).toBeCloseTo(value(o.amount), 9);
+    }
+    // All three kinds come up.
+    expect(orders.some((o) => /% more/.test(o.words)) && orders.some((o) => /% less/.test(o.words))).toBe(true);
+    expect(orders.some((o) => / : /.test(o.words)) && orders.some((o) => /^enough for/.test(o.words))).toBe(true);
+  });
+
+  it('never says the amount: not on the ticket’s words or tag, nor in what’s asked back', () => {
+    for (const o of orders) {
+      const said = amountWords(o.amount);
+      expect(o.words, o.words).not.toContain(said);
+      expect(o.expert!.badge).not.toContain(said);
+      expect(askedWords(o)).toBe(o.words);
+      expect(o.with).toBeUndefined();
+    }
+  });
+
+  it('a cut that can’t make it is said after a miss, not as it’s picked; a miss gives one way in (too little or too much is the heading’s)', () => {
+    const quarter = orders[0]; // 25% more than 1 pie: one and a quarter pies
+    expect(cutHint(3, quarter)).toBeNull();
+    // With the way in too (UX review round 2): a kid who guessed the cut most needs the maths.
+    expect(verdictWords(4, 3, quarter)).toBe('Thirds can’t make this order exactly. Work out 25% of 1 pie, then add it on.');
+    expect(cantMakeWords(3)).toBe('Thirds can’t make this order exactly — cut it another way.');
+    expect(verdictWords(4, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
+    expect(verdictWords(6, 4, quarter)).toBe('Work out 25% of 1 pie, then add it on.');
+    // A share: which share, too (UX review round 1: the kid had counted the parts; they took the other share).
+    expect(verdictWords(1, 6, orders[1])).toBe('Count the parts in 5 : 1, then take the bigger share.');
+    expect(verdictWords(10, 8, quarter)).toBe('Right.');
+    // The other bands still say it as the cut's picked.
+    expect(cutHint(3, orderFor('gentle', 0, 0))).not.toBeNull();
+    for (const o of orders) expect(o.expert!.how).not.toContain(amountWords(o.amount));
+  });
+
+  it('a right box shows the working, ending in the amount', () => {
+    for (const o of orders) {
+      expect(learnedLine(1, 1, o)).toBe(o.expert!.working);
+      expect(o.expert!.working.endsWith(`${amountWords(o.amount)}.`), o.expert!.working).toBe(true);
+    }
+  });
+
+  it('each order’s tag and way in agree with its words (code review round 1: a tag or hint for another order passed)', () => {
+    for (const o of orders) {
+      const { badge, how } = o.expert!;
+      const pct = /^(\d+)% (more|less)/.exec(o.words);
+      const share = /split (\d+) : (\d+)$/.exec(o.words);
+      const rate = /^enough for (\d+) (people|tables)/.exec(o.words);
+      if (pct) {
+        expect(badge, o.words).toBe(`${pct[2] === 'more' ? '+' : '−'}${pct[1]}%`);
+        expect(how, o.words).toContain(`Work out ${pct[1]}% of`);
+        expect(how, o.words).toContain(pct[2] === 'more' ? 'add it on' : 'take it away');
+      } else if (share) {
+        expect(badge, o.words).toBe(`${share[1]} : ${share[2]}`);
+        expect(how, o.words).toBe(`Count the parts in ${share[1]} : ${share[2]}, then take the ${o.words.startsWith('the bigger') ? 'bigger' : 'smaller'} share.`);
+      } else {
+        expect(rate, o.words).not.toBeNull();
+        expect(badge, o.words).toBe(`${rate![1]} ${rate![2]}`);
+        expect(how, o.words).toBe(`Work out one ${rate![2] === 'people' ? 'person' : 'table'}’s share of ${rate![2] === 'people' ? 'a pie' : 'the 2 pies'} first.`);
+      }
+    }
+  });
+
+  it('each way in and working, word for word — the numbers worked by hand (code review round 2: a wrong base or sum passed)', () => {
+    expect(orders.map((o) => [o.words, o.expert!.how, o.expert!.working])).toEqual([
+      ['25% more pie than last week’s 1 pie', 'Work out 25% of 1 pie, then add it on.', '25% of 1 pie is a quarter, so 25% more than 1 pie is one and a quarter pies.'],
+      ['the bigger share of 1 pie, split 5 : 1', 'Count the parts in 5 : 1, then take the bigger share.', '5 : 1 splits a pie into 6 equal parts, and the bigger share is 5 of them: five sixths of a pie.'],
+      ['enough for 4 people, when 1 pie feeds 6', 'Work out one person’s share of a pie first.', '1 pie feeds 6, so each person gets a sixth: 4 people need four sixths — two thirds of a pie.'],
+      ['25% less pie than last week’s 2 pies', 'Work out 25% of 2 pies, then take it away.', '25% of 2 pies is half a pie, so 25% less than 2 pies is one and a half pies.'],
+      ['enough for 2 tables, when 2 pies serve 3 tables', 'Work out one table’s share of the 2 pies first.', '2 pies for 3 tables is two thirds of a pie a table, so 2 tables need four thirds: one and a third pies.'],
+      ['the smaller share of 1 pie, split 3 : 5', 'Count the parts in 3 : 5, then take the smaller share.', '3 : 5 splits a pie into 8 equal parts, and the smaller share is 3 of them: three eighths of a pie.'],
+      ['50% more pie than last week’s half pie', 'Work out 50% of half a pie, then add it on.', '50% of half a pie is a quarter, so 50% more than half a pie is three quarters of a pie.'],
+      ['75% less pie than last week’s 2 pies', 'Work out 75% of 2 pies, then take it away.', '75% of 2 pies is one and a half pies, so 75% less than 2 pies leaves half a pie.'],
+      ['enough for 5 people, when 1 pie feeds 3', 'Work out one person’s share of a pie first.', '1 pie feeds 3, so each person gets a third: 5 people need five thirds — one and two thirds pies.'],
+    ]);
+  });
+
+  it('a morning’s regulars come from its queue, those not in the book first, with the slot’s orders', () => {
+    const queue = morningQueue((id) => id === 'wick' || id === 'sol', 0);
+    expect([0, 1, 2].map((i) => orderFor('expert', 0, i, queue).regular)).toEqual(['marigold', 'rook', 'nib']);
+    expect(orderFor('expert', 0, 0, queue).words).toBe(orders[0].words);
+  });
+});
+
