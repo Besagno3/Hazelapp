@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 // Reduced motion: no zoom, so a round plays straight through.
@@ -276,14 +276,15 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(within(tray()).getAllByRole('button')).toHaveLength(7);
     expect(card('Candles')).toHaveAccessibleName('Candles, 5th century BCE');
     expect(card('Gas street lamps')).toHaveAccessibleName('Gas street lamps, 1807');
-    // "c." for "century" where the cards are short or narrow (UX review round 1: "century" ran out of its label), the name
-    // breaking at its syllable; the pictures left off there, with dates.
+    // "c." for "century" where the cards are short (up to 600 px high: code review round 2, at 800 × 600 three rows of seven
+    // pushed the line off the top) or narrow (UX review round 1: "century" ran out of its label), the name breaking at its
+    // syllable; the pictures left off there, with dates.
     const label = within(card('Candles')).getByText((_, el) => el?.tagName === 'SPAN' && el.textContent === '5th century c. BCE');
-    expect(within(label).getByText('century', { exact: false })).toHaveClass('[@media(max-height:500px)]:hidden');
-    expect(within(label).getByText('c.', { exact: false })).toHaveClass('hidden', '[@media(max-height:500px)]:inline');
+    expect(within(label).getByText('century', { exact: false })).toHaveClass('[@media(max-height:600px)]:hidden', '[@media(max-width:359px)]:hidden');
+    expect(within(label).getByText('c.', { exact: false })).toHaveClass('hidden', '[@media(max-height:600px)]:inline', '[@media(max-width:359px)]:inline');
     expect(label).toHaveClass('text-balance');
     expect(card('Candles')).toHaveTextContent('Can\u00addles');
-    expect(within(card('Candles')).getByText('🕯️')).toHaveClass('[@media(max-height:500px)]:hidden', '[@media(max-width:359px)]:hidden');
+    expect(within(card('Candles')).getByText('🕯️')).toHaveClass('[@media(max-height:600px)]:hidden', '[@media(max-width:359px)]:hidden');
     // Plainly, with a century's years as it starts (§8.3).
     expect(index()).toContain('The light cards are out of their drawer. Which came first? Tap the oldest card. Some give a century, not a year. The 5th century BCE is the years 500 to 401 BCE.');
     expect(box()).toBe('Which came first? Tap the oldest card. The 5th century BCE is the years 500 to 401 BCE.');
@@ -310,9 +311,15 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(place(2)).toHaveAttribute('aria-disabled', 'true');
     expect(index()).toContain(`All in order. Firelight in caves first, the first LED light last. ${spanAsk(job)}`);
     expect(onPage).not.toHaveBeenCalled();
-    // Four answers in the drawer's order (UX review round 1: the answer was always the middle of three).
+    // Six answers in the drawer's order, three pairs a year apart (UX review rounds 1 and 2: the answer was the middle of
+    // three, then the smaller of the only two a year apart); held upright, the two cards asked about by the question.
     expect(years().getAllByRole('button').map((b) => b.textContent)).toEqual(spanChoices(job).map(many));
-    expect([...spanChoices(job)].sort()).toEqual([1307, 2306, 2307, 2406]);
+    expect([...spanChoices(job)].sort((a, b) => a - b)).toEqual([1307, 1308, 2306, 2307, 2406, 2407]);
+    expect(screen.getByRole('group', { name: 'How many years?' })).toHaveClass('grid-cols-3', '[@media(max-height:500px)]:grid-cols-6');
+    expect(head).toHaveClass('[@media(max-height:500px)]:sr-only');
+    const chips = document.querySelector<HTMLElement>('#it-span + p[aria-hidden="true"]')!;
+    expect(chips).toHaveClass('hidden', '[@media(max-width:559px)]:flex');
+    expect(Array.from(chips.children, (c) => c.textContent)).toEqual(['🕯️about 500 BCE', '🏮1807']);
     expect(screen.getByText('BCE years count back to year 1; CE years count on from it.')).toBeInTheDocument();
     // The cards on the line stay put.
     fireEvent.click(place(0));
@@ -320,7 +327,10 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     // A wrong one: what's wrong with it, the button marked tried; pick again — the same one again said again (a zero-width
     // space: code review round 1, untested). Its words scrolled to, should they be out of sight (code review round 1).
     const scrolled = vi.fn();
+    const scrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = scrolled;
+    // Put back for the tests after (code review round 2: it was left in place).
+    onTestFinished(() => void (Element.prototype.scrollIntoView = scrollIntoView));
     fireEvent.click(years().getByRole('button', { name: '2,307 years' }));
     expect(index()).toContain(spanWords(job, 2307));
     expect(within(document.querySelector<HTMLElement>('[data-bar]')!).getByText(spanWords(job, 2307))).toBeInTheDocument();
@@ -401,12 +411,23 @@ describe('📜 Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, the years bet
     expect(onFinish).toHaveBeenCalledWith({ title: 'Three timelines filed!', learned: learnedLine(jobFor('expert', 1, 2, queue)), spotOn: { right: 3, of: 3 } });
   });
 
+  it('a card placed leaves a slot its size, its face unseen — the picture left off where the cards’ is (code review round 2: untested)', () => {
+    setUp(9, {}, 14);
+    play('expert');
+    const job = jobFor('expert', 0, 0, roundQueue(() => false, 0, 'expert'));
+    fireEvent.click(card(job.events[0].name));
+    const slot = tray().querySelector<HTMLElement>('span.border-dashed')!;
+    expect(slot.textContent?.replace(/\u00ad/g, '')).toContain(job.events[0].name);
+    expect(within(slot).getByText(job.events[0].emoji)).toHaveClass('[@media(max-height:600px)]:hidden', '[@media(max-width:359px)]:hidden');
+  });
+
   it('through the stage: a teen’s title card — Expert’s hello, steps and pictures', async () => {
     setUp(6, {}, 14);
     render(<MiniGameStage game="index-timeline" />);
     expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/some give only a century: the 19th century is the years 1801 to 1900/)).toBeInTheDocument();
-    expect(screen.getByText(/From a BCE year to a CE year, add the two, then take 1/)).toBeInTheDocument();
+    // The years asked, not how to count them (UX review round 2: "add the two, then take 1" — §8.3, less handed over).
+    expect(screen.getByText(/how many from a BCE card to a CE card\? Mind, there’s no year 0/)).toBeInTheDocument();
     // Every drawer (code review round 1: "In order and counted…", as if one were enough).
     expect(screen.getByText(/Every drawer in order and counted right first time wins the Expert seal\. No clock\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Let’s file!' }));

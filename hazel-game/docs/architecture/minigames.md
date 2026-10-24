@@ -585,9 +585,12 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   cards give them; `checkWords` drops the
   "!"; `centuryTip` is said as a drawer starts and on the ticket
   (`jobWords`). In order, the `span` step asks `spanAsk` from
-  `spanChoices` (the answer `spanRight` — `yearsApart`, no year 0 — the year
-  0 counted, a hundred out, and the years taken away, shuffled by the
-  drawer's `seed`; an "about" year taken as it is in the ask); `spanWords`
+  `spanChoices` (six, three pairs a year apart: the answer `spanRight` —
+  `yearsApart`, no year 0 — and the year 0 counted, a hundred out and that
+  with the year 0, the years taken away and one more, shuffled by the
+  drawer's `seed` scrambled; an "about" year taken as it is in the ask; held
+  upright the two cards by the question, on a short screen the answers a
+  row and the heading a reader's); `spanWords`
   says the method, or what's wrong with a wrong pick, which stays to pick
   again, marked tried; the two cards asked about are marked on the line. Each set has a
   `led` line (what led to what among its cards, tested for no wars,
@@ -598,11 +601,17 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Next wait for a tap's second, not a key's (`ready(e)`); a wrong count's
   words scroll into view, the step's start having brought the box under
   the answers into view. A card's date breaks at its spaces, inside it, its
-  lines balanced (`text-balance`); where the cards are short (500 px high)
+  lines balanced (`text-balance`); where the cards are short (600 px high)
   or narrow (under 360 px) a dated drawer leaves the pictures off
   (`DATED_PIC`, on a phone the line's too) and says "c." for "century".
-  As a drawer starts, the washed-up cards come into view clear of the bar,
-  in the page or, on a split screen, the board.
+  As a step starts, `timeline/layout.ts`'s `startScroll` (pure,
+  table-tested) says how far the page or, on a split screen, the board
+  scrolls: placing, the cards' grid (`data-cards`) in sight clear of the
+  bar, the line's top (`data-line`) kept where it's above them; the years
+  and filed on a short screen, the line's years clear of the bar kept at
+  the foot; else the box under the answers or Next. Filed on a short
+  screen, Expert's lesson is three lines in the bar, whole in Index's
+  bubble.
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
