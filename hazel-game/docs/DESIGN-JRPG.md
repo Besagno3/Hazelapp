@@ -451,7 +451,12 @@ whatever exists.
    catalog (potion, hint token, badges). Tuning constants in one file.
 4. ~~**"Friends" mode:**~~ **DECIDED (2026-06-12): async only.** Each kid has
    their own hero/save; leaderboard + streak comparison in phase 4. Same-screen
-   co-op is explicitly out of scope.
+   co-op is explicitly out of scope. **Revised (2026-10-22, #186):** a kid
+   asked to play with a sibling or a friend, so two players on **one screen**
+   are in scope now — the 🆚 Quiz Duel first, then co-op battles (#187:
+   Player 2 plays the companion — this reverses question 1's "AI-controlled"
+   only while two play). Online play (across devices or families) stays out;
+   nothing of Player 2's is saved.
 5. **Art (build logistics, decided 2026-06-12): placeholder programmer art
    now.** The end-to-end build ships with programmatically generated /
    emoji-based placeholder sprites and tiles, fully playable. Loading code and

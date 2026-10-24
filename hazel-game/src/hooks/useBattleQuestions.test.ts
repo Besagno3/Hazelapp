@@ -44,7 +44,8 @@ describe('useBattleQuestions (#158)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     // The battle is on with three, while the rest are still being written.
     expect(result.current.questions.map((x) => x.id)).toEqual(['s1', 's2', 's3']);
-    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 9, [q('s1'), q('s2'), q('s3')], undefined);
+    // Asked for as the kid playing (#186: a duel's Player 2 names their own).
+    expect(more).toHaveBeenCalledWith('math', expect.any(Number), 4, 9, [q('s1'), q('s2'), q('s3')], undefined, 'kid-1');
 
     await act(async () => finish([q('n1'), q('n2'), q('n3'), q('n4'), q('n5'), q('n6')]));
     expect(result.current.questions.map((x) => x.id)).toEqual(['s1', 's2', 's3', 'n1', 'n2', 'n3', 'n4', 'n5', 'n6']);
@@ -85,8 +86,25 @@ describe('useBattleQuestions (#158)', () => {
     more.mockResolvedValue([]);
     renderHook(() => useBattleQuestions('math', 4, 7, 'spell'));
     await waitFor(() => expect(more).toHaveBeenCalled());
-    expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 7, 4, { flavor: 'spell' });
+    expect(quick).toHaveBeenCalledWith('math', expect.any(Number), 7, 4, { flavor: 'spell', kid: 'kid-1' });
     expect(more.mock.calls[0][5]).toBe('spell');
+  });
+
+  it("a seat's pool is asked for as that kid, at their age and level, and takes their carried questions (#186)", async () => {
+    carryOver('kid-2', 'math', [q('c1')]);
+    carryOver('kid-1', 'math', [q('mine')]);
+    quick.mockResolvedValue(started([q('x1'), q('x2'), q('x3')]));
+    more.mockResolvedValue([]);
+    const { result } = renderHook(() => useBattleQuestions('math', 5, undefined, undefined, { carry: true, seat: { kid: 'kid-2', age: 12, skillLevel: 4 } }));
+    await waitFor(() => expect(more).toHaveBeenCalled());
+    expect(quick).toHaveBeenCalledWith('math', 12, 4, 5, { flavor: undefined, have: [q('c1')], kid: 'kid-2' });
+    expect(more.mock.calls[0][1]).toBe(12);
+    expect(more.mock.calls[0][6]).toBe('kid-2');
+    expect(result.current.age).toBe(12);
+    expect(result.current.skillLevel).toBe(4);
+    // Player 2's carried question was theirs to take; the kid playing's stays.
+    expect(carriedFor('kid-2')).toBe(0);
+    expect(carriedFor('kid-1')).toBe(1);
   });
 });
 
