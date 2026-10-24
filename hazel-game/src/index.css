@@ -51,7 +51,7 @@ input::-ms-reveal {
   }
 }
 
-/* A jam in Clocktower Gears (#189): the stuck gears shake three times. In
+/* A jam in Clocktower Gears (#192): the stuck gears shake three times. In
    SVG user units — a board is ~700 of them across a phone, so 4px was ~2px. */
 @keyframes cg-shake {
   0%,
@@ -74,7 +74,7 @@ input::-ms-reveal {
   }
 }
 
-/* A card floating back to the washed-up cards in Index's Timeline (#189): it
+/* A card floating back to the washed-up cards in Index's Timeline (#192): it
    drifts down into its spot and fades in — not a shake, which read as "wrong!". */
 @keyframes it-float {
   0% {
