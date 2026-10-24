@@ -26,6 +26,7 @@ import {
   spanFor,
   spanRight,
   spanWords,
+  EXPERT_FIRST,
   whenWords,
   yearsApart,
   yearWords,
@@ -281,10 +282,19 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
       expect(-from.year).toBeLessThan(CENTURY_UP_TO);
       expect(to.year).toBeGreaterThan(0);
       expect(spanRight(job)).toBe(to.year - from.year - 1);
-      // The answer, the year 0 counted, and the years taken away: three, low to high.
-      expect(spanChoices(job)).toEqual([spanRight(job), spanRight(job) + 1, Math.abs(to.year + from.year)].sort((a, b) => a - b));
-      expect(new Set(spanChoices(job)).size).toBe(3);
+      // The answer, the year 0 counted, a hundred out and the years taken away: four, none the same, all years.
+      const right = spanRight(job);
+      const slip = job.expert!.seed % 2 ? right + 100 : right - 100;
+      expect([...spanChoices(job)].sort((a, b) => a - b)).toEqual([right, right + 1, slip, Math.abs(to.year + from.year)].sort((a, b) => a - b));
+      expect(new Set(spanChoices(job)).size).toBe(4);
+      expect(Math.min(...spanChoices(job))).toBeGreaterThan(0);
     }
+    // Where the answer is moves (UX review round 1: sorted, it was always the middle of three) — every place over 16 rounds,
+    // none more than half the time — and the drawer's seed is its slot's.
+    const places = jobs('expert', 16).map((job) => spanChoices(job).indexOf(spanRight(job)));
+    expect(new Set(places)).toEqual(new Set([0, 1, 2, 3]));
+    for (const k of [0, 1, 2, 3]) expect(places.filter((x) => x === k).length).toBeLessThanOrEqual(places.length / 2);
+    expect(jobFor('expert', 2, 1).expert!.seed).toBe(2 * JOBS_PER_ROUND + 1 + 1);
     // Buildings has two BCE cards in centuries, and both come up; every set's CE end turns.
     for (const s of SETS) {
       const pairs = new Set(Array.from({ length: 8 }, (_, r) => spanFor(s, r, 0)).map((p) => `${p.from.id}-${p.to.id}`));
@@ -296,16 +306,45 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
   });
 
   it('the question, the method and what’s wrong with a wrong one', () => {
-    const job = jobFor('expert', 0, 0); // Light: candles to gas street lamps
-    expect(spanAsk(job)).toBe('From candles (500 BCE) to gas street lamps (1807): how many years?');
-    expect(spanChoices(job)).toEqual([1307, 2306, 2307]);
+    const job = jobFor('expert', 0, 0, ['light']); // candles to gas street lamps
+    // Candles are about 500 BCE: the year taken as it is (UX review round 1: "about", and the answer to the year).
+    expect(spanAsk(job)).toBe('Say candles came in 500 BCE and gas street lamps in 1807: how many years from one to the other?');
+    expect(job.expert!.seed).toBe(1);
+    expect([...spanChoices(job)].sort()).toEqual([1307, 2306, 2307, 2406]);
     expect(spanWords(job, 2306)).toBe('500 + 1807 = 2,307, less 1 — there’s no year 0, as 1 BCE is followed by 1 CE: 2,306 years.');
     expect(spanWords(job, 2307)).toBe('Not 2,307: there’s no year 0 — 1 BCE is followed by 1 CE, so take 1.');
+    expect(spanWords(job, 2406)).toBe('Not 2,406: add 500 BCE and 1807 again, carefully — then take 1.');
     expect(spanWords(job, 1307)).toBe('Not 1,307: BCE years count back to year 1, so from 500 BCE to 1807 the two years add up — then take 1, as there’s no year 0.');
-    // A CE year under 1000 says so; the card's "about" left out of the sum.
-    const w = { ...job, set: 'writing' as const, events: SET_BY_ID.writing.events, expert: { span: { from: SET_BY_ID.writing.events[1], to: SET_BY_ID.writing.events[2] } } };
-    expect(spanAsk(w)).toBe('From writing on clay (3200 BCE) to paper (105 CE): how many years?');
+    // Two years as they are: asked as they are.
+    expect(spanAsk(jobFor('expert', 1, 0, ['buildings']))).toBe('From Roman aqueducts (312 BCE) to the Eiffel Tower (1889): how many years?');
+    // A CE year under 1000 says so; the card's "about" left out of the sum; an even seed's slip a hundred under.
+    const w = { ...job, set: 'writing' as const, events: SET_BY_ID.writing.events, expert: { span: { from: SET_BY_ID.writing.events[1], to: SET_BY_ID.writing.events[2] }, seed: 2 } };
+    expect(spanAsk(w)).toBe('Say writing on clay came in 3200 BCE and paper in 105 CE: how many years from one to the other?');
     expect(spanRight(w)).toBe(3304);
+    expect(spanChoices(w)).toContain(3204);
+    expect(spanWords(w, 3204)).toBe('Not 3,204: add 3200 BCE and 105 CE again, carefully — then take 1.');
+  });
+
+  it('a new teen’s first round starts with Writing — three CE centuries to place (UX review round 1: Light and Travel had none)', () => {
+    expect(roundQueue(() => false, 0, 'expert')[0]).toBe(EXPERT_FIRST);
+    expect(EXPERT_FIRST).toBe('writing');
+    expect(jobFor('expert', 0, 0).set).toBe('writing');
+    const w = jobFor('expert', 0, 0);
+    expect(w.events.filter((ev) => ev.year > 0 && byCentury(w, ev)).length).toBeGreaterThanOrEqual(3);
+    // The younger bands as they were; pages known still come last.
+    expect(roundQueue(() => false, 0)[0]).toBe('light');
+    expect(roundQueue((id) => id === 'writing', 0, 'expert').at(-1)).toBe('writing');
+  });
+
+  it('a century’s card told apart by its era (code review round 1: 150 BCE and 105 CE are both the 2nd), and Expert dates in years from 5000 BCE (pinned)', () => {
+    const base = jobFor('expert', 0, 0, ['writing']);
+    const [a, b] = SET_BY_ID.writing.events;
+    const made = { ...base, events: [{ ...a, year: -150 }, { ...b, year: 105 }] };
+    expect(made.events.map((ev) => byCentury(made, ev))).toEqual([true, true]);
+    expect(made.events.map((ev) => cardDate(made, ev))).toEqual(['2nd century BCE', '2nd century']);
+    expect(CENTURY_UP_TO).toBe(5000);
+    // Food's bread, about 4000 BCE, by its century; farming, about 10,000 BCE, by its year.
+    expect(card(jobFor('expert', 0, 0, ['food']))).toEqual(['about 10,000 BCE', '40th century BCE', '15th century BCE', '19th century', '1913', '1928', '1947']);
   });
 
   it('plainly (§8.3): the check, the clue with a century’s years, the ticket and the lesson — what led to what, and the years', () => {
@@ -317,8 +356,22 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
     expect(checkWords(job, check(job, swapped))).toBe('Six in order. After the microscope came the first vaccine — the 18th century is the years 1701 to 1800.');
     // The oldest: its century's years.
     expect(clueFor(job, [false, true, true, true, true, true, true])).toBe('Oldest of these: willow bark for aches — the 15th century BCE is the years 1500 to 1401 BCE.');
-    // Two year cards: as Tricky's.
-    expect(clueFor(job, [true, true, true, true, true, false, true])).toBe('After the stethoscope came X-ray pictures — X-ray pictures need electricity.');
+    // Two year cards: the two dates, plainly (code review round 1: Tricky's words, a young kid's).
+    expect(clueFor(job, [true, true, true, true, true, false, true])).toBe('After the stethoscope came X-ray pictures — 1816 is before 1895.');
+    // From a BCE century to a CE year: how BCE and CE count, not the BCE century's years (code and UX review round 1).
+    const light = jobFor('expert', 0, 0, ['light']);
+    expect(clueFor(light, [true, true, true, false, true, true, true])).toBe('After candles came gas street lamps — BCE years come before year 1, CE years after it.');
+    // The card before's century, in its era: what the year after it is past (code review round 1: untested).
+    const flight = jobFor('expert', 0, 0, ['flight']);
+    expect(cardDate(flight, flight.events[2])).toBe('19th century');
+    expect(clueFor(flight, [true, true, true, false, true, true, true])).toBe('After the glider with a pilot came the first aeroplane — the 19th century is the years 1801 to 1900.');
+    // Two BCE years: which way they run.
+    expect(clueFor(light, [true, false, true, true, true, true, true])).toBe('After firelight in caves came stone oil lamps — in BCE, a bigger year is longer ago.');
+    // No card's young words on Expert (UX review round 1: "riders pushed with their feet!").
+    for (const s of SETS) {
+      const j = jobFor('expert', 0, 0, [s.id]);
+      for (let k = 0; k < 7; k++) expect(clueFor(j, j.events.map((_, x) => x !== k)), `${s.id} ${k}`).not.toMatch(/!/);
+    }
     expect(checkWords(job, ids.map(() => false))).toMatch(/^Not yet\. /);
     expect(centuryTip(job)).toBe('The 15th century BCE is the years 1500 to 1401 BCE.');
     expect(jobWords(job)).toBe(
@@ -327,11 +380,19 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
     const { from, to } = job.expert!.span;
     expect(learnedLine(job)).toBe(`${SET_BY_ID.medicine.led} From ${yearWords({ ...from, about: false })} to ${yearWords({ ...to, about: false })} is ${spanRight(job).toLocaleString('en-GB')} years: there’s no year 0.`);
     expect(learnedLine(job)).not.toMatch(/!/);
-    // Every set's what-led-to-what names two of its own cards' years.
+    // Every set's what-led-to-what names one of its own cards' years or more, and every year it names is one of its cards'
+    // (code review round 1: the comment said two, and a year not on a card wasn't caught).
     for (const s of SETS) {
       const years = s.events.map((ev) => (Math.abs(ev.year) < 10000 ? String(Math.abs(ev.year)) : Math.abs(ev.year).toLocaleString('en-GB')));
       expect(years.filter((y) => s.led.includes(`(${y})`) || s.led.includes(`(about ${y}`)).length, s.id).toBeGreaterThanOrEqual(1);
+      for (const m of s.led.matchAll(/\((?:about )?([\d,]+)( BCE)?\)/g)) {
+        const named = Number(m[1].replace(/,/g, '')) * (m[2] ? -1 : 1);
+        expect(s.events.map((ev) => ev.year), `${s.id} ${m[0]}`).toContain(named);
+      }
       expect(s.led, s.id).not.toMatch(/!/);
     }
+    // Only what holds (code review round 1): the Burj Khalifa stands on concrete walls; arc lamps came before the bulb.
+    expect(SET_BY_ID.buildings.led).toMatch(/up to the Burj Khalifa \(2010\), needs lifts\.$/);
+    expect(SET_BY_ID.light.led).toMatch(/^Every light on these cards before the electric bulb/);
   });
 });

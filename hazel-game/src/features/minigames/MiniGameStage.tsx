@@ -521,7 +521,7 @@ function TitleCard({
               }}
               className={cn(goldClass, 'text-xl')}
             >
-              {def.playLabel}
+              {(band === 'expert' && def.expert?.playLabel) || def.playLabel}
             </button>
           </div>
         </div>

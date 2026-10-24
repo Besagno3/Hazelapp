@@ -79,7 +79,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);
   // Which sets come up this round, settled as it starts (the stage mounts a game afresh each round).
-  const [queue] = useState(() => roundQueue((id) => !!flags[pageFlag(def.id, id)], round));
+  const [queue] = useState(() => roundQueue((id) => !!flags[pageFlag(def.id, id)], round, band));
   const job = useMemo(() => jobFor(band, round, done, queue), [band, round, done, queue]);
   const set = SET_BY_ID[job.set];
   const n = job.events.length;
@@ -101,6 +101,8 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   const [clue, setClue] = useState<string | null>(null);
   // Each time Index says something: the same words again are a change her bubble reads out (code review round 2).
   const [beat, setBeat] = useState(0);
+  // Expert's years: the answers tried and wrong.
+  const [tried, setTried] = useState<number[]>([]);
   // Where the last card went, said by Index (a reader hears each one land: UX review round 1).
   const [landed, setLanded] = useState<string | null>(null);
   // Checks this drawer: a wrong one starts the wait again (code review round 1: a double tap on Check wiped its clue).
@@ -227,6 +229,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     const words = spanWords(job, n);
     if (n !== spanRight(job)) {
       setMissed(true);
+      setTried((t) => (t.includes(n) ? t : [...t, n]));
       say(words);
       sfx('wrong');
       return;
@@ -257,6 +260,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
     setChecks(0);
     setNewPage(false);
     setMissed(false);
+    setTried([]);
   }
 
   // Focus where each step starts: the washed-up cards, so a Tab goes to the first (no ring — the first card lit up as if
@@ -290,23 +294,32 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   const board = useRef<HTMLElement>(null);
   useEffect(() => {
     const behavior = still ? ('auto' as const) : ('smooth' as const);
-    const go = goRef.current;
-    const s = page.current;
+    // On the years, as far as the box under the answers: a wrong count's words then appear where they're seen (UX review
+    // round 1: scrolled to as they came, the answers jumped 70 px under the finger).
+    const go = step === 'span' ? (spanSaid.current ?? goRef.current) : goRef.current;
+    const p = page.current;
     const b = board.current;
-    if (s && b && s.scrollHeight > s.clientHeight && getComputedStyle(s).overflowY !== 'hidden') {
+    const scrolls = (el: HTMLElement | null): el is HTMLElement => !!el && el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY !== 'hidden' && getComputedStyle(el).overflowY !== 'visible';
+    // The page on a phone; on a split screen, where it doesn't scroll, the board (UX review round 1: at 667 × 375 the
+    // washed-up cards' dates started under the Check bar).
+    const s = scrolls(p) ? p : scrolls(b) ? b : null;
+    if (s && b) {
       const base = s.getBoundingClientRect().top - s.scrollTop;
-      const top = b.getBoundingClientRect().top - base;
+      const top = s === b ? 0 : b.getBoundingClientRect().top - base;
       const bottom = go ? go.getBoundingClientRect().bottom - base : top;
       const show = bottom + 12 - s.clientHeight;
       let to = step === 'place' ? Math.min(top, show) : Math.max(top, show);
       // The washed-up cards clear a bar kept at the bottom, the first's top in sight, the board's foot no higher than the
-      // screen's (UX review round 2: their years were under it).
+      // screen's (UX review round 2: their years were under it) — where there's no bar kept, their last row in sight (UX
+      // review round 1: at 1024 × 540 and 640 × 505 half under the foot).
       const t = tray.current;
       const first = t?.querySelector('[data-card]');
-      const bar = go?.closest<HTMLElement>('[data-bar]');
-      if (t && first && bar && getComputedStyle(bar).position === 'sticky') {
+      const bar = goRef.current?.closest<HTMLElement>('[data-bar]');
+      const stuck = !!bar && getComputedStyle(bar).position === 'sticky';
+      if (t && first) {
         const r = t.getBoundingClientRect();
-        to = Math.max(to, Math.min(first.getBoundingClientRect().top - base, r.bottom - base + bar.offsetHeight + 8 - s.clientHeight, b.getBoundingClientRect().bottom - base - s.clientHeight));
+        const foot = s === b ? b.scrollHeight - b.clientHeight : b.getBoundingClientRect().bottom - base - s.clientHeight;
+        to = Math.max(to, Math.min(first.getBoundingClientRect().top - base, r.bottom - base + (stuck && bar ? bar.offsetHeight : 0) + 8 - s.clientHeight, foot));
       }
       s.scrollTo?.({ top: Math.max(0, to), behavior });
     } else go?.scrollIntoView?.({ block: 'nearest', behavior });
@@ -335,7 +348,8 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
   // A zero-width space, every other time: the same words said again are read again.
   if (beat % 2) line += '\u200b';
   // The step's box: what Index said, or the last check's clue, or what to do now — never empty (UX review round 1).
-  const tip = left === n && expert ? `${ask} ${centuryTip(job)}` : left === n && job.years ? `${ask} In BCE, a bigger year is longer ago.` : left && left < n ? `${ask} ${left} still to place.` : ask;
+  const tip = left === n && job.years && !expert ? `${ask} In BCE, a bigger year is longer ago.` : left && left < n ? `${ask} ${left} still to place.` : ask;
+  const tipMore = left === n && expert ? centuryTip(job) : '';
 
   // From the next empty place (UX review round 2: with the oldest's place empty again, "Tap the oldest" was ticked); on
   // Expert, the order, then the years.
@@ -382,9 +396,9 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
                 <div className="grid grid-cols-2 gap-1.5 [@media(max-width:559px)]:grid-cols-1 [@media(orientation:portrait)]:grid-cols-1 [@media(min-width:560px)_and_(orientation:landscape)]:grid-cols-3 [@media(min-width:560px)_and_(max-height:500px)]:grid-flow-col [@media(min-width:560px)_and_(max-height:500px)]:auto-cols-fr [@media(min-width:560px)_and_(max-height:500px)]:grid-cols-none [@media(min-width:900px)_and_(min-height:501px)_and_(orientation:landscape)]:grid-cols-4">
                   {job.dealt.map((id) =>
                     inTray(id) ? (
-                      <CardButton key={id} ev={byId[id]} when={job.years ? cards[id] : null} floated={back.includes(id) && !still} onTap={(e) => place(id, e)} />
+                      <CardButton key={id} ev={byId[id]} when={job.years ? cards[id] : null} pic={job.years ? DATED_PIC : undefined} floated={back.includes(id) && !still} onTap={(e) => place(id, e)} />
                     ) : (
-                      <CardSlot key={id} ev={byId[id]} when={job.years ? cards[id] : null} />
+                      <CardSlot key={id} ev={byId[id]} when={job.years ? cards[id] : null} pic={job.years ? DATED_PIC : undefined} />
                     ),
                   )}
                 </div>
@@ -397,7 +411,18 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
             )}
             {/* Filed (or Expert's years), held upright, the whole width: there are no cards beside it (UX review round 2). */}
             <div className={cn('[@media(min-width:560px)_and_(orientation:landscape)]:order-first [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:col-span-2 [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:row-start-1', step !== 'place' && '[@media(max-width:559px)]:col-span-2 [@media(orientation:portrait)]:col-span-2')}>
-              <Timeline job={job} placed={placed} locked={locked} byId={byId} whens={step === 'place' ? cards : years} showYears={showYears} nextAt={nextAt} done={step !== 'place'} onTap={takeBack} />
+              <Timeline
+                job={job}
+                placed={placed}
+                locked={locked}
+                byId={byId}
+                whens={step === 'place' ? cards : years}
+                showYears={showYears}
+                nextAt={nextAt}
+                done={step !== 'place'}
+                marked={step === 'span' && job.expert ? [job.expert.span.from.id, job.expert.span.to.id] : []}
+                onTap={takeBack}
+              />
             </div>
           </div>
           <div
@@ -448,7 +473,7 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
                 <p id="it-span" className="text-[15px] font-bold leading-snug [@media(max-height:500px)]:text-[13px]">
                   {spanAsk(job)}
                 </p>
-                <div role="group" aria-labelledby="it-step" aria-describedby="it-span" className="grid grid-cols-3 gap-2">
+                <div role="group" aria-labelledby="it-step" aria-describedby="it-span" className="grid grid-cols-4 gap-1.5 [@media(max-width:359px)]:grid-cols-2">
                   {spanChoices(job).map((c, k, all) => (
                     <button
                       key={c}
@@ -456,8 +481,13 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
                       type="button"
                       onClick={(e) => pickSpan(c, e)}
                       onKeyDown={noRepeat}
-                      aria-label={`${many(c)} years`}
-                      className={cn('min-h-12 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1 text-[17px] font-bold hover:bg-[#2f2b70] [@media(max-height:500px)]:min-h-11 [@media(max-height:500px)]:text-[15px]', focusRing)}
+                      // One tried and wrong, marked (UX review round 1: nothing showed which had been).
+                      aria-label={`${many(c)} years${tried.includes(c) ? ', tried' : ''}`}
+                      className={cn(
+                        'min-h-12 rounded-lg border-[3px] border-[#5a55a8] bg-[#24215a] px-1 text-[16px] font-bold hover:bg-[#2f2b70] [@media(max-height:500px)]:min-h-11 [@media(max-height:500px)]:text-[15px]',
+                        tried.includes(c) && 'border-dashed text-[#a8a4d8] line-through',
+                        focusRing,
+                      )}
                     >
                       {many(c)}
                     </button>
@@ -490,7 +520,10 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
                     {said || clue ? (
                       <span className="[@media(max-height:500px)]:line-clamp-3 [@media(max-width:559px)]:line-clamp-5">{said ?? clue}</span>
                     ) : (
-                      <span className="font-normal text-[#e4e1ff]">{tip}</span>
+                      <span className="font-normal text-[#e4e1ff]">
+                        {tip}
+                        {tipMore && <span className="[@media(max-width:359px)]:hidden"> {tipMore}</span>}
+                      </span>
                     )}
                   </p>
                   {/* Short, on a short screen: the words beside it get the room (said in full all the same). */}
@@ -547,12 +580,23 @@ export default function IndexTimeline({ def, band, round, onPage, onFinish }: Pl
  * name and when go under the picture on a card, beside it in a row (`row`:
  * the classes that make it one, by the screen).
  */
+/**
+ * A dated card's picture, left off where the cards are short or narrow (UX review round 1: at 667 × 375 and 740 × 360 the
+ * washed-up cards' dates started under the Check bar; at 320 × 568 the card wanted next was under it).
+ */
+const DATED_PIC = '[@media(max-height:500px)]:hidden [@media(max-width:359px)]:hidden';
+/** Where a date says "c." for "century" (said in full all the same: the card's name has it). */
+const LONG = '[@media(max-height:500px)]:hidden [@media(max-width:359px)]:hidden';
+const SHORT = 'hidden [@media(max-height:500px)]:inline [@media(max-width:359px)]:inline';
+
 function CardFace({ ev, when, unseen = false, row = '[@media(max-width:559px)]:items-start [@media(orientation:portrait)]:items-start', pic }: { ev: TimelineEvent; when: string | null; unseen?: boolean; row?: string; pic?: string }) {
   // Its "about" left off on a short screen, and a phone up to 600 px high (said all the same: the card's name has it) —
   // two lines at most where there's room (UX review round 2: three, and under the bar); where a card's narrow, its date
   // breaks at its spaces, inside it (the Expert bench: seven in a row on a short screen, "5th century BCE" ran out).
   const about = when?.startsWith('about ') ?? false;
   const year = when && (about ? when.slice(6) : when);
+  // "15th century BCE" — "15th c. BCE" where it's short (UX review round 1: "century" ran out of its label, seven in a row).
+  const [pre, post] = year?.includes(' century') ? year.split(' century') : [year, null];
   return (
     <>
       <span aria-hidden="true" className={cn('text-2xl leading-none [@media(max-height:500px)]:text-lg [@media(max-height:500px)]:leading-none', pic)}>
@@ -564,9 +608,20 @@ function CardFace({ ev, when, unseen = false, row = '[@media(max-width:559px)]:i
           <Breakable name={ev.name} />
         </span>
         {year && (
-          <span className={cn('max-w-full rounded bg-[#1b0f22] px-1 text-[11px] font-black leading-tight text-amber-200 [@media(max-height:500px)]:text-[10px] [@media(max-height:500px)]:leading-tight', unseen && 'invisible')}>
+          // Its lines balanced, so an era isn't left alone on one (code review round 1: "about 500 / BCE" became "about 500 /
+          // BCE"'s "BCE" alone); tighter where it's short (UX review round 1: "400,000" 9 px out of its label).
+          <span className={cn('max-w-full text-balance rounded bg-[#1b0f22] px-1 text-[11px] font-black leading-tight text-amber-200 [@media(max-height:500px)]:px-0.5 [@media(max-height:500px)]:text-[10px] [@media(max-height:500px)]:leading-tight [@media(max-height:500px)]:tracking-tight', unseen && 'invisible')}>
             {about && <span className="[@media(max-height:500px)]:hidden [@media(max-width:559px)_and_(max-height:600px)]:hidden">about </span>}
-            {year}
+            {post === null ? (
+              year
+            ) : (
+              <>
+                {pre}
+                <span className={LONG}> century</span>
+                <span className={SHORT}> c.</span>
+                {post}
+              </>
+            )}
           </span>
         )}
       </span>
@@ -580,7 +635,7 @@ function CardFace({ ev, when, unseen = false, row = '[@media(max-width:559px)]:i
  * broken anywhere, "Typewrit/er").
  */
 const BREAKS: Record<string, string> = Object.fromEntries(
-  ['Air·liner', 'Aque·ducts', 'Aero·plane', 'Ball·point', 'Cas·sette', 'Choco·late', 'Elec·tric', 'Eye·glasses', 'Fire·light', 'Heli·copter', 'Micro·scope', 'Micro·wave', 'Paint·ings', 'Peni·cillin', 'Pic·tures', 'Print·ing', 'Sky·scraper', 'Stetho·scope', 'Type·writer'].flatMap((w) => {
+  ['Air·liner', 'Aque·ducts', 'Aero·plane', 'Ball·point', 'Can·dles', 'Cas·sette', 'Choco·late', 'Elec·tric', 'Eye·glasses', 'Farm·ing', 'Fire·light', 'Heli·copter', 'Micro·scope', 'Micro·wave', 'Paint·ings', 'Peni·cillin', 'Pic·tures', 'Print·ing', 'Pyra·mid', 'Sky·scraper', 'Stetho·scope', 'Type·writer', 'Vac·cine'].flatMap((w) => {
     const soft = w.replace('·', '\u00ad');
     const word = w.replace('·', '');
     return [
@@ -605,7 +660,7 @@ const CARD_BOX =
   'flex min-h-[60px] flex-col items-center justify-center gap-0.5 rounded-md border-[3px] px-1 py-1 text-center [@media(max-height:500px)]:min-h-[52px] [@media(max-height:500px)]:py-0.5 [@media(max-width:559px)]:min-h-11 [@media(orientation:portrait)]:min-h-11 [@media(max-width:559px)]:flex-row [@media(orientation:portrait)]:flex-row [@media(max-width:559px)]:justify-start [@media(orientation:portrait)]:justify-start [@media(max-width:559px)]:gap-1.5 [@media(orientation:portrait)]:gap-1.5 [@media(max-width:559px)]:px-1.5 [@media(orientation:portrait)]:px-1.5 [@media(max-width:559px)]:text-left [@media(orientation:portrait)]:text-left';
 
 /** A washed-up card; `floated`: just back from the timeline, it drifts in (UX review round 2: a shake read as "wrong!"). */
-function CardButton({ ev, when, floated, onTap }: { ev: TimelineEvent; when: string | null; floated: boolean; onTap: (e: MouseEvent) => void }) {
+function CardButton({ ev, when, pic, floated, onTap }: { ev: TimelineEvent; when: string | null; pic?: string; floated: boolean; onTap: (e: MouseEvent) => void }) {
   return (
     <button
       type="button"
@@ -615,7 +670,7 @@ function CardButton({ ev, when, floated, onTap }: { ev: TimelineEvent; when: str
       aria-label={`${ev.name}${when ? `, ${when}` : ''}`}
       className={cn(CARD_BOX, 'border-[#1b0f22] bg-[#f4e8c8] text-[#1b0f22] shadow-[2px_2px_0_#1b0f22] hover:bg-[#fff4d6]', floated && 'it-float', focusRing)}
     >
-      <CardFace ev={ev} when={when} />
+      <CardFace ev={ev} when={when} pic={pic} />
     </button>
   );
 }
@@ -625,11 +680,11 @@ function CardButton({ ev, when, floated, onTap }: { ev: TimelineEvent; when: str
  * unseen — so the cards around it never move (code review round 1: a slot only
  * its least height, and the tray shifted under a finger).
  */
-function CardSlot({ ev, when }: { ev: TimelineEvent; when: string | null }) {
+function CardSlot({ ev, when, pic }: { ev: TimelineEvent; when: string | null; pic?: string }) {
   return (
     <span aria-hidden="true" className={cn(CARD_BOX, 'border-dashed border-[#3f6f7d]')}>
       <span className="invisible contents">
-        <CardFace ev={ev} when={when} />
+        <CardFace ev={ev} when={when} pic={pic} />
       </span>
     </span>
   );
@@ -654,6 +709,7 @@ function Timeline({
   showYears,
   nextAt,
   done,
+  marked,
   onTap,
 }: {
   job: Job;
@@ -665,6 +721,8 @@ function Timeline({
   showYears: boolean;
   nextAt: number;
   done: boolean;
+  /** Expert's years: the two cards asked about, marked (UX review round 1: not shown on the line). */
+  marked: readonly string[];
   onTap: (k: number) => void;
 }) {
   const n = job.events.length;
@@ -687,7 +745,8 @@ function Timeline({
               (the bench: on a tablet, 14 px less with the longest year's card on it). */}
           {/* On a phone, with dates, no picture on the line: the place is half the screen, and its name and date need the
               room (the Expert bench: at 320 × 568, "400,000 BCE" and "5th century BCE" ran out of it). */}
-          <CardFace ev={ev} when={whens[ev.id]} unseen={ev === shown && !showYears} row={upright} pic={job.years ? '[@media(max-width:559px)]:hidden' : undefined} />
+          {/* On a short screen too (UX review round 1: at 667 × 375 seven in a row, every date under the Check bar). */}
+          <CardFace ev={ev} when={whens[ev.id]} unseen={ev === shown && !showYears} row={upright} pic={job.years ? `[@media(max-width:559px)]:hidden ${DATED_PIC}` : undefined} />
         </span>
       ))}
     </span>
@@ -720,7 +779,7 @@ function Timeline({
                   onClick={() => onTap(k)}
                   onKeyDown={noRepeat}
                   aria-disabled={done || undefined}
-                  aria-label={`Place ${k + 1} of ${n}${k === 0 ? ', the oldest' : k === n - 1 ? ', the newest' : ''}${ev ? `: ${ev.name}${showYears ? `, ${whens[ev.id]}` : ''}${right ? ', right' : ''}` : `, empty${next ? ', next' : ''}`}`}
+                  aria-label={`Place ${k + 1} of ${n}${k === 0 ? ', the oldest' : k === n - 1 ? ', the newest' : ''}${ev ? `: ${ev.name}${showYears ? `, ${whens[ev.id]}` : ''}${right ? ', right' : ''}${marked.includes(ev.id) ? ', in the question' : ''}` : `, empty${next ? ', next' : ''}`}`}
                   className={cn(
                     // Held upright, a slim row (its number, picture, name, year); sideways, a card.
                     'relative flex min-h-11 w-full flex-row items-center gap-2 rounded-md border-[3px] px-2 py-1 text-left [@media(min-width:560px)_and_(orientation:landscape)_and_(min-height:501px)]:min-h-[60px] [@media(min-width:560px)_and_(orientation:landscape)]:flex-col [@media(min-width:560px)_and_(max-height:500px)]:min-h-[52px] [@media(min-width:560px)_and_(max-height:500px)]:py-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:justify-center [@media(min-width:560px)_and_(orientation:landscape)]:gap-0.5 [@media(min-width:560px)_and_(orientation:landscape)]:px-1 [@media(min-width:560px)_and_(orientation:landscape)]:text-center',
@@ -728,6 +787,7 @@ function Timeline({
                     // The next empty place, in gold: where the next card goes (UX review round 1: after a check, nothing said).
                     !ev && (next ? 'border-amber-300' : 'border-[#7fb3c2]'),
                     ev && (right ? 'border-emerald-600 pr-6 [@media(min-width:560px)_and_(orientation:landscape)]:pr-1' : 'border-[#1b0f22]'),
+                    ev && marked.includes(ev.id) && 'ring-[3px] ring-amber-300',
                     focusRing,
                   )}
                 >

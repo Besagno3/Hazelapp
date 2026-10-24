@@ -426,18 +426,39 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   card's top kept in sight; the same card width all through a picture, so
   the sky doesn't change at the payoff), the whole column up to 700 px high;
   a fact card taller than its room scrolls to its Next. On Expert
-  (`Job.view`, §8.5) each picture has a `view` — the azimuth and altitude at
-  the sky's middle and its degrees a sky unit, as big as it is in the real
-  sky — and `altAz` / `starCoords` give a star's altitude and azimuth;
-  `gridLines` the grid at `gridStep` (1°, 2°, 5° or 10°, lines at least 15
-  sky units apart), drawn on the sky (`SkyGrid`, the ground under 0°) with
-  its numbers round it (`SkyAxes`, room taken from the fit: `AXIS_L`,
-  `AXIS_B`). `Job.find` is a bright star to find by its coordinates (another
-  each lap of the pictures; `findWords`, `foundWords` — where a wrong one is
-  and which way to look), then the join starts from it; on the Little Dipper
-  `Job.latitude` (`LATITUDES`, by lap; `viewFor` puts the North Star due
-  north at that altitude) is picked from `latitudeChoices`, the reason said
-  either way (`latitudeWords`), then the join starts from Polaris. Stars are
+  (`Job.view`, §8.5) a round's night is one of `LATITUDES` (`turnFor`), and
+  each picture's stars are where they really are from it at the picture's
+  sidereal time (`Picture.lst`; `RADEC`, the J2000 catalogue, `radecOf`;
+  `realAltAz`): `expertSky` lays them on a grid with a degree of azimuth as
+  wide as one of altitude, its middle the picture's, filling the sky to
+  `SPREAD` — the `view`'s azimuth and altitude at the middle and degrees a
+  sky unit — so `altAz` / `starCoords` give the real sky's altitude and
+  azimuth; `gridLines` the grid at `gridStep` (1°, 2°, 5° or 10°, lines at
+  least 15 sky units apart; on a 10° grid `minor` lines every 5°), drawn on
+  the sky (`SkyGrid`, a pixel wide at every size, the ground under 0°) with
+  its numbers round it (`SkyAxes`, 10–12 px by the sky's size — 11 from a
+  200 px sky; room taken from the fit: `AXIS_L`, `AXIS_B`). The sky's others
+  (`extras`, given an `ok` check on Expert) are 2° up or more and never at
+  a picture star's coordinates as said (whole degrees). `View.turn`
+  (`cardTurn`: the best-fit turn from the card to the sky) turns the
+  picture card on Expert (`PictureCard`'s `turn`, not the chart's pages),
+  and `jobWords` says what it looks like there too. `Job.find` is a bright star clear of
+  the others (`FIND_GAP`) to find by its coordinates (by the round,
+  `turnFor`: never the same a round or three apart; `findWords`,
+  `foundWords` — where a wrong one is and which way to look), then the join
+  starts from it, focus kept on it; a tap with another star — any, a tiny
+  dot too — within `UNSURE` times the nearest's distance isn't judged on
+  the find, and on the join (`tapUnsure`) is the one that makes a line
+  still to join from the star picked (of two, the glowing one; nothing
+  picked, the nearer with lines left), else not judged. A tap is read in
+  the sky's padding box (`clientLeft` / `clientWidth`: its stars are
+  inside its 4 px border); on a small sky a name that would cover one shown
+  is left off, the picked star's first. On the Little Dipper `Job.latitude` (the night's;
+  the North Star within a degree of due north at it) is picked from
+  `latitudeChoices`, the reason said either way (`latitudeWords`,
+  `isRightLatitude`; the answer never first), a star tapped there named,
+  not read; then the join starts from Polaris, focused. Joins are said plainly on Expert (`joinWords`'s
+  `plain`). Stars are
   said by their coordinates on Expert; the lesson is `Picture.sky`; the
   seal's `spotOn` counts pictures with the star found (or the latitude
   read) first time. On every band a step's buttons and stars wait for a
@@ -471,7 +492,8 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   picture, the beam slid by ◀ ▶ or a tap along the tree's core (a slice's
   card is beside it held sideways, a core's always under it, Tricky's beside
   only on a short phone — on a short split screen under, compact), both cores'
-  rings said under them for a reader, live (`rr-under`). What Ringwood said
+  rings said under them for a reader, live (`rr-under`; on Expert a short
+  line, the rest the record's description, `rr-beam`). What Ringwood said
   is in the step's card by the wood, and till he's said something, what he
   asked — a tip; a step's start adds the next ask to what he says. The shared
   `Ticket` puts its chip by its heading, and `HostBubble` wraps a long word.
@@ -481,16 +503,30 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   `DRY_MM`, a fair or wet one well over — from the same `weather`, so the
   fit is `matchesAt`'s); `lineUpWords` says what's wrong at a wrong place,
   then the kid dates the last ring from four (`dateChoices`: the first
-  ring's year and a year either side of the last's; `datedWords`). The
-  record (`RainRecord`) draws its years a tick each, a label every fifth,
-  and says the beam's years only once it's dated; a reader hears the rain
-  over the beam, its rings' widths and where it is on the record. Ringwood
+  ring's year and two round the last's, before, either side or after in
+  turn by the beam, inside the record; `datedWords`, a near miss saying to
+  count the ticks from the labelled fifth year). The record (`RainRecord`)
+  draws its bars (the dry line haloed), a label every fifth year, then a
+  tick a year over the beam (`data-track`, tapped along to slide it), the
+  beam with its bark (`data-bark`), and while it's dated a guide from the
+  last ring to its tick (`data-guide`); it says the beam's years only once
+  it's dated; a reader hears each ring with the rain over it and which of
+  the record's years it starts under (`ordinal`, 21st as such). Ringwood
   speaks plainly; lined up at the first check and dated at the first pick
   is `spotOn`; the reward keeps the first missed beam's lesson. On a split
-  screen a beam's card is compact (his words are in his bubble beside it;
-  up to 700 px high, the slide buttons and the gold one in a row), so the
-  strips aren't under it; on a phone up to 640 px high its words are the
-  box's and the strips shorter, so the gold button starts in view. A step's buttons wait for a tap's second, not a
+  screen a beam's card is compact (the slide buttons and the gold one in a
+  row, what to do a reader's: his bubble's beside), the strips as tall as
+  they're drawn (no `container-type` — only a slice sizes to its room) and
+  the card under them scrolling; a finished beam's strips give their room
+  (`min-h-0` at done) and the card goes over them (`relative z-[1]`: the
+  record's year labels are positioned); each step's card starts at its top.
+  What he said is under a beam's buttons, three lines' room kept on a split
+  screen, so it moves nothing under a finger; on a phone up to 640 px high
+  the strips are shorter, so the gold button starts in view. As it slides a
+  reader hears where the beam is and the rain over its thin rings
+  (`rr-under`, live); every ring and the rain over it is the record's
+  description (`rr-beam`). `MiniGameDef.expert.playLabel` gives Play's
+  words on Expert ("Date the beams"). A step's buttons wait for a tap's second, not a
   key's (`ready(e)`); the wood's rings wait for both, as focus is moved
   onto one as its step starts.
   **📜 Index's Timeline** (`archive-index`,
@@ -535,27 +571,38 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   arbitrary variant: "under 560 px or upright" is two variants); long
   words in a card's name are blocks with a soft hyphen (`Breakable`), so they
   break only where they must. Expert (`jobFor('expert', …)`) deals a set's
-  seven, `years` on, with `expert.span` (`spanFor`: a BCE card under
-  `CENTURY_UP_TO` years ago to a CE card, turning with the round). A card
+  seven, `years` on, with `expert.span` (`spanFor`: a BCE card later than
+  `CENTURY_UP_TO` BCE to a CE card, turning with the round) and its `seed`;
+  Expert's rounds start at `EXPERT_FIRST` (Writing: `roundQueue`'s `band`),
+  its CE centuries first. A card
   gives its century (`cardDate`, `centuryWords`, `centuryOf`) where
   `byCentury` — no other card in the drawer in the same century, not 5000
   BCE or older, not a whole hundred CE — else its year; `dateOf` is the
-  year once it's in order. `clueFor` gives a century's years
-  (`centuryYears`) where a century card's in it; `checkWords` drops the
+  year once it's in order. `clueFor` on Expert says, plainly, why the card
+  goes in the gap (`expertWhy`): its century's years (`centuryYears`), else
+  across BCE and CE how they count, else the card before's century in the
+  same era, else in BCE which way the years go, else the two dates as the
+  cards give them; `checkWords` drops the
   "!"; `centuryTip` is said as a drawer starts and on the ticket
   (`jobWords`). In order, the `span` step asks `spanAsk` from
   `spanChoices` (the answer `spanRight` — `yearsApart`, no year 0 — the year
-  0 counted, and the years taken away); `spanWords` says the method, or
-  what's wrong with a wrong pick, which stays to pick again. Each set has a
+  0 counted, a hundred out, and the years taken away, shuffled by the
+  drawer's `seed`; an "about" year taken as it is in the ask); `spanWords`
+  says the method, or what's wrong with a wrong pick, which stays to pick
+  again, marked tried; the two cards asked about are marked on the line. Each set has a
   `led` line (what led to what among its cards, tested for no wars,
   disasters or religion); Expert's `learnedLine` is that and the years
   counted. Index plain (`EXPERT_RIGHT_LINES`, "Finish the round"); in order
   at the first check and counted at the first pick is a drawer spot on, and
   the reward keeps the first missed drawer's lesson. Taps on the years and
   Next wait for a tap's second, not a key's (`ready(e)`); a wrong count's
-  words scroll into view. A card's date breaks at its spaces, inside it
-  (no longer a no-break space before BCE), and on a phone a drawer with
-  dates leaves the pictures off the line (`CardFace`'s `pic`).
+  words scroll into view, the step's start having brought the box under
+  the answers into view. A card's date breaks at its spaces, inside it, its
+  lines balanced (`text-balance`); where the cards are short (500 px high)
+  or narrow (under 360 px) a dated drawer leaves the pictures off
+  (`DATED_PIC`, on a phone the line's too) and says "c." for "century".
+  As a drawer starts, the washed-up cards come into view clear of the bar,
+  in the page or, on a split screen, the board.
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/

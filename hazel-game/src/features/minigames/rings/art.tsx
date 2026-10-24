@@ -87,7 +87,8 @@ export function StepMatch() {
 
 /** Expert's step 1: the rainfall record's bars, the dry line dashed, and the beam's measured rings under them — thin under the low bars. */
 export function StepRain() {
-  const rain = [120, 60, 104, 54, 128, 112];
+  // The dry ones' tops under the dashed line (code review round 1: one poked over it).
+  const rain = [120, 40, 104, 36, 128, 112];
   const ring = [34, 14, 30, 12, 38, 32];
   return (
     <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">

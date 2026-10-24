@@ -278,8 +278,11 @@ const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'sevent
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 /** A number in words (as figures past fourteen). */
 export const numberWord = (n: number) => NUM[n] ?? String(n);
-/** The `k`th (from 0), in words (as figures past the fourteenth). */
-export const ordinal = (k: number) => ORDINAL[k] ?? `${k + 1}th`;
+/** The `k`th (from 0), in words (as figures past the fourteenth: 21st, 22nd, 23rd). */
+export const ordinal = (k: number) => {
+  const n = k + 1;
+  return ORDINAL[k] ?? `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`;
+};
 /** How a ring looks, by its weather. */
 export const growthWord = (year: number) => ({ wet: 'wide', fair: 'medium', dry: 'thin' })[weather(year)];
 
@@ -367,7 +370,7 @@ export function matchWords(job: MatchJob, offset: number): string {
 }
 
 /** A list said: "2005, 2008 and 2013". */
-const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : `${xs[0] ?? ''}`);
+export const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}` : `${xs[0] ?? ''}`);
 
 /**
  * After "Do they line up?" on Expert: every thin ring under a dry year and
@@ -377,24 +380,43 @@ const listWords = (xs: readonly (string | number)[]) => (xs.length > 1 ? `${xs.s
 export function lineUpWords(job: RainJob, offset: number): string {
   if (offset === fitOffset(job)) return 'They line up: every thin ring sits under a dry year, every wide one under a wet year.';
   if (thinLinedUp(job, offset)) return 'The thin rings sit under dry years here, but a wide ring isn’t under a wet year. Slide on.';
-  return `Not lined up: a thin ring sits over a year with more than ${DRY_MM} mm of rain. Slide the beam’s thinnest rings under bars below the dry line.`;
+  return `Not lined up: a thin ring sits under a year with more than ${DRY_MM} mm of rain. Slide the beam’s thinnest rings under bars below the dry line.`;
 }
 
-/** Expert's dating: the year the beam's last ring grew, from four — its first ring's, and a year either side of the last's. */
+/**
+ * Expert's dating: the year the beam's last ring grew, from four — its first
+ * ring's, and two of the years round the last's: both before it, one either
+ * side or both after, in turn by the beam (code and UX review round 1: always
+ * one either side, the answer was always the third, the middle of three),
+ * inside the record.
+ */
 export function dateChoices(job: RainJob): number[] {
   const end = job.beam[job.beam.length - 1];
-  return [...new Set([job.beam[0], end - 1, end, end + 1])].sort((a, b) => a - b);
+  const ways: readonly (readonly [number, number])[] = [
+    [-2, -1],
+    [-1, 1],
+    [1, 2],
+  ];
+  const fits = ways.filter(([a, b]) => end + b <= job.rings[job.rings.length - 1] && end + a > job.beam[0]);
+  const [a, b] = fits[(end + job.beam.length) % fits.length];
+  return [job.beam[0], end + a, end, end + b].sort((x, y) => x - y);
 }
 
 /** Expert's dating, asked. */
-export const dateAsk = 'Which year did its last ring grow — the one by the bark?';
+// How to read it, in the ask (code review round 2: the step's tip never showed — the box shows what Ringwood said).
+export const dateAsk = 'Which year did its last ring grow — the one by the bark? Follow the gold line up to its tick on the record.';
 
 /** After a year's picked for the beam's last ring: right, or which ring that year is. */
 export function datedWords(job: RainJob, year: number): string {
   const end = job.beam[job.beam.length - 1];
   if (year === end) return `Yes — ${end}: its last ring sits under ${end} on the record, so its tree was cut in ${end}.`;
   if (year === job.beam[0]) return `${year} is its first ring, nearest the middle of the tree. The last, by the bark, sits under ${end}.`;
-  return `Not ${year}: the last ring sits under ${end}, a year ${year < end ? 'after' : 'before'} ${year}.`;
+  // How to read it: from the labelled fifth year nearest, a tick a year (UX review round 1: a label right over the last ring
+  // was a year off).
+  const fifth = Math.round(end / 5) * 5;
+  const from = fifth === end ? '' : ` Count the ticks from ${fifth}, one a year.`;
+  const n = Math.abs(end - year);
+  return `Not ${year}: the last ring sits under ${end}, ${n === 1 ? 'a year' : `${n} years`} ${year < end ? 'after' : 'before'} ${year}.${from}`;
 }
 
 /** What a job teaches, for the reward. */
