@@ -431,11 +431,15 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   bright stars by its coordinates ("Vega is at altitude 36°, azimuth 56°.
   Find it on the grid and tap it."); a wrong star says where it is and which
   way to look ("…Vega is higher and to the left. Try again."), then the
-  picture's joined as on Tricky, from the star found; each time a picture
+  picture's joined as on Tricky, from the star found — its card turned as
+  the sky has it (the real sky turns a picture up to 141° from upright),
+  and said so: "It looks like … " in the job's words; each time a picture
   comes round it asks another of its bright stars, never the same a round
   or three apart, and never one with another star close by (Orion's belt
-  stars are 6 sky units apart); a tap as near one star as another isn't
-  judged. On the Little Dipper the North Star, within a degree of due
+  stars are 6 sky units apart); a tap as near one star as another — a tiny
+  dot too — isn't judged, and on the join it's the one that makes a line
+  from the star picked (Orion's belt is 9 px apart on a phone). On the
+  Little Dipper the North Star, within a degree of due
   north, is as high as the latitude: read its altitude and pick the
   latitude from four (it, 90° less it, south, a grid line off); the reason's
   said either way. The lessons are where each picture is in the sky (the
@@ -448,7 +452,12 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   coast (Vega at azimuth 83° needs 36° N or more), and the flat grid gave
   high stars' azimuths wrong — each is now where it really is (`RADEC`, the
   J2000 catalogue); the grid's lines 3:1 and a pixel at every size, its
-  numbers bigger beside a big sky; joins said plainly.
+  numbers bigger beside a big sky; joins said plainly. Review round 2: on
+  Orion's Belt three tiny dots sat at the very coordinates asked (a tap on
+  one cost the seal) — the sky's others are now never at a picture star's
+  coordinates, and never under 2°; the card turned to the sky, and its look
+  said to a reader; Orion's belt joined by touch on a phone; the answer to
+  the latitude never first; the North Star focused for the join.
 
 ### 5.7 🌳 Ringwood's Rings — Nature · Old Ringwood, Eldergrove
 

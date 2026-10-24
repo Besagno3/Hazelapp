@@ -26,7 +26,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { PICTURE_BY_ID, coordsWords, jobFor, learnedLine, roundQueue, shortName, starCoords } = await import('../../../lib/minigames/stars');
+const { PICTURE_BY_ID, coordsWords, jobFor, learnedLine, looksWords, roundQueue, shortName, starCoords } = await import('../../../lib/minigames/stars');
 type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/stars').Job;
 
@@ -60,6 +60,35 @@ function play(band: Band, round = 0) {
   const onFinish = vi.fn();
   render(<StarCharts def={MINIGAMES['star-charts']} band={band} round={round} onPage={onPage} onFinish={onFinish} />);
   return { onPage, onFinish };
+}
+
+/** A sky `px` wide, at the page's top left — its border `border` px (its stars in the box inside it). */
+function skyBox(sky: HTMLElement, px: number, border = 0) {
+  const all = px + 2 * border;
+  sky.getBoundingClientRect = () => ({ left: 0, top: 0, width: all, height: all, right: all, bottom: all, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  for (const [k, v] of Object.entries({ clientLeft: border, clientTop: border, clientWidth: border ? px : 0, clientHeight: border ? px : 0 })) Object.defineProperty(sky, k, { value: v, configurable: true });
+  /** A tap at a point of the sky (0–100). */
+  return (x: number, y: number) => {
+    fireEvent.pointerDown(sky, { clientX: border + (x * px) / 100, clientY: border + (y * px) / 100, button: 0 });
+    fireEvent.pointerUp(sky, { clientX: border + (x * px) / 100, clientY: border + (y * px) / 100, button: 0 });
+    // The click a browser follows it with (the sky's, as on empty sky): a key's press after it is a key's.
+    fireEvent.click(sky, { detail: 1 });
+  };
+}
+
+/** How far each picture card on the page is turned from the job's sky (degrees, its first star to its last). */
+function cardsOff(job: Job): number[] {
+  const p = PICTURE_BY_ID[job.picture];
+  const [a, b] = [p.stars[0].id, p.stars[p.stars.length - 1].id];
+  const at = Object.fromEntries(job.sky.map((st) => [st.id, st]));
+  const want = Math.atan2(at[b].y - at[a].y, at[b].x - at[a].x);
+  const cards = new Set(Array.from(document.querySelectorAll('[data-card-star]'), (el) => el.closest('svg')!));
+  return Array.from(cards, (svg) => {
+    const c = (id: string) => svg.querySelector(`[data-card-star="${id}"]`)!;
+    const n = (id: string, k: string) => Number(c(id).getAttribute(k));
+    const got = Math.atan2(n(b, 'cy') - n(a, 'cy'), n(b, 'cx') - n(a, 'cx'));
+    return Math.abs(((((got - want) * 180) / Math.PI + 540) % 360) - 180);
+  });
 }
 
 /** Join every line of a job's picture, one pair at a time. */
@@ -384,7 +413,12 @@ describe('✨ Expert: sky coordinates (§8.5)', () => {
     const name = shortName(PICTURE_BY_ID.cassiopeia, cas.find!)!;
     const at = coordsWords(starCoords(cas, cas.find!)!);
     expect(screen.getByRole('heading', { name: `Find ${name}` })).toBeInTheDocument();
-    expect(sky()).toHaveAccessibleDescription(`Find ${name} at ${at}, then join the five stars of Cassiopeia.`);
+    // What it looks like, said (UX review round 2: a reader never heard it).
+    expect(sky()).toHaveAccessibleDescription(`Find ${name} at ${at}, then join the five stars of Cassiopeia. It looks like ${looksWords(cas)}.`);
+    // The picture's card — the ticket's, the strip's — turned as the sky has it (UX review round 2: upright, 128° off).
+    expect(cas.view!.turn).toBeGreaterThan(100);
+    expect(cardsOff(cas).length).toBeGreaterThanOrEqual(2);
+    for (const off of cardsOff(cas)) expect(off).toBeLessThan(12);
     expect(screen.getAllByText(`${name} is at ${at}. Find it on the grid and tap it.`).length).toBeGreaterThan(0);
     // The counter's its coordinates (code review round 1: untested); the chips.
     expect(screen.getByText(at.charAt(0).toUpperCase() + at.slice(1))).toBeInTheDocument();
@@ -451,6 +485,9 @@ describe('✨ Expert: sky coordinates (§8.5)', () => {
     fireEvent.click(choices.getByRole('button', { name: `${ld.latitude}° N` }));
     expect(screen.getAllByText(new RegExp(`^Yes — ${ld.latitude}° N\\. The North Star is over the Earth’s North Pole`)).length).toBeGreaterThan(0);
     expect(star('polaris')).toHaveAttribute('aria-pressed', 'true');
+    // Focus on it, where the joining starts (UX review round 2: the sky's frame, then a Tab to the last star focused).
+    expect(star('polaris')).toHaveFocus();
+    expect(star('polaris')).toHaveAttribute('tabindex', '0');
     joinAll(ld);
     fireEvent.click(screen.getByRole('button', { name: 'Finish the night' }));
     // Two of three right first time; the reward teaches the one missed (a wrong star), not the last.
@@ -530,13 +567,111 @@ describe('✨ Expert, more (code review round 1)', () => {
     tap((a.x + b.x) / 2, (a.y + b.y) / 2);
     expect(screen.getAllByText('Two stars are close together there — tap right on the one you mean.').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: /^Find / })).toBeInTheDocument();
-    // Right on one: judged (a miss here).
-    tap(a.x, a.y);
+    // Its threshold (code review round 2: unpinned): 1.45 times as far from one as the other, unsure; 1.8, judged — a miss here.
+    const toward = (r: number) => tap(a.x + (b.x - a.x) / (1 + r), a.y + (b.y - a.y) / (1 + r));
+    toward(1.45);
+    expect(screen.queryAllByText(/^That star is at /)).toHaveLength(0);
+    toward(1.8);
     expect(screen.getAllByText(/^That star is at /).length).toBeGreaterThan(0);
     // Right on the star to find: found — the seal then lost to the miss, not to the unsure tap.
     const f = at(job.find!);
     tap(f.x, f.y);
     expect(screen.getByRole('heading', { name: 'Orion' })).toBeInTheDocument();
+  });
+
+  it('an unsure tap costs nothing: a round spot on, 3 of 3, plainly — and a tap halfway to a tiny dot isn’t judged either (code review round 2)', () => {
+    setUp(6, { [pageFlag('star-charts', 'leo')]: true });
+    const { onFinish } = play('expert', 2);
+    const queue = roundQueue('expert', (id) => id === 'leo', 2);
+    const job = jobFor('expert', 2, 0, queue);
+    expect([job.picture, job.find]).toEqual(['orion', 'saiph']);
+    const tap = skyBox(screen.getByRole('group', { name: 'The sky' }), 200);
+    const at = (id: string) => job.sky.find((st) => st.id === id)!;
+    // A chart page open: Vela's back to the sky at the tap (code review round 2: the page's note stayed in her bubble).
+    fireEvent.click(screen.getByRole('button', { name: 'Leo. Read the page' }));
+    expect(screen.getByRole('button', { name: 'Leo. Read the page' })).toHaveAttribute('aria-pressed', 'true');
+    // Nearer a tiny dot 16 apart than Saiph, but not by much: not judged (it was a miss — the dots didn't count).
+    const [f, dot] = [at('saiph'), at('extra-5')];
+    expect(Math.hypot(f.x - dot.x, f.y - dot.y)).toBeLessThan(17);
+    tap(f.x + (dot.x - f.x) * 0.55, f.y + (dot.y - f.y) * 0.55);
+    expect(screen.getAllByText('Two stars are close together there — tap right on the one you mean.').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: 'Leo. Read the page' })).toHaveAttribute('aria-pressed', 'false');
+    // And between two of the belt's.
+    const [a, b] = [at('alnitak-o'), at('alnilam-o')];
+    tap((a.x + b.x) / 2, (a.y + b.y) / 2);
+    for (let i = 0; i < 3; i++) {
+      const j = jobFor('expert', 2, i, queue);
+      press(j.find!);
+      joinAll(j);
+      // Plainly right, not "with a miss on the way".
+      expect(screen.getAllByText(/^(That’s it|Joined|All there)\. /).length).toBeGreaterThan(0);
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next picture' : 'Finish the night' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith(expect.objectContaining({ spotOn: { right: 3, of: 3 } }));
+  });
+
+  it('joining Orion: a tap between two belt stars is the one that makes a line from the star picked; if none does, not judged — never “aren’t joined” (UX review round 2)', () => {
+    setUp(6);
+    play('expert', 2);
+    const job = jobFor('expert', 2, 0);
+    const orion = PICTURE_BY_ID.orion;
+    const tap = skyBox(screen.getByRole('group', { name: 'The sky' }), 200);
+    const at = (id: string) => job.sky.find((st) => st.id === id)!;
+    const name = (id: string) => shortName(orion, id)!;
+    const lines = () => Number(/^(\d+) of 7 lines joined$/.exec(screen.getByText(/ of 7 lines joined$/).textContent!)![1]);
+    press('saiph');
+    // A tiny dot and a star not joined to it, plainly (code review round 2: only "— joined." was checked).
+    press('extra-1');
+    expect(screen.getAllByText('That tiny dot isn’t part of Orion — its stars are bigger. Look at the card.').length).toBeGreaterThan(0);
+    press('betelgeuse');
+    expect(screen.getAllByText('Saiph and Betelgeuse are both in Orion, but they aren’t joined. Look at the card again.').length).toBeGreaterThan(0);
+    press('alnitak-o');
+    expect(lines()).toBe(1);
+    // Nearer Mintaka than Alnilam, Alnitak picked: Alnilam's the one joined to it.
+    const [n, m] = [at('alnilam-o'), at('mintaka-o')];
+    tap(n.x + (m.x - n.x) * 0.55, n.y + (m.y - n.y) * 0.55);
+    expect(screen.getAllByText(`${name('alnitak-o')} to ${name('alnilam-o')} — joined.`).length).toBeGreaterThan(0);
+    expect(lines()).toBe(2);
+    expect(star('alnilam-o')).toHaveAttribute('aria-pressed', 'true');
+    // Between Alnitak (joined to it already) and Alnilam (picked): neither — said, not judged.
+    const a = at('alnitak-o');
+    tap((a.x + n.x) / 2, (a.y + n.y) / 2);
+    expect(screen.getAllByText('Two stars are close together there — tap right on the one you mean.').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/aren’t joined/)).toHaveLength(0);
+    expect(lines()).toBe(2);
+    expect(star('alnilam-o')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('a tap is read in the sky’s box inside its border, where its stars are (UX review round 2: up to 4 px toward the middle)', () => {
+    setUp(6);
+    play('expert', 1);
+    const job = jobFor('expert', 1, 0);
+    const f = job.sky.find((st) => st.id === job.find)!;
+    // 10.5 of 100 off it on a 200 px sky (its reach 11), no other star near: with the border box, out of reach.
+    const spot = Array.from({ length: 16 }, (_, k) => ({ x: f.x + 10.5 * Math.cos((k * Math.PI) / 8), y: f.y + 10.5 * Math.sin((k * Math.PI) / 8) })).find(
+      (q) => job.sky.every((st) => st === f || Math.hypot(st.x - q.x, st.y - q.y) > 10.5 * 1.65) && Math.hypot((4 + 2 * q.x) / 2.08 - f.x, (4 + 2 * q.y) / 2.08 - f.y) > (22 / 208) * 100,
+    )!;
+    expect(spot).toBeDefined();
+    skyBox(screen.getByRole('group', { name: 'The sky' }), 200, 4)(spot.x, spot.y);
+    expect(screen.getByRole('heading', { name: 'Cassiopeia' })).toBeInTheDocument();
+  });
+
+  it('the grid’s fainter lines on a 10° grid, none on a finer one; the ground under the horizon (code review round 2: unrendered)', () => {
+    setUp(6);
+    play('expert', 0);
+    const queue = roundQueue('expert', () => false, 0);
+    const belt = jobFor('expert', 0, 0, queue);
+    expect(document.querySelectorAll('[data-grid="minor"]')).toHaveLength(0);
+    press(belt.find!);
+    joinAll(belt);
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }));
+    const tri = jobFor('expert', 0, 1, queue);
+    const { minor } = gridLinesOf(tri);
+    expect(minor.alts.length + minor.azs.length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('[data-grid="minor"]')).toHaveLength(minor.alts.length + minor.azs.length);
+    // The Summer Triangle from 20° N: its 0° line in the sky, the ground under it.
+    expect(gridLinesOf(tri).alts.map((a) => a.v)).toContain(0);
+    expect(document.querySelector('[data-ground]')).not.toBeNull();
   });
 
   it('a tap on empty sky on the latitude says where the answer is', () => {

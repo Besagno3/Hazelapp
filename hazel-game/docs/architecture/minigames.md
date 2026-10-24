@@ -436,17 +436,28 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   azimuth; `gridLines` the grid at `gridStep` (1°, 2°, 5° or 10°, lines at
   least 15 sky units apart; on a 10° grid `minor` lines every 5°), drawn on
   the sky (`SkyGrid`, a pixel wide at every size, the ground under 0°) with
-  its numbers round it (`SkyAxes`, 10–12 px by the sky's size; room taken
-  from the fit: `AXIS_L`, `AXIS_B`). `Job.find` is a bright star clear of
+  its numbers round it (`SkyAxes`, 10–12 px by the sky's size — 11 from a
+  200 px sky; room taken from the fit: `AXIS_L`, `AXIS_B`). The sky's others
+  (`extras`, given an `ok` check on Expert) are 2° up or more and never at
+  a picture star's coordinates as said (whole degrees). `View.turn`
+  (`cardTurn`: the best-fit turn from the card to the sky) turns the
+  picture card on Expert (`PictureCard`'s `turn`, not the chart's pages),
+  and `jobWords` says what it looks like there too. `Job.find` is a bright star clear of
   the others (`FIND_GAP`) to find by its coordinates (by the round,
   `turnFor`: never the same a round or three apart; `findWords`,
   `foundWords` — where a wrong one is and which way to look), then the join
-  starts from it, focus kept on it; a tap as near one star as another
-  (`UNSURE`) isn't judged. On the Little Dipper `Job.latitude` (the night's;
+  starts from it, focus kept on it; a tap with another star — any, a tiny
+  dot too — within `UNSURE` times the nearest's distance isn't judged on
+  the find, and on the join (`tapUnsure`) is the one that makes a line
+  still to join from the star picked (of two, the glowing one; nothing
+  picked, the nearer with lines left), else not judged. A tap is read in
+  the sky's padding box (`clientLeft` / `clientWidth`: its stars are
+  inside its 4 px border); on a small sky a name that would cover one shown
+  is left off, the picked star's first. On the Little Dipper `Job.latitude` (the night's;
   the North Star within a degree of due north at it) is picked from
   `latitudeChoices`, the reason said either way (`latitudeWords`,
-  `isRightLatitude`), a star tapped there named, not read; then the join
-  starts from Polaris. Joins are said plainly on Expert (`joinWords`'s
+  `isRightLatitude`; the answer never first), a star tapped there named,
+  not read; then the join starts from Polaris, focused. Joins are said plainly on Expert (`joinWords`'s
   `plain`). Stars are
   said by their coordinates on Expert; the lesson is `Picture.sky`; the
   seal's `spotOn` counts pictures with the star found (or the latitude

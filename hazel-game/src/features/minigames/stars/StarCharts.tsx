@@ -69,7 +69,12 @@ const AXIS_B = 16;
 /** How near (in sky units, of 100) a tap must land to a star to be that star — and at least this many px, on a small sky. */
 const TAP_REACH = 7;
 const TAP_REACH_PX = 22;
-/** Expert's find: a tap whose second-nearest of the picture's stars is within this many times the nearest's distance isn't judged. */
+/**
+ * Expert: a tap whose second-nearest star is within this many times the
+ * nearest's distance is unsure — on the find not judged, on the join taken as
+ * the one that makes a line (UX review round 2: Orion's belt, 9 px apart on a
+ * phone's sky).
+ */
 const UNSURE = 1.6;
 /** A press that moves this far (px) before it lifts is a swipe, scrolling the page — not a tap (UX review round 1). */
 const SWIPE_PX = 10;
@@ -306,12 +311,29 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
   /** A tap on empty sky, far from any star (UX review round 2: it said nothing) — on the latitude, the answer's a button. */
   function tapSky() {
     if (step === 'done' || !settled()) return;
+    setRead(null);
     setSaid(step === 'latitude' ? 'Read the North Star’s altitude on the grid, then pick our latitude from the four choices.' : 'That’s empty sky — tap right on a star.');
   }
 
-  /** Expert: a tap between two stars close together, as one's to be found — not judged (UX review round 1: a 9 px slip lost the seal). */
-  function tapUnsure() {
-    if (step !== 'find' || !settled()) return;
+  /**
+   * Expert: a tap between two stars close together (`near`, then `other`). On
+   * the find, not judged (UX review round 1: a 9 px slip lost the seal). On the
+   * join, the one that makes a line still to join from the star picked (or,
+   * nothing picked, the one with lines left) — of two, the glowing one — and
+   * with none picked, the nearer; else not judged (UX review round 2: Orion's
+   * belt on a phone, "they aren't joined" for a finger's slip).
+   */
+  function tapUnsure(near: string, other: string) {
+    if ((step !== 'find' && step !== 'join') || !settled()) return;
+    if (step === 'join') {
+      const open = (id: string) => picture.lines.some(([a, b]) => (a === id || b === id) && !joined.has(lineKey(a, b)));
+      const fresh = !picked || !open(picked);
+      const fits = [near, other].filter((id) => (fresh ? open(id) : id !== picked && isLine(picture, picked, id) && !joined.has(lineKey(picked, id))));
+      const glowing = fits.filter((id) => hint?.includes(id));
+      const meant = fits.length === 1 ? fits[0] : glowing.length === 1 ? glowing[0] : fresh ? fits[0] : undefined;
+      if (meant) return tapStar(meant);
+    }
+    setRead(null);
     setSaid('Two stars are close together there — tap right on the one you mean.');
   }
 
@@ -368,9 +390,12 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
   const factHead = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (step === 'done') factHead.current?.focus({ preventScroll: true });
+    // The latitude picked, the North Star — picked, where the joining starts (UX review round 2: the sky's frame, and its
+    // Tab went to the last star focused).
+    else if (step === 'join' && job.latitude !== null) skyRef.current?.querySelector<HTMLElement>('[data-star="polaris"]')?.focus({ preventScroll: true });
     // A star found from the keyboard keeps focus, on to the joining (UX review round 1: back to the sky's frame, a Tab more).
     else if (!(step === 'join' && document.activeElement?.closest('[data-star]'))) skyRef.current?.focus({ preventScroll: true });
-  }, [step, done]);
+  }, [step, done]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // As each step starts, on a phone the page scrolls back to the board's top, as far as its card's last line allows (a
   // picture joined: at least to its Next); on a split screen the side panel's back at its top (Vela), the card at its.
@@ -477,14 +502,16 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
               )}
             >
               {/* Big enough to see its shape (UX review round 2: at 48 px Leo's head was a few pixels). */}
-              <PictureCard id={job.picture} size={64} />
+              <PictureCard id={job.picture} size={64} turn={job.view?.turn} />
               {/* Short — the card beside it shows the shape (the board's room: UX review round 2's bench). */}
               {jobWords(job, false)}
             </p>
           )}
           <div className="flex flex-none flex-col items-center split:justify-center">
-            {/* Its grid numbers beside it on Expert: as wide again (code review round 1: held to 360 px, the sky shrank under its size). */}
-            <div className={cn('w-full split:max-w-none', expert ? 'max-w-[390px]' : 'max-w-[360px]')} style={size ? { width: size + (expert ? AXIS_L : 0) } : undefined}>
+            {/* Its grid numbers beside it on Expert: as wide again (code review round 1: held to 360 px, the sky shrank under its
+                size). Measured, its size: held to 360 px beside the card 640–767 px wide, it was drawn smaller than its names were
+                placed for (code review round 2). */}
+            <div className={cn('w-full', size ? 'max-w-none' : cn('split:max-w-none', expert ? 'max-w-[390px]' : 'max-w-[360px]'))} style={size ? { width: size + (expert ? AXIS_L : 0) } : undefined}>
               <SkyAxes view={job.view} size={size}>
                 <Sky
                   key={done}
@@ -546,7 +573,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
                   {/* Beside the sky, and on a split screen, the picture card's here (on a phone held upright, over the sky). */}
                   {step === 'join' && (
                     <span aria-hidden="true" className={cn('flex-none', fit ? (fit.beside ? 'block' : 'hidden split:block') : 'hidden split:block [@media(min-width:560px)_and_(min-aspect-ratio:6/5)]:block')}>
-                      <PictureCard id={job.picture} size={60} />
+                      <PictureCard id={job.picture} size={60} turn={job.view?.turn} />
                     </span>
                   )}
                   <div className="min-w-0">
@@ -612,7 +639,7 @@ export default function StarCharts({ def, band, round, onPage, onFinish }: PlayP
         >
           <HostBubble npcId={def.host} line={line} phoneStrip />
           <div className="[@media(max-height:500px)]:hidden">
-            <Ticket heading={picture.name.toUpperCase()} ready={step === 'done'} icon={<PictureCard id={job.picture} size={56} />} id="sc-job">
+            <Ticket heading={picture.name.toUpperCase()} ready={step === 'done'} icon={<PictureCard id={job.picture} size={56} turn={job.view?.turn} />} id="sc-job">
               {jobWords(job)}
             </Ticket>
           </div>
@@ -657,8 +684,8 @@ interface SkyProps {
   onTap: (id: string, key?: boolean) => void;
   /** A tap on empty sky. */
   onMiss: () => void;
-  /** Expert's find: a tap as near one star as another (within `UNSURE` of the nearest) — not judged. */
-  onUnsure: () => void;
+  /** Expert's find and join: a tap nearly as near another star as the nearest (within `UNSURE`) — the two, nearer first. */
+  onUnsure: (near: string, other: string) => void;
 }
 
 
@@ -688,7 +715,7 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
   const degree = (id: string) => [...joined].filter((k) => k.split('|').includes(id)).length;
   const done = step === 'done';
   // A press, remembered till it lifts: on a star (its id), or on empty sky (null).
-  const press = useRef<{ id: string | null; unsure: boolean; pointer: number; x: number; y: number } | null>(null);
+  const press = useRef<{ id: string | null; other: string | null; pointer: number; x: number; y: number } | null>(null);
   const small = size !== null && size < 240;
 
   // How each star's said: by where it is — two said alike numbered, left to right (UX review round 1).
@@ -701,16 +728,24 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     return Object.fromEntries(order.map((st, k) => [st.id, count(words[k]) > 1 ? `${words[k]} (${words.slice(0, k + 1).filter((x) => x === words[k]).length} of ${count(words[k])})` : words[k]]));
   }, [order, job]);
 
-  /** The star nearest a press, within reach — and whether another of the picture's is nearly as near (`unsure`). */
-  function nearest(e: PointerEvent<HTMLDivElement>): { id: string | null; unsure: boolean } {
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - r.left) / r.width) * 100;
-    const y = ((e.clientY - r.top) / r.height) * 100;
-    const reach = Math.max(TAP_REACH, (TAP_REACH_PX / r.width) * 100);
-    const by = stars.map((st) => ({ st, d: Math.hypot(st.x - x, st.y - y) })).sort((a, b) => a.d - b.d);
-    const [first, second] = by.filter((o) => !isTiny(o.st));
-    const best = by[0] && by[0].d < reach ? by[0] : null;
-    return { id: best?.st.id ?? null, unsure: !!best && !!first && !!second && first.st === best.st && second.d < first.d * UNSURE };
+  /**
+   * The star nearest a press, within reach — and another nearly as near
+   * (`other`: within `UNSURE` of it), any star (code review round 2: a tiny
+   * dot didn't count, so a tap halfway to one was judged). In the sky's
+   * padding box, where its stars are (UX review round 2: the border box read a
+   * tap on a star up to 4 px toward the middle).
+   */
+  function nearest(e: PointerEvent<HTMLDivElement>): { id: string | null; other: string | null } {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    // Measured where there's layout (tests have only the box).
+    const [w, h] = [el.clientWidth || r.width, el.clientHeight || r.height];
+    const x = ((e.clientX - r.left - el.clientLeft) / w) * 100;
+    const y = ((e.clientY - r.top - el.clientTop) / h) * 100;
+    const reach = Math.max(TAP_REACH, (TAP_REACH_PX / w) * 100);
+    const [first, second] = stars.map((st) => ({ st, d: Math.hypot(st.x - x, st.y - y) })).sort((a, b) => a.d - b.d);
+    const best = first && first.d < reach ? first : null;
+    return { id: best?.st.id ?? null, other: best && second && second.d < best.d * UNSURE ? second.st.id : null };
   }
 
   /** The arrow keys: to the nearest star that way — the picture's and the hunt's, not the tiny others (UX review round 2). */
@@ -761,6 +796,18 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
     return nameSpots(stars, names, (size ?? 400) - 8, font, (n) => textWidth(n, font, size !== null));
   }, [stars, picture, size, font]);
   const arrow = step === 'north' && pointed >= 2 && at.polaris ? pointerArrow(at.polaris) : null;
+  // On a small sky, a name that would cover one shown already is left off — the picked star's first (UX review round 2:
+  // Orion's on a phone, "Alnitak" over "Bellatrix", "Alnilam" over "Saiph"). Its button says it all the same.
+  const covered = new Set<string>();
+  if (small) {
+    const shown: { x0: number; x1: number; y0: number; y1: number }[] = [];
+    for (const st of [...stars].sort((a, b) => (b.id === picked ? 1 : 0) - (a.id === picked ? 1 : 0) || a.x - b.x || a.y - b.y)) {
+      const box = spots[st.id]?.box;
+      if (!box || !nameOf(st.id) || !showNames(st.id)) continue;
+      if (shown.some((o) => Math.min(o.x1, box.x1) > Math.max(o.x0, box.x0) && Math.min(o.y1, box.y1) > Math.max(o.y0, box.y0))) covered.add(st.id);
+      else shown.push(box);
+    }
+  }
 
   return (
     <div
@@ -800,8 +847,8 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
         press.current = null;
         if (!p || p.pointer !== e.pointerId || done) return;
         // Expert's find is judged: a tap as near one star as another isn't (UX review round 1: on a 170 px sky a 9 px slip lost the
-        // seal).
-        if (p.id && p.unsure && step === 'find') onUnsure();
+        // seal); on its join, it's the one that makes a line (round 2: Orion's belt).
+        if (p.id && p.other && job.view && (step === 'find' || step === 'join')) onUnsure(p.id, p.other);
         else if (p.id) onTap(p.id);
         else onMiss();
       }}
@@ -878,7 +925,7 @@ const Sky = forwardRef<HTMLDivElement, SkyProps>(function Sky({ stars, picture, 
       {stars.map((st) => {
         const name = nameOf(st.id);
         const spot = spots[st.id]?.spot;
-        if (!name || !spot || !showNames(st.id)) return null;
+        if (!name || !spot || !showNames(st.id) || covered.has(st.id)) return null;
         const off = 8;
         const style: CSSProperties =
           spot === 'below' || spot === 'above'
@@ -916,12 +963,12 @@ function SkyGrid({ view }: { view: View }) {
         </>
       )}
       {/* A pixel wide at every sky size, and 3:1 on the sky (UX review round 1: 0.6 px and about 2:1 on a phone); between a
-          10° grid's lines, fainter ones every 5°. */}
+          10° grid's lines, fainter ones every 5°, dashed — near 3:1 too (round 2: 2:1). */}
       {minor.alts.map((a) => (
-        <line key={`alt-m${a.v}`} data-grid="minor" x1="0" y1={a.at} x2="100" y2={a.at} stroke="#a5b4fc" strokeWidth="1" opacity="0.35" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+        <line key={`alt-m${a.v}`} data-grid="minor" x1="0" y1={a.at} x2="100" y2={a.at} stroke="#a5b4fc" strokeWidth="1" opacity="0.5" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
       ))}
       {minor.azs.map((a) => (
-        <line key={`az-m${a.v}`} data-grid="minor" x1={a.at} y1="0" x2={a.at} y2="100" stroke="#a5b4fc" strokeWidth="1" opacity="0.35" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
+        <line key={`az-m${a.v}`} data-grid="minor" x1={a.at} y1="0" x2={a.at} y2="100" stroke="#a5b4fc" strokeWidth="1" opacity="0.5" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
       ))}
       {alts.map((a) => (
         <line key={`alt-${a.v}`} data-grid="alt" x1="0" y1={a.at} x2="100" y2={a.at} stroke="#a5b4fc" strokeWidth="1" opacity="0.7" vectorEffect="non-scaling-stroke" />
@@ -941,8 +988,9 @@ function SkyAxes({ view, size, children }: { view: View | null; size: number | n
   if (!view) return <>{children}</>;
   const { alts, azs } = gridLines(view);
   const at = (v: number) => `calc(4px + (100% - 8px) * ${v / 100})`;
-  // As big as the sky allows (UX review round 1: 10 px beside a 470 px sky).
-  const num = cn('absolute whitespace-nowrap font-bold leading-none text-[#c7d2fe]', size !== null && size >= 420 ? 'text-[12px]' : size !== null && size >= 300 ? 'text-[11px]' : 'text-[10px]');
+  // As big as the sky allows (UX review round 1: 10 px beside a 470 px sky; round 2: on every phone) — under 200 px, 10:
+  // its azimuths' lines are 24 px apart, "345°" at 11 px about as wide.
+  const num = cn('absolute whitespace-nowrap font-bold leading-none text-[#c7d2fe]', size !== null && size >= 420 ? 'text-[12px]' : size !== null && size >= 200 ? 'text-[11px]' : 'text-[10px]');
   return (
     <div className="grid" style={{ gridTemplateColumns: `${AXIS_L}px minmax(0, 1fr)`, gridTemplateRows: `minmax(0, 1fr) ${AXIS_B}px` }}>
       <div aria-hidden="true" className="relative">

@@ -294,7 +294,11 @@ export const RADEC: Readonly<Record<string, readonly [number, number]>> = {
 };
 
 /** A star's place in the real sky: Orion's belt stars and the hunt's Big Dipper share their names' (`alnitak-o`, `merak-g`). */
-export const radecOf = (id: string) => RADEC[id.replace(/-[go]$/, '')];
+export function radecOf(id: string): readonly [number, number] {
+  const at = RADEC[id.replace(/-[go]$/, '')] as readonly [number, number] | undefined;
+  if (!at) throw new Error(`No place in the sky for ${id}`);
+  return at;
+}
 
 /** The pictures each band joins (pages come from every band, §3.3). */
 export const BAND_PICTURES: Record<PlayBand, readonly PictureId[]> = {
@@ -333,6 +337,8 @@ export interface View {
   facing: number;
   mid: number;
   k: number;
+  /** How far the picture's turned on this sky from its card's drawing (degrees, clockwise): the card's turned to match. */
+  turn?: number;
 }
 
 export interface SkyStar {
@@ -391,12 +397,12 @@ export const EXTRA_GAP = { star: 14, line: 6 } as const;
  * Dipper, when it's there) is close, nor any line (code review round 1: one
  * sat on the Summer Triangle's dotted outline, looking like a fourth star).
  */
-function extras(stars: readonly Point[], lines: readonly (readonly [Point, Point])[], n: number, seed: number): SkyStar[] {
+function extras(stars: readonly Point[], lines: readonly (readonly [Point, Point])[], n: number, seed: number, ok: (p: Point) => boolean = () => true): SkyStar[] {
   const r = rand(seed);
   const out: SkyStar[] = [];
   for (let tries = 0; out.length < n && tries < 600; tries++) {
     const p = { x: Math.round(8 + r() * 84), y: Math.round(8 + r() * 84) };
-    if ([...stars, ...out].every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= EXTRA_GAP.star) && lines.every(([a, b]) => segmentGap(p, a, b) >= EXTRA_GAP.line))
+    if (ok(p) && [...stars, ...out].every((q) => Math.hypot(q.x - p.x, q.y - p.y) >= EXTRA_GAP.star) && lines.every(([a, b]) => segmentGap(p, a, b) >= EXTRA_GAP.line))
       out.push({ id: `extra-${out.length + 1}`, ...p, mag: 3, extra: true });
   }
   return out;
@@ -423,7 +429,15 @@ export function jobFor(band: PlayBand, round: number, i: number, queue?: readonl
   const guide = findNorth ? POINTER_GUIDE : [];
   const at = Object.fromEntries([...placed, ...guide].map((st) => [st.id, st]));
   const drawn = [...p.lines, ...(findNorth ? [...GUIDE_BOWL, ['merak-g', 'polaris'] as const] : [])].map(([a, b]) => [at[a], at[b]] as const);
-  const sky = [...placed, ...guide, ...extras([...placed, ...guide], drawn, EXTRAS[band], slot + 1)];
+  // Expert's others: above the horizon, and never at a picture star's coordinates (code review round 2: on Orion's Belt three
+  // tiny dots were at the very altitude and azimuth asked, and a tap on one cost the seal).
+  const round0 = (v: View, q: Point) => {
+    const c = altAz(v, q.x, q.y);
+    return `${Math.round(c.alt)}|${Math.round(c.az) % 360}`;
+  };
+  const taken = real ? new Set(placed.map((st) => round0(real.view, st))) : null;
+  const ok = real && taken ? (q: Point) => altAz(real.view, q.x, q.y).alt >= 2 && !taken.has(round0(real.view, q)) : undefined;
+  const sky = [...placed, ...guide, ...extras([...placed, ...guide], drawn, EXTRAS[band], slot + 1, ok)];
   if (!real) return { picture: id, outline: band === 'gentle', turn, findNorth, sky, view: null, find: null, latitude: null };
   // Each time a picture comes round on Expert, another of its bright stars to find (by the round: `turnFor`) — and on the
   // Little Dipper, the latitude.
@@ -443,7 +457,9 @@ const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
  * every one where it can be.
  */
 export function turnFor(round: number, n: number): number {
-  const b = [1, 2, 3, 4].find((x) => (1 + x) % n && gcd(3 + x, n) === 1) ?? 1;
+  if (n < 2) return 0;
+  // The step a picture's turn (three rounds) moves it: never back where it was, and round all of them where it can.
+  const b = [1, 2, 3, 4].find((x) => gcd(3 + x, n) === 1) ?? 1;
   return (round + b * Math.floor(round / 3)) % n;
 }
 
@@ -496,10 +512,28 @@ export function expertSky(p: Picture, lat: number): { view: View; stars: SkyStar
   const facing = (at[0].az + (Math.max(...dz) + Math.min(...dz)) / 2 + 360) % 360;
   const mid = (Math.max(...alts) + Math.min(...alts)) / 2;
   const k = Math.max(Math.max(...dz) - Math.min(...dz), Math.max(...alts) - Math.min(...alts)) / (2 * SPREAD);
-  return {
-    view: { facing, mid, k },
-    stars: at.map(({ st, alt, az }) => ({ id: st.id, x: round1(50 + either(az - facing) / k), y: round1(50 - (alt - mid) / k), mag: st.mag, extra: false })),
-  };
+  const stars = at.map(({ st, alt, az }) => ({ id: st.id, x: round1(50 + either(az - facing) / k), y: round1(50 - (alt - mid) / k), mag: st.mag, extra: false }));
+  return { view: { facing, mid, k, turn: cardTurn(p.stars, stars) }, stars };
+}
+
+/**
+ * How far a picture's turned on the sky from its card (degrees, clockwise on
+ * the screen, whole): the turn that best lays the card's stars over the
+ * sky's, round their middles (UX review round 2: the real sky turns a
+ * picture up to 141° from its upright card, and nothing said so).
+ */
+export function cardTurn(card: readonly Point[], sky: readonly Point[]): number {
+  const mid = (ps: readonly Point[]) => ({ x: ps.reduce((t, q) => t + q.x, 0) / ps.length, y: ps.reduce((t, q) => t + q.y, 0) / ps.length });
+  const [mc, ms] = [mid(card), mid(sky)];
+  let a = 0;
+  let b = 0;
+  card.forEach((c, k) => {
+    const [dx, dy] = [c.x - mc.x, c.y - mc.y];
+    const [ex, ey] = [sky[k].x - ms.x, sky[k].y - ms.y];
+    a += dx * ex + dy * ey;
+    b += dx * ey - dy * ex;
+  });
+  return Math.round((Math.atan2(b, a) * 180) / Math.PI);
 }
 
 /** A point of the sky (0–100, y down) in the view's coordinates: altitude up from the horizon, azimuth round from north through east. */
@@ -576,8 +610,8 @@ export function foundWords(job: Job, tapped: string): string {
 /** The latitude's four choices on the Little Dipper: the right one; 90° less it (the angle from overhead); south; a grid line off. */
 export function latitudeChoices(latitude: number, step: number): string[] {
   const all = [`${latitude}° N`, `${90 - latitude}° N`, `${latitude}° S`, `${latitude + step}° N`];
-  // In an order that moves round, so the answer isn't always first (UX review round 1: the first night's, 20° N, was).
-  const k = (latitude / 5 + 1) % all.length;
+  // In an order that moves round, never first (UX review rounds 1 and 2: a new teen's first, 15° N, was).
+  const k = (latitude / 5 + 2) % all.length;
   return [...all.slice(k), ...all.slice(0, k)];
 }
 
@@ -750,8 +784,11 @@ export function looksWords(job: Job): string {
 export function jobWords(job: Job, looks = true): string {
   const p = PICTURE_BY_ID[job.picture];
   const n = NUM[p.stars.length];
-  if (job.latitude !== null) return `Read the North Star’s altitude for our latitude, then join the ${n} stars of ${p.called}.`;
-  if (job.find) return `Find ${shortName(p, job.find)} at ${coordsWords(starCoords(job, job.find)!)}, then join the ${n} stars of ${p.called}.`;
+  // What it looks like, said on Expert too (UX review round 2: a reader never heard it; the card's turned to match the sky).
+  const turnedLike = looks ? ` It looks like ${looksWords(job)}.` : '';
+  if (job.latitude !== null) return `Read the North Star’s altitude for our latitude, then join the ${n} stars of ${p.called}.${turnedLike}`;
+  const asked = job.find ? starCoords(job, job.find) : null;
+  if (job.find && asked) return `Find ${shortName(p, job.find)} at ${coordsWords(asked)}, then join the ${n} stars of ${p.called}.${turnedLike}`;
   if (job.findNorth) return `First find the North Star: follow the Big Dipper’s two pointer stars. Then join the ${n} stars of ${p.called}.`;
   if (job.outline) return `Join the ${n} stars of ${p.called} along the dotted lines.`;
   // What it looks like, said too (UX review round 2: "the card shows its shape" — the card's a picture, hidden from a reader).
