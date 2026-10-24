@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES } = await import('../../../content/minigames');
-const { check, checkWords, jobFor } = await import('../../../lib/minigames/timeline');
+const { SET_BY_ID, check, checkWords, jobFor, spanChoices, spanRight, spanWords } = await import('../../../lib/minigames/timeline');
 
 let now = 0;
 beforeEach(() => {
@@ -144,5 +144,32 @@ describe('📜 from the keyboard', () => {
     press(taken);
     expect(taken).toHaveFocus();
     expect(index()).toContain('is back with the washed-up cards.');
+  });
+});
+
+describe('📜 Expert’s years, a double tap', () => {
+  it('an answer tapped as the question comes, where Check was, isn’t picked; a moment later it is; a key’s never held back', () => {
+    const onFinish = vi.fn();
+    render(<IndexTimeline def={MINIGAMES['index-timeline']} band="expert" round={0} onPage={() => true} onFinish={onFinish} />);
+    wait();
+    const job = jobFor('expert', 0, 0);
+    for (const ev of job.events) fireEvent.click(within(tray()).getByRole('button', { name: new RegExp(`^${ev.name}`) }), { detail: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Check the order' }), { detail: 1 });
+    const answers = () => within(screen.getByRole('group', { name: 'How many years?' }));
+    const wrong = spanChoices(job).find((n) => n !== spanRight(job))!;
+    // The double tap's second, straight away: nothing picked.
+    fireEvent.click(answers().getByRole('button', { name: `${wrong.toLocaleString('en-GB')} years` }), { detail: 1 });
+    expect(index()).not.toContain('Not ');
+    // A key acts at once.
+    fireEvent.click(answers().getByRole('button', { name: `${wrong.toLocaleString('en-GB')} years` }), { detail: 0 });
+    expect(index()).toContain(spanWords(job, wrong));
+    wait();
+    fireEvent.click(answers().getByRole('button', { name: `${spanRight(job).toLocaleString('en-GB')} years` }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: `${SET_BY_ID[job.set].name}, in order.` })).toHaveFocus();
+    // Next: a tap straight away waits; a key doesn't.
+    fireEvent.click(screen.getByRole('button', { name: 'Next drawer' }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: `${SET_BY_ID[job.set].name}, in order.` })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Next drawer' }), { detail: 0 });
+    expect(screen.getByRole('group', { name: /^The washed-up cards: 7 to place/ })).toBeInTheDocument();
   });
 });

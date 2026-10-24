@@ -143,10 +143,10 @@ describe('the band remembered on this device', () => {
   it('Expert, on a game that has it; not on one that hasn’t (§8.2)', () => {
     rememberBand('kid-a', ID, 'expert');
     expect(rememberedBand('kid-a', ID)).toBe('expert');
-    // A game without Expert yet (the next in §5's order after Ringwood's Rings, PR 17).
-    localStorage.setItem('hazel-mg-band-kid-a-index-timeline', 'expert');
-    expect(MINIGAMES['index-timeline'].expert).toBeUndefined();
-    expect(rememberedBand('kid-a', 'index-timeline')).toBeNull();
+    // A game without Expert yet (the next in §5's order after Index's Timeline, PR 18).
+    localStorage.setItem('hazel-mg-band-kid-a-ember-air-mail', 'expert');
+    expect(MINIGAMES['ember-air-mail'].expert).toBeUndefined();
+    expect(rememberedBand('kid-a', 'ember-air-mail')).toBeNull();
   });
 
   it('a junk value or storage that throws is "not remembered", never an error', () => {

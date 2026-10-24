@@ -71,3 +71,54 @@ export function StepCheck() {
     </svg>
   );
 }
+
+/** Expert's step 1: a card dated by its century, its hundred years bracketed on the line under it. */
+export function StepCentury() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="44" y="14" width="112" height="96" rx="8" fill={CARD} stroke={INK} strokeWidth="8" />
+      <text x="100" y="80" textAnchor="middle" fontSize="50" fontWeight="900" fill={INK}>
+        19th
+      </text>
+      <path d="M14 160 H186" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <path d="M44 140 V180 M156 140 V180" stroke="#b45309" strokeWidth="8" strokeLinecap="round" />
+      <path d="M44 160 H156" stroke="#fcd34d" strokeWidth="12" />
+    </svg>
+  );
+}
+
+/** Expert's step 2: the years from BCE to CE, either side of year 1 — no year 0 between. */
+export function StepSpan() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <path d="M14 120 H186" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <path d="M100 100 V140" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <text x="100" y="178" textAnchor="middle" fontSize="36" fontWeight="900" fill={INK}>
+        1
+      </text>
+      <text x="44" y="90" textAnchor="middle" fontSize="32" fontWeight="900" fill={INK}>
+        BCE
+      </text>
+      <text x="156" y="90" textAnchor="middle" fontSize="32" fontWeight="900" fill={INK}>
+        CE
+      </text>
+      <path d="M24 56 Q100 4 176 56" fill="none" stroke="#b45309" strokeWidth="8" strokeLinecap="round" />
+      <path d="M160 46 L178 58 L158 66" fill="none" stroke="#b45309" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Expert's step 3: one card leading to the next — what led to what. */
+export function StepLed() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="14" y="56" width="64" height="84" rx="6" fill={CARD} stroke={INK} strokeWidth="7" />
+      <circle cx="46" cy="94" r="16" fill="none" stroke={INK} strokeWidth="7" />
+      <rect x="122" y="56" width="64" height="84" rx="6" fill={CARD} stroke={INK} strokeWidth="7" />
+      <circle cx="146" cy="88" r="12" fill="none" stroke={INK} strokeWidth="7" />
+      <circle cx="164" cy="112" r="12" fill="none" stroke={INK} strokeWidth="7" />
+      <path d="M84 98 H112" stroke="#fcd34d" strokeWidth="12" strokeLinecap="round" />
+      <path d="M100 84 L116 98 L100 112" fill="none" stroke="#b45309" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
