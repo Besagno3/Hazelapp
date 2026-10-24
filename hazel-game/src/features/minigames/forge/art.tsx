@@ -19,15 +19,17 @@ const MARKS: Record<FamilyId, string> = { sun: '☀️', rain: '🌧️', more: 
  * A family's mark: a round stamp — not a tile like the tray's parts (code and
  * UX review round 1: the family's first part on an orange tile, "un" on the
  * ticket for kinder, read as a part to pick). Decorative (`aria-hidden`).
+ * `plain` on Expert, a page for every family: its picture said what a root
+ * means (code review round 2: ☀️ by the question on “sol”).
  */
-export function FamilyMark({ id, size = 48 }: { id: FamilyId | null; size?: number }) {
+export function FamilyMark({ id, size = 48, plain = false }: { id: FamilyId | null; size?: number; plain?: boolean }) {
   return (
     <span
       aria-hidden="true"
       className="flex flex-none items-center justify-center rounded-full border-2 border-[#1b0f22] bg-[#fde68a] leading-none"
       style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
-      {id ? MARKS[id] : '🔨'}
+      {id ? (plain ? '📜' : MARKS[id]) : '🔨'}
     </span>
   );
 }
@@ -80,6 +82,19 @@ export function StepHammer() {
       <rect x="86" y="30" width="70" height="40" rx="6" fill={IRON} stroke={INK} strokeWidth="8" transform="rotate(-20 120 50)" />
       <path d="M112 66 L82 122" stroke="#a16207" strokeWidth="14" strokeLinecap="round" />
       <path d="M60 120 l-14 -14 M100 116 l0 -20 M140 120 l14 -14" stroke="#fde68a" strokeWidth="7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Expert's step 3: a root's tile, and what it means — a question mark on a card under it. */
+export function StepRoot() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="50" y="24" width="100" height="64" rx="8" fill="#fdba74" stroke={INK} strokeWidth="8" />
+      <path d="M74 56 h52" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <path d="M100 92 v14" stroke={INK} strokeWidth="8" strokeLinecap="round" />
+      <rect x="40" y="110" width="120" height="66" rx="10" fill={PAPER} stroke={INK} strokeWidth="8" />
+      <path d="M86 132 q0 -14 14 -14 q14 0 14 12 q0 10 -14 14 v8 M100 166 v1" fill="none" stroke={INK} strokeWidth="8" strokeLinecap="round" />
     </svg>
   );
 }

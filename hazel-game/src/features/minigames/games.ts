@@ -10,7 +10,7 @@ import { StarsLogo, StepConnect, StepCoords, StepFact, StepFind } from './stars/
 import { RingsLogo, StepCount, StepDate, StepMatch, StepRain, StepRead } from './rings/art';
 import { StepCentury, StepCheck, StepLed, StepPlace, StepSpan, StepWash, TimelineLogo } from './timeline/art';
 import { AirMailLogo, StepClock, StepDeliver, StepGrid, StepParcel, StepSteer } from './airmail/art';
-import { ForgeLogo, StepHammer, StepMeaning, StepPick } from './forge/art';
+import { ForgeLogo, StepHammer, StepMeaning, StepPick, StepRoot } from './forge/art';
 import type { PlayProps } from './types';
 
 /**
@@ -85,5 +85,6 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./forge/WordForge')),
     Logo: ForgeLogo,
     steps: [StepMeaning, StepPick, StepHammer],
+    expertSteps: [StepMeaning, StepPick, StepRoot],
   },
 };

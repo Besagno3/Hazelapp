@@ -683,6 +683,56 @@ Old Ringwood is the tree who loses count of his rings.
   kept ("Keep “tele”!"), two add-ons need a root word; Tricky's first hint
   names one meaning; a wall page is read in a place kept for it, so nothing
   moves under the finger; the reward recaps the round's three words.
+- **Expert (PR 20, §8.5):** etymology. Every family has three Expert
+  words built from Latin and Greek roots, each tied to its page where a
+  root can be — solar, solstice and parasol on the sun's; aqueduct,
+  aquamarine and aquanaut on the rain's; teleport, telegraph, telepathy;
+  micrometer, microcosm, chronometer; geography, calligraphy, geology — and
+  §8.5's every root is in one (port, dict, spect, aqua, chrono, geo, -logy,
+  -meter), each split the word's own. A round draws three families, the
+  27 words in turn — every family in rounds 0–2, every word in 0–8. The tiles are the roots
+  alone (no meanings), the tray the word's two and four others from every
+  Expert word's roots — with a root of the same meaning as one of its own
+  where there is one (poly and multi, aqua and aque). Dot says the meaning in everyday words that never
+  give away the root she'll ask about. Forged, she asks what one of its
+  roots means ("What does “sol” mean in solar?"), from four: the root's,
+  the other part's, and two others, none alike, in an order by the word. A
+  wrong one is said — the other part's as the other part's; another with a
+  word the root's in to think of ("Think of parasol: what does it share
+  with solar?") — marked tried, and picked again. The card says how it's
+  built and more words with the root ("More with “sol”: parasol and
+  solstice."). Every pair of roots a tray can make is a real word Dot
+  explains (20 more: chronology, paragraph, multimeter…) or a not-word, the
+  20 rarest in a big dictionary looked at (arnaut, symar…). Dot speaks
+  plainly, and names the root once it's right ("“sol” means “sun”."); forged
+  at the first hammer and the root right first pick is the Expert seal; the
+  reward keeps the first missed word's lesson. On Expert the wall's pages
+  are its own — "Graph words", "Sol words", no meaning in the name or the
+  mark (📜 on every page) — each a note tying its three words ("Sol is
+  Latin for the sun: solar, solstice…"), shut (🔒) while a word's on the
+  anvil, and on a card for the next two words' families; a page tapped
+  comes into sight (every band).
+  Review round 1: two splits weren't the words' own (aqua + tic, aqua +
+  rium) — now aqueduct and aquamarine; the wall taught the young bands'
+  pages and gave the answer in sight ("Graph, “write”") — now Expert's own
+  pages, shut while a word's on the anvil; the words came back three rounds
+  on — now all 27 in turn; a hint after a miss gave the asked root's
+  meaning — now that part by its first letter, and a part meaning the same
+  as the right one said so ("“multi” means “many” too — but polygon takes
+  the other one."); a root with no other word has a clue ("At a solstice
+  the sun seems to stop, then turn back."); para's two meanings said; as
+  is "towards"; multimeter and induct real words; the right root named.
+  Review round 2: three page names were answers ("Water words" by the
+  question on “aqua") — now named by a root, the mark plain; a card
+  opened the next word's page ("Meter is Greek for measure", micrometer
+  next) — now shut, and marked; a page tapped opened out of sight at most
+  sizes — now brought into sight, a tap as it comes let be; the first
+  letter pointed at two tiles (sol and sup) — now as many letters as tell
+  it from the tray's others; a real word said of a wrong try gave the
+  answer away in other words ("Telemeter … measures" by “meter”, "Induct …
+  into" by “in”) — twelve meanings reworded, every line held to the
+  asked meaning's every word; a root of the same meaning came up for 1
+  word in 27 — now in its tray.
 
 ## 6. The PRs
 
@@ -785,7 +835,7 @@ world, with the same host.
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's measured rings to a rainfall record, its thin rings under the dry years, and date it to the year. (Missing outer rings and sapwood estimates: not built.) | "Thin rings — and the record's dry years?"; "Its last ring grew in…" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. Seven cards a drawer, each dated by its century where that's enough to place it; then the years between a BCE card and a CE card, no year 0; each page says what led to what. No wars, battles, disasters or religion (§3.2). | "Paper (2nd century) … printing press (15th century)"; "From 500 BCE to 1807: how many years?" — 2,306 |
 | 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to a city by its coordinates, then say what time it is there, by the 15° line nearest it. (Half-hour zones, summer time and the date line: not asked.) | "Tokyo, 36° N, 140° E"; "Tokyo is at 140° E. It's 12:00 in London, in January: what time is it there?" — 21:00 |
-| 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged. | "chrono + meter"; "What does port mean in transport?" |
+| 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged, from four. Three words a family, every family on Expert. | "chrono + meter"; "What does “port” mean in teleport?" — "carry" |
 
 Each game's §5 section gets its Expert note as its PR lands.
 
@@ -795,4 +845,6 @@ Each game's §5 section gets its Expert note as its PR lands.
   title card's fourth band, the remembered band, the seal (`spotOn`,
   `mg:<game>:seal`), the bench's `band=`; a game without Expert yet plays
   Tricky if handed it (never offered); and 🧪 Potion Lab's Expert.
-- **PRs 12–20:** one game each, in §5's order.
+- **PRs 12–20:** one game each, in §5's order. With PR 20 (🔨 Word Forge)
+  every game has its Expert; the fall-back to Tricky stays for a game added
+  later.

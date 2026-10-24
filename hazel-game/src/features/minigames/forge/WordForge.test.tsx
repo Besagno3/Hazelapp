@@ -25,18 +25,18 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { FAMILY_BY_ID, PART_MEANS, builtLine, jobFor, keepHyphens, learnedLine, partText, roundQueue } = await import('../../../lib/minigames/forge');
-type Band = import('../../../content/minigames').Band;
+const { EXPERT_PAGES, FAMILY_BY_ID, PART_MEANS, builtLine, jobFor, keepHyphens, learnedLine, partText, rootAsk, rootChoices, roundQueue } = await import('../../../lib/minigames/forge');
+type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/forge').Job;
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   localStorage.clear();
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
-    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - 9, birthMonth: 1, skillLevels: { words: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - age, birthMonth: 1, skillLevels: { words: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
     addXp,
     recordActivity,
   });
@@ -232,6 +232,8 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     expect(jobFor('gentle', 0, 0, roundQueue('gentle', (id) => id === 'sun', 0)).family).toBe('rain');
     const page = screen.getByRole('button', { name: 'Sun words. Read the page' });
     expect(screen.getByText('Tap a page to read it.')).toBeInTheDocument();
+    // Not said: only a page read is (UX review round 2: "Tap a page to read it." was said after every Next).
+    expect(screen.getByText('Tap a page to read it.').closest('[aria-live]')).toBeNull();
     const before = dot();
     fireEvent.click(page);
     expect(page).toHaveAttribute('aria-pressed', 'true');
@@ -267,5 +269,184 @@ describe('🔨 Word Forge, a round (docs/DESIGN-MINIGAMES.md §5.10)', () => {
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Three words forged!' })).toBeInTheDocument());
     expect(save().flags[starFlag('word-forge', 1)]).toBe(true);
     expect(save().items.tea).toBe(defaultSave().items.tea + 1);
+  });
+
+  it('through the stage on Tricky: the new pages’ names, each with a comma in it, kept apart in the reward (code review round 2: untested)', async () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="word-forge" />);
+    fireEvent.click(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Tricky' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s forge!' }));
+    await screen.findByRole('group', { name: /^The tray of word parts/ });
+    const queue = roundQueue('tricky', () => false, 0);
+    for (const i of [0, 1, 2]) {
+      forge(jobFor('tricky', 0, i, queue));
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next word' : 'All forged!' }));
+    }
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Three words forged!' })).toBeInTheDocument());
+    expect(queue.map((id) => FAMILY_BY_ID[id].name)).toEqual(['Tele, “far”', 'Micro, “small”', 'Graph, “write”']);
+    expect(screen.getByText('New Word wall pages: Tele, “far”; Micro, “small”; Graph, “write”.')).toBeInTheDocument();
+  });
+});
+
+describe('🔨 Expert (docs/DESIGN-MINIGAMES.md §8.5): Latin and Greek roots, their tiles plain; then what a root means', () => {
+  const meanings = () => within(screen.getByRole('group', { name: 'What does it mean?' }));
+  // The box under the meanings: what Dot said of the last pick, where a phone sees it (code review round 1: untested).
+  const box = () => screen.getByRole('group', { name: 'What does it mean?' }).nextElementSibling?.textContent;
+
+  it('forged from roots that don’t say; then what one means, from four — a wrong one said, marked and picked again; the root named; spot on counted, the first missed word’s lesson kept', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const [solar, aqueduct, polygon] = [0, 1, 2].map((i) => jobFor('expert', 0, i, queue));
+    expect([solar, aqueduct, polygon].map((j) => j.word.word)).toEqual(['solar', 'aqueduct', 'polygon']);
+    expect(within(screen.getByRole('list', { name: 'Steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1Forge the word', '2What a root means', '3Its page']);
+    // The tiles: the roots alone, no meanings.
+    expect(tile('sol')).toHaveAccessibleName('sol');
+    expect(within(tray()).getAllByRole('button').map((b) => b.textContent)).toEqual(solar.tiles);
+    expect(document.getElementById('wf-do')).toHaveTextContent('“powered by daylight, like a panel on a roof”');
+    // The wrong way round: said plainly; two on the anvil, plainly too (code review round 1: untested).
+    fireEvent.click(tile('ar'));
+    fireEvent.click(tile('sol'));
+    expect(dot()).toContain('“ar” and “sol” are on the anvil — hammer them together.');
+    hammer();
+    expect(dot()).toContain('Arsol isn’t a word — try them the other way round.');
+    forge(solar);
+    // The root: asked in the card, four meanings — Dot just says the word (UX review round 1: a reader heard the question twice).
+    const head = screen.getByRole('heading', { name: 'What does it mean?' });
+    expect(head).toHaveFocus();
+    expect(head).toHaveAccessibleDescription('What does “sol” mean in solar?');
+    expect(chip()).toBe('2What a root means');
+    expect(dot()).toMatch(/Solar\. Powered by daylight, like a panel on a roof\.\u200b?$/);
+    expect(dot()).not.toContain('What does');
+    expect(meanings().getAllByRole('button').map((b) => b.textContent)).toEqual(rootChoices(solar));
+    fireEvent.click(meanings().getByRole('button', { name: '“people”' }));
+    expect(dot()).toContain('Not “people”. Think of parasol: what does it share with solar?');
+    expect(box()).toBe('Not “people”. Think of parasol: what does it share with solar?');
+    expect(meanings().getByRole('button', { name: '“people”, tried' })).toBeInTheDocument();
+    // A held Enter on a meaning picks nothing again (code review round 1: untested).
+    const held = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+    meanings().getByRole('button', { name: '“people”, tried' }).dispatchEvent(held);
+    expect(held.defaultPrevented).toBe(true);
+    fireEvent.click(meanings().getByRole('button', { name: '“to do with”' }));
+    expect(dot()).toContain('Not “to do with”: that’s “ar”, the other part of solar.');
+    fireEvent.click(meanings().getByRole('button', { name: '“sun”' }));
+    // Its card, plain, the page by its Expert name; Dot names the root (UX review round 1: "That’s the word.").
+    const done = screen.getByRole('heading', { name: 'Solar' });
+    expect(done).toHaveFocus();
+    expect(done).toHaveAccessibleDescription(`${learnedLine(solar)} A new page on the word wall: Sol words.`);
+    expect(learnedLine(solar)).toBe('Solar: sol (“sun”) + ar (“to do with”). More with “sol”: parasol and solstice.');
+    expect(chip()).toBe('3Its page');
+    expect(dot()).toContain('“sol” means “sun”, with a miss on the way. Next word.');
+    expect(dot()).not.toContain('!');
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+
+    // Aqueduct: forged and its root right first time.
+    expect(chip()).toBe('1Forge the word');
+    forge(aqueduct);
+    expect(rootAsk(aqueduct)).toBe('What does “duct” mean in aqueduct?');
+    fireEvent.click(meanings().getByRole('button', { name: '“lead”' }));
+    expect(dot()).toContain('“duct” means “lead”. Next word.');
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    // Polygon: forged first time, but the other part's meaning picked first. "people", tried on solar, isn't marked here
+    // (code review round 1: untested).
+    forge(polygon);
+    expect(meanings().getByRole('button', { name: '“people”' })).toBeInTheDocument();
+    fireEvent.click(meanings().getByRole('button', { name: '“many”' }));
+    expect(dot()).toContain('Not “many”: that’s “poly”, the other part of polygon.');
+    fireEvent.click(meanings().getByRole('button', { name: '“angle”' }));
+    expect(dot()).toContain('“gon” means “angle”, with a miss on the way. That’s three.');
+    fireEvent.click(screen.getByRole('button', { name: 'All forged' }));
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three words forged!', learned: learnedLine(solar), spotOn: { right: 1, of: 3 } });
+  });
+
+  it('a wrong hammer costs the seal, though the root’s right first pick; spot on otherwise, the first miss’s lesson (code review round 1: untested)', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert', 1);
+    const queue = roundQueue('expert', () => false, 1);
+    const jobs = [0, 1, 2].map((i) => jobFor('expert', 1, i, queue));
+    expect(jobs.map((j) => j.word.word)).toEqual(['support', 'benevolent', 'inspect']);
+    // Support: the wrong way round first.
+    fireEvent.click(tile('port'));
+    fireEvent.click(tile('sup'));
+    hammer();
+    for (const [i, job] of jobs.entries()) {
+      forge(job);
+      fireEvent.click(meanings().getByRole('button', { name: ['“under”', '“wishing”', '“into”'][i] }));
+      if (i === 0) expect(dot()).toContain('“sup” means “under”, with a miss on the way. Next word.');
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next word' : 'All forged' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three words forged!', learned: learnedLine(jobs[0]), spotOn: { right: 2, of: 3 } });
+  });
+
+  it('spot on every time: the seal’s three, and the lesson the round’s builds', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert', 2);
+    const jobs = [0, 1, 2].map((i) => jobFor('expert', 2, i));
+    expect(jobs.map((j) => j.word.word)).toEqual(['teleport', 'micrometer', 'geography']);
+    for (const [i, job] of jobs.entries()) {
+      forge(job);
+      fireEvent.click(meanings().getByRole('button', { name: ['“carry”', '“measure”', '“earth”'][i] }));
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next word' : 'All forged' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith({ title: 'Three words forged!', learned: jobs.map(builtLine).join(' '), spotOn: { right: 3, of: 3 } });
+  });
+
+  it('the wall on Expert: its own page names and a plain mark, no meaning in them; a page shut while a word’s on the anvil, and on a card for the next two words’ families — marked 🔒 (code and UX review rounds 1 and 2)', () => {
+    const on = ['sun', 'rain', 'more', 'graph'] as const;
+    setUp(6, Object.fromEntries(on.map((id) => [pageFlag('word-forge', id), true])), 14);
+    const { onPage } = play('expert');
+    const li = (id: string) => document.querySelector<HTMLElement>(`[data-family="${id}"]`)!;
+    const page = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}(, new)?(, opens (between words|after its word))?\\. Read the page$`) });
+    const read = () => li('sun').closest('section')!.querySelector('[aria-live]')!.textContent;
+    // Seen: the name and the one mark, no picture of a meaning (code review round 2: ☀️ by “sol”, "Water words" by “aqua”).
+    expect(li('graph').querySelector('button')).toHaveTextContent(/^📜Graph words$/);
+    expect(li('rain').querySelector('button')).toHaveTextContent(/^📜Aqua words$/);
+    expect(screen.queryByRole('button', { name: /“write”|Sun words|Water words/ })).toBeNull();
+    // While the word's on the anvil, every page shut, and marked (UX review round 2: it looked open; the line read as its page).
+    for (const id of on) expect(li(id)).toHaveTextContent(/^🔒/);
+    expect(page('Sol words')).toHaveAccessibleName('Sol words, opens between words. Read the page');
+    fireEvent.click(page('Sol words'));
+    expect(read()).toBe('Sol words — pages open between words: forge this one and name its root first.');
+    expect(screen.getByText('Sol words', { selector: 'b' })).toBeInTheDocument();
+    fireEvent.click(page('Sol words'));
+    forge(jobFor('expert', 0, 0));
+    fireEvent.click(page('Graph words'));
+    expect(read()).toMatch(/^Graph words — pages open between words/);
+    fireEvent.click(page('Graph words'));
+    fireEvent.click(within(screen.getByRole('group', { name: 'What does it mean?' })).getByRole('button', { name: '“sun”' }));
+    // Filed: its page, by its Expert name everywhere it's said.
+    expect(onPage).toHaveBeenLastCalledWith('sun', 'Sol words');
+    expect(screen.getByText('SOL WORDS')).toBeInTheDocument();
+    // Open: its note and its three Expert words (UX review round 1: it taught -s and compound words); the others' too —
+    fireEvent.click(page('Sol words'));
+    expect(read()).toBe(`Sol words — ${EXPERT_PAGES.sun.note} solar, solstice, parasol.`);
+    fireEvent.click(page('Graph words'));
+    expect(read()).toMatch(/^Graph words — Geo is Greek for earth/);
+    expect(li('graph')).not.toHaveTextContent('🔒');
+    // — but not the next two words’ (code and UX review round 2: a card opened the page with the next word's answer).
+    for (const id of ['rain', 'more']) expect(li(id)).toHaveTextContent(/^🔒/);
+    expect(page('Aqua words')).toHaveAccessibleName('Aqua words, opens after its word. Read the page');
+    fireEvent.click(page('Aqua words'));
+    expect(read()).toBe('Aqua words — its word’s coming up, so its page opens once that’s filed.');
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    // Aqueduct, filed: Aqua words on the card, the ticket and to the stage; Poly and multi's next, and support's family.
+    forge(jobFor('expert', 0, 1));
+    fireEvent.click(within(screen.getByRole('group', { name: 'What does it mean?' })).getByRole('button', { name: '“lead”' }));
+    expect(screen.getByRole('heading', { name: 'Aqueduct' })).toHaveAccessibleDescription(/ A new page on the word wall: Aqua words\.$/);
+    expect(onPage).toHaveBeenLastCalledWith('rain', 'Aqua words');
+    expect(screen.getByText('AQUA WORDS')).toBeInTheDocument();
+    expect(page('Poly and multi words')).toHaveAccessibleName('Poly and multi words, opens after its word. Read the page');
+    expect(page('Sol words')).toHaveAccessibleName('Sol words. Read the page');
+  });
+
+  it('through the stage: a teen’s title card — Expert’s hello and steps', async () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="word-forge" />);
+    expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Today’s words are built from Latin and Greek roots/)).toBeInTheDocument();
+    expect(screen.getByText(/Every word forged and every root right first time wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s forge!' }));
+    await screen.findByRole('group', { name: /^The tray of word parts/ });
+    expect(screen.getByRole('button', { name: 'sol' })).toBeInTheDocument();
   });
 });

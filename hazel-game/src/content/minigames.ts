@@ -384,6 +384,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     pages: 9,
     // A word joiner after each end part's hyphen: "-" / "ful" never split over two lines (Word Forge's UX review round 2).
     bandNote: 'Medium: un-, re-, pre-, -\u2060ful, -\u2060less, -\u2060er and -\u2060est. Tricky: Greek and Latin roots — tele means far!',
+    expert: {
+      note: 'Expert: etymology — words forged from Latin and Greek roots whose tiles don’t say what they mean, then what a root means.',
+      hello: 'Today’s words are built from Latin and Greek roots, and the tiles won’t tell you what they mean. Forge each word from its meaning, then tell me what one of its roots means.',
+      steps: [
+        { title: 'Read the meaning', text: 'Dot says what a word means, in everyday words — not the roots’.' },
+        { title: 'Forge it', text: 'Two roots on the anvil, in order, and hammer. A wrong try gives a hint.' },
+        { title: 'What does it mean?', text: 'Then pick what one of its roots means, from four. Every word forged and every root right first time wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'shallows',
     backdrop: '/backgrounds/inkwell-cove.png',
     firstItem: 'tea',

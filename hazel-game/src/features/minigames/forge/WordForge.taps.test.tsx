@@ -17,7 +17,7 @@ const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag } = await import('../../../content/minigames');
-const { jobFor } = await import('../../../lib/minigames/forge');
+const { jobFor, rootChoices, rootWords } = await import('../../../lib/minigames/forge');
 
 let now = 0;
 beforeEach(() => {
@@ -65,10 +65,21 @@ describe('🔨 a double tap', () => {
     fireEvent.click(tile(b));
     fireEvent.click(hammer());
     expect(screen.getByRole('heading', { name: 'Sunflower!' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 1 });
     expect(screen.getByRole('heading', { name: 'Sunflower!' })).toBeInTheDocument();
     wait();
-    fireEvent.click(screen.getByRole('button', { name: 'Next word' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 1 });
+    expect(screen.queryByRole('heading', { name: 'Sunflower!' })).not.toBeInTheDocument();
+  });
+
+  it('Next from a key acts at once (no click count): only a tap’s second press is held back', () => {
+    play();
+    wait();
+    const [a, b] = jobFor('gentle', 0, 0).word.parts;
+    fireEvent.click(tile(a));
+    fireEvent.click(tile(b));
+    fireEvent.click(hammer());
+    fireEvent.click(screen.getByRole('button', { name: 'Next word' }), { detail: 0 });
     expect(screen.queryByRole('heading', { name: 'Sunflower!' })).not.toBeInTheDocument();
   });
 
@@ -79,13 +90,64 @@ describe('🔨 a double tap', () => {
     fireEvent.click(slot(0));
     expect(dot()).toBe(before);
     const page = screen.getByRole('button', { name: 'Rain words. Read the page' });
-    fireEvent.click(page);
+    fireEvent.click(page, { detail: 1 });
     expect(page).toHaveAttribute('aria-pressed', 'false');
     wait();
     fireEvent.click(slot(0));
     expect(dot()).toContain('Tap a part in the tray — it goes on the anvil.');
-    fireEvent.click(page);
+    fireEvent.click(page, { detail: 1 });
     expect(page).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('a page opened comes into sight, and a tap as it does is let be — it could land on another page; a key acts at once (UX review round 2)', () => {
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags: { [pageFlag('word-forge', 'rain')]: true, [pageFlag('word-forge', 'sun')]: true } }, status: 'ready', remoteError: null });
+    const scrolled = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
+    const to = vi.fn();
+    HTMLElement.prototype.scrollTo = to;
+    play();
+    wait();
+    to.mockClear();
+    const rain = screen.getByRole('button', { name: 'Rain words. Read the page' });
+    const sun = screen.getByRole('button', { name: 'Sun words. Read the page' });
+    fireEvent.click(rain, { detail: 1 });
+    expect(rain).toHaveAttribute('aria-pressed', 'true');
+    expect(to).toHaveBeenCalled();
+    // The second tap of a double, on the page now under the finger: nothing.
+    fireEvent.click(sun, { detail: 2 });
+    expect(rain).toHaveAttribute('aria-pressed', 'true');
+    expect(sun).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(sun, { detail: 0 });
+    expect(sun).toHaveAttribute('aria-pressed', 'true');
+    wait();
+    fireEvent.click(sun, { detail: 1 });
+    expect(sun).toHaveAttribute('aria-pressed', 'false');
+    scrolled.mockRestore();
+    delete (HTMLElement.prototype as Partial<HTMLElement>).scrollTo;
+  });
+});
+
+describe('🔨 Expert’s root, a double tap', () => {
+  it('a meaning tapped as the question comes (Hammer was under the finger) isn’t picked; a moment later it is; a key at once', () => {
+    render(<WordForge def={MINIGAMES['word-forge']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    wait();
+    const job = jobFor('expert', 0, 0);
+    const [a, b] = job.word.parts;
+    fireEvent.click(tile(a));
+    wait();
+    fireEvent.click(tile(b));
+    wait();
+    fireEvent.click(hammer());
+    expect(screen.getByRole('heading', { name: 'What does it mean?' })).toBeInTheDocument();
+    const wrong = rootChoices(job).find((m) => !rootWords(job, m).right)!;
+    const right = rootChoices(job).find((m) => rootWords(job, m).right)!;
+    fireEvent.click(screen.getByRole('button', { name: `“${wrong}”` }), { detail: 1 });
+    expect(dot()).not.toContain(`Not “${wrong}”`);
+    fireEvent.click(screen.getByRole('button', { name: `“${wrong}”` }), { detail: 0 });
+    expect(dot()).toContain(`Not “${wrong}”`);
+    expect(screen.getByRole('button', { name: `“${wrong}”, tried` })).toBeInTheDocument();
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: `“${right}”` }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: 'Solar' })).toBeInTheDocument();
   });
 });
 
