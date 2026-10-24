@@ -31,6 +31,8 @@ export type FlowEvent =
   | { type: 'RESET' }
   | { type: 'PICK_TOPIC'; topic: Topic }
   | { type: 'EXIT_QUIZ' }
+  | { type: 'START_DUEL' }
+  | { type: 'EXIT_DUEL' }
   | { type: 'ENTER_WORLD' }
   | { type: 'CHOOSE_AVATAR' }
   | { type: 'TALK'; npcId: string }
@@ -101,6 +103,7 @@ export const gameFlowMachine = setup({
     topicSelect: {
       on: {
         PICK_TOPIC: { target: 'quiz', actions: 'assignTopic' },
+        START_DUEL: 'duel',
         ENTER_WORLD: [
           { guard: 'canResumeWorld', target: 'world' },
           { guard: 'worldUnlocked', target: 'avatarSelect' },
@@ -114,6 +117,12 @@ export const gameFlowMachine = setup({
           { guard: 'canResumeWorld', target: 'world' },
           { guard: 'worldUnlocked', target: 'avatarSelect' },
         ],
+      },
+    },
+    // 🆚 Quiz Duel (#186): two players, one screen — picks its own players and topic.
+    duel: {
+      on: {
+        EXIT_DUEL: 'topicSelect',
       },
     },
     avatarSelect: {
