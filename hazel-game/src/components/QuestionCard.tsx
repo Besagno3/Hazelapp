@@ -15,7 +15,9 @@ import type { Question } from '../types';
  * crossed out instead of answered, and the player picks again.
  * The parent advances via `onContinue` so reading is never rushed. Once
  * answered, any question can be reported (`FlagButton`, B10), and the pick
- * is noted for the kid's day (`profileStore.noteAnswer`, #173).
+ * is noted for the kid's day (`profileStore.noteAnswer`, #173) — unless it's
+ * Player 2's question in a co-op battle (`noted` false, #187): theirs isn't
+ * the kid playing's to count.
  */
 export default function QuestionCard({
   question,
@@ -33,6 +35,8 @@ export default function QuestionCard({
   focusContinue = false,
   focusContinueKey,
   afterAnswer,
+  seenBy,
+  noted = true,
 }: {
   question: Question;
   /** Hint Feathers available (0 hides the hint button). */
@@ -68,6 +72,10 @@ export default function QuestionCard({
   onSecondChance?: () => void;
   /** Shown under the options once an answer is picked, before the explanation (a ✍️ scribe burst, #165). */
   afterAnswer?: ReactNode;
+  /** Whose question it is, when it isn't the kid playing's: a co-op battle's Player 2 (#187) — it's seen by them. */
+  seenBy?: string;
+  /** The pick counts in the kid playing's 📈 Progress tally (#173); false for Player 2's question (#187). */
+  noted?: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hidden, setHidden] = useState<number[]>(() => pickWrong(question, [], preHidden));
@@ -77,7 +85,7 @@ export default function QuestionCard({
   const continueRef = useRef<HTMLButtonElement>(null);
 
   // On screen = seen, so the next batches leave it out for this kid (#134).
-  useEffect(() => markSeen(question.id), [question.id]);
+  useEffect(() => markSeen(question.id, seenBy), [question.id, seenBy]);
 
   // On a phone the explanation can push Continue below the fold — bring it
   // into view once an answer is picked ('nearest' = no scroll if it fits).
@@ -123,7 +131,7 @@ export default function QuestionCard({
     // The final pick counts for 📈 Progress's answers per topic (#173) —
     // every screen that asks through this card: battles, gates, chests,
     // tale-stones, shrines, the Spire, the Library, Umbra's questions.
-    useProfileStore.getState().noteAnswer(question, correct);
+    if (noted) useProfileStore.getState().noteAnswer(question, correct);
     onAnswered(correct, idx);
   }
 
