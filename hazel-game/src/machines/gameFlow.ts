@@ -2,6 +2,7 @@ import { assign, createActor, setup, type SnapshotFrom } from 'xstate';
 import { useSelector } from '@xstate/react';
 import { useSaveStore } from '../store/saveStore';
 import type { PathTarget, ServiceType, Topic } from '../types';
+import type { MiniGameId } from '../content/minigames';
 
 /**
  * The game-flow state machine (#37, resolves #11). One machine owns *where
@@ -21,6 +22,8 @@ export interface FlowContext {
   npcId: string | null;
   service: ServiceType | null;
   pathTarget: PathTarget | null;
+  /** The mini-game on stage (docs/DESIGN-MINIGAMES.md). */
+  game: MiniGameId | null;
 }
 
 export type FlowEvent =
@@ -37,6 +40,7 @@ export type FlowEvent =
   | { type: 'OPEN_PATH'; target: PathTarget }
   | { type: 'OPEN_MENU' }
   | { type: 'OPEN_SPIRE' }
+  | { type: 'OPEN_GAME'; game: MiniGameId }
   | { type: 'CLOSE' }
   | { type: 'ENCOUNTER' }
   | { type: 'BATTLE_END'; result: 'win' | 'lose' }
@@ -62,6 +66,7 @@ export const gameFlowMachine = setup({
       npcId: null,
       service: null,
       pathTarget: null,
+      game: null,
     }),
     assignTopic: assign({
       topic: ({ event }) => (event.type === 'PICK_TOPIC' ? event.topic : null),
@@ -77,11 +82,15 @@ export const gameFlowMachine = setup({
     assignPath: assign({
       pathTarget: ({ event }) => (event.type === 'OPEN_PATH' ? event.target : null),
     }),
+    assignGame: assign({
+      game: ({ event }) => (event.type === 'OPEN_GAME' ? event.game : null),
+    }),
+    forgetGame: assign({ game: null }),
   },
 }).createMachine({
   id: 'game',
   initial: 'boot',
-  context: { topic: null, npcId: null, service: null, pathTarget: null },
+  context: { topic: null, npcId: null, service: null, pathTarget: null, game: null },
   on: {
     RESET: { target: '.boot', actions: 'clearContext' },
   },
@@ -134,6 +143,7 @@ export const gameFlowMachine = setup({
             OPEN_PATH: { target: 'path', actions: 'assignPath' },
             OPEN_MENU: 'menu',
             OPEN_SPIRE: 'spire',
+            OPEN_GAME: { target: 'minigame', actions: 'assignGame' },
             ENCOUNTER: '#game.battle',
           },
         },
@@ -144,6 +154,8 @@ export const gameFlowMachine = setup({
             OPEN_SERVICE: { target: 'service', actions: 'assignService' },
             // A riddle step's thing asks its question (#75 item 15e: Yarn's tale-stones).
             OPEN_PATH: { target: 'path', actions: 'assignPath' },
+            // A host opens their mini-game from the talk (docs/DESIGN-MINIGAMES.md).
+            OPEN_GAME: { target: 'minigame', actions: 'assignGame' },
           },
         },
         service: { on: { CLOSE: 'exploring' } },
@@ -151,6 +163,8 @@ export const gameFlowMachine = setup({
         menu: { on: { CLOSE: 'exploring' } },
         // The endgame Spire climb (#55) — a self-contained overlay.
         spire: { on: { CLOSE: 'exploring' } },
+        // A mini-game's full-screen stage (docs/DESIGN-MINIGAMES.md) — the map waits underneath.
+        minigame: { on: { CLOSE: { target: 'exploring', actions: 'forgetGame' } } },
       },
     },
     battle: {
@@ -162,6 +176,15 @@ export const gameFlowMachine = setup({
 });
 
 export type FlowSnapshot = SnapshotFrom<typeof gameFlowMachine>;
+
+/**
+ * Where an overlay plays its own music, so `App`'s screen music steps aside:
+ * the Spire's climb, Umbra's finale (#75 item 16e) and a mini-game's stage
+ * (docs/DESIGN-MINIGAMES.md §2.5).
+ */
+export function overlayOwnsMusic(s: FlowSnapshot): boolean {
+  return s.matches({ world: 'spire' }) || s.matches({ world: 'minigame' }) || (s.matches({ world: 'service' }) && s.context.service === 'name');
+}
 
 /** The app-wide singleton actor. Tests create their own actors instead. */
 export const flowActor = createActor(gameFlowMachine).start();

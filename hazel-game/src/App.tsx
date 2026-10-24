@@ -11,7 +11,7 @@ import { musicScreen, useScreenMusic } from './lib/audio';
 import { dropSignupParam } from './lib/signupLink';
 import { HUB_ZONE, zone } from './content/zones';
 import { seaAreaAt, type SeaArea } from './content/boat';
-import { sendFlow, useFlow } from './machines/gameFlow';
+import { overlayOwnsMusic, sendFlow, useFlow } from './machines/gameFlow';
 import AuthPage from './features/auth/AuthPage';
 import ResetPasswordPage from './features/auth/ResetPasswordPage';
 import ConsentPage from './features/family/ConsentPage';
@@ -99,8 +99,8 @@ export default function App() {
             : 'topics',
   );
   const isBoss = useBattleStore((s) => s.enemy?.isBoss ?? false);
-  // The Spire's climb and Umbra's finale (#75 item 16e) drive their own music.
-  const inSpire = useFlow((s) => s.matches({ world: 'spire' }) || (s.matches({ world: 'service' }) && s.context.service === 'name'));
+  // The Spire, Umbra's finale and a mini-game's stage drive their own music.
+  const inSpire = useFlow(overlayOwnsMusic);
   const zoneKind = useSaveStore((s) => zone(s.save?.zoneId ?? HUB_ZONE).kind);
   const sea = useSeaArea();
   // Bumped when the world's file loads after failing: the boundary starts afresh.

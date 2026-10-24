@@ -1,4 +1,5 @@
 import type { WorldNpcDef } from '../content/npcs';
+import { gameHostedBy } from '../content/minigames';
 
 /**
  * Pure helpers for ambient overworld life (#wandering NPCs + idle chatter).
@@ -94,8 +95,9 @@ const INV_SQRT2 = 1 / Math.sqrt(2);
  * `stationary` (quest-givers, key story figures, warden signposts) stays put so
  * the player can always find them. Bosses are handled separately (`isBoss`).
  */
-export function npcWanders(def: Pick<WorldNpcDef, 'role' | 'stationary'>): boolean {
-  return def.role === 'villager' && !def.stationary;
+export function npcWanders(def: Pick<WorldNpcDef, 'id' | 'role' | 'stationary'>): boolean {
+  // A mini-game's host stays put, where the 📜 Menu says to find them (docs/DESIGN-MINIGAMES.md §3.6).
+  return def.role === 'villager' && !def.stationary && !gameHostedBy(def.id);
 }
 
 /**

@@ -45,7 +45,7 @@ order and the Supabase settings the app relies on: `docs/OPERATIONS.md`.
   (danger tier), never what it asks.
 - **Routing is the xstate machine, not react-router:** `boot → topicSelect ⇄ quiz
   → avatarSelect → world ⇄ battle`; world substates `exploring / dialogue /
-  service / path / menu / spire`. The machine owns where the player is; the
+  service / path / menu / spire / minigame`. The machine owns where the player is; the
   stores own what they have.
 - **A login is a grown-up's; kids are profiles.** PINs are hashed and
   rate-limited in the database; 👪 Grown-ups is enforced by the database (a
@@ -61,7 +61,7 @@ order and the Supabase settings the app relies on: `docs/OPERATIONS.md`.
 
 ```
 src/machines/gameFlow.ts (the screen the player is on) · src/store/ (save, battle, auth, family, grownUps, profile, settings, spire, finale, keyboard, playerTwo)
-src/content/ (zones, NPCs, enemies, quests, spells, story) · src/features/ (auth, family, quiz, duel, world, battle, typing) · src/lib/ (pure logic) · src/components/ (shared UI)
+src/content/ (zones, NPCs, enemies, quests, spells, story) · src/features/ (auth, family, quiz, duel, world, battle, typing, minigames) · src/lib/ (pure logic) · src/components/ (shared UI)
 supabase/ (migrations/, ci/*.test.sql, functions/ — single-file edge functions, scripts/) · docs/architecture/ · docs/feature-log/ · docs/ISSUES.md · docs/TEST-CASES.md
 ```
 
@@ -110,7 +110,7 @@ supabase/ (migrations/, ci/*.test.sql, functions/ — single-file edge functions
 | Sign-in, the family, kids, PINs, 👪 Grown-ups, 📈 Progress, closing an account, password reset | `docs/architecture/auth-and-family.md` |
 | The game-flow machine, saves (`SAVE_VERSION`, revisions, which copy wins), the profile, XP / levels | `docs/architecture/state-and-flow.md` |
 | Zones, topics and acts, NPCs, enemies, quests, keys, items, Tiled maps | `docs/architecture/content.md`, `docs/MAP-AUTHORING.md` |
-| The overworld canvas, overlays, HUD, field spells, dungeons, inns, the sea, flying, story panels | `docs/architecture/world.md` |
+| The overworld canvas, overlays, HUD, field spells, dungeons, inns, the sea, flying, story panels · the mini-games | `docs/architecture/world.md` · `docs/architecture/minigames.md` |
 | Battles, spells, companions, hero types, timers, danger tiers, mercy | `docs/architecture/battle.md` |
 | Two players: the 🆚 Quiz Duel, 👥 co-op battles, Player 2's PIN and XP | `docs/architecture/two-players.md` |
 | Touch typing (lessons, scribe bursts, the Scriptorium, leaves, pangrams, pen pals) | `docs/architecture/typing.md` |

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createActor } from 'xstate';
-import { gameFlowMachine } from './gameFlow';
+import { gameFlowMachine, overlayOwnsMusic } from './gameFlow';
 import { useSaveStore } from '../store/saveStore';
 import { defaultSave } from '../lib/save';
 import type { SaveData } from '../types';
@@ -142,5 +142,29 @@ describe('gameFlowMachine', () => {
     actor.send({ type: 'ENCOUNTER' });
     actor.send({ type: 'RESET' });
     expect(actor.getSnapshot().value).toBe('boot');
+  });
+
+  it('a host opens their mini-game from the talk or the map; CLOSE goes back to exploring; RESET forgets it (docs/DESIGN-MINIGAMES.md)', () => {
+    setSave({ worldUnlocked: true, avatarId: 'a1' });
+    const actor = startActor();
+    actor.send({ type: 'READY' });
+    actor.send({ type: 'TALK', npcId: 'verdara-merchant' });
+    expect(overlayOwnsMusic(actor.getSnapshot())).toBe(false);
+    actor.send({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    expect(actor.getSnapshot().context.game).toBe('potion-lab');
+    // The stage plays its own music; App's steps aside, and comes back on CLOSE.
+    expect(overlayOwnsMusic(actor.getSnapshot())).toBe(true);
+    actor.send({ type: 'CLOSE' });
+    expect(actor.getSnapshot().matches({ world: 'exploring' })).toBe(true);
+    expect(actor.getSnapshot().context.game).toBeNull();
+    expect(overlayOwnsMusic(actor.getSnapshot())).toBe(false);
+    actor.send({ type: 'OPEN_GAME', game: 'potion-lab' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    // No battle starts under a game.
+    actor.send({ type: 'ENCOUNTER' });
+    expect(actor.getSnapshot().matches({ world: 'minigame' })).toBe(true);
+    actor.send({ type: 'RESET' });
+    expect(actor.getSnapshot().context.game).toBeNull();
   });
 });

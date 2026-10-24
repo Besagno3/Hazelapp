@@ -6,6 +6,7 @@ import TouchPad from './TouchPad';
 import { helpLine } from './helpLine';
 import DialogueOverlay from './DialogueOverlay';
 import ServiceOverlay from './ServiceOverlay';
+import MiniGameStage from '../minigames/MiniGameStage';
 import PathQuestionOverlay from './PathQuestionOverlay';
 import KeyGateOverlay from './KeyGateOverlay';
 import MenuOverlay from './MenuOverlay';
@@ -168,11 +169,14 @@ export default function WorldScreen() {
             ? 'menu'
             : s.matches({ world: 'spire' })
               ? 'spire'
-              : null,
+              : s.matches({ world: 'minigame' })
+                ? 'minigame'
+                : null,
   );
   const npcId = useFlow((s) => s.context.npcId);
   const service = useFlow((s) => s.context.service);
   const pathTarget = useFlow((s) => s.context.pathTarget);
+  const game = useFlow((s) => s.context.game);
 
   // Spire climb (#74): while on a floor, the canvas shows that floor's map and
   // the world runs only while the hero is free to explore (no panel open).
@@ -936,9 +940,10 @@ export default function WorldScreen() {
           at the very top, over the top bar. */}
       <div
         data-testid="world-toast-row"
+        // Not over a mini-game's stage: a toast from the map waits there (docs/DESIGN-MINIGAMES.md, review round 1).
         className={`fixed inset-x-0 z-50 flex items-center justify-center gap-2 px-4 pointer-events-none ${
           revealing ? 'bottom-8 touch-wide:top-3 touch-wide:bottom-auto' : 'top-24 sm:top-auto sm:bottom-8 touch:top-24 touch:bottom-auto'
-        }`}
+        } ${overlay === 'minigame' ? 'hidden' : ''}`}
       >
       <div role="status" aria-live="polite" data-testid="world-toast" className="flex min-w-0 justify-center">
         {/* Taking off and landing are heard, not only seen (#75 item 15b review). */}
@@ -974,7 +979,7 @@ export default function WorldScreen() {
       </div>
 
       {/* Secret found */}
-      {found && (
+      {found && overlay !== 'minigame' && (
         <motion.button
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -999,6 +1004,7 @@ export default function WorldScreen() {
         ))}
       {overlay === 'menu' && <MenuOverlay calmLeft={calmLeft} onCast={castFieldSpell} />}
       {overlay === 'spire' && <SpireOverlay hudSlot={hudSlot} />}
+      {overlay === 'minigame' && game && <MiniGameStage game={game} />}
 
       {/* Story cutscenes (#37 story pass + expansion) — one at a time. */}
       {activeScene === 'intro' && (

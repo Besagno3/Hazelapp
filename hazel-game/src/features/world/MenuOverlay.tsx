@@ -21,6 +21,7 @@ import { sendFlow } from '../../machines/gameFlow';
 import { boatSpot } from '../../content/boat';
 import WorldMapPanel from './WorldMapPanel';
 import FieldSpellsPanel from './FieldSpellsPanel';
+import MiniGamesPanel from '../minigames/MiniGamesPanel';
 import CoopPanel from './CoopPanel';
 import type { FieldCast } from '../../content/fieldSpells';
 import ModalLayer from '../../components/ModalLayer';
@@ -151,6 +152,9 @@ export default function MenuOverlay({
 
         {/* Co-op battles (#187): Player 2 plays the companion — so here, under Ember, not 1,400 px down a phone's menu (#191). */}
         <CoopPanel />
+
+        {/* The mini-games found so far, and where (docs/DESIGN-MINIGAMES.md §3.6). */}
+        <MiniGamesPanel flags={save.flags} />
 
         {/* Battle party: who can be swapped in (🔄 Swap in battle — a free action) */}
         <div className="bg-white/10 rounded-xl p-3 mb-3 text-sm">

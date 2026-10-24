@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const sendFlow = vi.fn();
+// A test may stand a quest conversation in for a host's (the mini-game button's rules, review round 1).
+const quests = vi.hoisted(() => ({ override: null as null | ((npcId: string) => unknown) }));
+vi.mock('../../content/quests', async (orig) => {
+  const real = await orig<typeof import('../../content/quests')>();
+  return {
+    ...real,
+    questConversation: (npcId: string, save: Parameters<typeof real.questConversation>[1]) =>
+      (quests.override?.(npcId) as ReturnType<typeof real.questConversation> | undefined) ?? real.questConversation(npcId, save),
+  };
+});
 vi.mock('../../machines/gameFlow', async (orig) => ({
   ...(await orig<typeof import('../../machines/gameFlow')>()),
   sendFlow: (...args: unknown[]) => sendFlow(...args),
@@ -32,6 +42,7 @@ function readAll(): string {
 
 beforeEach(() => {
   sendFlow.mockClear();
+  quests.override = null;
   withFlags({});
 });
 
@@ -471,5 +482,62 @@ describe("Escape takes the box's own way out, and nothing more (#110o)", () => {
     escape();
     expect(sendFlow).toHaveBeenCalledWith({ type: 'CLOSE' });
     expect(sendFlow).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'OPEN_PATH' }));
+  });
+});
+
+describe('mini-game hosts (docs/DESIGN-MINIGAMES.md §2.1)', () => {
+  it('Trader Tadpole offers 🧪 Potion Lab and his 🛒 Shop on his one line', () => {
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.queryByText('▼ Next')).toBeNull();
+    expect(screen.getByText('🛒 Shop')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('a host’s own quest talk has no game button — a reward ending on a choice is paid once (review round 1)', () => {
+    quests.override = (id) =>
+      id === 'verdara-merchant'
+        ? {
+            lines: ['You did it! What shall we call him?'],
+            badge: 'A test quest',
+            finishKind: 'complete',
+            questId: 'test',
+            choice: [{ label: 'Rex', flag: 'name-rex', line: 'Rex it is!' }],
+            finish: (s: { coins: number; flags: Record<string, boolean> }) => ({ ...s, coins: s.coins + 50, flags: { ...s.flags, 'test-done': true } }),
+          }
+        : null;
+    const coins = useSaveStore.getState().save!.coins;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+    fireEvent.click(screen.getByText('Rex'));
+    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+    expect(useSaveStore.getState().save!.coins).toBe(coins + 50);
+  });
+
+  it('…nor over its offer, which only “I’m on it!” takes', () => {
+    quests.override = (id) =>
+      id === 'verdara-merchant'
+        ? { lines: ['Will you help me?'], badge: 'A test quest', finishKind: 'offer', questId: 'test', finish: (s: object) => ({ ...s, flags: { 'test-offered': true } }) }
+        : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+  });
+
+  it('a step through the host offers it on the step’s last line, and finishes the step once as it opens', () => {
+    const finish = vi.fn((s: { flags: Record<string, boolean> }) => ({ ...s, flags: { ...s.flags, 'step-done': true } }));
+    quests.override = (id) =>
+      id === 'verdara-merchant' ? { lines: ['A letter for me?', 'Thank you!'], badge: 'A test quest', finishKind: 'step', questId: 'test', finish } : null;
+    render(<DialogueOverlay npcId="verdara-merchant" />);
+    expect(screen.queryByText('🧪 Potion Lab')).toBeNull();
+    fireEvent.click(screen.getByText('▼ Next'));
+    fireEvent.click(screen.getByText('🧪 Potion Lab'));
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(useSaveStore.getState().save!.flags['step-done']).toBe(true);
+    expect(sendFlow).toHaveBeenCalledWith({ type: 'OPEN_GAME', game: 'potion-lab' });
+  });
+
+  it('someone who runs no game offers none', () => {
+    render(<DialogueOverlay npcId="numbria-innkeeper" />);
+    expect(screen.queryByText(/Potion Lab/)).toBeNull();
   });
 });

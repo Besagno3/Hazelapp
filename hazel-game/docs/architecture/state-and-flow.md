@@ -10,10 +10,12 @@ Covers: the xstate game-flow machine, the feature folders, `saveStore` (write-th
   `boot → topicSelect ⇄ quiz → avatarSelect → world ⇄ battle` (and
   `topicSelect ⇄ duel`, the 🆚 Quiz Duel — `START_DUEL` / `EXIT_DUEL`, #186), with world
   substates `exploring / dialogue / service / path / menu` driving DOM
-  overlays. App sends `READY` once session + save are loaded; sign-out sends
+  overlays (and `spire`, and `minigame` — `OPEN_GAME` with `context.game`,
+  `CLOSE` forgets it; `overlayOwnsMusic` says which overlays play their own
+  music, `minigames.md`). App sends `READY` once session + save are loaded; sign-out sends
   `RESET`. Guards (world unlock, avatar chosen) read the save store. The
   machine owns *where the player is*; Zustand stores own *what they have*.
-- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `duel`, `battle`, `world`.
+- **Feature folders** under `src/features/`: `auth`, `family`, `quiz`, `duel`, `battle`, `world`, `typing`, `minigames`.
 
 ## Stores
 
