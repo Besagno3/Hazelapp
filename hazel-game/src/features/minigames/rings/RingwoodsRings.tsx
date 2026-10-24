@@ -38,6 +38,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
 import { SliceCard } from './art';
@@ -70,7 +71,9 @@ const firstStep = (job: Job): Step => (job.kind === 'count' ? 'count' : job.kind
  * beam's tree was cut. Three trees a round, each a page of the grove book. No
  * timer. Rules: `lib/minigames/rings.ts`.
  */
-export default function RingwoodsRings({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function RingwoodsRings({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);

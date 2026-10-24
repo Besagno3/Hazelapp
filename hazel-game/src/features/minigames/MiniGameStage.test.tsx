@@ -6,6 +6,8 @@ vi.mock('framer-motion', async (orig) => ({
   ...(await orig<typeof import('framer-motion')>()),
   useReducedMotion: () => true,
 }));
+// The main tests stand in an always-ready wait (a step's buttons wait a moment as it starts — PotionLab.taps.test).
+vi.mock('./useSettled', () => ({ useSettled: () => () => true, SETTLE_MS: 450 }));
 vi.mock('canvas-confetti', () => ({ default: Object.assign(vi.fn(), { reset: vi.fn() }) }));
 const sendFlow = vi.fn();
 vi.mock('../../machines/gameFlow', async (orig) => ({
@@ -23,7 +25,7 @@ const { default: MiniGameStage } = await import('./MiniGameStage');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
-const { openedFlag, pageFlag, starFlag } = await import('../../content/minigames');
+const { openedFlag, pageFlag, sealFlag, starFlag } = await import('../../content/minigames');
 const { MINIGAME_PAGE_XP, MINIGAME_STAR_COINS, MINIGAME_STAR_XP } = await import('../../content/items');
 const { rememberedBand, roundsPlayed } = await import('../../lib/minigames');
 const { JAR_IDS } = await import('../../lib/minigames/potionLab');
@@ -31,12 +33,12 @@ const { JAR_IDS } = await import('../../lib/minigames/potionLab');
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
     profile: {
       id: 'kid-1',
-      birthYear: new Date().getFullYear() - 9,
+      birthYear: new Date().getFullYear() - age,
       birthMonth: 1,
       skillLevels: { science: level },
       xp: 0,
@@ -137,6 +139,134 @@ describe('the stage (docs/DESIGN-MINIGAMES.md §2)', () => {
     const play = screen.getByRole('button', { name: 'Let’s brew!' });
     expect(fireEvent.keyDown(play, { key: 'Enter', repeat: true })).toBe(false); // its default (the click) is stopped
     expect(fireEvent.keyDown(play, { key: 'Enter' })).toBe(true);
+  });
+});
+
+describe('the Expert band (§8)', () => {
+  it('a teen is offered Expert where the game has it, from the level and the age — said so; a teen’s hello and steps; a game without it shows three', () => {
+    // A new 14-year-old: level 6 (a new teen's start, at most), which alone suggests Medium.
+    setUp(6, {}, 14);
+    const { unmount } = render(<MiniGameStage game="potion-lab" />);
+    const bands = within(screen.getByRole('group', { name: 'How tricky?' }));
+    expect(bands.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky', 'Expert']);
+    expect(bands.getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    // Where the age lifted it, said so (UX review round 1).
+    // Not set against the level, a new teen's start (UX review round 2: "alone suggests Medium" read as a verdict).
+    expect(screen.getByText(/^Picked for your age\. Expert: the pH scale in numbers/)).toBeInTheDocument();
+    expect(screen.queryByText(/alone suggests/)).toBeNull();
+    // Expert's own picture for the guess: no colours (code and UX review round 2).
+    expect(document.querySelector('#mg-how circle[fill="#ff5fa8"]')).toBeNull();
+    // A teen's hello and steps, the seal in them (UX review round 1: the card greeted a young kid).
+    expect(screen.getByText(/Today’s orders come as a pH, counted in tens/)).toBeInTheDocument();
+    expect(screen.getByText(/Every pH spot on in a round wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Ribbit! Orders are piling up/)).toBeNull();
+    // Another band: its own card, and what age suggests.
+    fireEvent.click(bands.getByRole('button', { name: 'Medium' }));
+    expect(screen.getByText(/^Expert is suggested for your age\. More jars on Medium and Tricky\./)).toBeInTheDocument();
+    expect(document.querySelector('#mg-how circle[fill="#ff5fa8"]')).not.toBeNull();
+    expect(screen.getByText(/Ribbit! Orders are piling up/)).toBeInTheDocument();
+    unmount();
+
+    render(<MiniGameStage game="dots-bakery" />);
+    const three = within(screen.getByRole('group', { name: 'How tricky?' }));
+    expect(three.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky']);
+    expect(three.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('🧪 Potion Lab on Expert: an order in tens from pure water, the pH guessed as a number; spot on every time, the seal — shown, never paid', async () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    expect(screen.getByText('Fern needs an Owl Tonic that is a thousand times as acidic as pure water. Which jar?')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Step 1 · Pick a jar' })).toHaveAccessibleDescription(
+      'One Owl Tonic that is a thousand times as acidic as pure water. 7 is neutral. Each step down is ten times as acidic; each step up, ten times as alkaline.',
+    );
+    fireEvent.click(within(screen.getByRole('group', { name: 'Jars on the counter' })).getByRole('button', { name: /Orange juice/ }));
+    expect(screen.getByText(/is in\. What’s its pH, 0 to 14\?/)).toBeInTheDocument();
+    // Tadpole asks plainly (code review round 1: untested).
+    expect(screen.getByText('Orange juice. What’s its pH? Guess, then stir.')).toBeInTheDocument();
+    const guesses = within(screen.getByRole('group', { name: 'Your guess' })).getAllByRole('button');
+    expect(guesses).toHaveLength(15);
+    // The number alone: no glyph over it.
+    expect(guesses.map((b) => b.textContent)).toEqual(Array.from({ length: 15 }, (_, n) => String(n)));
+    fireEvent.click(screen.getByRole('button', { name: 'pH 4' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stir and brew!' }));
+    expect(screen.getByText(/You said pH 4 — spot on\./)).toBeInTheDocument();
+    expect(screen.getByText('Spot on: orange juice is about pH 3–4. That’s what Fern needs.')).toBeInTheDocument();
+    expect(screen.getByText('Orange juice is about pH 3–4: three or four steps below 7, so a thousand to ten thousand times as acidic as pure water. A base neutralises it.')).toBeInTheDocument();
+    const coins = save().coins;
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(within(screen.getByRole('region', { name: 'You got' })).getByText('The Expert seal: spot on every time')).toBeInTheDocument();
+    expect(save().flags[sealFlag('potion-lab')]).toBe(true);
+    // Never paid: the coins are star 1's alone.
+    expect(save().coins).toBe(coins + MINIGAME_STAR_COINS);
+
+    // The next: a miss, then the jar — one of two spot on; the seal held, said so.
+    fireEvent.click(screen.getByRole('button', { name: 'Brew another' }));
+    await screen.findByText('Beekeeper Hilda needs a Thunder Draught that is a thousand times as alkaline as pure water. Which jar?');
+    await brew(/Lemon juice/, 'pH 3');
+    // How far in tens there too (UX review round 2).
+    expect(screen.getByText(/You said pH 3; it’s about pH 2 — 1 step out: ten times off\./)).toBeInTheDocument();
+    // How far, and which way, in tens (UX review round 1) — and which way to look next (round 2).
+    expect(screen.getByText('Lemon juice is about pH 2 — one step below your 3: ten times more acidic. Not what Beekeeper Hilda needs — try a more alkaline jar.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Try another jar' }));
+    // Soapy water: pH 9–12 — 10 is spot on.
+    await brew(/Soapy water/, 'pH 10');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Beekeeper Hilda' }));
+    expect(within(screen.getByRole('region', { name: 'What you found out' })).getByText('Spot on: 1 of 2. You won the Expert seal before — it’s yours to keep.')).toBeInTheDocument();
+  });
+
+  it('Expert picked over another band suggested still wins the seal (code review round 1: a stale band); spot on again says so, not as new', async () => {
+    // An 11-year-old at level 6: Tricky suggested.
+    setUp(6, {}, 11);
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Expert' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    await brew(/Tomato juice/, 'pH 5');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(save().flags[sealFlag('potion-lab')]).toBe(true);
+    expect(within(screen.getByRole('region', { name: 'You got' })).getByText('The Expert seal: spot on every time')).toBeInTheDocument();
+    // The next, spot on first time: the seal again — not in what's new.
+    fireEvent.click(screen.getByRole('button', { name: 'Brew another' }));
+    await screen.findAllByText(/Thunder Draught/);
+    await brew(/Soapy water/, 'pH 12');
+    fireEvent.click(screen.getByRole('button', { name: /Give it to/ }));
+    expect(screen.getByText('Spot on every time — the Expert seal again.')).toBeInTheDocument();
+    expect(screen.queryByText('The Expert seal: spot on every time')).toBeNull();
+  });
+
+  it('the seal won shows on the title card, said with the stars; a round on another band says nothing of it', async () => {
+    setUp(2, { [sealFlag('potion-lab')]: true });
+    render(<MiniGameStage game="potion-lab" />);
+    expect(screen.getByText(/The Expert seal: an Expert round spot on every time\./)).toBeInTheDocument();
+    // With the stars, for a reader too (code review round 2: untested).
+    expect(screen.getByText('and the Expert seal')).toHaveClass('sr-only');
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    await brew(/Lemon juice/, 'Pink');
+    fireEvent.click(screen.getByRole('button', { name: 'Give it to Fern' }));
+    expect(screen.queryByText(/Spot on|Expert seal/)).toBeNull();
+  });
+
+  it('on Expert, a Brew Book page waits till its jar’s brewed this round — no colour, no kind, no fact (code review rounds 1 and 2: the answer, one tap away)', async () => {
+    setUp(6, { [pageFlag('potion-lab', 'orange')]: true, [pageFlag('potion-lab', 'tomato')]: true }, 14);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    await screen.findByRole('group', { name: 'Jars on the counter' });
+    // Tomato's fact said "about pH 4" — the first order's answer.
+    fireEvent.click(screen.getByRole('button', { name: 'Tomato juice. Read the page' }));
+    expect(screen.getAllByText('Tomato juice: brew it this round to read its page.').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/pH \d|turns it|an acid/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Orange juice. Read the page' }));
+    expect(screen.queryByText(/about pH 3–4/)).toBeNull();
+    await brew(/Orange juice/, 'pH 4');
+    fireEvent.click(screen.getByRole('button', { name: /^Orange juice: turns it pink\. Read the page/ }));
+    expect(screen.getAllByText(/Orange juice: about pH 3–4 —/).length).toBeGreaterThan(0);
+    // Tomato's still waits.
+    expect(screen.getByRole('button', { name: 'Tomato juice. Read the page' })).toBeInTheDocument();
   });
 });
 

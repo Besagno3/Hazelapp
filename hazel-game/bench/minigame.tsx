@@ -9,8 +9,9 @@
  *
  * Query params:
  *   game=<MiniGameId>     the game (default the first)
- *   level=<1–10>          the kid's question level in the game's topic (picks the band)
+ *   level=<1–10>          the kid's question level in the game's topic (picks the band, with the age)
  *   age=<years>           the kid's age (default 9)
+ *   band=gentle|medium|tricky|expert   the band picked on the title card, as if picked before (Expert where the game has it)
  *   flags=a,b             save flags already set (e.g. mg:potion-lab:page:lemon)
  *   pages=<n>             that many of the game's pages already found (in `PAGE_IDS` order)
  *   ember=egg|hatchling|whelp|dragon   Ember's stage (default hatchling)
@@ -19,7 +20,8 @@
  */
 import { createRoot } from 'react-dom/client';
 import MiniGameStage from '../src/features/minigames/MiniGameStage';
-import { MINIGAMES, MINIGAME_IDS, pageFlag, type MiniGameId } from '../src/content/minigames';
+import { MINIGAMES, MINIGAME_IDS, PLAY_BANDS, pageFlag, type MiniGameId, type PlayBand } from '../src/content/minigames';
+import { forgetBand, rememberBand } from '../src/lib/minigames';
 import { JAR_IDS } from '../src/lib/minigames/potionLab';
 import { REGULAR_IDS } from '../src/lib/minigames/bakery';
 import { MACHINE_IDS } from '../src/lib/minigames/gears';
@@ -77,5 +79,11 @@ useProfileStore.setState({
   save: () => useSaveStore.getState().save,
   xp: () => useProfileStore.getState().profile?.xp,
 };
+
+// A band picked before, on this device (`rememberedBand` keeps Expert only where the game has it); without `band=`, none —
+// a page loaded with it doesn't pin the next without (PR 11 code review round 1).
+const band = q.get('band');
+if (band && (PLAY_BANDS as readonly string[]).includes(band)) rememberBand('bench-kid', game, band as PlayBand);
+else forgetBand('bench-kid', game);
 
 createRoot(document.getElementById('root')!).render(<MiniGameStage game={game} />);

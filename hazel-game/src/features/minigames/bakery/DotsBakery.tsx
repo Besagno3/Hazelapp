@@ -30,6 +30,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { PieArt } from './art';
 
 type Step = 'cut' | 'fill' | 'closed';
@@ -50,7 +51,9 @@ const RIGHT_LINES = ['Perfect — fair and square!', 'Just what they ordered. Yo
  * fixed. Each regular served right is a page of the Regulars' Book; those
  * not in it yet come in first. No timer. Rules: `lib/minigames/bakery.ts`.
  */
-export default function DotsBakery({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function DotsBakery({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [served, setServed] = useState(0);

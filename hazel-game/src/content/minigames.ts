@@ -12,10 +12,17 @@ import type { ConsumableId } from './items';
 export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural', 'echos-call', 'star-charts', 'ringwoods-rings', 'index-timeline', 'ember-air-mail', 'word-forge'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
-/** The three bands a game is played at (§3.3), picked from the topic's question level. */
+/** The three bands every game is played at (§3.3), picked from the topic's question level and the kid's age. */
 export const BANDS = ['gentle', 'medium', 'tricky'] as const;
 export type Band = (typeof BANDS)[number];
-export const BAND_LABEL: Record<Band, string> = { gentle: 'Gentle', medium: 'Medium', tricky: 'Tricky' };
+/**
+ * And Expert (§8), for about 12–18: secondary-school content, on the games
+ * that have it (`MiniGameDef.expert`) — one PR a game, so a game's own tables
+ * stay `Band` till it has it.
+ */
+export type PlayBand = Band | 'expert';
+export const PLAY_BANDS: readonly PlayBand[] = [...BANDS, 'expert'];
+export const BAND_LABEL: Record<PlayBand, string> = { gentle: 'Gentle', medium: 'Medium', tricky: 'Tricky', expert: 'Expert' };
 
 /** One of the title card's three "how to play" steps. */
 export interface HowToStep {
@@ -45,6 +52,13 @@ export interface MiniGameDef {
   pages: number;
   /** A line under the band chooser (the Potion Lab: more jars on the harder bands). */
   bandNote?: string;
+  /**
+   * Its Expert band (§8), once it has one — a game without one shows three
+   * bands. On Expert the title card is a teen's: the line under the chooser,
+   * a plainer hello, and how Expert's played, the seal in it (PR 11 UX review
+   * round 1: Expert picked, the card still greeted a young kid).
+   */
+  expert?: { note: string; hello: string; steps: readonly [HowToStep, HowToStep, HowToStep] };
   /** Its music, while the stage is up (`App` steps aside, as for the Spire); null: quiet, so a game's own notes are heard. */
   music: MusicTrack | null;
   /** The picture behind the title card and the reward (a zone's battle backdrop). */
@@ -73,6 +87,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Brew Book',
     pages: 12,
     bandNote: 'More jars on Medium and Tricky.',
+    expert: {
+      note: 'Expert: the pH scale in numbers — and each step on it is ten times the last.',
+      hello: 'Today’s orders come as a pH, counted in tens from pure water. Pick the jar that fits — and say its pH first.',
+      steps: [
+        { title: 'Pick a jar', text: 'Twelve on the counter, from lemon juice to soap. One goes into fresh cabbage juice.' },
+        { title: 'Say its pH, 0–14', text: '7 is neutral. Each step away is ten times as acidic — or as alkaline.' },
+        { title: 'Stir and see', text: 'Every pH spot on in a round wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'shrine',
     backdrop: '/backgrounds/verdara.png',
     firstItem: 'potion',
@@ -300,6 +323,8 @@ export const openedFlag = (id: MiniGameId) => mg(id, 'opened');
 export const pageFlag = (id: MiniGameId, page: string) => mg(id, `page:${page}`);
 /** A star earned: 1 the first round finished, 2 half the collection, 3 all of it. */
 export const starFlag = (id: MiniGameId, n: 1 | 2 | 3) => mg(id, `star:${n}`);
+/** The Expert seal (§8.3): a round on Expert spot on every time. Shown, never paid, never needed for a star. */
+export const sealFlag = (id: MiniGameId) => mg(id, 'seal');
 /**
  * The kid's own picture (the Mirror Mural's free canvas, §3.5): one flag whose
  * name ends in the picture's code — `mineFlag(id)` alone is the prefix, so the

@@ -36,6 +36,7 @@ import { useSettingsStore } from '../../../store/settingsStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { useSettled } from '../useSettled';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -71,7 +72,9 @@ const STEP_CHIPS: Record<Echo['mode'], readonly string[]> = {
  * page of the Songbook. The chimes light up as they ring, so it's all there
  * with the sound off. No timer. Rules: `lib/minigames/echo.ts`.
  */
-export default function EchosCall({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function EchosCall({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const soundOn = useSettingsStore((s) => s.sfx);
   const still = useReducedMotion() ?? false;

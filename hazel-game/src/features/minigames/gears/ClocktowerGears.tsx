@@ -37,6 +37,7 @@ import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { useFitWidth } from '../useFitWidth';
 import { useStickyHeight } from '../useStickyHeight';
 import { GearShape } from './art';
@@ -75,7 +76,9 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * right shows what turned and says why; nothing is lost. No timer. Rules:
  * `lib/minigames/gears.ts`.
  */
-export default function ClocktowerGears({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function ClocktowerGears({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const tricky = CRANK_TEETH[band].length > 1;

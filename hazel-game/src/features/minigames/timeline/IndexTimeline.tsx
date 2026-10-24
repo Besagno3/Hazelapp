@@ -26,6 +26,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { noRepeat, useFocusMoved } from '../keys';
 import { useSettled } from '../useSettled';
 import { SetCard } from './art';
@@ -57,7 +58,9 @@ const STEP_CHIPS = ['Tap the oldest card', 'Then the next, in order', 'Check the
  * years (BCE counting down). Three sets a round, each a page of the timeline
  * book. No timer. Rules: `lib/minigames/timeline.ts`.
  */
-export default function IndexTimeline({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function IndexTimeline({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);

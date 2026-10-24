@@ -34,6 +34,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { useSettled } from '../useSettled';
 import { PictureCard } from './art';
 
@@ -123,7 +124,9 @@ function useSkySize(page: RefObject<HTMLDivElement | null>, board: RefObject<HTM
  * pictures a round, each a page of Vela's chart. No timer. Rules:
  * `lib/minigames/stars.ts`.
  */
-export default function StarCharts({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function StarCharts({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);

@@ -111,16 +111,10 @@ kid pick another; that choice is remembered for the game on this device. **A
 mini-game never moves the question level** — that track belongs to the
 questions.
 
-**Planned (agreed 2026-10-23), after the tenth game: an Expert band** for
-ages about 12–18. Tricky tops out at upper-elementary content, a new teen
-starts on Medium (a start level is the age less 5, at most 6), and every
-band's look and voice are a young kid's. Expert brings each game's content
-up to secondary school (the pH scale, ratios and percent change, gear-ratio
-maths, transformations on a grid, intervals and keys, sky coordinates,
-cross-dating with climate data, cause and effect across eras, latitude and
-longitude and time zones, etymology), a drier host voice, and an optional
-challenge for those who want one; its own section here first, then one PR a
-game.
+**A fourth band, Expert** (§8), for ages about 12–18, on the games that
+have it: secondary-school content, a plainer voice, and the Expert seal. The
+band suggested follows the kid's age as well as the level (§8.2): a new
+teen is offered Expert, not Medium.
 
 ### 3.4 Rewards that can't be farmed
 
@@ -194,6 +188,28 @@ A real experiment: **red cabbage juice changes colour** with acids and bases.
   pH 2").
 - **Collection:** the Brew Book, a page per jar. First order filled: a Berry
   Potion for the bag.
+- **Expert (§8, PR 11):** all twelve jars and the strip; an order asks for a
+  pH in tens from pure water — a Thunder Draught "a thousand times as alkaline
+  as pure water" (pH 10), never neutral, the potions named for the band, not
+  for a colour, and the bottle on the ticket colourless; the kid guesses the
+  jar's pH as a number (fifteen buttons, 0–14, no colours by them), and
+  Tadpole says it plainly, in tens, and in the jar's own words — an acid more
+  or less acidic than the guess, a base more or less alkaline: "Spot on:
+  lemon juice is about pH 2.", "pH 9 is alkaline. Lemon juice is about pH 2 —
+  seven steps below your 9: ten million times more acidic.", "Lemon juice is
+  about pH 2 — two steps above your 0: a hundred times less acidic." A jar
+  that varies has a range (vinegar pH 2–3, soap 9–12): any pH in it is spot
+  on, and a miss counts to both ends ("five or six steps"). A jar that doesn't
+  fill the order says which way to look ("try a more alkaline jar"). Every
+  guess spot on in a round is the Expert seal. A Brew Book page waits till
+  its jar's brewed this round — no colour, kind or fact, which gave the pH
+  away. Where the counter's rows would run under the scene, or leave it too
+  small to see the cauldron's colour (a short window, or one too narrow for
+  the round's jars on the counter — the `jars-6/9/12` screens), the jars are
+  in the step card, first in the side panel; Stir stays at the foot of the
+  card, so the pH buttons don't move under the finger, and a step's buttons
+  wait a moment as it starts, so a double tap's second doesn't press what
+  came under it.
 
 ### 5.2 🥧 Dot's Bakery — Math · Baker Dot, Lumina Village
 
@@ -443,3 +459,93 @@ with every finding fixed before the next game starts:
 - Each game's own music (`tools/assets/audio.py`); until then they borrow.
 - A side quest per game that sends a kid there the first time.
 - A 🎮 line on 📈 Progress for grown-ups (games played, stars).
+
+## 8. The Expert band (ages about 12–18)
+
+Agreed 2026-10-23, built after the tenth game: this section first, then one
+PR a game, each with its two review rounds (§6).
+
+### 8.1 Why
+Tricky tops out at upper-elementary content; a new teen starts on Medium (a
+start level is the age less 5, at most 6 — `lib/age.ts`); and every band's
+look and voice are a young kid's. A 14-year-old in the Potion Lab colours
+cabbage juice. Expert brings each game up to secondary school — in the same
+world, with the same host.
+
+### 8.2 Who's offered it
+- **A fourth band, Expert,** on the title card, once a game has it
+  (`MiniGameDef.expert`); till then a game shows three.
+- **The suggestion follows age as well as level.** A level is relative to the
+  kid's age (4–6 is right for a typical kid of that age); a band's content
+  isn't — Medium is for about 8–9, whoever plays it. So the band suggested is
+  the higher of today's (`bandFor(level)`) and the band for the kid's *content
+  age*, their age plus half how far their level is from typical
+  (`age + (level − 5) / 2`): under 8 Gentle, 8–9 Medium, 10–11 Tricky, 12 and
+  up Expert (Tricky where a game hasn't Expert yet). A new 12-year-old (level
+  6) is offered Expert; a 10-year-old at a typical level 5, Tricky (Medium
+  before); a 9-year-old at level 3, Medium (Gentle before); a young kid's
+  suggestion never drops (a 7-year-old at level 10 keeps Tricky). Any band
+  can still be picked, and the pick is remembered as now. Where the age
+  lifted it, the title card says so — "Picked for your age.", or "Tricky is
+  suggested for your age." — and not what the level alone suggests: a new
+  teen starts at level 6 at most, so it read as a verdict.
+- **The title card on Expert** speaks to a teen: the game's own Expert hello,
+  its three steps and a line on what Expert is (`MiniGameDef.expert`: `note`,
+  `hello`, `steps`), and its own pictures where the younger bands' would
+  mislead (`GameScreens.expertSteps`: the Potion Lab's guess is a scale, not
+  colours).
+- A mini-game still never moves the question level (§3.3).
+
+### 8.3 What changes on Expert
+- **The content** (§8.5): secondary-school ideas, with the numbers and words
+  that go with them.
+- **A plainer voice:** the host's lines on Expert drop the exclamations and
+  the cheering (their own right-lines, a shorter hello); a hint says what's
+  wrong and one thing to try.
+- **Less handed over:** what the younger bands print for the kid — a tile's
+  meaning, a colour's name, a map's labels — is the thing to know on Expert:
+  a hint after a miss, not a label before.
+- **An optional challenge, no clock — the Expert seal:** a round on Expert
+  with every answer spot on. Each game says how many of its round's answers
+  were (`onFinish({ …, spotOn: { right, of } })`); the stage records the seal
+  (`mg:<game>:seal`, a save flag, `sealFlag`), the title card shows it with
+  the stars ("🏅 The Expert seal: an Expert round spot on every time."), and
+  the reward says how the round went: won, with what's new ("The Expert
+  seal: spot on every time"); won again ("Spot on every time — the Expert
+  seal again."); or "Spot on: 2 of 3." and "Spot on every time wins the
+  Expert seal." (or, held from before, "it's yours to keep"). It pays
+  nothing (§3.4) and no star needs it. A miss is still the lesson, and a
+  round still can't be lost.
+- The look stays the game's: the same world, host and stage.
+
+### 8.4 Rewards
+- **No new pages, no new pay.** Expert's jobs fill the same collection, so a
+  teen can fill it on Expert alone and a younger kid still can without it.
+  Stars, XP, coins and the first round's item are as §3.4.
+- Where a game's pages are split by band (Ember Air Mail's stamps, Word
+  Forge's families), Expert draws from all of them.
+
+### 8.5 Each game's Expert
+
+| Game | On Expert | For example |
+|---|---|---|
+| 🧪 Potion Lab | The pH scale in numbers, counted in tens: an order asks for "a thousand times as acidic as pure water"; the kid guesses the jar's pH, 0–14, and Tadpole says where it sits and what neutralises it. | "Lemon juice is about pH 2: five steps below 7, so a hundred thousand times as acidic as pure water." |
+| 🥧 Dot's Bakery | Ratios and percent change: scale a recipe; an order or a price up or down by a percent. | "3 cups of flour for 2 pies — for 5?"; "20% more than 15 pies?" |
+| ⚙️ Clocktower Gears | Gear ratios: the ratio of teeth, two pairs in a train, speed traded for turning force. | "A 40 driving a 10, then a 30 driving a 15: how fast?" |
+| 🪞 Mirror Mural | Transformations on a coordinate grid: reflect in a line (x = c, y = x), rotate 90° or 180° about a point, translate by a vector; name the one that maps a shape onto another. | "Reflect (2, 5) in y = x." |
+| 🎵 Echo's Call | Intervals and keys: name the interval (a second to an octave), major or minor, which note a scale needs, sharps and flats on the staff. | "C up to G is a…" |
+| ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth; the pole star's altitude as your latitude; right ascension and declination on a chart. | "Polaris is 52° up: how far north are you?" |
+| 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's rings to a rainfall record, find the dry years in both, date it to the year. | "Thin rings — and the chart's dry years?" |
+| 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. No wars, battles, disasters or religion (§3.2). | "Paper → printing → …"; "300 BCE to 1450 CE is…" |
+| 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to coordinates, then say when it arrives. | "35° N, 135° E"; "9:00 in London — in Tokyo?" |
+| 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged. | "chrono + meter"; "What does port mean in transport?" |
+
+Each game's §5 section gets its Expert note as its PR lands.
+
+### 8.6 The PRs
+- **PR 11:** this section, and the plumbing: `PlayBand` (the three bands and
+  `expert`), `MiniGameDef.expert`, the suggestion from age and level, the
+  title card's fourth band, the remembered band, the seal (`spotOn`,
+  `mg:<game>:seal`), the bench's `band=`; a game without Expert yet plays
+  Tricky if handed it (never offered); and 🧪 Potion Lab's Expert.
+- **PRs 12–20:** one game each, in §5's order.

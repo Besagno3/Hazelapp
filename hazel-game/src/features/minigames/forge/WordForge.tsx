@@ -10,6 +10,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { upToTricky } from '../../../lib/minigames';
 import { noRepeat, useFocusMoved } from '../keys';
 import { lastInputWasKey } from '../lastInput';
 import { useSettled } from '../useSettled';
@@ -39,7 +40,9 @@ const quote = (t: string) => `“${t}”`;
  * word; Tricky joins Greek and Latin roots, each saying what it means. Three
  * words a round. No timer. Rules: `lib/minigames/forge.ts`.
  */
-export default function WordForge({ def, band, round, onPage, onFinish }: PlayProps) {
+export default function WordForge({ def, band: playBand, round, onPage, onFinish }: PlayProps) {
+  // No Expert here yet (docs/DESIGN-MINIGAMES.md §8.6): handed it, it plays Tricky.
+  const band = upToTricky(playBand);
   const flags = useSaveStore((s) => s.save?.flags ?? EMPTY_FLAGS);
   const still = useReducedMotion() ?? false;
   const [done, setDone] = useState(0);

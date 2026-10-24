@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Band, MiniGameDef } from '../../content/minigames';
+import type { MiniGameDef, PlayBand } from '../../content/minigames';
 
 /**
  * What the stage hands a game (docs/DESIGN-MINIGAMES.md §4). A game draws its
@@ -8,7 +8,8 @@ import type { Band, MiniGameDef } from '../../content/minigames';
  */
 export interface PlayProps {
   def: MiniGameDef;
-  band: Band;
+  /** Expert only where the game has it (`def.expert`); a game without one plays Tricky (`upToTricky`). */
+  band: PlayBand;
   /** How many rounds the kid has finished this visit (a game's orders go round in turn). */
   round: number;
   /**
@@ -36,4 +37,9 @@ export interface RoundOutcome {
   swatch?: string;
   /** Or a picture (the one the kid hung in Mirror Mural's Gallery). Decorative: the title says what it is. */
   picture?: ReactNode;
+  /**
+   * On Expert (§8.3): how many of the round's answers were spot on — right
+   * first time — of how many. All of them is the Expert seal.
+   */
+  spotOn?: { right: number; of: number };
 }

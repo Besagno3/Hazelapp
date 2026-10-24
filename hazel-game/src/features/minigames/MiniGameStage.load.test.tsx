@@ -40,6 +40,7 @@ const { default: MiniGameStage } = await import('./MiniGameStage');
 const { useSaveStore } = await import('../../store/saveStore');
 const { useProfileStore } = await import('../../store/profileStore');
 const { defaultSave } = await import('../../lib/save');
+const { sealFlag } = await import('../../content/minigames');
 
 beforeEach(() => {
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags: {} }, status: 'ready', remoteError: null });
@@ -87,3 +88,52 @@ describe('a play screen that doesn’t load (docs/DESIGN-MINIGAMES.md §4)', () 
     quiet.mockRestore();
   });
 });
+
+describe('the Expert seal, from what a game reports (§8.3; code review round 2: the stage’s own guards were untested)', () => {
+  /** A game that finishes at once, reporting how many it had spot on. */
+  const finishing = (spotOn?: { right: number; of: number }) =>
+    retryableLazy(async () => ({
+      default: ({ onFinish }: import('./types').PlayProps) => (
+        <button type="button" onClick={() => onFinish({ title: 'Round done!', learned: 'A lesson.', spotOn })}>
+          Finish
+        </button>
+      ),
+    }));
+  async function round(band: 'Tricky' | 'Expert', spotOn?: { right: number; of: number }) {
+    screens.play = finishing(spotOn);
+    render(<MiniGameStage game="potion-lab" />);
+    fireEvent.click(screen.getByRole('button', { name: band }));
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s brew!' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish' }));
+    await screen.findByRole('heading', { name: 'Round done!' });
+  }
+  const sealed = () => useSaveStore.getState().save!.flags[sealFlag('potion-lab')];
+
+  it('a report on another band counts for nothing — no seal, no line', async () => {
+    await round('Tricky', { right: 1, of: 1 });
+    expect(sealed()).toBeUndefined();
+    expect(screen.queryByText(/Spot on|Expert seal/)).toBeNull();
+  });
+
+  it('a round with nothing in it is no seal, and says nothing of one', async () => {
+    await round('Expert', { right: 0, of: 0 });
+    expect(sealed()).toBeUndefined();
+    expect(screen.queryByText(/Spot on|Expert seal/)).toBeNull();
+  });
+
+  it('one of two spot on, the first time: no seal — how it went and what wins it, in the card and a phone’s line', async () => {
+    await round('Expert', { right: 1, of: 2 });
+    expect(sealed()).toBeUndefined();
+    expect(screen.getByText('Spot on: 1 of 2. Spot on every time wins the Expert seal.')).toBeInTheDocument();
+    expect(screen.getByText(/^🎯 Spot on 1 of 2$/)).toBeInTheDocument();
+  });
+
+  it('all spot on: the seal, with what’s new — and no spot-on line beside it', async () => {
+    await round('Expert', { right: 2, of: 2 });
+    expect(sealed()).toBe(true);
+    expect(screen.getByText('The Expert seal: spot on every time')).toBeInTheDocument();
+    expect(screen.getByText(/^🏅 Expert seal$/)).toBeInTheDocument();
+    expect(screen.queryByText(/^Spot on/)).toBeNull();
+  });
+});
+
