@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFamilyStore } from '../../store/familyStore';
 import { usePlayerTwoStore } from '../../store/playerTwoStore';
 import { useSaveStore } from '../../store/saveStore';
@@ -14,7 +14,9 @@ export const COOP_XP_NOTE = 'A family player earns XP for their own right answer
  * Off, one row says what it is; tapping it asks who's Player 2
  * (`PlayerTwoPicker`, the duel's) and "👥 Play together!" turns it on. On, it
  * says who plays the companion, and "Stop playing together" turns it off. For
- * this session only — Switch player puts it away with the game.
+ * this session only — Switch player puts it away with the game. Each step
+ * hands the keyboard on within the panel — the question's heading, the "on"
+ * words, the row back — never back to the top of the long 📜 Menu (#191).
  */
 export default function CoopPanel() {
   const kids = useFamilyStore((s) => s.kids);
@@ -31,18 +33,34 @@ export default function CoopPanel() {
   const party = save ? companionsInParty(save) : [];
   const companion = companionLook(save?.companionId && party.includes(save.companionId) ? save.companionId : 'ember', save?.flags);
   const ready = !!playerTwo && !loading;
+  // Where the keyboard goes once the step just taken has rendered.
+  const focusNext = useRef<'question' | 'on' | 'off' | null>(null);
+  const questionRef = useRef<HTMLParagraphElement>(null);
+  const onRef = useRef<HTMLParagraphElement>(null);
+  const offRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const to = focusNext.current;
+    focusNext.current = null;
+    const el = to === 'question' ? questionRef.current : to === 'on' ? onRef.current : to === 'off' ? offRef.current : null;
+    el?.focus({ preventScroll: true });
+    el?.scrollIntoView?.({ block: 'nearest' });
+  }, [picking, coop]);
+  function step(to: 'question' | 'on' | 'off', change: () => void) {
+    focusNext.current = to;
+    change();
+  }
 
   return (
     <div className="bg-white/10 rounded-xl p-3 mb-3" data-testid="coop-panel">
       <div className="font-bold text-sm mb-2">👥 Play together</div>
       {coop && playerTwo ? (
         <>
-          <p className="text-sm">
+          <p ref={onRef} tabIndex={-1} className="text-sm focus:outline-none">
             {playerTwoLook(playerTwo).icon} <strong>{playerTwoLook(playerTwo).name}</strong> plays {companion.emoji} {companion.name} in
             battles: after {oneName}'s move, they pick theirs — each with a question at their own level.
           </p>
           <button
-            onClick={() => setCoop(false)}
+            onClick={() => step('off', () => setCoop(false))}
             className="mt-2 w-full min-h-[44px] bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm font-semibold"
           >
             Stop playing together
@@ -50,33 +68,38 @@ export default function CoopPanel() {
         </>
       ) : picking ? (
         <div className="bg-white text-gray-800 rounded-xl p-3">
-          <p className="font-bold mb-2">Who's playing with {oneName}?</p>
+          <p ref={questionRef} tabIndex={-1} className="font-bold mb-2 focus:outline-none">
+            Who's playing with {oneName}?
+          </p>
           <PlayerTwoPicker playerOne={oneName} onAsking={setAsking} />
           {!asking && (
             <>
-          <p className="mt-2 text-xs text-gray-600">
-            They play {companion.emoji} {companion.name}. {COOP_XP_NOTE}
-          </p>
-          <button
-            aria-disabled={!ready}
-            onClick={() => {
-              if (!ready) return;
-              setCoop(true);
-              setPicking(false);
-            }}
-            className={`mt-3 w-full min-h-[44px] rounded-lg font-bold text-white bg-amber-700 hover:bg-amber-800 ${ready ? '' : 'opacity-60 cursor-not-allowed'}`}
-          >
-            👥 Play together!
-          </button>
-          <button onClick={() => setPicking(false)} className="mt-1 w-full min-h-[44px] text-sm text-gray-600 hover:underline">
-            Not now
-          </button>
+              <p className="mt-2 text-xs text-gray-600">
+                They play {companion.emoji} {companion.name}. {COOP_XP_NOTE}
+              </p>
+              <button
+                aria-disabled={!ready}
+                onClick={() => {
+                  if (!ready) return;
+                  step('on', () => {
+                    setCoop(true);
+                    setPicking(false);
+                  });
+                }}
+                className={`mt-3 w-full min-h-[44px] rounded-lg font-bold text-white bg-amber-700 hover:bg-amber-800 ${ready ? '' : 'opacity-60 cursor-not-allowed'}`}
+              >
+                👥 Play together!
+              </button>
+              <button onClick={() => step('off', () => setPicking(false))} className="mt-1 w-full min-h-[44px] text-sm text-gray-600 hover:underline">
+                Not now
+              </button>
             </>
           )}
         </div>
       ) : (
         <button
-          onClick={() => setPicking(true)}
+          ref={offRef}
+          onClick={() => step('question', () => setPicking(true))}
           className="w-full min-h-[44px] flex items-center justify-between bg-white/10 hover:bg-white/20 rounded-lg px-3 py-2 text-sm"
         >
           <span className="text-left">

@@ -17,7 +17,7 @@ import {
 } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
-import { takeOwedXp } from '../lib/kidXp';
+import { addRowXp, takeOwedXp, WRITE_TIMEOUT_MS, type RowXp } from '../lib/kidXp';
 import {
   addDayXp,
   flushPlayDays,
@@ -258,6 +258,93 @@ async function writeRow(userId: string, fields: Partial<ProfileRow>, { insert = 
 
 /** Bumped on every load and clear: a read that answers after the kid changed is dropped. */
 let readGen = 0;
+
+/**
+ * The kid's row's XP as this device last read or wrote it (#190): `addXp`
+ * adds on top of it with an update guarded on it (`addRowXp`), so another
+ * device's write in between — a sibling's gift (`giveKidXp`), the kid's own
+ * game in another tab — is read and added to, never written over. Null: not
+ * known, read first. Wrong only costs a read: the guard misses.
+ */
+let rowXp: { kid: string; row: RowXp } | null = null;
+/** XP this device couldn't write this session, by kid: it goes with their next write (a load's merge takes it up instead). */
+const unsentXp = new Map<string, number>();
+/** This device's XP writes, one at a time: each goes onto the row the one before left. */
+let xpWrites: Promise<unknown> = Promise.resolve();
+
+/** The XP columns `toRow` writes for a profile. */
+function rowXpOf(p: Profile): RowXp {
+  const { level, levelXp } = levelState(p);
+  return { xp: p.xp, level, level_xp: levelXp };
+}
+
+/**
+ * Once `write` (resolving to its error) has landed, the row holds `row`'s XP
+ * — without one, it holds it as read; failed: not known. The XP writes wait
+ * for it, but no longer than one of theirs would (`WRITE_TIMEOUT_MS`): one
+ * that hangs leaves the row not known.
+ */
+function knowRowXp(kid: string, row: RowXp, write?: PromiseLike<unknown> | null): void {
+  if (!write) {
+    xpWrites = xpWrites.then(() => {
+      rowXp = { kid, row };
+    });
+    return;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<unknown>((resolve) => {
+    timer = setTimeout(() => resolve('no answer'), WRITE_TIMEOUT_MS);
+  });
+  const settled = Promise.race([Promise.resolve(write), late])
+    .then(
+      (error) => {
+        rowXp = error ? null : { kid, row };
+      },
+      () => {
+        rowXp = null;
+      },
+    )
+    .finally(() => clearTimeout(timer));
+  xpWrites = xpWrites.then(() => settled);
+}
+
+/**
+ * `amount` XP onto the kid's row, after this device's earlier XP writes, on
+ * top of what the row holds (`rowXp`, guarded — #190). XP that couldn't be
+ * written goes with the next write this session; after a reload, this
+ * device's copy is ahead of the row, and the load's merge takes it up.
+ */
+function sendXp(kid: string, amount: number): Promise<void> {
+  const run = xpWrites.then(async () => {
+    const carried = unsentXp.get(kid) ?? 0;
+    try {
+      const { now } = await addRowXp(kid, amount + carried, { known: rowXp?.kid === kid ? rowXp.row : null });
+      unsentXp.delete(kid);
+      rowXp = { kid, row: now };
+    } catch (e) {
+      rowXp = null;
+      unsentXp.set(kid, carried + amount);
+      useProfileStore.setState({ remoteError: errorMessage(e) });
+    }
+  });
+  xpWrites = run;
+  return run;
+}
+
+/**
+ * This device's XP writes still out, landed or given up — waited for no
+ * longer than `WRITE_TIMEOUT_MS`. A load waits for them before it reads the
+ * row: one landing after the read would count again on top of the copy the
+ * load merges, which already holds it.
+ */
+function xpWritesSettled(): Promise<unknown> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise((resolve) => {
+    timer = setTimeout(resolve, WRITE_TIMEOUT_MS);
+  });
+  return Promise.race([xpWrites, late]).finally(() => clearTimeout(timer));
+}
+
 /**
  * The load (`readGen`) whose unread row is being read again right now: one
  * read at a time for a kid, and never one still out for the last kid that
@@ -403,6 +490,13 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     startsGoneUntil = 0;
     recheckPlayFunctions();
     set({ loading: true, error: null });
+    // This device's XP writes still out land first, so the row as read has
+    // them; then the row is read afresh, and what couldn't be written is on
+    // this device's copy, which the load merges — nothing counts twice (#190).
+    await xpWritesSettled();
+    if (gen !== readGen) return; // another kid was picked (or the game put away) meanwhile
+    rowXp = null;
+    unsentXp.delete(userId);
     const { data, error } = await readRow(userId);
     if (gen !== readGen) return; // another kid was picked (or the game put away) meanwhile
     const local = readLocalProfile(userId);
@@ -453,6 +547,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         mergedLevel.level !== remoteLevel.level ||
         mergedLevel.levelXp !== remoteLevel.levelXp;
       const sent = push ? writeRow(userId, toRow(merged)) : carried ? writeRow(userId, { skill_starts: carried }) : null;
+      const row = data as ProfileRow;
+      knowRowXp(userId, push ? rowXpOf(merged) : { xp: row.xp, level: row.level, level_xp: row.level_xp }, push ? sent : null);
       void sent?.then((e) => {
         if (e) set({ remoteError: errorMessage(e) });
       });
@@ -487,6 +583,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     writeLocalProfile(seed);
     forgetUnreadSteps(userId);
     const created = writeRow(userId, toRow(seed), { insert: true });
+    knowRowXp(userId, rowXpOf(seed), created); // a row made meanwhile elsewhere left as it is: the guard misses, and reads it
     void created.then((e) => {
       if (e) set({ remoteError: errorMessage(e) });
     });
@@ -599,8 +696,8 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       void get().retryRead(); // the row first: nothing is written over it unread
       return;
     }
-    const error = await writeRow(profile.id, { xp: updated.xp, level: updated.level, level_xp: updated.levelXp });
-    if (error) set({ remoteError: errorMessage(error) });
+    // Added on top of the row, never written over it: another device may have given XP meanwhile (#190).
+    await sendXp(profile.id, amount);
   },
 
   addPowerUp: async (id) => {
@@ -710,7 +807,9 @@ function payOwedXp(userId: string, gen: number, after?: Promise<unknown> | null)
 async function takeUp(userId: string, gen: number, data: unknown): Promise<void> {
   const done = await withStepsLock(userId, () => takeUpNow(userId, gen, data));
   if (!done) return;
-  const error = await writeRow(userId, toRow(done.merged), { insert: !data });
+  const sent = writeRow(userId, toRow(done.merged), { insert: !data });
+  knowRowXp(userId, rowXpOf(done.merged), sent);
+  const error = await sent;
   if (error) useProfileStore.setState({ remoteError: errorMessage(error) });
   if (!done.carried) carryWhenSaved(userId, gen);
 }
