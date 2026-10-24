@@ -391,7 +391,7 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
   it('fifteen cities: none on a line, each in its own continent’s square, its January clock the 15° line nearest its longitude', () => {
     expect(CITIES.map((c) => c.id)).toEqual([...CITY_IDS]);
     const continent: Record<string, string> = {
-      tokyo: 'asia', 'new-york': 'north-america', johannesburg: 'africa', beijing: 'asia', 'los-angeles': 'north-america', athens: 'europe', rio: 'south-america', bangkok: 'asia',
+      tokyo: 'asia', 'new-york': 'north-america', johannesburg: 'africa', beijing: 'asia', caracas: 'south-america', athens: 'europe', rio: 'south-america', jakarta: 'asia',
       chicago: 'north-america', luanda: 'africa', 'hong-kong': 'asia', lima: 'south-america', tashkent: 'asia', phoenix: 'north-america', 'addis-ababa': 'africa',
     };
     for (const c of CITIES) {
@@ -402,8 +402,12 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
       expect(c.zone, c.id).toBe(Math.round(c.long / DEG));
       expect(c.fact.length, c.id).toBeGreaterThan(30);
     }
-    // The real January clocks against London's (UTC): Tokyo +9, New York −5, Los Angeles −8, Rio −3, Athens +2.
-    expect(['tokyo', 'new-york', 'los-angeles', 'rio', 'athens'].map((id) => CITY_BY_ID[id as keyof typeof CITY_BY_ID].zone)).toEqual([9, -5, -8, -3, 2]);
+    // The real January clocks against London's (UTC): Tokyo +9, New York −5, Caracas −4, Rio −3, Athens +2.
+    expect(['tokyo', 'new-york', 'caracas', 'rio', 'athens'].map((id) => CITY_BY_ID[id as keyof typeof CITY_BY_ID].zone)).toEqual([9, -5, -4, -3, 2]);
+    // Each round a city whose clock is the line short of it, not past it (UX review round 2: 12 of 15 were past, so "the line
+    // beyond" won rounds 1 and 2): Tokyo, Caracas, Jakarta, Lima, Phoenix.
+    const short = (id: string) => Math.abs(CITY_BY_ID[id as keyof typeof CITY_BY_ID].long) / DEG > Math.abs(CITY_BY_ID[id as keyof typeof CITY_BY_ID].zone);
+    for (let r = 0; r < 5; r++) expect(CITY_IDS.slice(r * 3, r * 3 + 3).some(short), `round ${r}`).toBe(true);
     // No wars, disasters or religion in a fact (a product rule).
     const text = CITIES.map((c) => c.fact).join(' ').toLowerCase();
     for (const word of ['war', 'battle', 'army', 'soldier', 'weapon', 'flood', 'earthquake', 'plague', 'god', 'temple', 'church', 'religio', 'pray']) expect(text, word).not.toMatch(new RegExp(`\\b${word}`));
@@ -411,8 +415,8 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
     expect(coordsOf(CITY_BY_ID.rio)).toBe('23° S, 43° W');
     // Every city's coordinates and January clock, pinned to the atlas (code review round 1: a sign flipped passed).
     expect(Object.fromEntries(CITIES.map((c) => [c.id, [c.lat, c.long, c.zone]]))).toEqual({
-      tokyo: [36, 140, 9], 'new-york': [41, -74, -5], johannesburg: [-26, 28, 2], beijing: [40, 116, 8], 'los-angeles': [34, -118, -8], athens: [38, 24, 2], rio: [-23, -43, -3],
-      bangkok: [14, 101, 7], chicago: [42, -88, -6], luanda: [-9, 13, 1], 'hong-kong': [22, 114, 8], lima: [-12, -77, -5], tashkent: [41, 69, 5], phoenix: [33, -112, -7], 'addis-ababa': [9, 39, 3],
+      tokyo: [36, 140, 9], 'new-york': [41, -74, -5], johannesburg: [-26, 28, 2], beijing: [40, 116, 8], caracas: [10, -67, -4], athens: [38, 24, 2], rio: [-23, -43, -3],
+      jakarta: [-6, 107, 7], chicago: [42, -88, -6], luanda: [-9, 13, 1], 'hong-kong': [22, 114, 8], lima: [-12, -77, -5], tashkent: [41, 69, 5], phoenix: [33, -112, -7], 'addis-ababa': [9, 39, 3],
     });
   });
 
@@ -479,7 +483,8 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
     expect(timeWords(j, 18)).toBe('Tokyo is at 140° E: the nearest 15° line is 135° E, so its clock is 9 hours ahead of London’s. 09:00 + 9 = 18:00.');
     expect(timeWords(j, 18)).toBe(zoneWords(j));
     expect(timeWords(j, 0)).toBe('Not 00:00: east of London, clocks are ahead — later in the day.');
-    expect(timeWords(j, 23)).toBe('Not 23:00: east of London, clocks are ahead — later in the day.');
+    // Past midnight, the day said (UX review round 2: "later in the day" for 23:00 against 09:00).
+    expect(timeWords(j, 23)).toBe('Not 23:00 — the evening before: east of London, clocks are ahead — later in the day.');
     expect(timeWords(j, 19)).toBe('Not 19:00: take the 15° line nearest 140° E — an hour for each 15° from 0°.');
     // Luanda's other line is 0°, London's own hour: the line beyond instead of a second London.
     const lu = { ...j, to: 'luanda' as const, hour: 12 };
@@ -499,7 +504,7 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 1
       expect(c).toContain(cityHour(x));
       expect(c.every((h) => h >= 0 && h < 24)).toBe(true);
       // Every wrong one says what's wrong with it.
-      for (const h of c) if (h !== cityHour(x)) expect(timeWords(x, h), `${x.to} ${h}`).toMatch(/^Not \d\d:00: /);
+      for (const h of c) if (h !== cityHour(x)) expect(timeWords(x, h), `${x.to} ${h}`).toMatch(/^Not \d\d:00( — the evening before)?: /);
     }
     expect([9, 0, 21].map(clockWords)).toEqual(['09:00', '00:00', '21:00']);
   });

@@ -94,13 +94,23 @@ export function fitMap({ w, h, split, screenH, clue, ratio, gutter, under, done 
 /**
  * Expert's world map's labels, by a square's size (px; null before the map's
  * measured): its longitudes every 30° (two columns) wherever a number fits
- * between two lines — 12 px squares, the number alone under 24 px (west of 0°
- * on the left; UX review round 1: on a phone every 90°, five lines to count) —
- * else every 60°; the 180° ends where they clear the 150s (16 px); the
- * continents' names from 14 px (at 11 px they piled up: the bench, 568 × 320).
+ * between two lines — 12 px squares, the number alone under 24 px but for the
+ * two by 0°, which say W and E (UX review round 1: on a phone every 90°, five
+ * lines to count; round 2: no side said which was west) — else every 60°; the
+ * 180° ends where they clear the 150s (18 px; UX review round 2: 2 px apart at
+ * 16); the continents' names from 14 px (at 11 px they piled up: the bench,
+ * 568 × 320).
  */
 export function globeLabels(cell: number | null): { longStep: number; bare: boolean; ends: boolean; named: boolean } {
-  return { longStep: cell !== null && cell < 12 ? 4 : 2, bare: cell !== null && cell < 24, ends: cell === null || cell >= 16, named: cell === null || cell >= 14 };
+  return { longStep: cell !== null && cell < 12 ? 4 : 2, bare: cell !== null && cell < 24, ends: cell === null || cell >= 18, named: cell === null || cell >= 14 };
+}
+
+/** Expert's longitudes labelled under the map, by a square's size: each column of the 24 and its label. */
+export function globeLongCols(cell: number | null): { col: number; text: string }[] {
+  const { longStep, bare, ends } = globeLabels(cell);
+  return Array.from({ length: 24 / longStep + 1 }, (_, n) => n * longStep)
+    .filter((col) => ends || (col > 0 && col < 24))
+    .map((col) => ({ col, text: bare && Math.abs(col - 12) === longStep ? `${longStep * 15}${col < 12 ? 'W' : 'E'}` : longLabel(col, bare) }));
 }
 
 /** Expert's latitudes labelled, by row (every 30°, the equator the 6th). */

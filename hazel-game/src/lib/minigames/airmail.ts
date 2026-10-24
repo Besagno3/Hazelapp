@@ -294,7 +294,7 @@ export function globeRegionAt(c: Cell): Region {
   return r;
 }
 
-export const CITY_IDS = ['tokyo', 'new-york', 'johannesburg', 'beijing', 'los-angeles', 'athens', 'rio', 'bangkok', 'chicago', 'luanda', 'hong-kong', 'lima', 'tashkent', 'phoenix', 'addis-ababa'] as const;
+export const CITY_IDS = ['tokyo', 'new-york', 'johannesburg', 'beijing', 'caracas', 'athens', 'rio', 'jakarta', 'chicago', 'luanda', 'hong-kong', 'lima', 'tashkent', 'phoenix', 'addis-ababa'] as const;
 export type CityId = (typeof CITY_IDS)[number];
 
 /**
@@ -320,10 +320,10 @@ export const CITIES: readonly City[] = [
   city('new-york', 'New York', 41, -74, -5, 'New York’s subway is one of the biggest in the world, with over 400 stations.'),
   city('johannesburg', 'Johannesburg', -26, 28, 2, 'Johannesburg grew up in the 1880s, round a gold rush.'),
   city('beijing', 'Beijing', 40, 116, 8, 'All of China keeps Beijing’s time, though the country is as wide as five time zones.'),
-  city('los-angeles', 'Los Angeles', 34, -118, -8, 'Hollywood, in Los Angeles, has been a home of films for over a hundred years.'),
+  city('caracas', 'Caracas', 10, -67, -4, 'Caracas sits in a mountain valley about 900 m up, just over the hills from the Caribbean Sea.'),
   city('athens', 'Athens', 38, 24, 2, 'Athens is one of the oldest cities in the world, lived in for over 3,000 years.'),
   city('rio', 'Rio de Janeiro', -23, -43, -3, 'Rio de Janeiro means “River of January”: sailors who came in January 1502 took its bay for a river.'),
-  city('bangkok', 'Bangkok', 14, 101, 7, 'Bangkok’s full name in Thai is one of the longest place names in the world.'),
+  city('jakarta', 'Jakarta', -6, 107, 7, 'Jakarta is on Java, the island with more people than any other in the world.'),
   city('chicago', 'Chicago', 42, -88, -6, 'Chicago, on Lake Michigan, built one of the first skyscrapers, in 1885.'),
   city('luanda', 'Luanda', -9, 13, 1, 'Luanda, on Africa’s Atlantic coast, is Angola’s capital and its biggest port.'),
   city('hong-kong', 'Hong Kong', 22, 114, 8, 'Hong Kong has more skyscrapers than any other city.'),
@@ -740,9 +740,14 @@ export function timeWords(job: Job & { map: 'globe' }, picked: number): string {
   if (picked === cityHour(job)) return zoneWords(job);
   const c = CITY_BY_ID[job.to];
   const at = (z: number) => (job.hour + z + 24) % 24;
-  // The wrong way — at the clock's line or the other (not the other line's own: Luanda's is London's hour).
-  if (picked !== at(otherLine(c)) && (picked === at(-c.zone) || picked === at(-otherLine(c))))
-    return `Not ${clockWords(picked)}: ${c.zone > 0 ? 'east of London, clocks are ahead — later in the day' : 'west of London, clocks are behind — earlier in the day'}.`;
+  // The wrong way — at the clock's line or the other (not the other line's own: Luanda's is London's hour) — and the day it
+  // is, where it's another (UX review round 2: Tokyo's 23:00 is later than 09:00 — the evening before).
+  const wrong = [-c.zone, -otherLine(c)].find((z) => picked !== at(otherLine(c)) && picked === at(z));
+  if (wrong !== undefined) {
+    const raw = job.hour + wrong;
+    const day = raw < 0 ? ' — the evening before' : raw >= 24 ? ' — the next morning' : '';
+    return `Not ${clockWords(picked)}${day}: ${c.zone > 0 ? 'east of London, clocks are ahead — later in the day' : 'west of London, clocks are behind — earlier in the day'}.`;
+  }
   return `Not ${clockWords(picked)}: take the 15° line nearest ${longWords(c.long)} — an hour for each 15° from 0°.`;
 }
 

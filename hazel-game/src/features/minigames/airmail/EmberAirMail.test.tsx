@@ -25,7 +25,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { CITY_BY_ID, GLOBE_START, STAMP_BY_ID, cityHour, clockWords, jobFor, learnedLine, roundQueue, targets, timeChoices, timeWords } = await import('../../../lib/minigames/airmail');
+const { CITY_BY_ID, GLOBE_START, STAMP_BY_ID, cityHour, clockWords, jobFor, keepRanges, learnedLine, roundQueue, targets, timeChoices, timeWords } = await import('../../../lib/minigames/airmail');
 type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/airmail').Job;
 type Dir = import('../../../lib/minigames/airmail').Dir;
@@ -338,7 +338,9 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     expect(jobs.map((j) => j.to)).toEqual(['tokyo', 'new-york', 'johannesburg']);
     const [tokyo, ny, jo] = jobs;
     const map = screen.getByRole('group', { name: 'The map of the world, on a grid of latitude and longitude every 15°' });
-    expect(map).toHaveAccessibleDescription(/^A [a-z -]+ for Tokyo, 36° N, 140° E\. Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    // The clue's coordinates kept on their lines (no-break spaces: code review round 2, "140°" / "E.").
+    expect(map).toHaveAccessibleDescription(/^A [a-z -]+ for Tokyo, 36°\u00a0N, 140°\u00a0E\. Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    expect(keepRanges('Tokyo, 36° N, 140° E. 30°–45° N, 0°')).toBe('Tokyo, 36°\u00a0N, 140°\u00a0E. 30°–\u206045°\u00a0N, 0°');
     expect(says()).toMatch(/for Tokyo, 36° N, 140° E\. Find its square by the grid’s lines, then steer Ember there\.$/);
     // Eight ways; the lines labelled round the map.
     expect(within(screen.getByRole('group', { name: 'The compass' })).getAllByRole('button')).toHaveLength(8);
@@ -364,10 +366,16 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     deliver();
     // The time: Pidge asks it short; the card, its longitude first (UX review round 1); four choices; a wrong one said under
     // them, then the right.
-    expect(says()).toBe('Delivered. What time is it in Tokyo?');
+    // On a short screen, why 15° is an hour by Pidge, not in the card (UX review round 2: six lines there pushed a wrong
+    // time's words off the screen's foot) — not read out twice.
+    const whyBy = screen.getByText(/^The Earth turns 360° in 24 hours/, { selector: '[aria-live] span' });
+    expect(whyBy).toHaveAttribute('aria-hidden', 'true');
+    expect(whyBy).toHaveClass('hidden', '[@media(max-height:500px)]:inline');
+    expect(says().replace(whyBy.textContent ?? '', '')).toBe('Delivered. What time is it in Tokyo?');
+    expect(screen.getByText(/^The Earth turns 360° in 24 hours/, { selector: '#am-far span' })).toHaveClass('[@media(max-height:500px)]:sr-only');
     const head = screen.getByRole('heading', { name: 'What time is it?' });
     expect(head).toHaveFocus();
-    expect(head).toHaveAccessibleDescription(/^Tokyo is at 140° E\. It’s 09:00 in London, in January: what time is it there\? The Earth turns 360° in 24 hours, so each 15° of longitude is an hour/);
+    expect(head).toHaveAccessibleDescription(/^Tokyo is at 140°\u00a0E\. It’s 09:00 in London, in January: what time is it there\? The Earth turns 360° in 24 hours, so each 15° of longitude is an hour/);
     expect(times().getAllByRole('button').map((b) => b.textContent)).toEqual(timeChoices(tokyo).map(clockWords));
     expect(times().getAllByRole('button')).toHaveLength(4);
     fireEvent.click(times().getByRole('button', { name: '00:00' }));
@@ -377,7 +385,7 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(tokyo)) }));
     const done = screen.getByRole('heading', { name: `${STAMP_BY_ID[tokyo.stamp].name} delivered.` });
     expect(done).toHaveFocus();
-    expect(done).toHaveAccessibleDescription(new RegExp(`^${learnedLine(tokyo, []).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    expect(done).toHaveAccessibleDescription(new RegExp(`^${keepRanges(learnedLine(tokyo, [])).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(says()).toBe(`${timeWords(tokyo, 18)} Delivered, with a miss on the way. Next parcel.`);
     expect(pidge()).not.toMatch(/!/);
     fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
@@ -423,6 +431,17 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(tokyo, []), spotOn: { right: 1, of: 3 } });
   });
 
+  it('no post office scene over the globe; a stamp read just after a move says its note, not the old square’s lines (code review round 2: untested)', () => {
+    setUp(6, { [pageFlag('ember-air-mail', 'letter')]: true }, 14);
+    play('expert');
+    expect(screen.queryByText('✉️ 📦 ✉️')).toBeNull();
+    fly('E');
+    expect(pidge()).toContain('45°–60° N, 0°–15° E.');
+    fireEvent.click(screen.getByRole('button', { name: 'Letter. Read the stamp' }));
+    expect(pidge()).toContain(STAMP_BY_ID.letter.note);
+    expect(pidge()).not.toContain('45°–60° N');
+  });
+
   it('the top of the world, plainly, any way north; round the back of the world, said (code review round 1: untested)', () => {
     setUp(6, {}, 14);
     play('expert');
@@ -457,7 +476,7 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     render(<MiniGameStage game="ember-air-mail" />);
     expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/Today’s post goes to cities by their coordinates, on a map ruled every 15°/)).toBeInTheDocument();
-    expect(screen.getByText(/Right square and right time first go wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    expect(screen.getByText(/Right square and right time first go wins the Expert seal\. No timer\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Let’s fly!' }));
     await screen.findByRole('group', { name: /^The map of the world, on a grid/ });
   });

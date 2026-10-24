@@ -665,18 +665,24 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   them; a move says the way and the continent, the lines for a reader only
   (`say`'s second part, a `sr-only` span in Pidge's bubble; `#am-where`
   has them too); `offset` and `relWords` take the map's width; a range is
-  kept on its line where it's shown (`keepRanges`). Delivered, step
+  kept on its line where it's shown (`keepRanges`: the bubble, the line by
+  the map, the clue, the ticket, the time card and the fact). Delivered, step
   `time`: `timeAsk` (the city's longitude first), four times from
   `timeChoices` (the right one, `cityHour`, and the other 15° line's,
   `otherLine`; both the wrong way — Luanda's other line is 0°, so the line
-  beyond), `timeWords` (`zoneWords` when right; else what's wrong, picked
-  again), `clockWords` "09:00". The map's lines are numbered round it —
+  beyond), `timeWords` (`zoneWords` when right; else what's wrong — and
+  the day, past midnight — picked again), `clockWords` "09:00"; why 15° is
+  an hour (`WHY_HOUR`) in the card, on a short screen by Pidge. The map's lines are numbered round it —
   latitudes in a left gutter (`LAT_GUTTER`), longitudes in a row under it
-  (`LONG_ROW`; `layout.ts`'s `globeLabels`, `latLabel`, `longLabel`: every
-  30° from 12 px squares, bare numbers under 24 px, else 60°) — the
+  (`LONG_ROW`; `layout.ts`'s `globeLabels`, `globeLongCols`, `latLabel`,
+  `longLabel`: every 30° from 12 px squares, bare numbers under 24 px but
+  W and E by 0°, the 180° ends from 18 px, else 60°) — the
   equator and the prime meridian drawn stronger, the continents' names
   placed for the globe (`GLOBE_LABEL`), left off under 14 px. A key flies
-  Ember at once (a tap waits as a parcel starts). Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
+  Ember at once (a tap waits as a parcel starts). The world's maps split
+  only held sideways (`SPLIT_WIDE_MAP`): on a tablet held upright the side
+  panel's under the board; the globe's side panel is 300 px on a laptop
+  too. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
   with a miss on the way."); the seal's `spotOn` counts parcels delivered
   first go with the time right first pick, the reward keeping the first
   missed parcel's lesson; the times and Next wait for a tap's second, not a

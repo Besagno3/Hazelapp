@@ -625,8 +625,10 @@ Old Ringwood is the tree who loses count of his rings.
   London in January: each 15° of longitude is an hour — ahead to the east,
   behind to the west — by the 15° line nearest the city, from four (the
   right time and the other line's, an hour off, and the same two the wrong
-  way). A wrong one says what's wrong with it, and the kid picks again. A
-  city's hour moves on each time round the cities. Fifteen
+  way; for Luanda, whose other line is 0°, London's own hour, the line
+  beyond instead). A wrong one says what's wrong with it — and the day,
+  where it's another — and the kid picks again. A city's hour moves on each
+  time round the cities. Fifteen
   cities on five continents, a round's three on three, each one whose
   January clock keeps that nearest line (Beijing, Hong Kong; not Delhi or
   Adelaide, a half-hour off); the lesson is its coordinates, its clock and
@@ -635,12 +637,21 @@ Old Ringwood is the tree who loses count of his rings.
   Review round 1: the globe has the whole board (no post office scene, no
   town's map key); a move says the way and the continent, the square's
   lines for a reader only, so the grid's read; the longitudes numbered
-  every 30° on a phone too; the time question gives the city's longitude
+  every 30° on a phone too (60° on the smallest maps); the time question gives the city's longitude
   first and says why 15° is an hour (the Earth turns 360° in 24 hours);
   four times — the right one and the other line's, and both the wrong way —
   so which way picks a pair and the nearest line picks in it; a city's
   hour moves on each time round the cities; a wrong square across the
   equator or 0° says so ("S is south of the equator.").
+  Review round 2: the compass held still on a phone held sideways (it moved
+  65 px under the thumb as the words beside it changed); the bare
+  longitudes by 0° say W and E ("30W 0° 30E"); a wrong time past midnight
+  says the day ("the evening before"); on a tablet held upright the side
+  panel's under the board (the globe 402 px wide → 702); on a short screen
+  why 15° is an hour is said by Pidge, so a wrong time's words fit; each
+  round a city whose clock is the line short of it (Caracas and Jakarta for
+  Los Angeles and Bangkok — 12 of 15 were the line beyond); a coordinate
+  kept on its line everywhere it's shown.
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 

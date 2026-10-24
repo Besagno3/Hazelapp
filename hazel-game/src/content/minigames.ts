@@ -357,7 +357,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
       steps: [
         { title: 'Find the square', text: 'Latitude up the side, north or south of the equator; longitude along the bottom, east or west of 0°. A city’s square is between the lines either side of it.' },
         { title: 'Deliver', text: 'Steer Ember there — eight ways — and deliver.' },
-        { title: 'What time?', text: 'The Earth turns 360° in 24 hours, so each 15° of longitude is an hour: ahead to the east, behind to the west, by the line nearest. Right square and right time first go wins the Expert seal. No clock.' },
+        { title: 'What time?', text: 'The Earth turns 360° in 24 hours, so each 15° of longitude is an hour: ahead to the east, behind to the west, by the line nearest. Right square and right time first go wins the Expert seal. No timer.' },
       ],
     },
     music: 'sailing',
