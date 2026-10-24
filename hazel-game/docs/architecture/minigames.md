@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline and 🐉 Ember Air Mail.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline, 🐉 Ember Air Mail and 🔨 Word Forge.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -365,6 +365,34 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   delivery's named it). A game's focus moved from script shows its ring for
   the keyboard only: `features/minigames/lastInput.ts` (`lastInputWasKey`)
   listens from the stage's load, as `:focus-visible` matches after a mouse
-  click on the title card's button too. The
+  click on the title card's button too. **🔨 Word
+  Forge** (`ink-dot`, Scrivener Dot, Inkwell Cove — no quest of her own, so
+  🔨 is her gold offer; `lib/minigames/forge.ts`, `features/minigames/
+  forge/`): how words are built. Nine families of three words (`FAMILIES`,
+  each word its two parts and a meaning — Tricky's in everyday words, not
+  its tiles'; three a band, `BAND_FAMILIES`); a job (`jobFor`) is a word and
+  a tray of its parts and two to four others, shuffled the same each time
+  (more than one: always both endings); each round starts at the next family
+  (`roundQueue`); Tricky's tiles say what each part means (`PART_MEANS`), an
+  add-on its hyphen (`partText`). Each part tapped goes on the anvil in the
+  next place (one on the anvil tapped comes back); Hammer checks it
+  (`forgeWords`: right; a real word that means something else — `realWord`,
+  the asked words and `ALSO`, every pair a tray can make held by
+  `forge.test` to those or a looked-at list of not-words; the other way
+  round; -s for -es; two add-ons; an add-on not in the word, where it goes;
+  or no word, with `hintFor`, which builds on what the try got right — a
+  real word with a part right says to keep it). What's shown keeps an end
+  part's hyphen on its line (`keepHyphens`); the reward recaps the round's
+  three words (`builtLine`). The tray keeps each
+  part's spot; the step's card is beside the board held sideways from 560
+  px, Hammer above what Dot said so a long line never moves it, and on a
+  short screen — or a small phone held upright — a bar kept in sight under
+  it (on a short split screen one row, the meaning and Hammer: what Dot
+  said is in her bubble beside the board, kept at the side panel's top). A
+  page of the wall is read under it in a place kept for it, so nothing
+  moves as it opens. From the keyboard, focus goes on from a part placed to the next, then
+  Hammer; from a tap, to the tray. The games' keyboard guards are shared
+  (`features/minigames/keys.ts`: `noRepeat` for a held Enter, `useFocusMoved`
+  for a double Enter on what focus moved to, `keyed`). The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

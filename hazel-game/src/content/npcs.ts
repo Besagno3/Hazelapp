@@ -2341,6 +2341,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     // The Riddle Leviathan's signpost (#59's pattern): a warning until its key is won.
     lines: [
       "Oh! A visitor. I'm Dot. I write down every word the cove says. It says a LOT.",
+      'Words are made of parts, you know — sun + flower, help + ful. Come and forge some with me!',
       { text: "At the tip of the sandy point, the Riddle Leviathan guards the Second Chorus Key. It talks only in riddles. Even 'hello' is a riddle!", unlessFlag: keyFlag('chorus-b') },
       { text: "Answer its word questions to win the key. If you're hurt, Bess sells Berry Potions — her shop is up by the road into the cove.", unlessFlag: keyFlag('chorus-b') },
       { text: 'You beat the Riddle Leviathan! I wrote it all down. Twice. In my best letters.', ifFlag: keyFlag('chorus-b') },

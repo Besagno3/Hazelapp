@@ -55,6 +55,7 @@ import { useSaveStore } from '../../../store/saveStore';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { noRepeat } from '../keys';
 import { lastInputWasKey } from '../lastInput';
 import { useLiftTap } from '../useLiftTap';
 import { useSettled } from '../useSettled';
@@ -586,11 +587,6 @@ function DeliverButton({ onDeliver, column = false }: { onDeliver: () => void; c
       <span aria-hidden="true">📬</span> Deliver
     </button>
   );
-}
-
-/** Enter or Space held down: its repeats press nothing (code review round 1: a held arrow flew five squares). */
-function noRepeat(e: KeyboardEvent) {
-  if ((e.key === 'Enter' || e.key === ' ') && e.repeat) e.preventDefault();
 }
 
 /**

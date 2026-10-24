@@ -399,6 +399,27 @@ Old Ringwood is the tree who loses count of his rings.
 - **Medium:** un-, re-, pre-; -ful, -less, -er, -est.
 - **Tricky:** Greek and Latin roots (tele + scope = far + look; bio + logy).
 - **Collection:** the word wall, a family of words per root.
+- **Built (PR 10):** nine families of three words — Gentle joins two words
+  (sun + flower, rain + bow) and makes more than one (cat + s, fox + es);
+  Medium builds on a root word (un + kind, help + ful, re + view); Tricky
+  joins Greek roots, each tile saying what it means (tele "far" + scope
+  "look"). Dot reads out a meaning; the kid puts two parts on the anvil, in
+  order, and hammers. The other way round, a real word that means something
+  else (telegraph), -s for -es, or no word at all is each said kindly, with a
+  hint. Dot has no quest, so 🔨 is her gold offer; the first round gives a
+  Focus Tea.
+- **Review round 1:** every pair of parts a tray can make is a real word
+  Dot names and explains ("Unless is a real word…") or a looked-at not-word
+  — she'd told kids "suns" and "photography" weren't words. Hints build on
+  what the try got right; both -s and -es are always in the tray; Tricky's
+  meanings are in everyday words ("what a scientist peers into to see
+  germs"), so a root is worked out, not matched — the Expert band (§3.3)
+  takes the tiles' meanings away. The family is named, with its mark, only
+  once its word is forged.
+- **Review round 2:** no advice can lead to another miss — a right part is
+  kept ("Keep “tele”!"), two add-ons need a root word; Tricky's first hint
+  names one meaning; a wall page is read in a place kept for it, so nothing
+  moves under the finger; the reward recaps the round's three words.
 
 ## 6. The PRs
 
