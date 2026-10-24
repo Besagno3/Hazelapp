@@ -1,6 +1,6 @@
 # Mini-games (`src/features/minigames/`)
 
-> The reference for the mini-games' stage and each game (#186; the plan is
+> The reference for the mini-games' stage and each game (#189; the plan is
 > `docs/DESIGN-MINIGAMES.md`). Keep it accurate: when you change how this
 > works, change it here in the same commit.
 
@@ -9,7 +9,7 @@ title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
 and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline and 🐉 Ember Air Mail.
 
-- **Mini-games (docs/DESIGN-MINIGAMES.md, #186):** learning games on their
+- **Mini-games (docs/DESIGN-MINIGAMES.md, #189):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
   The host (`MINIGAMES[id].host`, `gameHostedBy`) offers it from their first
   line (`DialogueOverlay`, a gold "🧪 Potion Lab" beside any service — over

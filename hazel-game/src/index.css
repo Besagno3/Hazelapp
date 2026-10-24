@@ -51,7 +51,7 @@ input::-ms-reveal {
   }
 }
 
-/* A jam in Clocktower Gears (#186): the stuck gears shake three times. In
+/* A jam in Clocktower Gears (#189): the stuck gears shake three times. In
    SVG user units — a board is ~700 of them across a phone, so 4px was ~2px. */
 @keyframes cg-shake {
   0%,
@@ -74,7 +74,7 @@ input::-ms-reveal {
   }
 }
 
-/* Ember Air Mail's map nudged as Ember bumps its edge (#186): once and
+/* Ember Air Mail's map nudged as Ember bumps its edge (#189): once and
    softly — a shake read as "wrong!" (PR 9 review round 2). */
 @keyframes am-nudge {
   0%,
@@ -94,7 +94,7 @@ input::-ms-reveal {
   }
 }
 
-/* A card floating back to the washed-up cards in Index's Timeline (#186): it
+/* A card floating back to the washed-up cards in Index's Timeline (#189): it
    drifts down into its spot and fades in — not a shake, which read as "wrong!". */
 @keyframes it-float {
   0% {
