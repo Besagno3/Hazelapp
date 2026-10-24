@@ -10,7 +10,8 @@ interface Row {
 }
 
 // A sibling's `profiles` row, stood in for: reads, guarded updates, failures,
-// and another device writing between the read and the update.
+// another device writing between the read and the update, a connection that
+// hangs, and an update that lands with its answer lost.
 const db = vi.hoisted(() => ({
   row: null as Row | null,
   readError: null as { message: string } | null,
@@ -18,44 +19,55 @@ const db = vi.hoisted(() => ({
   raced: 0,
   updates: [] as Record<string, unknown>[],
   reads: 0,
+  /** Never answers: the read, or the update. */
+  hang: null as null | 'read' | 'update',
+  /** The update lands, but its answer is lost. */
+  lose: false,
+  /** The update fails before it reaches the row. */
+  fail: false,
 }));
 vi.mock('./supabase', () => {
+  const never = () => new Promise<never>(() => {});
   const update = (values: Record<string, unknown>) => {
-    const guarded = (xp: number | null) => ({
-      select: async () => {
-        if (db.raced > 0) {
-          db.raced -= 1;
-          db.row = { ...db.row!, xp: (db.row!.xp ?? 0) + 5 };
-          return { data: [], error: null };
-        }
-        if (!db.row || db.row.xp !== xp) return { data: [], error: null };
-        db.updates.push(values);
-        db.row = { ...db.row, ...(values as Partial<Row>) };
-        return { data: [{ id: 'kid-2' }], error: null };
-      },
-    });
+    const run = async (xp: number | null) => {
+      if (db.hang === 'update') return never();
+      if (db.fail) return { data: null, error: { message: 'Failed to fetch' } };
+      if (db.raced > 0) {
+        db.raced -= 1;
+        db.row = { ...db.row!, xp: (db.row!.xp ?? 0) + 5 };
+        return { data: [], error: null };
+      }
+      if (!db.row || db.row.xp !== xp) return { data: [], error: null };
+      db.updates.push(values);
+      db.row = { ...db.row, ...(values as Partial<Row>) };
+      return db.lose ? { data: null, error: { message: 'Failed to fetch' } } : { data: [{ id: 'kid-2' }], error: null };
+    };
+    const guarded = (xp: number | null) => ({ select: () => ({ abortSignal: () => run(xp) }) });
     return { eq: () => ({ eq: (_col: string, xp: number) => guarded(xp), is: () => guarded(null) }) };
+  };
+  const read = async () => {
+    if (db.hang === 'read') return never();
+    db.reads += 1;
+    return db.readError ? { data: null, error: db.readError } : { data: db.row, error: null };
   };
   return {
     supabase: {
       from: () => ({
-        select: () => ({
-          eq: () => ({
-            maybeSingle: async () => {
-              db.reads += 1;
-              return db.readError ? { data: null, error: db.readError } : { data: db.row, error: null };
-            },
-          }),
-        }),
+        select: () => ({ eq: () => ({ abortSignal: () => ({ maybeSingle: read }) }) }),
         update,
       }),
     },
   };
 });
-const { notePlayDay, addDayXp } = vi.hoisted(() => ({ notePlayDay: vi.fn(async () => {}), addDayXp: vi.fn(async () => {}) }));
-vi.mock('./playDays', () => ({ notePlayDay, addDayXp }));
+const { notePlayDay, addDayXp, flushPlayDays } = vi.hoisted(() => ({
+  notePlayDay: vi.fn(async () => {}),
+  addDayXp: vi.fn(async () => {}),
+  flushPlayDays: vi.fn(async () => {}),
+}));
+vi.mock('./playDays', () => ({ notePlayDay, addDayXp, flushPlayDays }));
 
-const { giveKidXp, kidXpWords, owedXp, takeOwedXp, xpStartsLine, GUARD_TRIES } = await import('./kidXp');
+const { forgetOwedXp, giveKidXp, kidXpWords, owedXp, sendingXpKey, takeOwedXp, xpStartsLine, xpUnknownLine, GUARD_TRIES, SENDING_STALE_MS, WRITE_TIMEOUT_MS } =
+  await import('./kidXp');
 const { profileKey } = await import('./profile');
 
 const TODAY = '2026-10-22';
@@ -76,8 +88,12 @@ beforeEach(() => {
   db.raced = 0;
   db.updates = [];
   db.reads = 0;
+  db.hang = null;
+  db.lose = false;
+  db.fail = false;
   notePlayDay.mockClear();
   addDayXp.mockClear();
+  flushPlayDays.mockClear();
   localStorage.clear();
 });
 afterEach(() => vi.useRealTimers());
@@ -94,9 +110,14 @@ describe("giveKidXp — a sibling's XP, to their own game", () => {
       longest_streak: 4,
       last_played_on: TODAY,
     });
-    expect(notePlayDay).toHaveBeenCalledWith('kid-2', TODAY);
-    // Today's XP for their 📈 Progress.
+    // Today played, with its XP, for their 📈 Progress — sent at once (nothing else sends another kid's day from here).
     expect(addDayXp).toHaveBeenCalledWith('kid-2', TODAY, 30, { played: true });
+    await vi.waitFor(() => expect(flushPlayDays).toHaveBeenCalledWith('kid-2', { now: true }));
+    // Not a separate "played, 0 XP" day sent ahead of it (#188 review).
+    expect(notePlayDay).not.toHaveBeenCalled();
+    // Nothing left kept on the device.
+    expect(localStorage.getItem(sendingXpKey('kid-2'))).toBeNull();
+    expect(owedXp('kid-2')).toBe(0);
   });
 
   it('a row with no saved level counts from the old flat curve', async () => {
@@ -121,8 +142,9 @@ describe("giveKidXp — a sibling's XP, to their own game", () => {
     expect(await giveKidXp('kid-2', 20)).toEqual({ saved: false });
     expect(owedXp('kid-2')).toBe(50);
     expect(warn).toHaveBeenCalled();
-    // Not recorded for the day while owed: `addXp` records it when it's paid.
+    // Not recorded for the day while owed: `addXp` records it when it's paid. The day counts as played all the same.
     expect(addDayXp).not.toHaveBeenCalled();
+    expect(notePlayDay).toHaveBeenCalledWith('kid-2', TODAY);
     db.readError = null;
     db.row = row();
     await giveKidXp('kid-2', 10);
@@ -154,6 +176,62 @@ describe("giveKidXp — a sibling's XP, to their own game", () => {
   });
 });
 
+describe('a gift is never lost to a hung connection or a closed tab (#188 review)', () => {
+  it('kept as sending while it is written: a profile load meanwhile takes none of it, a stale one is owed', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 22, 15), toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.hang = 'read';
+    const gift = giveKidXp('kid-2', 30);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(JSON.parse(localStorage.getItem(sendingXpKey('kid-2'))!)).toMatchObject([{ xp: 30 }]);
+    // Mia's profile loading now (Switch player) mustn't pay what's still being written.
+    expect(takeOwedXp('kid-2')).toBe(0);
+    // …but from a tab that closed mid-write, it's hers once it's stale.
+    expect(takeOwedXp('kid-2', Date.now() + SENDING_STALE_MS)).toBe(30);
+    expect(localStorage.getItem(sendingXpKey('kid-2'))).toBeNull();
+    // The hung read gives up after WRITE_TIMEOUT_MS: "Saving…" doesn't wait for ever.
+    await vi.advanceTimersByTimeAsync(WRITE_TIMEOUT_MS);
+    expect(await gift).toEqual({ saved: false });
+    warn.mockRestore();
+  });
+
+  it('a hung update gives up too, and the XP is owed', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 9, 22, 15), toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.hang = 'update';
+    const gift = giveKidXp('kid-2', 30);
+    await vi.advanceTimersByTimeAsync(WRITE_TIMEOUT_MS * 3);
+    expect(await gift).toEqual({ saved: false });
+    expect(owedXp('kid-2')).toBe(30);
+    expect(localStorage.getItem(sendingXpKey('kid-2'))).toBeNull();
+    warn.mockRestore();
+  });
+
+  it('an update that landed with its answer lost counts as saved — never owed and paid twice', async () => {
+    db.lose = true;
+    expect(await giveKidXp('kid-2', 30)).toEqual({ saved: true, level: 2, leveledUp: true });
+    expect(db.row?.xp).toBe(120);
+    expect(owedXp('kid-2')).toBe(0);
+  });
+
+  it("…and one that never landed is owed (the check finds the row as it was)", async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    db.fail = true;
+    expect(await giveKidXp('kid-2', 30)).toEqual({ saved: false });
+    expect(db.row?.xp).toBe(90);
+    expect(owedXp('kid-2')).toBe(30);
+    warn.mockRestore();
+  });
+
+  it('forgotten with the kid (removed, the account closed)', () => {
+    localStorage.setItem('hazel-owed-xp-kid-2', '40');
+    localStorage.setItem(sendingXpKey('kid-2'), JSON.stringify([{ xp: 10, at: 1 }]));
+    forgetOwedXp('kid-2');
+    expect(owedXp('kid-2')).toBe(0);
+    expect(localStorage.getItem(sendingXpKey('kid-2'))).toBeNull();
+  });
+});
+
 describe('owed XP and the words on screen', () => {
   it('takeOwedXp hands it over once', () => {
     localStorage.setItem('hazel-owed-xp-kid-2', '40');
@@ -169,5 +247,6 @@ describe('owed XP and the words on screen', () => {
     expect(kidXpWords('Mia', { saved: true, level: 4, leveledUp: true })).toBe('⭐ Mia reached level 4!');
     expect(kidXpWords('Mia', { saved: false })).toBe("It'll be added the next time Mia plays on this device.");
     expect(xpStartsLine('Mia')).toBe('XP starts for Mia once Mia opens the world.');
+    expect(xpUnknownLine('Mia')).toBe("Mia's XP couldn't be counted this time.");
   });
 });

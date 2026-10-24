@@ -45,7 +45,7 @@ describe('📜 Menu → 👥 Play together (#187)', () => {
 
     fireEvent.click(within(panel).getByRole('button', { name: /Mia/ }));
     // Mia types her PIN; "Play together!" waits meanwhile.
-    expect(within(panel).getByTestId('player-two-pin')).toHaveTextContent('Hi, Mia! Type your PIN.');
+    expect(screen.getByTestId('player-two-pin')).toHaveTextContent('Hi, Mia! Type your PIN.');
     expect(within(panel).queryByRole('button', { name: '👥 Play together!' })).toBeNull();
     await typePin('4821');
     await waitFor(() => expect(within(panel).getByRole('button', { name: '👥 Play together!' })).toHaveAttribute('aria-disabled', 'false'));
@@ -72,5 +72,20 @@ describe('📜 Menu → 👥 Play together (#187)', () => {
     fireEvent.click(within(panel).getByRole('button', { name: 'Not now' }));
     expect(within(panel).queryByText("Who's playing with Ada?")).toBeNull();
     expect(usePlayerTwoStore.getState().coop).toBe(false);
+  });
+
+  it('each step hands the keyboard on within the panel, never back to the top of the 📜 Menu (#191)', async () => {
+    usePlayerTwoStore.getState().chooseGuest('Dad', 'same');
+    render(<MenuOverlay />);
+    const panel = screen.getByTestId('coop-panel');
+    fireEvent.click(within(panel).getByRole('button', { name: /Two players/ }));
+    expect(within(panel).getByText("Who's playing with Ada?")).toHaveFocus();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Not now' }));
+    expect(within(panel).getByRole('button', { name: /Two players/ })).toHaveFocus();
+    fireEvent.click(within(panel).getByRole('button', { name: /Two players/ }));
+    fireEvent.click(within(panel).getByRole('button', { name: '👥 Play together!' }));
+    expect(within(panel).getByText(/plays 🐉 Ember in/)).toHaveFocus();
+    fireEvent.click(within(panel).getByRole('button', { name: 'Stop playing together' }));
+    expect(within(panel).getByRole('button', { name: /Two players/ })).toHaveFocus();
   });
 });
