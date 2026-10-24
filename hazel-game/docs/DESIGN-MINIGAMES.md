@@ -111,6 +111,17 @@ kid pick another; that choice is remembered for the game on this device. **A
 mini-game never moves the question level** — that track belongs to the
 questions.
 
+**Planned (agreed 2026-10-23), after the tenth game: an Expert band** for
+ages about 12–18. Tricky tops out at upper-elementary content, a new teen
+starts on Medium (a start level is the age less 5, at most 6), and every
+band's look and voice are a young kid's. Expert brings each game's content
+up to secondary school (the pH scale, ratios and percent change, gear-ratio
+maths, transformations on a grid, intervals and keys, sky coordinates,
+cross-dating with climate data, cause and effect across eras, latitude and
+longitude and time zones, etymology), a drier host voice, and an optional
+challenge for those who want one; its own section here first, then one PR a
+game.
+
 ### 3.4 Rewards that can't be farmed
 
 - Progress is **save flags** (`mg:<game>:…`): what's in the collection, which
@@ -364,6 +375,20 @@ Old Ringwood is the tree who loses count of his rings.
 - **Tricky:** a simple map of the real world: continents and oceans,
   north/south of the equator; distance by the map's scale.
 - **Collection:** nine stamps, one per kind of delivery.
+- **Built (PR 9):** Gentle flies the bay (four directions, the place a
+  picture); Medium the town (eight directions, squares like C5, a house by
+  its square or a landmark); Tricky a blocky world (12 × 6 squares of 30°,
+  four directions — the map's squares are counted for its scale), its east
+  and west edges joined, then "How far?" at about 3,000 km a square. The
+  stamps are the kinds of post (three a band), each a true thing about maps
+  and the world; each continent and ocean says one more. Pidge has no quest,
+  so 🐉 is her gold offer; the first round gives a Hint Feather. Review
+  round 1: a first wrong delivery on the town or the world says how to find
+  the place on the map, only a second which way (else the map need never be
+  read); "How far?" is the shortest way from Europe, by the map's scale.
+  Review round 2: "How far?" is a ruler — a straight line from Europe to the
+  place's nearest square, drawn on the map; Tricky's clue isn't answered
+  for the kid ("Which place fits the clue?").
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 

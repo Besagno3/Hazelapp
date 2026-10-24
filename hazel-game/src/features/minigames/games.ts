@@ -9,6 +9,7 @@ import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
 import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepMatch, StepRead } from './rings/art';
 import { StepCheck, StepPlace, StepWash, TimelineLogo } from './timeline/art';
+import { AirMailLogo, StepDeliver, StepParcel, StepSteer } from './airmail/art';
 import type { PlayProps } from './types';
 
 /**
@@ -62,5 +63,10 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./timeline/IndexTimeline')),
     Logo: TimelineLogo,
     steps: [StepWash, StepPlace, StepCheck],
+  },
+  'ember-air-mail': {
+    Play: retryableLazy(() => import('./airmail/EmberAirMail')),
+    Logo: AirMailLogo,
+    steps: [StepParcel, StepSteer, StepDeliver],
   },
 };

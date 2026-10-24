@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings and 📜 Index's Timeline.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears, 🪞 Mirror Mural, 🎵 Echo's Call, ✨ Vela's Star Charts, 🌳 Ringwood's Rings, 📜 Index's Timeline and 🐉 Ember Air Mail.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -329,6 +329,42 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   foot, sticky (a media list with a comma is dropped by Tailwind as an
   arbitrary variant: "under 560 px or upright" is two variants); long
   words in a card's name are blocks with a soft hyphen (`Breakable`), so they
-  break only where they must. The
+  break only where they must. **🐉 Ember Air Mail**
+  (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
+  her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
+  airmail/`): maps and directions. Three maps: the bay (`BAY`, 5 × 5,
+  Gentle), the town (`TOWN`, 6 × 6, its squares named by `gridRef`, eight
+  houses each just beside a landmark, `TOWN_CLUES`) and the world (`WORLD`,
+  12 × 6 squares of 30°, each marked by its continent or ocean, the equator
+  under the 3rd row, east and west joined). A job (`jobFor`) is a stamp's
+  kind of post (`STAMPS`, three a band) to a place, a house (by its square or
+  a landmark) or a continent or ocean (`REGIONS`, each a clue and a fact).
+  The compass (`BAND_DIRS`: four, eight, four) moves Ember a square
+  (`move`), and so does a tapped square next to her (`useLiftTap`); Deliver
+  checks (`delivered`) or says — the first miss on the town or the world —
+  how to find the place (`howToFind`, a region's `spot`), then which way
+  (`missWords`, `relWords`, the nearest square by `movesBetween`); Tricky
+  then asks how far the place is from Europe in a straight line to its
+  nearest square (`squaresAway`, `rulerTo` — drawn as a ruler; `farChoices`
+  with the answer's place by `farSeed`, the round and the place;
+  `KM_PER_SQUARE` as the map's scale). The map is sized to fit with the
+  card beside or under it, whichever lets it be bigger (`airmail/layout.ts`,
+  pure and table-tested: `fitMap` — the card under it sized from its parts,
+  `cardUnder`; beside it only where the card holds the compass, Deliver
+  under the compass where the card's narrow, `stack`; under it, Deliver over
+  the compass where the column's narrow, `narrow`); the side panel splits
+  off on the `wide` screen (`tailwind.config.js`: from 768 px wide with
+  height, or from 1000 px — not the stage's `split`: a phone held sideways
+  gives the world its width); the post office scene's left out for the
+  world and on a tablet held upright; on a short phone held sideways what Pidge said goes
+  under the map when there's room (`saidUnder`), and on a short split
+  screen a stamp's card goes beside it. Pidge's bubble re-reads the same
+  words (a zero-width space every other time); for a reader the map is
+  described by the clue (the round's first parcel), where Ember is and where
+  the parcel's going (`targetWords`; the world's place only once a wrong
+  delivery's named it). A game's focus moved from script shows its ring for
+  the keyboard only: `features/minigames/lastInput.ts` (`lastInputWasKey`)
+  listens from the stage's load, as `:focus-visible` matches after a mouse
+  click on the title card's button too. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

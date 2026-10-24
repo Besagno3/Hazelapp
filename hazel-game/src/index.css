@@ -74,6 +74,26 @@ input::-ms-reveal {
   }
 }
 
+/* Ember Air Mail's map nudged as Ember bumps its edge (#192): once and
+   softly — a shake read as "wrong!" (PR 9 review round 2). */
+@keyframes am-nudge {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(4px);
+  }
+}
+.am-nudge {
+  animation: am-nudge 0.25s ease-in-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .am-nudge {
+    animation: none;
+  }
+}
+
 /* A card floating back to the washed-up cards in Index's Timeline (#192): it
    drifts down into its spot and fades in — not a shake, which read as "wrong!". */
 @keyframes it-float {
