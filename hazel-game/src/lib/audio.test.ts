@@ -10,6 +10,7 @@ describe('trackForScreen', () => {
     expect(trackForScreen('topics')).toBe('title');
     expect(trackForScreen('world', false, 'overworld', 'starfall-sea')).toBe('starfall'); // Taleshore (#75 item 15c)
     expect(trackForScreen('quiz')).toBe('title');
+    expect(trackForScreen('duel')).toBe('title');
     expect(trackForScreen('avatar')).toBe('intro'); // Choose your hero plays the opening intro (#146m)
   });
 

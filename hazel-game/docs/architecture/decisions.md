@@ -9,7 +9,7 @@
 | Build       | Vite 8 (`@vitejs/plugin-react`, Oxc)                |
 | UI          | React 18.3 + TypeScript 5.8                         |
 | Styling     | Tailwind CSS 3.4 (`@tailwind` directives in `src/index.css`) |
-| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `grownUpsStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`) |
+| State       | xstate 5 (game flow) + Zustand 5 (`saveStore`, `battleStore`, `authStore`, `familyStore`, `grownUpsStore`, `profileStore`, `settingsStore`, `spireStore`, `finaleStore`, `keyboardStore`, `playerTwoStore`) |
 | Backend     | Supabase (`@supabase/supabase-js`) — auth only so far |
 | Animation   | Framer Motion 12, canvas-confetti                   |
 | Audio       | Howler 2 (`lib/audio.ts` — music on, SFX off by default) |
@@ -92,6 +92,14 @@ measured ~106 KB gzipped for one bar chart.
   in words; daily XP as columns — many days have no play, and a line would
   draw through them), one sequential hue plus the de-emphasis grey,
   validated against the card's surface.
+- **Two players on one screen (2026-10-22, #186, the owner's call):** a kid
+  asked to play with a sibling or a friend, so same-screen play is in scope
+  now (it reverses `docs/DESIGN-JRPG.md` §6 question 4 for one screen;
+  playing online, across devices or families, stays out). Player 2 is
+  another kid of the family — who types their own PIN and earns XP as
+  themselves (the owner's call, #188) — or a guest, who earns nothing
+  (`lib/playerTwo.ts`). The 🆚 Quiz Duel came first, then 👥 co-op battles
+  (#187). How it works: `two-players.md`.
 - **JRPG design (2026-06-12, #37):** hero + story companions; one kid-friendly
   dialogue register; simple coin/shop economy; async-only friends features;
   generated 16-bit art (`tools/assets/`), CC0 packs optional later. See `docs/DESIGN-JRPG.md` §6.
