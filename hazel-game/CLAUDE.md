@@ -60,8 +60,8 @@ order and the Supabase settings the app relies on: `docs/OPERATIONS.md`.
 ## Layout
 
 ```
-src/machines/gameFlow.ts (the screen the player is on) · src/store/ (save, battle, auth, family, grownUps, profile, settings, spire, finale, keyboard)
-src/content/ (zones, NPCs, enemies, quests, spells, story) · src/features/ (auth, family, quiz, world, battle, typing) · src/lib/ (pure logic) · src/components/ (shared UI)
+src/machines/gameFlow.ts (the screen the player is on) · src/store/ (save, battle, auth, family, grownUps, profile, settings, spire, finale, keyboard, playerTwo)
+src/content/ (zones, NPCs, enemies, quests, spells, story) · src/features/ (auth, family, quiz, duel, world, battle, typing) · src/lib/ (pure logic) · src/components/ (shared UI)
 supabase/ (migrations/, ci/*.test.sql, functions/ — single-file edge functions, scripts/) · docs/architecture/ · docs/feature-log/ · docs/ISSUES.md · docs/TEST-CASES.md
 ```
 
@@ -112,6 +112,7 @@ supabase/ (migrations/, ci/*.test.sql, functions/ — single-file edge functions
 | Zones, topics and acts, NPCs, enemies, quests, keys, items, Tiled maps | `docs/architecture/content.md`, `docs/MAP-AUTHORING.md` |
 | The overworld canvas, overlays, HUD, field spells, dungeons, inns, the sea, flying, story panels | `docs/architecture/world.md` |
 | Battles, spells, companions, hero types, timers, danger tiers, mercy | `docs/architecture/battle.md` |
+| Two players: the 🆚 Quiz Duel, 👥 co-op battles, Player 2's PIN and XP | `docs/architecture/two-players.md` |
 | Touch typing (lessons, scribe bursts, the Scriptorium, leaves, pangrams, pen pals) | `docs/architecture/typing.md` |
 | Question generation, screening, review and alerts, the cache, loading, budgets | `docs/architecture/questions.md` |
 | Migrations, SQL tests, the CI jobs, PR / Vercel rules | `docs/architecture/backend-and-ci.md` |
