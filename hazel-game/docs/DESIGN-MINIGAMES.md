@@ -554,6 +554,26 @@ Old Ringwood is the tree who loses count of his rings.
   Review round 2: "How far?" is a ruler — a straight line from Europe to the
   place's nearest square, drawn on the map; Tricky's clue isn't answered
   for the kid ("Which place fits the clue?").
+- **Expert (PR 19, §8.5):** the world on a 15° grid of latitude and
+  longitude — 24 × 12 squares, drawn again at that size so a square shows
+  what's mostly in it, its lines numbered up the side (90° N to 90° S) and
+  along the bottom (180° W to 180° E), the equator and the prime meridian
+  drawn stronger. The post leaves London and a parcel goes to a city by its
+  coordinates in whole degrees ("A letter for Tokyo, 36° N, 140° E."), none
+  on a line: its square is the one between the lines either side, and the
+  kid steers Ember there with eight directions, east and west joined. A
+  wrong square says its own lines, then where the city's are ("…is in the
+  square between 30°–45° N and 135°–150° E"), and after that which way.
+  Delivered, Pidge asks the time there when it's 9:00, 12:00 or 15:00 in
+  London in January: each 15° of longitude is an hour — ahead to the east,
+  behind to the west — by the 15° line nearest the city, from three (the
+  right time, the hours the wrong way, and the other line's: an hour off).
+  A wrong one says what's wrong with it, and the kid picks again. Fifteen
+  cities on five continents, a round's three on three, each one whose
+  January clock keeps that nearest line (Beijing, Hong Kong; not Delhi or
+  Adelaide, a half-hour off); the lesson is its coordinates, its clock and
+  a true thing about it. Pidge speaks plainly; delivered first go and the
+  time right first pick is the Expert seal. Expert brings every stamp.
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 
@@ -686,7 +706,7 @@ world, with the same host.
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth on a grid; the pole star's altitude as your latitude; declination in the lessons. (Right ascension on a chart would need the pictures redrawn from a catalogue: not built.) | "Polaris is 20° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's measured rings to a rainfall record, its thin rings under the dry years, and date it to the year. (Missing outer rings and sapwood estimates: not built.) | "Thin rings — and the record's dry years?"; "Its last ring grew in…" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. Seven cards a drawer, each dated by its century where that's enough to place it; then the years between a BCE card and a CE card, no year 0; each page says what led to what. No wars, battles, disasters or religion (§3.2). | "Paper (2nd century) … printing press (15th century)"; "From 500 BCE to 1807: how many years?" — 2,306 |
-| 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to coordinates, then say when it arrives. | "35° N, 135° E"; "9:00 in London — in Tokyo?" |
+| 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to a city by its coordinates, then say what time it is there, by the 15° line nearest it. (Half-hour zones, summer time and the date line: not asked.) | "Tokyo, 36° N, 140° E"; "It's 12:00 in London, in January. What time is it in Tokyo?" — 21:00 |
 | 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged. | "chrono + meter"; "What does port mean in transport?" |
 
 Each game's §5 section gets its Expert note as its PR lands.

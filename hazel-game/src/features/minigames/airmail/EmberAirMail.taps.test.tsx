@@ -47,11 +47,11 @@ describe('🐉 a double tap', () => {
     press('Fly east');
     press(/Deliver/);
     expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toBeInTheDocument();
-    // The second tap of the double, on Next as it comes: nothing.
-    press('Next parcel');
+    // The second tap of the double, on Next as it comes: nothing (a tap: a click with a count) — a key's acts at once.
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }), { detail: 1 });
     expect(screen.getByRole('heading', { name: 'Letter delivered!' })).toBeInTheDocument();
     wait();
-    press('Next parcel');
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }), { detail: 1 });
     expect(screen.queryByRole('heading', { name: 'Letter delivered!' })).not.toBeInTheDocument();
     // The next parcel's start waits too.
     press('Fly south');
@@ -91,5 +91,28 @@ describe('🐉 a double tap', () => {
     wait();
     press(/Deliver/);
     expect(pidge()).toMatch(/The house is \d square/);
+  });
+});
+
+describe('🐉 Expert’s time, a double tap', () => {
+  it('a time tapped as the question comes (Deliver was under the finger) isn’t picked; a moment later it is; a key at once', () => {
+    render(<EmberAirMail def={MINIGAMES['ember-air-mail']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    wait();
+    // Tokyo, from London's square: one south-east, then nine east.
+    press('Fly south-east');
+    for (let k = 0; k < 9; k++) {
+      wait();
+      press('Fly east');
+    }
+    wait();
+    press(/Deliver/);
+    expect(screen.getByRole('heading', { name: 'What time is it?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '0:00' }), { detail: 1 });
+    expect(pidge()).not.toContain('Not 0:00');
+    fireEvent.click(screen.getByRole('button', { name: '0:00' }), { detail: 0 });
+    expect(pidge()).toContain('Not 0:00');
+    wait();
+    fireEvent.click(screen.getByRole('button', { name: '18:00' }), { detail: 1 });
+    expect(screen.getByRole('heading', { name: /delivered\.$/ })).toBeInTheDocument();
   });
 });

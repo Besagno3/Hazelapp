@@ -592,7 +592,30 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   delivery's named it). A game's focus moved from script shows its ring for
   the keyboard only: `features/minigames/lastInput.ts` (`lastInputWasKey`)
   listens from the stage's load, as `:focus-visible` matches after a mouse
-  click on the title card's button too. **🔨 Word
+  click on the title card's button too. On Expert (`map: 'globe'`, §8.5)
+  the world is `GLOBE` — 24 × 12 squares of 15° (`DEG`, `GLOBE_W`,
+  `GLOBE_H`), drawn again at that size (a quarter of `WORLD`'s made
+  Britain the Atlantic), `globeRegionAt` — from London's square
+  (`GLOBE_START`), eight directions (`BAND_DIRS.expert`), east and west
+  joined; every stamp (`BAND_STAMPS.expert`). A job is a city (`CITIES`:
+  whole-degree latitude and longitude off every line, its January clock
+  against London's, `zone`, the 15° line nearest its longitude — tested —
+  and a fact) in turn, and London's hour (`LONDON_HOURS`, one its clock
+  keeps the same day). `cellAt` is its square, `bandWords` a square's
+  lines; the clue, `whereWords`, `missWords` (a wrong square's lines, then
+  where the city's are, then which way) and `howToFind` say them; `offset`
+  and `relWords` take the map's width. Delivered, step `time`: `timeAsk`,
+  three times from `timeChoices` (the right one, `cityHour`; the wrong
+  way; the other 15° line's), `timeWords` (`zoneWords` when right; else
+  what's wrong, picked again). The map's lines are numbered round it —
+  latitudes in a left gutter (`LAT_GUTTER`), longitudes in a row under it
+  (`LONG_ROW`, every 30° from 24 px squares, else 60°, under 14 px 90°) —
+  the equator and the prime meridian drawn stronger, the continents' names
+  placed for the globe (`GLOBE_LABEL`), left off the smallest map. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
+  with a miss on the way."); the seal's `spotOn` counts parcels delivered
+  first go with the time right first pick, the reward keeping the first
+  missed parcel's lesson; the times and Next wait for a tap's second, not a
+  key's (`ready(e)`). **🔨 Word
   Forge** (`ink-dot`, Scrivener Dot, Inkwell Cove — no quest of her own, so
   🔨 is her gold offer; `lib/minigames/forge.ts`, `features/minigames/
   forge/`): how words are built. Nine families of three words (`FAMILIES`,

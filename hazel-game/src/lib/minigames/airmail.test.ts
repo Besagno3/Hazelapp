@@ -37,13 +37,33 @@ import {
   targetWords,
   targets,
   whereWords,
+  CITIES,
+  CITY_BY_ID,
+  CITY_IDS,
+  DEG,
+  GLOBE,
+  GLOBE_H,
+  GLOBE_START,
+  GLOBE_W,
+  LONDON_HOURS,
+  bandWords,
+  cellAt,
+  cityHour,
+  clockWords,
+  coordsOf,
+  globeRegionAt,
+  openingWords,
+  timeAsk,
+  timeChoices,
+  timeWords,
+  zoneWords,
   type Cell,
   type Dir,
   type Job,
 } from './airmail';
 import { BANDS, MINIGAMES, type Band } from '../../content/minigames';
 
-const jobs = (band: Band, rounds = 8): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
+const jobs = (band: Band | 'expert', rounds = 8): Job[] => Array.from({ length: rounds * JOBS_PER_ROUND }, (_, k) => jobFor(band, Math.floor(k / JOBS_PER_ROUND), k % JOBS_PER_ROUND));
 
 /** The fewest moves from Ember's start to a delivery, with the band's compass. */
 function fewest(job: Job): number {
@@ -336,5 +356,123 @@ describe('the words', () => {
       });
       expect(new Set(at), `parcel ${i + 1}`).toEqual(new Set([0, 1, 2]));
     }
+  });
+});
+
+describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 15° grid, and time zones', () => {
+  const globe = (j: Job) => {
+    if (j.map !== 'globe') throw new Error('a globe job');
+    return j;
+  };
+
+  it('the world in 15° squares, 24 by 12, every continent and ocean on it; London’s square, Europe, to start', () => {
+    expect([GLOBE_W, GLOBE_H, DEG]).toEqual([24, 12, 15]);
+    expect(GLOBE).toHaveLength(GLOBE_H);
+    for (const row of GLOBE) expect(row).toHaveLength(GLOBE_W);
+    expect(new Set(GLOBE.join('').split('').map((code) => REGIONS.find((r) => r.code === code)?.id))).toEqual(new Set(REGIONS.map((r) => r.id)));
+    // Real places in their squares: Britain Europe (a quarter of the world map's square, it was the Atlantic), Japan Asia, Peru South America.
+    expect(globeRegionAt(cellAt(51.5, -0.1)).id).toBe('europe');
+    expect(globeRegionAt(cellAt(52, 5)).id).toBe('europe');
+    expect(globeRegionAt(cellAt(-34, 18)).id).toBe('africa');
+    expect(globeRegionAt(cellAt(-32, 116)).id).toBe('australia');
+    expect(globeRegionAt(cellAt(25, -150)).id).toBe('pacific');
+    expect(globeRegionAt(cellAt(-80, 0)).id).toBe('antarctica');
+    // London, 51.5° N, 0.1° W.
+    expect(cellAt(51.5, -0.1)).toEqual(GLOBE_START);
+    expect(bandWords(GLOBE_START)).toEqual({ lat: '45°–60° N', long: '0°–15° W' });
+    expect(bandWords({ x: 12, y: 6 })).toEqual({ lat: '0°–15° S', long: '0°–15° E' });
+    expect(bandWords({ x: 0, y: 11 })).toEqual({ lat: '75°–90° S', long: '165°–180° W' });
+    expect(bandWords({ x: 23, y: 0 })).toEqual({ lat: '75°–90° N', long: '165°–180° E' });
+  });
+
+  it('fifteen cities: none on a line, each in its own continent’s square, its January clock the 15° line nearest its longitude', () => {
+    expect(CITIES.map((c) => c.id)).toEqual([...CITY_IDS]);
+    const continent: Record<string, string> = {
+      tokyo: 'asia', 'new-york': 'north-america', johannesburg: 'africa', beijing: 'asia', 'los-angeles': 'north-america', athens: 'europe', rio: 'south-america', bangkok: 'asia',
+      chicago: 'north-america', luanda: 'africa', 'hong-kong': 'asia', lima: 'south-america', tashkent: 'asia', phoenix: 'north-america', 'addis-ababa': 'africa',
+    };
+    for (const c of CITIES) {
+      expect(c.lat % DEG, c.id).not.toBe(0);
+      expect(c.long % DEG, c.id).not.toBe(0);
+      expect(Number.isInteger(c.lat) && Number.isInteger(c.long), c.id).toBe(true);
+      expect(globeRegionAt(cellAt(c.lat, c.long)).id, c.id).toBe(continent[c.id]);
+      expect(c.zone, c.id).toBe(Math.round(c.long / DEG));
+      expect(c.fact.length, c.id).toBeGreaterThan(30);
+    }
+    // The real January clocks against London's (UTC): Tokyo +9, New York −5, Los Angeles −8, Rio −3, Athens +2.
+    expect(['tokyo', 'new-york', 'los-angeles', 'rio', 'athens'].map((id) => CITY_BY_ID[id as keyof typeof CITY_BY_ID].zone)).toEqual([9, -5, -8, -3, 2]);
+    // No wars, disasters or religion in a fact (a product rule).
+    const text = CITIES.map((c) => c.fact).join(' ').toLowerCase();
+    for (const word of ['war', 'battle', 'army', 'soldier', 'weapon', 'flood', 'earthquake', 'plague', 'god', 'temple', 'church', 'religio', 'pray']) expect(text, word).not.toMatch(new RegExp(`\\b${word}`));
+    expect(coordsOf(CITY_BY_ID.tokyo)).toBe('36° N, 140° E');
+    expect(coordsOf(CITY_BY_ID.rio)).toBe('23° S, 43° W');
+  });
+
+  it('the jobs: the globe, eight directions, every stamp; a city a parcel, a round’s three on three continents; London’s hour one its clock keeps the same day', () => {
+    expect(BAND_DIRS.expert).toHaveLength(8);
+    expect(BAND_STAMPS.expert).toEqual(STAMP_IDS);
+    const all = jobs('expert', 10).map(globe);
+    expect(new Set(all.map((j) => j.to))).toEqual(new Set(CITY_IDS));
+    for (let r = 0; r < 10; r++) expect(new Set(all.slice(r * 3, r * 3 + 3).map((j) => globeRegionAt(targets(j)[0]).id)).size, `${r}`).toBe(3);
+    for (const j of all) {
+      expect(mapOf(j)).toEqual({ w: 24, h: 12, start: GLOBE_START, wraps: true });
+      expect(LONDON_HOURS).toContain(j.hour);
+      expect(cityHour(j) >= 0 && cityHour(j) < 24, j.to).toBe(true);
+      expect(delivered(j, GLOBE_START)).toBe(false);
+      expect(fewest(j), j.to).toBeLessThanOrEqual(12);
+    }
+    expect(new Set(all.map((j) => j.hour))).toEqual(new Set(LONDON_HOURS));
+    // Round the back of the world: west off the map's edge comes back from the east.
+    expect(move(all[0], { x: 0, y: 3 }, 'W')).toEqual({ x: 23, y: 3 });
+    expect(move(all[0], { x: 23, y: 3 }, 'NE')).toEqual({ x: 0, y: 2 });
+  });
+
+  it('the words: the clue by coordinates; where Ember is by its square’s lines; a wrong square, how to find it, then which way', () => {
+    const j = globe(jobFor('expert', 0, 0)); // Tokyo
+    expect(j.to).toBe('tokyo');
+    expect(clueWords(j)).toMatch(/^A [a-z -]+ for Tokyo, 36° N, 140° E\.$/);
+    expect(openingWords(j)).toMatch(/Find its square by the grid’s lines, then steer Ember there\.$/);
+    expect(jobWords(j)).toBe('Fly it to Tokyo, 36° N, 140° E: its square is between the grid’s lines, every 15°. Then say what time it is there.');
+    expect(howToFind(j)).toMatch(/^Latitude up the side/);
+    expect(destWords(j)).toBe('Tokyo');
+    expect(targets(j)).toEqual([{ x: 21, y: 3 }]);
+    expect(whereWords(j, GLOBE_START)).toBe('over Europe, 45°–60° N, 0°–15° W');
+    expect(targetWords(j, GLOBE_START)).toBe('');
+    expect(missWords(j, { x: 20, y: 2 }, 1)).toBe('This square is 45°–60° N, 120°–135° E. Tokyo, 36° N, 140° E, is in the square between 30°–45° N and 135°–150° E.');
+    expect(missWords(j, { x: 20, y: 2 }, 2)).toBe('This square is 45°–60° N, 120°–135° E. Tokyo is 1 square south-east.');
+    expect(missWords(j, GLOBE_START, 2, false)).toMatch(/Ember hasn’t flown yet!/);
+    // The short way round: from the Americas to Tokyo, west across the Pacific.
+    expect(relWords({ x: 3, y: 3 }, { x: 21, y: 3 }, true, true, GLOBE_W)).toBe('6 squares west');
+  });
+
+  it('the time: three choices — the right one, the wrong way, an hour off by the other line — and how it’s worked out', () => {
+    const j = globe(jobFor('expert', 0, 0)); // Tokyo at London's 9:00
+    expect(j.hour).toBe(9);
+    expect(timeAsk(j)).toBe('It’s 9:00 in London, in January. What time is it in Tokyo?');
+    expect(timeChoices(j)).toEqual([0, 18, 19]);
+    expect(timeWords(j, 18)).toBe('Tokyo is at 140° E: the nearest 15° line is 135° E, so its clock is 9 hours ahead of London’s. 9:00 + 9 = 18:00.');
+    expect(timeWords(j, 18)).toBe(zoneWords(j));
+    expect(timeWords(j, 0)).toBe('Not 0:00: east of London, clocks are ahead — later in the day.');
+    expect(timeWords(j, 19)).toBe('Not 19:00: take the 15° line nearest 140° E — an hour for each 15° from 0°.');
+    const ny = globe(jobFor('expert', 0, 1));
+    expect(ny.to).toBe('new-york');
+    expect(timeWords(ny, cityHour(ny))).toBe(`New York is at 74° W: the nearest 15° line is 75° W, so its clock is 5 hours behind London’s. ${clockWords(ny.hour)} − 5 = ${clockWords(ny.hour - 5)}.`);
+    expect(timeWords(ny, ny.hour + 5)).toMatch(/west of London, clocks are behind — earlier in the day\.$/);
+    for (const x of jobs('expert', 10).map(globe)) {
+      const c = timeChoices(x);
+      expect(c, x.to).toHaveLength(3);
+      expect(c).toContain(cityHour(x));
+      expect(c.every((h) => h >= 0 && h < 24)).toBe(true);
+    }
+    expect(clockWords(9)).toBe('9:00');
+  });
+
+  it('the lesson: its coordinates, its clock, a true thing about it — plainly', () => {
+    const j = globe(jobFor('expert', 0, 0));
+    expect(learnedLine(j, [])).toBe(`Tokyo, 36° N, 140° E: 140 ÷ 15 is about 9, so its clock is 9 hours ahead of London’s in January. ${CITY_BY_ID.tokyo.fact}`);
+    for (const x of jobs('expert', 5)) expect(learnedLine(x, []), JSON.stringify(x)).not.toMatch(/!/);
+    // Luanda's one hour.
+    const lu = { ...j, to: 'luanda' as const };
+    expect(learnedLine(lu, [])).toMatch(/so its clock is 1 hour ahead of London’s/);
   });
 });

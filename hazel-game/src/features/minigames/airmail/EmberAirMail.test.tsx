@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 // Reduced motion: no zoom, so a round plays straight through.
 vi.mock('framer-motion', async (orig) => ({
@@ -25,18 +25,19 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { STAMP_BY_ID, jobFor, learnedLine, roundQueue } = await import('../../../lib/minigames/airmail');
-type Band = import('../../../content/minigames').Band;
+const { CITY_BY_ID, GLOBE_START, STAMP_BY_ID, cityHour, clockWords, jobFor, learnedLine, roundQueue, targets, timeChoices, timeWords } = await import('../../../lib/minigames/airmail');
+type Band = import('../../../content/minigames').PlayBand;
+type Job = import('../../../lib/minigames/airmail').Job;
 type Dir = import('../../../lib/minigames/airmail').Dir;
 
 const addXp = vi.fn(async () => {});
 const recordActivity = vi.fn(async () => {});
 
-function setUp(level: number, flags: Record<string, boolean> = {}) {
+function setUp(level: number, flags: Record<string, boolean> = {}, age = 9) {
   localStorage.clear();
   useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
   useProfileStore.setState({
-    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - 9, birthMonth: 1, skillLevels: { geography: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
+    profile: { id: 'kid-1', birthYear: new Date().getFullYear() - age, birthMonth: 1, skillLevels: { geography: level }, xp: 0, powerUps: {}, currentStreak: 0, longestStreak: 0, lastPlayedOn: null },
     addXp,
     recordActivity,
   });
@@ -303,5 +304,107 @@ describe('🐉 Ember Air Mail, a round (docs/DESIGN-MINIGAMES.md §5.9)', () => 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'The sack’s empty!' })).toBeInTheDocument());
     expect(save().flags[starFlag('ember-air-mail', 1)]).toBe(true);
     expect(save().items.hint).toBe(defaultSave().items.hint + 1);
+  });
+});
+
+describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude on a 15° grid, and time zones', () => {
+  /** Eight ways, from London's square to a city's: diagonals first, the short way round the world. */
+  function route(job: Job): Dir[] {
+    const to = targets(job)[0];
+    let dx = to.x - GLOBE_START.x;
+    if (Math.abs(dx) > 12) dx -= Math.sign(dx) * 24;
+    const dy = to.y - GLOBE_START.y;
+    const out: Dir[] = [];
+    const d = Math.min(Math.abs(dx), Math.abs(dy));
+    for (let k = 0; k < d; k++) out.push(`${dy < 0 ? 'N' : 'S'}${dx < 0 ? 'W' : 'E'}` as Dir);
+    for (let k = 0; k < Math.abs(dx) - d; k++) out.push(dx < 0 ? 'W' : 'E');
+    for (let k = 0; k < Math.abs(dy) - d; k++) out.push(dy < 0 ? 'N' : 'S');
+    return out;
+  }
+  const globeJob = (j: Job) => {
+    if (j.map !== 'globe') throw new Error('a globe job');
+    return j;
+  };
+  const times = () => within(screen.getByRole('group', { name: /^What time is it in / }));
+  /** What Pidge says, without her name. */
+  const says = () => pidge().replace(/^Postmaster Pidge/, '').replace(/\u200b$/, '');
+
+  it('a city by its coordinates, flown to on the 15° grid; a wrong square says its lines and where the city’s are; then its time, a wrong one said; spot on counted, the first missed lesson kept', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const jobs = [0, 1, 2].map((i) => globeJob(jobFor('expert', 0, i, queue)));
+    expect(jobs.map((j) => j.to)).toEqual(['tokyo', 'new-york', 'johannesburg']);
+    const [tokyo, ny, jo] = jobs;
+    const map = screen.getByRole('group', { name: 'The map of the world, on a grid of latitude and longitude every 15°' });
+    expect(map).toHaveAccessibleDescription(/^A [a-z -]+ for Tokyo, 36° N, 140° E\. Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    expect(says()).toMatch(/for Tokyo, 36° N, 140° E\. Find its square by the grid’s lines, then steer Ember there\.$/);
+    // Eight ways; the lines labelled round the map.
+    expect(within(screen.getByRole('group', { name: 'The compass' })).getAllByRole('button')).toHaveLength(8);
+    expect(screen.getByText('30°N')).toBeInTheDocument();
+    expect(screen.getByText('0°', { selector: 'span.absolute.top-0\\.5' })).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1Find the square', '2Deliver', '3What time?']);
+    // Delivered a square short: its lines, and the city's square's.
+    const r = route(tokyo);
+    fly(...r.slice(0, -1));
+    deliver();
+    expect(says()).toBe('This square is 30°–45° N, 120°–135° E. Tokyo, 36° N, 140° E, is in the square between 30°–45° N and 135°–150° E.');
+    fly(r[r.length - 1]);
+    expect(says()).toMatch(/^East\. Ember’s over Asia, 30°–45° N, 135°–150° E\.$/);
+    deliver();
+    // The time: asked, three choices; a wrong one said, then the right.
+    const head = screen.getByRole('heading', { name: 'What time is it?' });
+    expect(head).toHaveFocus();
+    expect(head).toHaveAccessibleDescription(/^It’s 9:00 in London, in January\. What time is it in Tokyo\? Each 15° of longitude is an hour/);
+    expect(times().getAllByRole('button').map((b) => b.textContent)).toEqual(timeChoices(tokyo).map(clockWords));
+    fireEvent.click(times().getByRole('button', { name: '0:00' }));
+    expect(says()).toBe(timeWords(tokyo, 0));
+    expect(screen.getByRole('heading', { name: 'What time is it?' })).toBeInTheDocument();
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(tokyo)) }));
+    const done = screen.getByRole('heading', { name: `${STAMP_BY_ID[tokyo.stamp].name} delivered.` });
+    expect(done).toHaveFocus();
+    expect(done).toHaveAccessibleDescription(new RegExp(`^${learnedLine(tokyo, []).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    expect(says()).toBe(`${timeWords(tokyo, 18)} Delivered, with a miss on the way. Next parcel.`);
+    expect(pidge()).not.toMatch(/!/);
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
+
+    // New York, the short way west; right first time.
+    fly(...route(ny));
+    deliver();
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(ny)) }));
+    expect(pidge()).toMatch(/Right square, right time\. Next parcel\.$/);
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
+    // Johannesburg: right first time, then the round.
+    fly(...route(jo));
+    deliver();
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(jo)) }));
+    expect(pidge()).toMatch(/Right\. That’s the sack\.$/);
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the round' }));
+    expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(tokyo, []), spotOn: { right: 2, of: 3 } });
+    expect(CITY_BY_ID.tokyo.zone).toBe(9);
+  });
+
+  it('a wrong time costs the seal too; spot on every time, the last lesson', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert', 1);
+    const queue = roundQueue('expert', () => false, 1);
+    for (const i of [0, 1, 2]) {
+      const job = globeJob(jobFor('expert', 1, i, queue));
+      fly(...route(job));
+      deliver();
+      fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(job)) }));
+      fireEvent.click(screen.getByRole('button', { name: i < 2 ? 'Next parcel' : 'Finish the round' }));
+    }
+    expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(jobFor('expert', 1, 2, queue), []), spotOn: { right: 3, of: 3 } });
+  });
+
+  it('through the stage: a teen’s title card — Expert’s hello and steps', async () => {
+    setUp(6, {}, 14);
+    render(<MiniGameStage game="ember-air-mail" />);
+    expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Today’s post goes to cities by their coordinates, on a map ruled every 15°/)).toBeInTheDocument();
+    expect(screen.getByText(/Right square and right time first go wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Let’s fly!' }));
+    await screen.findByRole('group', { name: /^The map of the world, on a grid/ });
   });
 });

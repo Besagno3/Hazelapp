@@ -9,7 +9,7 @@ import { EchoLogo, StepInterval, StepListen, StepPlay, StepShape } from './echo/
 import { StarsLogo, StepConnect, StepCoords, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepDate, StepMatch, StepRain, StepRead } from './rings/art';
 import { StepCentury, StepCheck, StepLed, StepPlace, StepSpan, StepWash, TimelineLogo } from './timeline/art';
-import { AirMailLogo, StepDeliver, StepParcel, StepSteer } from './airmail/art';
+import { AirMailLogo, StepClock, StepDeliver, StepGrid, StepParcel, StepSteer } from './airmail/art';
 import { ForgeLogo, StepHammer, StepMeaning, StepPick } from './forge/art';
 import type { PlayProps } from './types';
 
@@ -79,6 +79,7 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./airmail/EmberAirMail')),
     Logo: AirMailLogo,
     steps: [StepParcel, StepSteer, StepDeliver],
+    expertSteps: [StepGrid, StepSteer, StepClock],
   },
   'word-forge': {
     Play: retryableLazy(() => import('./forge/WordForge')),
