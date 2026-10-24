@@ -58,7 +58,13 @@ export interface MiniGameDef {
    * a plainer hello, and how Expert's played, the seal in it (PR 11 UX review
    * round 1: Expert picked, the card still greeted a young kid).
    */
-  expert?: { note: string; hello: string; steps: readonly [HowToStep, HowToStep, HowToStep] };
+  expert?: {
+    note: string;
+    hello: string;
+    steps: readonly [HowToStep, HowToStep, HowToStep];
+    /** Play's words on Expert, where the game's own would be wrong for it (Ringwood's Rings: "Let's count!", for dating beams). */
+    playLabel?: string;
+  };
   /** Its music, while the stage is up (`App` steps aside, as for the Spire); null: quiet, so a game's own notes are heard. */
   music: MusicTrack | null;
   /** The picture behind the title card and the reward (a zone's battle backdrop). */
@@ -283,6 +289,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     expert: {
       note: 'Expert: cross-dating with climate data — an old beam’s rings, measured, matched to the grove’s rainfall record and dated to the year.',
       hello: 'I keep a rainfall record now, a bar a year. Slide each old beam’s measured rings along it till the thin ones sit under the dry years, then tell me the year its last ring grew.',
+      playLabel: 'Date the beams',
       steps: [
         { title: 'Line it up', text: 'A dry year grew a thin ring. Slide the beam’s rings till the thin ones sit under the record’s dry years, the bars under 500 mm.' },
         { title: 'Date it', text: 'Read the year above the beam’s last ring, the one by the bark: its tree was cut that year.' },

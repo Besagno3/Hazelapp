@@ -16,8 +16,8 @@ const { default: StarCharts } = await import('./StarCharts');
 const { SETTLE_MS } = await import('../useSettled');
 const { useSaveStore } = await import('../../../store/saveStore');
 const { defaultSave } = await import('../../../lib/save');
-const { MINIGAMES } = await import('../../../content/minigames');
-const { PICTURE_BY_ID, jobFor } = await import('../../../lib/minigames/stars');
+const { MINIGAMES, pageFlag } = await import('../../../content/minigames');
+const { PICTURE_BY_ID, PICTURE_IDS, jobFor, roundQueue } = await import('../../../lib/minigames/stars');
 
 let now = 0;
 beforeEach(() => {
@@ -85,5 +85,47 @@ describe('✨ a double tap', () => {
     wait();
     tapStar(job.find!, 'expert');
     expect(screen.queryByRole('heading', { name: /^Find / })).toBeNull();
+  });
+});
+
+describe('✨ Expert’s buttons wait for a tap’s second, not a key’s (code review round 1: untested)', () => {
+  it('the latitude, Next and a chart page, tapped as their step starts, do nothing; a moment later — or from the keyboard — they do', () => {
+    // Every other picture on the chart: the Little Dipper comes first.
+    const flags = Object.fromEntries(PICTURE_IDS.filter((id) => id !== 'little-dipper').map((id) => [pageFlag('star-charts', id), true]));
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
+    render(<StarCharts def={MINIGAMES['star-charts']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('expert', 0, 0, roundQueue('expert', (id) => id !== 'little-dipper', 0));
+    expect(job.picture).toBe('little-dipper');
+    const right = () => screen.getByRole('button', { name: `${job.latitude}° N` });
+    // A chart page, tapped straight away: not read; from the keyboard, read.
+    tap(screen.getByRole('button', { name: 'Orion. Read the page' }));
+    expect(screen.getByRole('button', { name: 'Orion. Read the page' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Orion. Read the page' }), { detail: 0 });
+    expect(screen.getByRole('button', { name: 'Orion. Read the page' })).toHaveAttribute('aria-pressed', 'true');
+    // The latitude, tapped straight away: not picked.
+    tap(right());
+    expect(screen.getByRole('heading', { name: 'How far north?' })).toBeInTheDocument();
+    wait();
+    tap(right());
+    expect(screen.queryByRole('heading', { name: 'How far north?' })).toBeNull();
+    // Joined: Next, tapped straight away, waits; a key doesn't.
+    for (const [a, b] of PICTURE_BY_ID['little-dipper'].lines) {
+      if (star(a).getAttribute('aria-pressed') !== 'true') press(a);
+      press(b);
+      if (star(b).getAttribute('aria-pressed') === 'true') press(b);
+    }
+    tap(screen.getByRole('button', { name: 'Next picture' }));
+    expect(screen.queryByText('Picture 2 of 3')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Next picture' }), { detail: 0 });
+    expect(screen.getByText('Picture 2 of 3')).toBeInTheDocument();
+  });
+
+  it('the latitude from the keyboard as the step starts: picked at once', () => {
+    const flags = Object.fromEntries(PICTURE_IDS.filter((id) => id !== 'little-dipper').map((id) => [pageFlag('star-charts', id), true]));
+    useSaveStore.setState({ userId: null, save: { ...defaultSave(), flags }, status: 'ready', remoteError: null });
+    render(<StarCharts def={MINIGAMES['star-charts']} band="expert" round={0} onPage={() => true} onFinish={() => {}} />);
+    const job = jobFor('expert', 0, 0, roundQueue('expert', (id) => id !== 'little-dipper', 0));
+    fireEvent.click(screen.getByRole('button', { name: `${job.latitude}° N` }), { detail: 0 });
+    expect(screen.queryByRole('heading', { name: 'How far north?' })).toBeNull();
   });
 });
