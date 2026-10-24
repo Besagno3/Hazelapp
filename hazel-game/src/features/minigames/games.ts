@@ -5,7 +5,7 @@ import { PotionLabLogo, StepGuess, StepPh, StepPour, StepStir } from './potionLa
 import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import { GearsLogo, StepCrank, StepJoin, StepPeg, StepRatio } from './gears/art';
 import { MuralLogo, StepImage, StepMirror, StepMix, StepMove, StepPaint } from './mural/art';
-import { EchoLogo, StepListen, StepPlay, StepShape } from './echo/art';
+import { EchoLogo, StepInterval, StepListen, StepPlay, StepShape } from './echo/art';
 import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepMatch, StepRead } from './rings/art';
 import { StepCheck, StepPlace, StepWash, TimelineLogo } from './timeline/art';
@@ -55,6 +55,7 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./echo/EchosCall')),
     Logo: EchoLogo,
     steps: [StepListen, StepShape, StepPlay],
+    expertSteps: [StepListen, StepInterval, StepPlay],
   },
   'star-charts': {
     Play: retryableLazy(() => import('./stars/StarCharts')),

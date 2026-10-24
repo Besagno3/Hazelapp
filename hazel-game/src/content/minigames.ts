@@ -216,6 +216,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Songbook',
     pages: 8,
     bandNote: 'Gentle: three chimes and five of the eight tunes. Medium: all five chimes and all eight. Tricky: read the notes on a staff, and spot a wrong one.',
+    expert: {
+      note: 'Expert: intervals — a minor or major 2nd or 3rd, a perfect 4th or 5th — named in the tunes, read or heard.',
+      hello: 'Today I ask about intervals. Read the staff or listen, name the interval between the two notes I mark, then play the tune.',
+      steps: [
+        { title: 'Read or listen', text: 'The tune is on the staff, or Lyra plays it, with two of its notes marked. Each chime has its letter.' },
+        { title: 'Name the interval', text: 'Count the letter names, both ends in, for the number; the semitones for major, minor or perfect. Each step is 2, but E to F is 1.' },
+        { title: 'Play it', text: 'Every interval named and every tune played with no wrong chime wins the Expert seal. No clock.' },
+      ],
+    },
     music: null,
     backdrop: '/backgrounds/chromaria.png',
     firstItem: 'ward',
