@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktower Gears.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -93,6 +93,48 @@ and each game — so far 🧪 Potion Lab.
   board a slice in the box keeps its filling, lifted with a gold outline and
   a tick; the ticket and the closed box draw what's in it full and the rest
   pale. The scene's customer and
-  Ember stand over the SVG as HTML (no `foreignObject`). The
+  Ember stand over the SVG as HTML (no `foreignObject`). **⚙️ Clocktower
+  Gears** (`gearfall-clockkeeper`, Tock, Gearfall — he gives a quest too;
+  `lib/minigames/gears.ts`, `features/minigames/gears/`): gear trains — three
+  machines a round (`jobFor(band, round, i, queue)`, `JOBS_PER_ROUND`; which
+  machine from `roundQueue`, machines not in the book first; the board and
+  what's asked by the slot). A board (`board(rows)`: `E` the crank's peg, `X`
+  the machine's) is pegs on an odd-r hex grid one peg apart (`pegAt`,
+  `touching`); the crank and the machine slide on their axles to touch only
+  their own peg's gear at any size (`ends`, `radius`: teeth ÷ 32 pegs).
+  `run` turns the crank clockwise: every gear it reaches turns the other way
+  from the one turning it (a breadth-first walk), a gear pushed both ways is
+  `jammed` (one ring of three gears that all touch — the two pushed the
+  same way and a third touching both, never the crank's own peg if there's a
+  choice — marked and shaken, the same whatever order the pegs were
+  tapped), a train that stops short is
+  `not-joined`, and the machine's speed is crank teeth ÷ machine teeth;
+  `check` against the job (Gentle: just turn; Medium: `turn`; Tricky: `turn`
+  and `speed`, the crank's gear picked from `CRANK_TEETH`), said back by
+  `verdictWords` and taught by `learnedLine` ("Five gears between…: an odd
+  number, so it turns the same way as the crank"). Gentle's boards can't
+  jam; Medium's and Tricky's offer both ways round (tested by trying every
+  filling, `solve`); four or five boards a band, so a round's three change.
+  Tricky's crank starts with no gear (`Pick the crank's gear first`) and its
+  ticket says the machine's teeth. Each peg is an SVG `role="button"` (Enter /
+  Space, a held key once; a drawn focus ring) named by row and place, what it
+  touches and, after a run, what its gear did ("Middle row, peg 1: a gear,
+  turning anticlockwise ↺. Take it off. Touches the crank, top row peg 1 and
+  middle row peg 2."); focus starts on the crank's peg (the pegs come first
+  on the page) and a peg tapped keeps it. A run spins what turned for three
+  turns of the crank (`animate-spin`, each gear's period from its teeth;
+  reduced motion: still) with a bold arrow on each hub; before a run a dashed
+  arrow on the machine shows which way it must turn.
+  The frame (`boardBox`) holds all three rows and the crank's handle all
+  the way round (`HANDLE`); from `sm` up the board is sized to its space
+  (`useFitWidth`, a ResizeObserver) with its heading on it and its labels
+  under its ends; Tab goes left to right from the crank's peg. On a phone
+  the board sticks to the top while the steps scroll, and the page keeps its
+  height as scroll padding so a result never lands under it; the gold button
+  scrolls into view as a step starts, never on a peg tap. From `sm` up the
+  Clocktower's room (the great clock, today's machine on its plate, stopped
+  or running) is above the board; a phone and a short screen keep just the
+  board (not sticky on a phone on its side under 640 px).
+  The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

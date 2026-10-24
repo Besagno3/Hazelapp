@@ -1128,6 +1128,7 @@ export const NPC_DEFS: Record<string, WorldNpcDef> = {
     stationary: true,
     lines: [
       'Tick… tock… tick… The Clocktower has kept Gearfall on time for a hundred years. Well. Mostly on time.',
+      'Inside it are dozens of little machines — hands, bells, a cuckoo… Some have stopped. Got a steady hand with a gear? Come and tinker!',
       {
         text: 'Both gears home and the great clock sings on the hour again. Gearfall will never be late — thanks to you!',
         ifFlag: 'quest:tock-gears:done',

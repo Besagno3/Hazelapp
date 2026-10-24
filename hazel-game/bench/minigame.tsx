@@ -22,6 +22,7 @@ import MiniGameStage from '../src/features/minigames/MiniGameStage';
 import { MINIGAMES, MINIGAME_IDS, pageFlag, type MiniGameId } from '../src/content/minigames';
 import { JAR_IDS } from '../src/lib/minigames/potionLab';
 import { REGULAR_IDS } from '../src/lib/minigames/bakery';
+import { MACHINE_IDS } from '../src/lib/minigames/gears';
 import { defaultSave } from '../src/lib/save';
 import { crystalFlag } from '../src/content/topics';
 import { EMBER_HATCHED } from '../src/content/story';
@@ -38,7 +39,7 @@ const age = Number(q.get('age') ?? 9);
 const ember = q.get('ember') ?? 'hatchling';
 
 /** Each game's page keys, for `pages=<n>`. */
-const PAGE_IDS: Record<MiniGameId, readonly string[]> = { 'potion-lab': JAR_IDS, 'dots-bakery': REGULAR_IDS };
+const PAGE_IDS: Record<MiniGameId, readonly string[]> = { 'potion-lab': JAR_IDS, 'dots-bakery': REGULAR_IDS, 'clocktower-gears': MACHINE_IDS };
 
 const flags: Record<string, boolean> = {};
 for (const f of (q.get('flags') ?? '').split(',').filter(Boolean)) flags[f] = true;
