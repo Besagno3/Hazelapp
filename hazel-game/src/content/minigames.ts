@@ -9,7 +9,7 @@ import type { ConsumableId } from './items';
  * flags its progress lives in. Each game's rules are `lib/minigames/<game>.ts`;
  * the stage and the games' screens are `features/minigames/`.
  */
-export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears'] as const;
+export const MINIGAME_IDS = ['potion-lab', 'dots-bakery', 'clocktower-gears', 'mirror-mural'] as const;
 export type MiniGameId = (typeof MINIGAME_IDS)[number];
 
 /** The three bands a game is played at (§3.3), picked from the topic's question level. */
@@ -123,6 +123,29 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     backdrop: '/backgrounds/gearfall.png',
     firstItem: 'spark',
   },
+  'mirror-mural': {
+    id: 'mirror-mural',
+    name: 'Mirror Mural',
+    emoji: '🪞',
+    topic: 'creativity',
+    host: 'chromaria-curator',
+    place: 'The Grand Gallery · Chromaria',
+    where: 'Madame Hue, Chromaria',
+    playLabel: 'Let’s paint!',
+    againLabel: 'More pictures',
+    hello: 'Darling! Half of each picture is painted — the mirror needs the other half. Mix the paint and make them match!',
+    steps: [
+      { title: 'Mix the paint', text: 'Two pots make a new colour: red and blue make purple.' },
+      { title: 'Paint the other half', text: 'Tap or drag across the squares — each one copies the square across the mirror line.' },
+      { title: 'Hold up the mirror', text: 'It shows what matches. Every picture finished hangs in the Gallery!' },
+    ],
+    collection: 'Gallery',
+    pages: 9,
+    bandNote: 'Medium mirrors down as well as across; Tricky four ways, half turns and opposite colours.',
+    music: 'town',
+    backdrop: '/backgrounds/chromaria.png',
+    firstItem: 'mirror',
+  },
 };
 
 /** The game a person runs, if any (they offer it from their first line). */
@@ -138,5 +161,11 @@ export const openedFlag = (id: MiniGameId) => mg(id, 'opened');
 export const pageFlag = (id: MiniGameId, page: string) => mg(id, `page:${page}`);
 /** A star earned: 1 the first round finished, 2 half the collection, 3 all of it. */
 export const starFlag = (id: MiniGameId, n: 1 | 2 | 3) => mg(id, `star:${n}`);
+/**
+ * The kid's own picture (the Mirror Mural's free canvas, §3.5): one flag whose
+ * name ends in the picture's code — `mineFlag(id)` alone is the prefix, so the
+ * one before can be found and replaced.
+ */
+export const mineFlag = (id: MiniGameId, code = '') => mg(id, `mine:${code}`);
 
 // What a page or a star pays is economy tuning: `MINIGAME_*` in content/items.ts.

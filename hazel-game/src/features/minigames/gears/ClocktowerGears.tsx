@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { forwardRef, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import {
   CRANK_TEETH,
@@ -37,6 +37,8 @@ import { NPC_DEFS, npcEmoji, npcSpriteId } from '../../../content/npcs';
 import { EmberSprite, HostBubble, StepChips, Ticket } from '../parts';
 import { focusRing, goldClass, outlineClass, pixelHeadClass, windowClass } from '../styles';
 import type { PlayProps } from '../types';
+import { useFitWidth } from '../useFitWidth';
+import { useStickyHeight } from '../useStickyHeight';
 import { GearShape } from './art';
 
 const EMPTY_FLAGS: Record<string, boolean> = {};
@@ -109,7 +111,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   }, [done, again]);
   // On a phone the board stays at the top of the page: the page keeps that much room at its top when it scrolls
   // something into view, so nothing lands under the board (review round 2: what happened, and why, did).
-  const [boardEl, boardH] = useHeight();
+  const [boardEl, boardH] = useStickyHeight<HTMLElement>();
 
   // What happened, in sight below the board.
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
   }
 
   const stepIndex = result ? 2 : placed.size > 0 ? 1 : 0;
-  const [area, fit] = useFitWidth(boardRatio(job.board, band));
+  const [area, fit] = useFitWidth(boardRatio(job.board, band), LABELS_PX);
 
   let line: string;
   const readMachine = read ? MACHINE_BY_ID[read] : null;
@@ -251,7 +253,7 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
           </div>
         </section>
 
-        <aside className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
+        <aside aria-label={`The job and the ${def.collection}`} className="flex flex-col gap-3 border-[#1b0f22] bg-[#1e1b4b] p-3 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:overflow-y-auto sm:border-l-4 sm:p-4">
           <HostBubble npcId={def.host} line={line} phoneStrip />
           <div className="order-1 sm:order-none">
             <Ticket heading={`FIX ${machine.short.toUpperCase()}`} ready={right} icon={<MachineBadge id={job.machine} />} id="cg-job">
@@ -346,48 +348,6 @@ export default function ClocktowerGears({ def, band, round, onPage, onFinish }: 
 /** Room under the board for its labels, in px (two lines on a narrow screen). */
 const LABELS_PX = 76;
 
-/**
- * The board's height while it sticks to the top of the page (a phone held
- * upright), kept up to date; null when it doesn't stick, and where it can't
- * be measured, as in tests.
- */
-function useHeight() {
-  const ref = useRef<HTMLElement>(null);
-  const [h, setH] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => setH(getComputedStyle(el).position === 'sticky' ? Math.round(el.getBoundingClientRect().height) : null));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, h] as const;
-}
-
-/**
- * The width that fits the board in its space from `sm` up: as wide as the
- * space, or as the space's height allows at the board's shape, whichever is
- * less. On a phone the page scrolls and the space is as tall as the board
- * itself (fitting to it would shrink it for ever): the space's width.
- */
-function useFitWidth(ratio: number) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const fit = () => {
-      if (!window.matchMedia?.('(min-width: 640px)').matches) return setWidth(null);
-      const { width: w, height: h } = el.getBoundingClientRect();
-      setWidth(h > LABELS_PX ? Math.floor(Math.min(w, (h - LABELS_PX) * ratio)) : null);
-    };
-    const ro = new ResizeObserver(fit);
-    ro.observe(el);
-    fit();
-    return () => ro.disconnect();
-  }, [ratio]);
-  return [ref, width] as const;
-}
 
 const NUM = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
 const gearsWord = (n: number) => `${NUM[n] ?? n} gear${n === 1 ? '' : 's'}`;

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { Band, MiniGameDef } from '../../content/minigames';
 
 /**
@@ -15,8 +16,14 @@ export interface PlayProps {
    * True when it's new. `label` is how the reward names it ("Lemon juice").
    */
   onPage: (page: string, label: string) => boolean;
-  /** The round is finished: the stage shows the reward. */
+  /** The round is finished: the stage pays it (unless `onClaim` has) and shows the reward. */
   onFinish: (outcome: RoundOutcome) => void;
+  /**
+   * The round's pay is earned, though something just for fun comes before the
+   * reward (Mirror Mural's own canvas): paid now, once, so leaving by 🗺️ Map
+   * keeps it; `onFinish` then shows it on the reward.
+   */
+  onClaim?: () => void;
 }
 
 /** What a finished round says on the reward screen. */
@@ -27,4 +34,6 @@ export interface RoundOutcome {
   learned: string;
   /** A colour to show beside it (the potion's). */
   swatch?: string;
+  /** Or a picture (the one the kid hung in Mirror Mural's Gallery). Decorative: the title says what it is. */
+  picture?: ReactNode;
 }

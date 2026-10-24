@@ -7,7 +7,7 @@
 Covers: the host's button, `world.minigame`, `MiniGameStage` (the zoom, the
 title card, the play area, the reward), the shared rules and pay
 (`lib/minigames.ts`), the shared look (`styles.ts`, `parts.tsx`), the bench,
-and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktower Gears.
+and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower Gears and 🪞 Mirror Mural.
 
 - **Mini-games (docs/DESIGN-MINIGAMES.md, #192):** learning games on their
   own full-screen **stage**, one per topic, each run by a host in the world.
@@ -28,7 +28,10 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktowe
   the map's toasts, sets `openedFlag` (📜
   Menu → 🎮 Mini-games, `MiniGamesPanel`), and pays: a game calls
   `onPage(page, label)` as it finds a collection page and `onFinish(outcome)`
-  when a round is done; `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
+  when a round is done (a game with something just for fun before the reward
+  — Mirror Mural's free canvas — calls `onClaim()` as the round is earned: it
+  pays then, once, so leaving by 🗺️ Map keeps it, and `onFinish` only shows
+  the reward); `lib/minigames.ts` (`claimPage` / `claimRound`, pure)
   saves `mg:<game>:page:<key>` / `star:<n>` flags (additive, no save bump)
   and pays `MINIGAME_PAGE_XP` per new page and `MINIGAME_STAR_XP` +
   `MINIGAME_STAR_COINS` per new star (economy, in `content/items.ts`) (★ first round, ★ half the collection,
@@ -134,7 +137,54 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery and ⚙️ Clocktowe
   scrolls into view as a step starts, never on a peg tap. From `sm` up the
   Clocktower's room (the great clock, today's machine on its plate, stopped
   or running) is above the board; a phone and a short screen keep just the
-  board (not sticky on a phone on its side under 640 px).
-  The
+  board (not sticky on a phone on its side under 640 px). `useFitWidth`
+  (`features/minigames/useFitWidth.ts`) is shared: a board's width that fits
+  its space from `sm` up, null on a phone. **🪞 Mirror Mural**
+  (`chromaria-curator`, Madame Hue, Chromaria — she gives a quest too;
+  `lib/minigames/mural.ts`, `features/minigames/mural/`): symmetry and colour
+  mixing — three pictures a round (`jobFor`, `roundQueue`: those not in the
+  Gallery first). Nine 6×6 patterns (`PATTERNS`, each the same across and
+  down so every mirror fits, drawn in two colour slots — never two a
+  colour-blind eye mixes up, but opposites); a job's `kind` says how the
+  given part makes the rest (`source`, `given`): `across` (Gentle, Medium),
+  `down` (Medium), `four`, `turn` (rotational: its top-right quarter's
+  colours swap, a pinwheel, or the top half flipped down would match too)
+  and `opposite` (each colour's opposite, `OPPOSITE`; Tricky — its paints
+  come in their pairs, side by side). Every painted square and paint shows
+  its colour's letter (`GLYPH`), the kid's bare squares are outlined. The
+  kid mixes the paint first from two pots (`mix`, `recipe`; Tricky has white
+  for tints — paint, not light), a wrong pair said kindly (`mixWords`, in
+  the step's status; Madame Hue's line stays put); then paints (tap, a drag
+  across the squares — pointer events with `elementFromPoint`, the main
+  button and one pointer by id, `touch-none` on the canvas — or the arrow
+  keys between the kid's squares, one in the tab order, and Enter), each
+  square named by place, colour and the square it copies; the mirror
+  (`mismatches`, `checkWords`) marks on the canvas what doesn't match yet,
+  focus on the first marked, and painting goes on — each mark cleared as
+  it's repainted; a perfect match pays the page and, the third, the round
+  (`onClaim`). Then a free canvas: the left half painted, the right
+  mirrored live and hatched (`mirrored`); "Hang it in the Gallery" keeps it
+  in the save as one flag whose name holds its code (`mineFlag(id,
+  encodeMine(grid))`, the old one dropped — §3.5; the whole copy wins
+  between devices, so flags aren't merged), shown under the Gallery; this
+  round's pictures show there, and on the wall, in the kid's colours, and the
+  reward shows the one hung (`RoundOutcome.picture`). From `sm` up
+  `mural/layout.ts` (`fitCanvas`, pure) fits the canvas: the paints are drawn
+  at fixed sizes, so how tall they stand at a width is worked out
+  (`controlsHeight`) rather than measured — only the space is — and the
+  canvas goes beside them (a column at least `BESIDE_PX` wide) or under them,
+  whichever leaves it bigger, compact paints where they save room; below a
+  floor (26 px squares) it keeps that size and the board scrolls (`tight`;
+  the board keeps its scrollbar's room so one can't change the space). They
+  stay in place, unseen, while mixing and after a match so the canvas never
+  changes size; on a phone the mirror's rule sits over the canvas. A step's
+  buttons wait `SETTLE_MS` as it starts (`useSettled`, shared): a double
+  tap's second tap does nothing to what came under the finger; the mirror held
+  up before a square is painted marks nothing; a held Enter paints once. The
+  mark is sized from the canvas (container units), so a square's letter shows
+  in it; the focus ring is drawn over it. On a tall enough screen Madame
+  Hue's bubble sticks to the top of the panel (`useStickyHeight`, shared with
+  Clocktower Gears' board). The room above (this round's three frames) from
+  `sm` up. The
   bench: `bench/minigame.html?game=&level=&pages=&flags=&ember=` mounts the
   stage alone (start Vite with a stand-in `VITE_SUPABASE_URL`).

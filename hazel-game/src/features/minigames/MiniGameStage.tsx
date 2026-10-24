@@ -38,6 +38,10 @@ interface Earned {
 }
 const NOTHING: Earned = { pages: [], xp: 0, coins: 0, stars: [], item: null };
 
+function join(a: Earned, b: Earned): Earned {
+  return { pages: [...a.pages, ...b.pages], xp: a.xp + b.xp, coins: a.coins + b.coins, stars: [...a.stars, ...b.stars], item: a.item ?? b.item };
+}
+
 function add(a: Earned, c: Claim, labels: string[] = []): Earned {
   return {
     pages: [...a.pages, ...labels],
@@ -114,26 +118,36 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
     [update, game, addXp],
   );
 
+  // A round's pay, once: by `onClaim` before the reward (kept if the kid leaves first), or as it shows.
+  const claimed = useRef<Earned | null>(null);
+  const onClaim = useCallback(() => {
+    if (claimed.current) return;
+    const box: { c: Claim | null } = { c: null };
+    update((s) => {
+      box.c = claimRound(s, game);
+      return box.c.save;
+    });
+    const c = box.c;
+    // Any XP counts the day (addXp does it); a replay that pays nothing still played (§3.4).
+    if (c && c.xp > 0) void addXp(c.xp);
+    else void recordActivity();
+    claimed.current = c ? add(earned.current, c) : earned.current;
+    earned.current = NOTHING;
+    noteRoundPlayed(kidId, game);
+  }, [update, game, addXp, recordActivity, kidId]);
+
   const onFinish = useCallback(
     (outcome: RoundOutcome) => {
-      const box: { c: Claim | null } = { c: null };
-      update((s) => {
-        box.c = claimRound(s, game);
-        return box.c.save;
-      });
-      const c = box.c;
-      // Any XP counts the day (addXp does it); a replay that pays nothing still played (§3.4).
-      if (c && c.xp > 0) void addXp(c.xp);
-      else void recordActivity();
-      const total = c ? add(earned.current, c) : earned.current;
+      onClaim();
+      const total = join(claimed.current ?? NOTHING, earned.current);
+      claimed.current = null;
       earned.current = NOTHING;
-      noteRoundPlayed(kidId, game);
       setReward({ ...outcome, ...total });
       setPhase('reward');
       sfx('victory');
       if (!still) confetti({ particleCount: 90, spread: 75, origin: { y: 0.35 }, disableForReducedMotion: true });
     },
-    [update, game, addXp, recordActivity, still, kidId],
+    [onClaim, still],
   );
 
   // The reward's confetti doesn't fall on into the next round, or over the map (review round 2).
@@ -188,7 +202,7 @@ export default function MiniGameStage({ game }: { game: MiniGameId }) {
         {phase === 'play' && (
           <div className="flex min-h-0 flex-1 flex-col">
             <StageHeader def={def} stars={stars} onBack={leave} />
-            <PlayArea def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} onBack={leave} />
+            <PlayArea def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} onClaim={onClaim} onBack={leave} />
           </div>
         )}
         {phase === 'reward' && reward && (
@@ -212,6 +226,7 @@ function PlayArea({
   round,
   onPage,
   onFinish,
+  onClaim,
   onBack,
 }: {
   def: MiniGameDef;
@@ -219,6 +234,7 @@ function PlayArea({
   round: number;
   onPage: (page: string, label: string) => boolean;
   onFinish: (o: RoundOutcome) => void;
+  onClaim: () => void;
   onBack: () => void;
 }) {
   const screens = GAME_SCREENS[def.id];
@@ -233,7 +249,7 @@ function PlayArea({
           </p>
         }
       >
-        <screens.Play.Component key={round} def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} />
+        <screens.Play.Component key={round} def={def} band={band} round={round} onPage={onPage} onFinish={onFinish} onClaim={onClaim} />
       </Suspense>
     </LazyBoundary>
   );
@@ -538,6 +554,7 @@ function RewardScreen({
           {reward.swatch && (
             <span className="mb-4 h-20 w-20 rounded-full border-4 border-[#1b0f22] shadow-[inset_-10px_-10px_0_rgba(0,0,0,0.2)]" style={{ background: reward.swatch }} />
           )}
+          {reward.picture && <span className="mb-2">{reward.picture}</span>}
           {host && (
             <span className={cn(!still && 'motion-safe:animate-bounce [animation-delay:150ms]')}>
               <CharacterPortrait spriteId={npcSpriteId(host, flags)} emoji={npcEmoji(host, flags)} scale={scale} className="text-5xl" />
