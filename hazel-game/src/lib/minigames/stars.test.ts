@@ -27,8 +27,16 @@ import {
   starName,
   turnWords,
   turned,
+  FIND_GAP,
   LATITUDES,
+  RADEC,
+  SPREAD,
   altAz,
+  expertSky,
+  isRightLatitude,
+  radecOf,
+  realAltAz,
+  turnFor,
   coordsWords,
   findWords,
   foundWords,
@@ -57,25 +65,11 @@ function everyJob(): Job[] {
 }
 
 /**
- * The real sky (J2000 right ascension and declination, degrees) of three
- * stars per picture, for which way round they go: a picture can be turned
- * (the sky turns through the night) but never mirrored.
+ * The real sky (`RADEC`: J2000 right ascension and declination, degrees),
+ * for which way round the pictures go: a picture can be turned (the sky turns
+ * through the night) but never mirrored.
  */
-const hms = (h: number, m: number) => (h + m / 60) * 15;
-const REAL: Record<string, [number, number]> = {
-  alnitak: [hms(5, 40.8), -1.94], alnilam: [hms(5, 36.2), -1.2], mintaka: [hms(5, 32), -0.3],
-  vega: [hms(18, 36.9), 38.78], deneb: [hms(20, 41.4), 45.28], altair: [hms(19, 50.8), 8.87],
-  acrux: [hms(12, 26.6), -63.1], mimosa: [hms(12, 47.7), -59.69], gacrux: [hms(12, 31.2), -57.11], imai: [hms(12, 15.1), -58.75],
-  caph: [hms(0, 9.2), 59.15], schedar: [hms(0, 40.5), 56.54], navi: [hms(0, 56.7), 60.72], ruchbah: [hms(1, 25.8), 60.24], segin: [hms(1, 54.4), 63.67],
-  dubhe: [hms(11, 3.7), 61.75], merak: [hms(11, 1.8), 56.38], phecda: [hms(11, 53.8), 53.69], megrez: [hms(12, 15.4), 57.03], alkaid: [hms(13, 47.5), 49.31],
-  polaris: [hms(2, 31.8), 89.26], yildun: [hms(17, 32.2), 86.59], 'zeta-umi': [hms(15, 44.1), 77.79], kochab: [hms(14, 50.7), 74.16], pherkad: [hms(15, 20.7), 71.83],
-  betelgeuse: [hms(5, 55.2), 7.41], bellatrix: [hms(5, 25.1), 6.35], rigel: [hms(5, 14.5), -8.2], saiph: [hms(5, 47.8), -9.67],
-  'deneb-c': [hms(20, 41.4), 45.28], gienah: [hms(20, 46.2), 33.97], albireo: [hms(19, 30.7), 27.96], 'delta-cyg': [hms(19, 45), 45.13],
-  regulus: [hms(10, 8.4), 11.97], algieba: [hms(10, 20), 19.84], rasalas: [hms(9, 52.8), 26.01], zosma: [hms(11, 14.1), 20.52], denebola: [hms(11, 49.1), 14.57],
-  mizar: [hms(13, 23.9), 54.93], alioth: [hms(12, 54), 55.96], 'epsilon-umi': [hms(16, 46), 82.04], 'eta-umi': [hms(16, 17.5), 75.76],
-  sadr: [hms(20, 22.2), 40.26], 'eta-cyg': [hms(19, 56.3), 35.08], 'eta-leo': [hms(10, 7.3), 16.76], adhafera: [hms(10, 16.7), 23.42], chertan: [hms(11, 14.2), 15.43],
-};
-const realOf = (id: string) => REAL[id.replace(/-[go]$/, '')];
+const realOf = (id: string) => [...radecOf(id)] as [number, number];
 
 /**
  * A picture fitted to its stars' real places, seen from the ground (east to
@@ -447,72 +441,156 @@ describe('Expert: sky coordinates (§8.5)', () => {
     }
   });
 
-  it('each picture as big as in the real sky (a sky unit is its view’s degrees)', () => {
-    const span = (id: string, a: string, b: string) => {
-      const p = PICTURE_BY_ID[id as keyof typeof PICTURE_BY_ID];
-      const [x, y] = [p.stars.find((o) => o.id === a)!, p.stars.find((o) => o.id === b)!];
-      return Math.hypot(x.x - y.x, x.y - y.y) * p.view.k;
-    };
-    // Degrees apart in the sky, roughly.
-    for (const [id, a, b, deg] of [
-      ['belt', 'alnitak', 'mintaka', 2.7],
-      ['triangle', 'vega', 'altair', 34],
-      ['crux', 'gacrux', 'acrux', 6],
-      ['cassiopeia', 'caph', 'segin', 13],
-      ['big-dipper', 'alkaid', 'dubhe', 25.7],
-      ['little-dipper', 'polaris', 'kochab', 16],
-      ['orion', 'betelgeuse', 'rigel', 18.6],
-      ['cygnus', 'deneb-c', 'albireo', 23],
-      ['leo', 'regulus', 'denebola', 25],
-    ] as const)
-      expect(Math.abs(span(id, a, b) - deg) / deg, id).toBeLessThan(0.2);
+  it('every star where it really is from the night’s latitude, at its picture’s sidereal time — its coordinates the real sky’s (code review round 1)', () => {
+    // The real sky's: Vega from 20° N at sidereal time 220°.
+    const v = realAltAz(RADEC.vega, 20, 220);
+    expect(Math.round(v.alt)).toBe(36);
+    expect(Math.round(v.az)).toBe(56);
+    // Due south at the meridian, a star on the celestial equator stands at 90° less the latitude; north, the pole at the latitude.
+    expect(realAltAz([100, 0], 20, 100)).toEqual({ alt: expect.closeTo(70, 9), az: expect.closeTo(180, 9) });
+    expect(realAltAz([0, 90], 20, 0).alt).toBeCloseTo(20, 9);
+    // West of the meridian, azimuth past 180°; east, under it.
+    expect(realAltAz([100, 0], 20, 130).az).toBeGreaterThan(180);
+    expect(realAltAz([100, 0], 20, 70).az).toBeLessThan(180);
+    for (const p of PICTURES)
+      for (const lat of LATITUDES) {
+        const { view, stars } = expertSky(p, lat);
+        for (const st of stars) {
+          const real = realAltAz(radecOf(st.id), lat, p.lst);
+          const got = altAz(view, st.x, st.y);
+          expect(Math.abs(got.alt - real.alt), `${p.id} ${lat} ${st.id}`).toBeLessThan(0.1);
+          expect(Math.abs(((got.az - real.az + 540) % 360) - 180), `${p.id} ${lat} ${st.id}`).toBeLessThan(0.1);
+          // Up, but not so high the grid's stretch (1 / cos altitude) bends its shape far (the Southern Cross is low from anywhere north).
+          expect(real.alt, `${p.id} ${lat} ${st.id}`).toBeGreaterThan(p.id === 'crux' ? 1 : 10);
+          expect(real.alt, `${p.id} ${lat} ${st.id}`).toBeLessThanOrEqual(46);
+          // In the sky, with room round it for its name.
+          expect(Math.max(Math.abs(st.x - 50), Math.abs(st.y - 50)), `${p.id} ${st.id}`).toBeLessThanOrEqual(SPREAD + 0.1);
+        }
+        // It fills the sky one way or the other.
+        expect(Math.max(...stars.map((st) => Math.max(Math.abs(st.x - 50), Math.abs(st.y - 50))))).toBeCloseTo(SPREAD, 0);
+      }
   });
 
-  it('the Little Dipper: the North Star due north, as high as the latitude, on a grid line — where the Southern Cross and the Little Dipper both clear the horizon', () => {
+  it('the night’s latitude, one a round along the coast; every Expert job’s sky drawn from it', () => {
+    for (let round = 0; round < 9; round++) {
+      const night = LATITUDES[turnFor(round, LATITUDES.length)];
+      for (let i = 0; i < JOBS_PER_ROUND; i++) {
+        const j = jobFor('expert', round, i);
+        expect(j.view, `${round} ${i}`).toEqual(expertSky(PICTURE_BY_ID[j.picture], night).view);
+        if (j.latitude !== null) expect(j.latitude).toBe(night);
+      }
+    }
+  });
+
+  it('the Little Dipper: the North Star within a degree of due north, at the latitude, on a grid line — where the Southern Cross and the Little Dipper both clear the horizon', () => {
     const dippers = expert.filter((j) => j.picture === 'little-dipper');
     expect(new Set(dippers.map((j) => j.latitude))).toEqual(new Set(LATITUDES));
     for (const j of dippers) {
-      const pol = j.sky.find((o) => o.id === 'polaris')!;
-      const { alt, az } = altAz(j.view!, pol.x, pol.y);
-      expect(alt).toBeCloseTo(j.latitude!, 5);
-      expect(Math.min(az, 360 - az)).toBeCloseTo(0, 5);
-      expect(starCoords(j, 'polaris')).toEqual({ alt: j.latitude, az: 0 });
-      expect(gridLines(j.view!).alts.map((a) => a.v)).toContain(j.latitude);
+      const pol = j.sky.find((o) => o.id === 'polaris');
+      expect(pol).toBeDefined();
+      if (!pol || !j.view || j.latitude === null) continue;
+      const { alt, az } = altAz(j.view, pol.x, pol.y);
+      expect(Math.abs(alt - j.latitude)).toBeLessThan(0.1);
+      expect(Math.min(az, 360 - az)).toBeLessThan(1);
+      expect(starCoords(j, 'polaris')).toEqual({ alt: j.latitude, az: 1 });
+      expect(gridLines(j.view).alts.map((a) => a.v)).toContain(j.latitude);
     }
     // Acrux, at declination −63°, rises only south of 27° N.
     for (const l of LATITUDES) expect(l > 0 && l < 27).toBe(true);
   });
 
-  it('the star to find: another of the picture’s bright ones each time it comes round, no other star near it', () => {
-    for (const id of PICTURE_IDS.filter((x) => x !== 'little-dipper')) {
-      const found = expert.filter((j) => j.picture === id).map((j) => j.find);
-      expect(new Set(found).size, id).toBe(Math.min(3, PICTURE_BY_ID[id].stars.filter((st) => st.mag < 3).length));
+  it('the grid: each picture’s step, its lines at their values; a 10° grid’s fainter lines every 5° (UX review round 1)', () => {
+    const steps = Object.fromEntries(PICTURE_IDS.map((id) => [id, [...new Set(LATITUDES.map((l) => gridStep(expertSky(PICTURE_BY_ID[id], l).view)))]]));
+    expect(steps).toEqual({ belt: [1], triangle: [10], crux: [2], cassiopeia: [5], 'big-dipper': [5, 10], 'little-dipper': [5], orion: [5], cygnus: [5], leo: [10, 5] });
+    // The Southern Cross from 20° N, pinned.
+    const crux = gridLines(expertSky(PICTURE_BY_ID.crux, 20).view);
+    expect(crux.alts.map((a) => a.v)).toEqual([6, 8, 10, 12]);
+    expect(crux.azs.map((a) => a.v)).toEqual([168, 170, 172, 174]);
+    expect(crux.minor).toEqual({ alts: [], azs: [] });
+    const tri = gridLines(expertSky(PICTURE_BY_ID.triangle, 20).view);
+    expect(tri.alts.map((a) => a.v)).toEqual([0, 10, 20, 30, 40, 50]);
+    expect(tri.minor.alts.map((a) => a.v)).toEqual([5, 15, 25, 35, 45]);
+    expect(tri.minor.azs.every((a) => a.v % 10 === 5)).toBe(true);
+    for (const a of tri.minor.alts) expect(altAz(expertSky(PICTURE_BY_ID.triangle, 20).view, 50, a.at).alt).toBeCloseTo(a.v, 0);
+  });
+
+  it('round the north: azimuth wraps past 360° — the grid, a star’s coordinates and which way to look', () => {
+    const v = { facing: 355, mid: 30, k: 0.5 };
+    expect(altAz(v, 60, 50).az).toBeCloseTo(0, 9);
+    expect(altAz(v, 70, 50).az).toBeCloseTo(5, 9);
+    expect(gridLines(v).azs.map((a) => a.v)).toEqual([330, 340, 350, 0, 10, 20]);
+    expect(gridLines(v).minor.azs.map((a) => a.v)).toEqual([335, 345, 355, 5, 15]);
+    // 359.6° is said as 0°.
+    const j: Job = { picture: 'belt', outline: false, turn: 0, findNorth: false, view: { facing: 0, mid: 30, k: 0.5 }, find: 'alnilam', latitude: null, sky: [
+      { id: 'alnitak', x: 49.2, y: 50, mag: 2, extra: false },
+      { id: 'alnilam', x: 54, y: 50, mag: 2, extra: false },
+      { id: 'mintaka', x: 46, y: 40, mag: 2, extra: false },
+    ] };
+    expect(starCoords(j, 'alnitak')).toEqual({ alt: 30, az: 0 });
+    // Alnilam at 2°, Mintaka tapped at 358°: to the right, across north, and lower.
+    expect(foundWords(j, 'mintaka')).toBe('That star is at altitude 35°, azimuth 358°. Alnilam is lower and to the right. Try again.');
+    expect(foundWords(j, 'alnitak')).toBe('That star is at altitude 30°, azimuth 0°. Alnilam is to the right. Try again.');
+    // Right where it's said: close by.
+    expect(foundWords({ ...j, find: 'alnitak' }, 'alnitak')).toMatch(/^Alnitak, at altitude 30°, azimuth 0°\./);
+  });
+
+  it('the star to find: a bright one clear of the others, another each time the picture comes round — never the same question a round or three apart, whatever pages are on the chart (code review round 1)', () => {
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 8])
+      for (let r = 0; r < 30; r++) {
+        if (n > 1) expect(turnFor(r + 1, n), `${n} ${r}`).not.toBe(turnFor(r, n));
+        if (n > 1) expect(turnFor(r + 3, n), `${n} ${r}`).not.toBe(turnFor(r, n));
+      }
+    // A picture's own turn, every third round: every one in turn.
+    for (const n of [3, 4, 5, 6, 7]) expect(new Set(Array.from({ length: n }, (_, k) => turnFor(k * 3, n))).size, `${n}`).toBe(n);
+    // Every page mask and round: the same picture's question differs a round and three rounds apart.
+    const ask = (j: Job) => `${j.find ?? ''}${j.latitude ?? ''}`;
+    for (let mask = 0; mask < 512; mask++) {
+      const byRound = Array.from({ length: 7 }, (_, round) => {
+        const q = roundQueue('expert', (id) => !!(mask & (1 << PICTURE_IDS.indexOf(id))), round);
+        return Object.fromEntries(Array.from({ length: JOBS_PER_ROUND }, (_, i) => jobFor('expert', round, i, q)).map((j) => [j.picture, ask(j)]));
+      });
+      for (let r = 0; r < 6; r++)
+        for (const [pic, a] of Object.entries(byRound[r])) {
+          if (byRound[r + 1][pic] !== undefined) expect(byRound[r + 1][pic], `${mask} ${r} ${pic}`).not.toBe(a);
+          if (r + 3 < 7 && byRound[r + 3][pic] !== undefined) expect(byRound[r + 3][pic], `${mask} ${r} ${pic}`).not.toBe(a);
+        }
     }
     for (const j of expert.filter((x) => x.find)) {
-      const f = j.sky.find((o) => o.id === j.find)!;
-      for (const o of j.sky) if (o.id !== f.id) expect(Math.hypot(o.x - f.x, o.y - f.y), `${j.picture} ${o.id}`).toBeGreaterThanOrEqual(10);
+      const f = j.sky.find((o) => o.id === j.find);
+      expect(f && f.mag < 3, j.picture).toBe(true);
+      if (!f) continue;
+      for (const o of j.sky) if (o.id !== f.id) expect(Math.hypot(o.x - f.x, o.y - f.y), `${j.picture} ${o.id}`).toBeGreaterThanOrEqual(FIND_GAP);
     }
+    // Orion's belt stars, 6 apart on its sky, are never asked; three of each picture's others come round.
+    expect(expert.filter((j) => j.picture === 'orion').map((j) => j.find)).toEqual(expect.not.arrayContaining(['alnitak-o', 'alnilam-o', 'mintaka-o']));
+    for (const id of PICTURE_IDS.filter((x) => x !== 'little-dipper')) expect(new Set(expert.filter((j) => j.picture === id).map((j) => j.find)).size, id).toBe(3);
   });
 
   it('the words: what to find, where a wrong star is and which way to look, the latitude and its reason — plainly', () => {
-    const j = jobFor('expert', 0, 1); // the Summer Triangle: Vega
+    const j = jobFor('expert', 0, 1); // the Summer Triangle from 20° N: Vega
     expect([j.picture, j.find]).toEqual(['triangle', 'vega']);
-    expect(findWords(j)).toBe('Vega is at altitude 67°, azimuth 83°. Find it on the grid and tap it.');
-    expect(jobWords(j)).toBe('Find Vega at altitude 67°, azimuth 83°, then join the three stars of the Summer Triangle.');
-    expect(foundWords(j, 'vega')).toBe('Vega, at altitude 67°, azimuth 83°. Now join the stars of the Summer Triangle.');
-    // Altair is lower and to the left of Vega here... the reverse: Vega is higher, and to the right of Altair.
-    expect(foundWords(j, 'altair')).toBe(`That star is at ${coordsWords(starCoords(j, 'altair')!)}. Vega is higher and to the right. Try again.`);
+    expect(findWords(j)).toBe('Vega is at altitude 36°, azimuth 56°. Find it on the grid and tap it.');
+    expect(jobWords(j)).toBe('Find Vega at altitude 36°, azimuth 56°, then join the three stars of the Summer Triangle.');
+    expect(foundWords(j, 'vega')).toBe('Vega, at altitude 36°, azimuth 56°. Now join the stars of the Summer Triangle.');
+    // Altair's low in the east: Vega is higher, and to the left.
+    expect(starCoords(j, 'altair')).toEqual({ alt: 14, az: 86 });
+    expect(foundWords(j, 'altair')).toBe('That star is at altitude 14°, azimuth 86°. Vega is higher and to the left. Try again.');
     const dot = j.sky.find((o) => o.extra)!;
     expect(foundWords(j, dot.id)).toMatch(/^That tiny dot is at altitude \d+°, azimuth \d+°\. Vega is /);
     const ld = expert.find((x) => x.picture === 'little-dipper')!;
     const choices = latitudeChoices(ld.latitude!, gridStep(ld.view!));
     expect(choices).toHaveLength(4);
     expect(new Set(choices).size).toBe(4);
-    expect(choices).toEqual(expect.arrayContaining([`${ld.latitude}° N`, `${90 - ld.latitude!}° N`, `${ld.latitude}° S`]));
-    // The answer's place moves with the latitude.
-    expect(new Set(LATITUDES.map((l) => latitudeChoices(l, 5).indexOf(`${l}° N`))).size).toBeGreaterThan(1);
+    // The answer; 90° less it (from overhead); south; a grid line off.
+    expect([...choices].sort()).toEqual([`${ld.latitude}° N`, `${90 - ld.latitude!}° N`, `${ld.latitude}° S`, `${ld.latitude! + gridStep(ld.view!)}° N`].sort());
+    // The answer's place moves with the latitude — and isn't first on the first night, 20° N (UX review round 1).
+    expect(LATITUDES.map((l) => latitudeChoices(l, 5).indexOf(`${l}° N`))).toEqual([3, 0, 2]);
+    expect(latitudeChoices(20, 5)).toEqual(['70° N', '20° S', '25° N', '20° N']);
     expect(latitudeWords(20, '20° N')).toBe('Yes — 20° N. The North Star is over the Earth’s North Pole, so its altitude is your latitude: it’s 20° up, and we’re 20° north.');
     expect(latitudeWords(20, '70° N')).toMatch(/^Not 70° N\. The North Star/);
+    // South at the same number is wrong (code review round 1: untested), and the seal's check is the words'.
+    expect(latitudeWords(20, '20° S')).toMatch(/^Not 20° S\. /);
+    for (const c of latitudeChoices(20, 5)) expect(isRightLatitude(20, c)).toBe(c === '20° N');
     expect(jobWords(ld)).toBe('Read the North Star’s altitude for our latitude, then join the seven stars of the Little Dipper.');
     // The lesson is where it is in the sky; no cheering anywhere.
     for (const x of expert) {
