@@ -5,6 +5,42 @@ import { BASE_TIER, dangerMarks } from '../../content/regions';
 import type { BattleEnemy } from '../../types';
 import type { TypingBonus as Bonus } from '../../content/typing';
 import { TypingBonus } from './TypingBonus';
+import { kidXpWords, xpStartsLine, type KidXpResult } from '../../lib/kidXp';
+import { useSettled } from '../../hooks/useSettled';
+
+/** A co-op battle's Player 2 (#187): the XP they earned, and where it went — a sibling's to their own game (`lib/kidXp.ts`). */
+export interface PartnerPay {
+  name: string;
+  icon: string;
+  xp: number;
+  /** A family kid: a guest earns nothing, and nothing is said. */
+  family: boolean;
+  /** Their world is open, so they earn XP (#122). */
+  worldOpen: boolean;
+  /** The write to their profile, when they earned some. */
+  saving: Promise<KidXpResult> | null;
+}
+
+/** Player 2's XP under the team line: what they earned and that it's saved — or that XP starts once their world opens. */
+function PartnerXp({ partner }: { partner: PartnerPay }) {
+  const saved = useSettled(partner.saving);
+  if (!partner.family) return null;
+  return (
+    <p className="text-xs text-amber-100 mt-1" data-testid="partner-xp" aria-live="polite">
+      {partner.xp > 0 ? (
+        <>
+          <span className="font-semibold">
+            <span aria-hidden="true">{partner.icon} </span>
+            {partner.name}: ⭐ +{partner.xp} XP.
+          </span>{' '}
+          {kidXpWords(partner.name, saved)}
+        </>
+      ) : !partner.worldOpen ? (
+        xpStartsLine(partner.name)
+      ) : null}
+    </p>
+  );
+}
 
 /** The end-of-battle panel: victory spoils (crystal / key / coins / XP) or a gentle defeat. */
 /** "a Count Bat", "an Oak Owl", "the Ringkeeper" — a name mid-sentence (#75 item 14f review: not "a The Ringkeeper"). */
@@ -32,6 +68,8 @@ export function BattleResult({
   boatLine = null,
   bonus = null,
   holdRule = true,
+  team = null,
+  partner = null,
   onClaimBonus,
   onLeave,
 }: {
@@ -71,6 +109,10 @@ export function BattleResult({
   bonus?: Bonus | null;
   /** The home-row hold, as the player has it set. */
   holdRule?: boolean;
+  /** A co-op battle (#187): each player's right answers, the kid playing first (`correctCount` is theirs alone). */
+  team?: { name: string; icon: string; right: number }[] | null;
+  /** A co-op battle's Player 2: the XP they earned (a sibling's, saved to their own game). */
+  partner?: PartnerPay | null;
   onClaimBonus?: (bonus: Bonus) => void;
   onLeave: () => void;
 }) {
@@ -141,6 +183,13 @@ export function BattleResult({
           {tip && !boatLine && <p className="text-sm text-amber-200 font-semibold mt-2">💡 {tip}</p>}
         </>
       )}
+      {team && (
+        <p className="text-sm text-sky-100 font-semibold mt-2" data-testid="team-line">
+          <span aria-hidden>🤝 </span>
+          {team.map((p) => `${p.icon} ${p.name} ${p.right} right`).join(' · ')}
+        </p>
+      )}
+      {partner && <PartnerXp partner={partner} />}
       <button
         onClick={onLeave}
         className="mt-4 bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold rounded-xl px-6 py-2.5"
