@@ -350,7 +350,7 @@ export function stopMusic(): void {
   playMusic(null);
 }
 
-type GameScreen = 'topics' | 'quiz' | 'avatar' | 'world' | 'battle';
+type GameScreen = 'topics' | 'quiz' | 'duel' | 'avatar' | 'world' | 'battle';
 /** A game screen, or before one: the session still being checked, or nobody signed in. */
 type Screen = 'loading' | 'auth' | GameScreen;
 
@@ -400,6 +400,7 @@ export function trackForScreen(
       return 'intro';
     case 'topics':
     case 'quiz':
+    case 'duel':
       return 'title';
     case 'world':
       return sea ? SEA_TRACK[sea] : ZONE_KIND_TRACK[zoneKind];

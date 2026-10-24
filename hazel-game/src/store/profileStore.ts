@@ -17,6 +17,7 @@ import {
 } from '../lib/profile';
 import { useAuthStore } from './authStore';
 import { gainXp, levelState } from '../lib/level';
+import { takeOwedXp } from '../lib/kidXp';
 import {
   addDayXp,
   flushPlayDays,
@@ -415,6 +416,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     if (data && local && kept) {
       set({ profile: local, loading: false, unread: { base, xp: kept.xp ?? 0, triedAt: Date.now(), steps: kept.steps, starts: kept.starts } });
       await takeUp(userId, gen, data);
+      payOwedXp(userId, gen);
       return;
     }
 
@@ -455,6 +457,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
         if (e) set({ remoteError: errorMessage(e) });
       });
       if (!carried) carryWhenSaved(userId, gen);
+      payOwedXp(userId, gen, sent);
       return;
     }
 
@@ -473,6 +476,7 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
       });
       readFailed();
       watchUnread();
+      payOwedXp(userId, gen); // held until the row is read, like any XP
       return;
     }
 
@@ -482,9 +486,11 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
     set({ profile: seed, loading: false, remoteError: null, unread: null });
     writeLocalProfile(seed);
     forgetUnreadSteps(userId);
-    void writeRow(userId, toRow(seed), { insert: true }).then((e) => {
+    const created = writeRow(userId, toRow(seed), { insert: true });
+    void created.then((e) => {
       if (e) set({ remoteError: errorMessage(e) });
     });
+    payOwedXp(userId, gen, created);
   },
 
   retryRead: async ({ now: soon = false } = {}) => {
@@ -685,6 +691,22 @@ export const useProfileStore = create<ProfileStore>((set, get) => ({
  * of the kid that read the row put them on once — the second finds them gone
  * and takes each topic it stepped from the copy the first one left.
  */
+/**
+ * XP the kid earned as Player 2 on this device that couldn't be saved then
+ * (`lib/kidXp.ts`), paid now through `addXp` — so it goes the way any XP does
+ * (held while the row is unread, today's XP for 📈 Progress) — once `after`
+ * (the load's own write) has landed, so that write can't land over it. Another
+ * kid loaded meanwhile: it stays owed.
+ */
+function payOwedXp(userId: string, gen: number, after?: Promise<unknown> | null): void {
+  void Promise.resolve(after).then(() => {
+    const store = useProfileStore.getState();
+    if (gen !== readGen || store.profile?.id !== userId) return;
+    const owed = takeOwedXp(userId);
+    if (owed > 0) void store.addXp(owed);
+  });
+}
+
 async function takeUp(userId: string, gen: number, data: unknown): Promise<void> {
   const done = await withStepsLock(userId, () => takeUpNow(userId, gen, data));
   if (!done) return;
