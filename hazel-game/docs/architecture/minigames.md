@@ -585,9 +585,12 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   cards give them; `checkWords` drops the
   "!"; `centuryTip` is said as a drawer starts and on the ticket
   (`jobWords`). In order, the `span` step asks `spanAsk` from
-  `spanChoices` (the answer `spanRight` — `yearsApart`, no year 0 — the year
-  0 counted, a hundred out, and the years taken away, shuffled by the
-  drawer's `seed`; an "about" year taken as it is in the ask); `spanWords`
+  `spanChoices` (six, three pairs a year apart: the answer `spanRight` —
+  `yearsApart`, no year 0 — and the year 0 counted, a hundred out and that
+  with the year 0, the years taken away and one more, shuffled by the
+  drawer's `seed` scrambled; an "about" year taken as it is in the ask; held
+  upright the two cards by the question, on a short screen the answers a
+  row and the heading a reader's); `spanWords`
   says the method, or what's wrong with a wrong pick, which stays to pick
   again, marked tried; the two cards asked about are marked on the line. Each set has a
   `led` line (what led to what among its cards, tested for no wars,
@@ -598,19 +601,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   Next wait for a tap's second, not a key's (`ready(e)`); a wrong count's
   words scroll into view, the step's start having brought the box under
   the answers into view. A card's date breaks at its spaces, inside it, its
-  lines balanced (`text-balance`); where the cards are short (500 px high)
+  lines balanced (`text-balance`); where the cards are short (600 px high)
   or narrow (under 360 px) a dated drawer leaves the pictures off
   (`DATED_PIC`, on a phone the line's too) and says "c." for "century".
-  As a drawer starts, the washed-up cards come into view clear of the bar,
-  in the page or, on a split screen, the board.
+  As a step starts, `timeline/layout.ts`'s `startScroll` (pure,
+  table-tested) says how far the page or, on a split screen, the board
+  scrolls: placing, the cards' grid (`data-cards`) in sight clear of the
+  bar, the line's top (`data-line`) kept where it's above them; the years
+  and filed on a short screen, the line's years clear of the bar kept at
+  the foot; else the box under the answers or Next. Filed on a short
+  screen, Expert's lesson is three lines in the bar, whole in Index's
+  bubble.
   **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
-  airmail/`): maps and directions. Three maps: the bay (`BAY`, 5 × 5,
+  airmail/`): maps and directions. Four maps: the bay (`BAY`, 5 × 5,
   Gentle), the town (`TOWN`, 6 × 6, its squares named by `gridRef`, eight
   houses each just beside a landmark, `TOWN_CLUES`) and the world (`WORLD`,
   12 × 6 squares of 30°, each marked by its continent or ocean, the equator
-  under the 3rd row, east and west joined). A job (`jobFor`) is a stamp's
+  under the 3rd row, east and west joined) — and Expert's globe, below. A job (`jobFor`) is a stamp's
   kind of post (`STAMPS`, three a band) to a place, a house (by its square or
   a landmark) or a continent or ocean (`REGIONS`, each a clue and a fact).
   The compass (`BAND_DIRS`: four, eight, four) moves Ember a square
@@ -629,8 +638,9 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   the compass where the column's narrow, `narrow`); the side panel splits
   off on the `wide` screen (`tailwind.config.js`: from 768 px wide with
   height, or from 1000 px — not the stage's `split`: a phone held sideways
-  gives the world its width); the post office scene's left out for the
-  world and on a tablet held upright; on a short phone held sideways what Pidge said goes
+  gives the world its width); the post office scene and the map key are
+  the bay's and the town's only (the world's maps are wide and short), the
+  scene left out on a tablet held upright; on a short phone held sideways what Pidge said goes
   under the map when there's room (`saidUnder`), and on a short split
   screen a stamp's card goes beside it. Pidge's bubble re-reads the same
   words (a zero-width space every other time); for a reader the map is
@@ -648,17 +658,31 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   whole-degree latitude and longitude off every line, its January clock
   against London's, `zone`, the 15° line nearest its longitude — tested —
   and a fact) in turn, and London's hour (`LONDON_HOURS`, one its clock
-  keeps the same day). `cellAt` is its square, `bandWords` a square's
-  lines; the clue, `whereWords`, `missWords` (a wrong square's lines, then
-  where the city's are, then which way) and `howToFind` say them; `offset`
-  and `relWords` take the map's width. Delivered, step `time`: `timeAsk`,
-  three times from `timeChoices` (the right one, `cityHour`; the wrong
-  way; the other 15° line's), `timeWords` (`zoneWords` when right; else
-  what's wrong, picked again). The map's lines are numbered round it —
+  keeps the same day, moving on each time round the cities). `cellAt` is
+  its square, `bandWords` a square's lines; the clue, `whereWords`,
+  `missWords` (a wrong square's lines, then where the city's are — and
+  which side of the equator or 0° — then which way) and `howToFind` say
+  them; a move says the way and the continent, the lines for a reader only
+  (`say`'s second part, a `sr-only` span in Pidge's bubble; `#am-where`
+  has them too); `offset` and `relWords` take the map's width; a range is
+  kept on its line where it's shown (`keepRanges`: the bubble, the line by
+  the map, the clue, the ticket, the time card and the fact). Delivered, step
+  `time`: `timeAsk` (the city's longitude first), four times from
+  `timeChoices` (the right one, `cityHour`, and the other 15° line's,
+  `otherLine`; both the wrong way — Luanda's other line is 0°, so the line
+  beyond), `timeWords` (`zoneWords` when right; else what's wrong — and
+  the day, past midnight — picked again), `clockWords` "09:00"; why 15° is
+  an hour (`WHY_HOUR`) in the card, on a short screen by Pidge. The map's lines are numbered round it —
   latitudes in a left gutter (`LAT_GUTTER`), longitudes in a row under it
-  (`LONG_ROW`, every 30° from 24 px squares, else 60°, under 14 px 90°) —
-  the equator and the prime meridian drawn stronger, the continents' names
-  placed for the globe (`GLOBE_LABEL`), left off the smallest map. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
+  (`LONG_ROW`; `layout.ts`'s `globeLabels`, `globeLongCols`, `latLabel`,
+  `longLabel`: every 30° from 12 px squares, bare numbers under 24 px but
+  W and E by 0°, the 180° ends from 18 px, else 60°) — the
+  equator and the prime meridian drawn stronger, the continents' names
+  placed for the globe (`GLOBE_LABEL`), left off under 14 px. A key flies
+  Ember at once (a tap waits as a parcel starts). The world's maps split
+  only held sideways (`SPLIT_WIDE_MAP`): on a tablet held upright the side
+  panel's under the board; the globe's side panel is 300 px on a laptop
+  too. Pidge plain (`EXPERT_RIGHT_LINES`, "Delivered,
   with a miss on the way."); the seal's `spotOn` counts parcels delivered
   first go with the time right first pick, the reward keeping the first
   missed parcel's lesson; the times and Next wait for a tap's second, not a

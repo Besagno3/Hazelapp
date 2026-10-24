@@ -507,16 +507,21 @@ export const spanRight = (job: Job) => (job.expert ? yearsApart(job.expert.span.
 const slipOf = (job: Job, right: number) => (job.expert && job.expert.seed % 2 ? right + 100 : right - 100);
 
 /**
- * Four answers: the right one, the year 0 counted, a hundred out (the sum
- * slipped) and the years taken away — in an order by the drawer, so where the
- * answer is says nothing (UX review round 1: sorted, it was always the middle
- * of three, the third absurd).
+ * Six answers, three pairs a year apart: the right one and the year 0 counted,
+ * a hundred out (the sum slipped) and that with the year 0, the years taken
+ * away and one more — so neither the smaller of the only two a year apart nor
+ * a shared ending gives the answer away: only the sum does (code and UX review
+ * round 2; round 1: sorted, it was always the middle of three). In an order by
+ * the drawer, its seed scrambled first (code review round 2: consecutive seeds
+ * put the answer last in every odd round's first drawer).
  */
 export function spanChoices(job: Job): number[] {
   if (!job.expert) return [];
   const { from, to } = job.expert.span;
   const right = yearsApart(from, to);
-  return shuffle([right, right + 1, slipOf(job, right), Math.abs(to.year + from.year)], job.expert.seed);
+  const slip = slipOf(job, right);
+  const away = Math.abs(to.year + from.year);
+  return shuffle([right, right + 1, slip, slip + 1, away, away + 1], Math.imul(job.expert.seed, 2654435761) >>> 0);
 }
 
 const many = (n: number) => n.toLocaleString('en-GB');
@@ -537,7 +542,9 @@ export function spanWords(job: Job, picked: number): string {
   if (picked === right) return spanMethod(job);
   if (picked === right + 1) return `Not ${many(picked)}: there’s no year 0 — 1 BCE is followed by 1 CE, so take 1.`;
   if (picked === slipOf(job, right)) return `Not ${many(picked)}: add ${sumYear(from)} and ${sumYear(to)} again, carefully — then take 1.`;
-  return `Not ${many(picked)}: BCE years count back to year 1, so from ${sumYear(from)} to ${sumYear(to)} the two years add up — then take 1, as there’s no year 0.`;
+  if (picked === slipOf(job, right) + 1) return `Not ${many(picked)}: add ${sumYear(from)} and ${sumYear(to)} again — and there’s no year 0, so take 1.`;
+  // Short, the two years in the ask (UX review round 2: three lines at 667 × 375, and the answers moved).
+  return `Not ${many(picked)}: BCE years count back, so the two years add up — then take 1.`;
 }
 
 /** What a set teaches, for the reward. */

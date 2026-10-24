@@ -25,7 +25,7 @@ const { useSaveStore } = await import('../../../store/saveStore');
 const { useProfileStore } = await import('../../../store/profileStore');
 const { defaultSave } = await import('../../../lib/save');
 const { MINIGAMES, pageFlag, starFlag } = await import('../../../content/minigames');
-const { CITY_BY_ID, GLOBE_START, STAMP_BY_ID, cityHour, clockWords, jobFor, learnedLine, roundQueue, targets, timeChoices, timeWords } = await import('../../../lib/minigames/airmail');
+const { CITY_BY_ID, GLOBE_START, STAMP_BY_ID, cityHour, clockWords, jobFor, keepRanges, learnedLine, roundQueue, targets, timeChoices, timeWords } = await import('../../../lib/minigames/airmail');
 type Band = import('../../../content/minigames').PlayBand;
 type Job = import('../../../lib/minigames/airmail').Job;
 type Dir = import('../../../lib/minigames/airmail').Dir;
@@ -50,7 +50,8 @@ beforeEach(() => {
 });
 
 const save = () => useSaveStore.getState().save!;
-const pidge = () => document.querySelector('[aria-live="polite"]')?.textContent ?? '';
+// What Pidge says, a range's joiners as plain spaces (they keep "120°–135° E" on a line).
+const pidge = () => (document.querySelector('[aria-live="polite"]')?.textContent ?? '').replace(/\u2060/g, '').replace(/\u00a0/g, ' ');
 /** The line by the map: what Pidge said last, or, before a move, how to find the place. */
 const line = () => document.querySelector('p.min-h-\\[4\\.1rem\\]')?.textContent ?? '';
 const mapOfBay = () => screen.getByRole('group', { name: 'The map of the bay' });
@@ -327,7 +328,7 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
   };
   const times = () => within(screen.getByRole('group', { name: /^What time is it in / }));
   /** What Pidge says, without her name. */
-  const says = () => pidge().replace(/^Postmaster Pidge/, '').replace(/\u200b$/, '');
+  const says = () => pidge().replace(/^Postmaster Pidge/, '').replace(/\u200b/g, '');
 
   it('a city by its coordinates, flown to on the 15° grid; a wrong square says its lines and where the city’s are; then its time, a wrong one said; spot on counted, the first missed lesson kept', () => {
     setUp(6, {}, 14);
@@ -337,12 +338,17 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     expect(jobs.map((j) => j.to)).toEqual(['tokyo', 'new-york', 'johannesburg']);
     const [tokyo, ny, jo] = jobs;
     const map = screen.getByRole('group', { name: 'The map of the world, on a grid of latitude and longitude every 15°' });
-    expect(map).toHaveAccessibleDescription(/^A [a-z -]+ for Tokyo, 36° N, 140° E\. Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    // The clue's coordinates kept on their lines (no-break spaces: code review round 2, "140°" / "E.").
+    expect(map).toHaveAccessibleDescription(/^A [a-z -]+ for Tokyo, 36°\u00a0N, 140°\u00a0E\. Ember is over Europe, 45°–60° N, 0°–15° W\./);
+    expect(keepRanges('Tokyo, 36° N, 140° E. 30°–45° N, 0°')).toBe('Tokyo, 36°\u00a0N, 140°\u00a0E. 30°–\u206045°\u00a0N, 0°');
     expect(says()).toMatch(/for Tokyo, 36° N, 140° E\. Find its square by the grid’s lines, then steer Ember there\.$/);
     // Eight ways; the lines labelled round the map.
     expect(within(screen.getByRole('group', { name: 'The compass' })).getAllByRole('button')).toHaveLength(8);
     expect(screen.getByText('30°N')).toBeInTheDocument();
     expect(screen.getByText('0°', { selector: 'span.absolute.top-0\\.5' })).toBeInTheDocument();
+    // The equator under the 6th row and the prime meridian after the 12th column: both halfway.
+    const lines = map.querySelectorAll<HTMLElement>('span.border-dashed');
+    expect(Array.from(lines, (l) => l.style.top || l.style.left)).toEqual(['50%', '50%']);
     expect(within(screen.getByRole('list', { name: 'Steps' })).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['1Find the square', '2Deliver', '3What time?']);
     // Delivered a square short: its lines, and the city's square's.
     const r = route(tokyo);
@@ -350,20 +356,36 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     deliver();
     expect(says()).toBe('This square is 30°–45° N, 120°–135° E. Tokyo, 36° N, 140° E, is in the square between 30°–45° N and 135°–150° E.');
     fly(r[r.length - 1]);
-    expect(says()).toMatch(/^East\. Ember’s over Asia, 30°–45° N, 135°–150° E\.$/);
+    // A move says the way and the continent; its lines are a reader's only (UX review round 1: flown till the words held 140° E,
+    // the grid needn't be read).
+    expect(says()).toBe('East. Ember’s over Asia. 30°–45° N, 135°–150° E.');
+    expect(screen.getByText('30°–45° N, 135°–150° E.', { selector: '.sr-only' })).toBeInTheDocument();
+    expect(screen.getByText('East. Ember’s over Asia.', { selector: 'p' })).toBeInTheDocument();
+    // No town's map key, and no post office scene over the globe (code and UX review round 1).
+    expect(screen.queryByText('Map key')).toBeNull();
     deliver();
-    // The time: asked, three choices; a wrong one said, then the right.
+    // The time: Pidge asks it short; the card, its longitude first (UX review round 1); four choices; a wrong one said under
+    // them, then the right.
+    // On a short screen, why 15° is an hour by Pidge, not in the card (UX review round 2: six lines there pushed a wrong
+    // time's words off the screen's foot) — not read out twice.
+    const whyBy = screen.getByText(/^The Earth turns 360° in 24 hours/, { selector: '[aria-live] span' });
+    expect(whyBy).toHaveAttribute('aria-hidden', 'true');
+    expect(whyBy).toHaveClass('hidden', '[@media(max-height:500px)]:inline');
+    expect(says().replace(whyBy.textContent ?? '', '')).toBe('Delivered. What time is it in Tokyo?');
+    expect(screen.getByText(/^The Earth turns 360° in 24 hours/, { selector: '#am-far span' })).toHaveClass('[@media(max-height:500px)]:sr-only');
     const head = screen.getByRole('heading', { name: 'What time is it?' });
     expect(head).toHaveFocus();
-    expect(head).toHaveAccessibleDescription(/^It’s 9:00 in London, in January\. What time is it in Tokyo\? Each 15° of longitude is an hour/);
+    expect(head).toHaveAccessibleDescription(/^Tokyo is at 140°\u00a0E\. It’s 09:00 in London, in January: what time is it there\? The Earth turns 360° in 24 hours, so each 15° of longitude is an hour/);
     expect(times().getAllByRole('button').map((b) => b.textContent)).toEqual(timeChoices(tokyo).map(clockWords));
-    fireEvent.click(times().getByRole('button', { name: '0:00' }));
+    expect(times().getAllByRole('button')).toHaveLength(4);
+    fireEvent.click(times().getByRole('button', { name: '00:00' }));
     expect(says()).toBe(timeWords(tokyo, 0));
+    expect(screen.getByText(timeWords(tokyo, 0), { selector: 'p' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'What time is it?' })).toBeInTheDocument();
     fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(tokyo)) }));
     const done = screen.getByRole('heading', { name: `${STAMP_BY_ID[tokyo.stamp].name} delivered.` });
     expect(done).toHaveFocus();
-    expect(done).toHaveAccessibleDescription(new RegExp(`^${learnedLine(tokyo, []).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+    expect(done).toHaveAccessibleDescription(new RegExp(`^${keepRanges(learnedLine(tokyo, [])).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
     expect(says()).toBe(`${timeWords(tokyo, 18)} Delivered, with a miss on the way. Next parcel.`);
     expect(pidge()).not.toMatch(/!/);
     fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
@@ -378,13 +400,64 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     fly(...route(jo));
     deliver();
     fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(jo)) }));
-    expect(pidge()).toMatch(/Right\. That’s the sack\.$/);
+    expect(pidge()).toMatch(/Right\. That’s the last one\.$/);
     fireEvent.click(screen.getByRole('button', { name: 'Finish the round' }));
     expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(tokyo, []), spotOn: { right: 2, of: 3 } });
     expect(CITY_BY_ID.tokyo.zone).toBe(9);
   });
 
-  it('a wrong time costs the seal too; spot on every time, the last lesson', () => {
+  it('a wrong time alone costs the seal; two missed, the first one’s lesson kept (code review round 1: untested)', () => {
+    setUp(6, {}, 14);
+    const { onFinish } = play('expert');
+    const queue = roundQueue('expert', () => false, 0);
+    const [tokyo, ny, jo] = [0, 1, 2].map((i) => globeJob(jobFor('expert', 0, i, queue)));
+    // Tokyo: the right square first go, a wrong time.
+    fly(...route(tokyo));
+    deliver();
+    fireEvent.click(times().getByRole('button', { name: '23:00' }));
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(tokyo)) }));
+    expect(pidge()).toMatch(/Delivered, with a miss on the way\. Next parcel\.$/);
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
+    // New York: a wrong square first, the time right.
+    deliver();
+    fly(...route(ny));
+    deliver();
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(ny)) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next parcel' }));
+    fly(...route(jo));
+    deliver();
+    fireEvent.click(times().getByRole('button', { name: clockWords(cityHour(jo)) }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finish the round' }));
+    expect(onFinish).toHaveBeenCalledWith({ title: 'The sack’s empty!', learned: learnedLine(tokyo, []), spotOn: { right: 1, of: 3 } });
+  });
+
+  it('no post office scene over the globe; a stamp read just after a move says its note, not the old square’s lines (code review round 2: untested)', () => {
+    setUp(6, { [pageFlag('ember-air-mail', 'letter')]: true }, 14);
+    play('expert');
+    expect(screen.queryByText('✉️ 📦 ✉️')).toBeNull();
+    fly('E');
+    expect(pidge()).toContain('45°–60° N, 0°–15° E.');
+    fireEvent.click(screen.getByRole('button', { name: 'Letter. Read the stamp' }));
+    expect(pidge()).toContain(STAMP_BY_ID.letter.note);
+    expect(pidge()).not.toContain('45°–60° N');
+  });
+
+  it('the top of the world, plainly, any way north; round the back of the world, said (code review round 1: untested)', () => {
+    setUp(6, {}, 14);
+    play('expert');
+    fly('N', 'N');
+    fly('NE');
+    expect(says()).toBe('That’s the top of the world — Ember can’t fly any further north-east.');
+    fly('NW');
+    expect(says()).toBe('That’s the top of the world — Ember can’t fly any further north-west.');
+    // From London's square, twelve west: off the map's edge and back from the east, over the Pacific.
+    fly('S', 'S', ...Array<Dir>(11).fill('W'));
+    expect(says()).toMatch(/^West\. Ember’s over /);
+    fly('W');
+    expect(says()).toBe('West. Round the back of the world. Ember’s over the Pacific Ocean. 45°–60° N, 165°–180° E.');
+  });
+
+  it('spot on every time: the seal’s three, the last lesson', () => {
     setUp(6, {}, 14);
     const { onFinish } = play('expert', 1);
     const queue = roundQueue('expert', () => false, 1);
@@ -403,7 +476,7 @@ describe('🐉 Expert (docs/DESIGN-MINIGAMES.md §8.5): latitude and longitude o
     render(<MiniGameStage game="ember-air-mail" />);
     expect(within(screen.getByRole('group', { name: 'How tricky?' })).getByRole('button', { name: 'Expert' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText(/Today’s post goes to cities by their coordinates, on a map ruled every 15°/)).toBeInTheDocument();
-    expect(screen.getByText(/Right square and right time first go wins the Expert seal\. No clock\./)).toBeInTheDocument();
+    expect(screen.getByText(/Right square and right time first go wins the Expert seal\. No timer\./)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Let’s fly!' }));
     await screen.findByRole('group', { name: /^The map of the world, on a grid/ });
   });

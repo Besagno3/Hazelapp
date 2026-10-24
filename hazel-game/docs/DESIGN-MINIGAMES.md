@@ -558,10 +558,11 @@ Old Ringwood is the tree who loses count of his rings.
   the 18th?). A clue gives a century's years ("the 18th century is the
   years 1701 to 1800"). In order, the cards' years come out and Index asks
   how many years lie from a BCE card to a CE card ("From candles (500 BCE)
-  to gas street lamps (1807): how many years?"), from three: the answer
-  (500 + 1807 − 1, as there's no year 0), the year 0 counted, and the years
-  taken away. A wrong one says what's wrong with it, and the kid picks
-  again. Each page then says what led to what among its cards ("Lens makers
+  to gas street lamps (1807): how many years?"), from six — three pairs a
+  year apart: the answer (500 + 1807 − 1, as there's no year 0) and the
+  year 0 counted, a hundred out and that with the year 0, the years taken
+  away and one more — so only the sum finds it. A wrong one says what's
+  wrong with it, and the kid picks again. Each page then says what led to what among its cards ("Lens makers
   made eyeglasses (about 1290); about 300 years later, two lenses in a tube
   made the first microscope"). Index speaks plainly; in order at the first
   check and counted at the first pick is the Expert seal. A card's date
@@ -576,6 +577,16 @@ Old Ringwood is the tree who loses count of his rings.
   every date starts in sight; a new teen's first drawer is Writing, its CE
   centuries the trap; two of the "what led to what" lines said only what's
   true of these cards (the Burj Khalifa stands on concrete walls).
+  Review round 2: the answer was still the smaller of the only two a year
+  apart — now six in three pairs, their order by the drawer's scrambled
+  seed, and the title card asks the years without giving the method; as a
+  drawer starts the line stays in sight (the scroll measured the words
+  under the cards, and on a laptop pushed the line off the top) — up to
+  600 px high the cards drop their pictures and say "c."; on a short
+  screen the years and the filed drawer keep the line's dates clear of the
+  bar (the heading a reader's, the six answers in a row, the lesson three
+  lines in the bar and whole in Index's bubble); held upright, the two
+  cards asked about are by the question.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 
@@ -602,9 +613,9 @@ Old Ringwood is the tree who loses count of his rings.
   for the kid ("Which place fits the clue?").
 - **Expert (PR 19, §8.5):** the world on a 15° grid of latitude and
   longitude — 24 × 12 squares, drawn again at that size so a square shows
-  what's mostly in it, its lines numbered up the side (90° N to 90° S) and
-  along the bottom (180° W to 180° E), the equator and the prime meridian
-  drawn stronger. The post leaves London and a parcel goes to a city by its
+  what's mostly in it, its lines numbered every 30° up the side (60° N to
+  60° S) and along the bottom (180° W to 180° E, west of 0° on the left),
+  the equator and the prime meridian drawn stronger. The post leaves London and a parcel goes to a city by its
   coordinates in whole degrees ("A letter for Tokyo, 36° N, 140° E."), none
   on a line: its square is the one between the lines either side, and the
   kid steers Ember there with eight directions, east and west joined. A
@@ -612,14 +623,35 @@ Old Ringwood is the tree who loses count of his rings.
   square between 30°–45° N and 135°–150° E"), and after that which way.
   Delivered, Pidge asks the time there when it's 9:00, 12:00 or 15:00 in
   London in January: each 15° of longitude is an hour — ahead to the east,
-  behind to the west — by the 15° line nearest the city, from three (the
-  right time, the hours the wrong way, and the other line's: an hour off).
-  A wrong one says what's wrong with it, and the kid picks again. Fifteen
+  behind to the west — by the 15° line nearest the city, from four (the
+  right time and the other line's, an hour off, and the same two the wrong
+  way; for Luanda, whose other line is 0°, London's own hour, the line
+  beyond instead). A wrong one says what's wrong with it — and the day,
+  where it's another — and the kid picks again. A city's hour moves on each
+  time round the cities. Fifteen
   cities on five continents, a round's three on three, each one whose
   January clock keeps that nearest line (Beijing, Hong Kong; not Delhi or
   Adelaide, a half-hour off); the lesson is its coordinates, its clock and
   a true thing about it. Pidge speaks plainly; delivered first go and the
   time right first pick is the Expert seal. Expert brings every stamp.
+  Review round 1: the globe has the whole board (no post office scene, no
+  town's map key); a move says the way and the continent, the square's
+  lines for a reader only, so the grid's read; the longitudes numbered
+  every 30° on a phone too (60° on the smallest maps); the time question gives the city's longitude
+  first and says why 15° is an hour (the Earth turns 360° in 24 hours);
+  four times — the right one and the other line's, and both the wrong way —
+  so which way picks a pair and the nearest line picks in it; a city's
+  hour moves on each time round the cities; a wrong square across the
+  equator or 0° says so ("S is south of the equator.").
+  Review round 2: the compass held still on a phone held sideways (it moved
+  65 px under the thumb as the words beside it changed); the bare
+  longitudes by 0° say W and E ("30W 0° 30E"); a wrong time past midnight
+  says the day ("the evening before"); on a tablet held upright the side
+  panel's under the board (the globe 402 px wide → 702); on a short screen
+  why 15° is an hour is said by Pidge, so a wrong time's words fit; each
+  round a city whose clock is the line short of it (Caracas and Jakarta for
+  Los Angeles and Bangkok — 12 of 15 were the line beyond); a coordinate
+  kept on its line everywhere it's shown.
 
 ### 5.10 🔨 Word Forge — Words & Stories · Scrivener Dot, Inkwell Cove
 
@@ -773,7 +805,7 @@ world, with the same host.
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth on a grid, each star where it really is from the coast that night; the pole star's altitude as your latitude; declination in the lessons. (Right ascension and hour angle: not asked.) | "Polaris is 20° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's measured rings to a rainfall record, its thin rings under the dry years, and date it to the year. (Missing outer rings and sapwood estimates: not built.) | "Thin rings — and the record's dry years?"; "Its last ring grew in…" |
 | 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. Seven cards a drawer, each dated by its century where that's enough to place it; then the years between a BCE card and a CE card, no year 0; each page says what led to what. No wars, battles, disasters or religion (§3.2). | "Paper (2nd century) … printing press (15th century)"; "From 500 BCE to 1807: how many years?" — 2,306 |
-| 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to a city by its coordinates, then say what time it is there, by the 15° line nearest it. (Half-hour zones, summer time and the date line: not asked.) | "Tokyo, 36° N, 140° E"; "It's 12:00 in London, in January. What time is it in Tokyo?" — 21:00 |
+| 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to a city by its coordinates, then say what time it is there, by the 15° line nearest it. (Half-hour zones, summer time and the date line: not asked.) | "Tokyo, 36° N, 140° E"; "Tokyo is at 140° E. It's 12:00 in London, in January: what time is it there?" — 21:00 |
 | 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged, from four. Three words a family, every family on Expert. | "chrono + meter"; "What does “port” mean in teleport?" — "carry" |
 
 Each game's §5 section gets its Expert note as its PR lands.
