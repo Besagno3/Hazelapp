@@ -167,7 +167,7 @@ describe('the Expert band (§8)', () => {
     expect(screen.getByText(/Ribbit! Orders are piling up/)).toBeInTheDocument();
     unmount();
 
-    render(<MiniGameStage game="star-charts" />);
+    render(<MiniGameStage game="ringwoods-rings" />);
     const three = within(screen.getByRole('group', { name: 'How tricky?' }));
     expect(three.getAllByRole('button').map((b) => b.textContent)).toEqual(['Gentle', 'Medium', 'Tricky']);
     expect(three.getByRole('button', { name: 'Tricky' })).toHaveAttribute('aria-pressed', 'true');

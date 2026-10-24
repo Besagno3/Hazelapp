@@ -248,6 +248,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Star chart',
     pages: 9,
     bandNote: 'Medium: no outline, and find the North Star. Tricky: the sky has turned — and how long the light took.',
+    expert: {
+      note: 'Expert: sky coordinates — a star found by its altitude and azimuth, and the latitude from the North Star.',
+      hello: 'Tonight the sky has a grid: altitude up from the horizon, azimuth round from north. Find each star I give you by its coordinates, then join its picture.',
+      steps: [
+        { title: 'Find the star', text: 'Altitude is degrees up from the horizon; azimuth, degrees round from north through east. On the Little Dipper, read the North Star’s altitude: it’s your latitude.' },
+        { title: 'Join the stars', text: 'Tap a star, then one it’s joined to — a line appears. Join them all.' },
+        { title: 'Read its card', text: 'Every star found and every latitude read first time wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'starfall',
     backdrop: '/backgrounds/starfall-coast.png',
     firstItem: 'candle',

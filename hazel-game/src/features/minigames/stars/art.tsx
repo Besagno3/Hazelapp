@@ -11,18 +11,40 @@ const INK = '#1b0f22';
 const NIGHT = '#141a46';
 const GOLD = '#fcd34d';
 
-/** A star picture, upright: its stars and lines in gold on a night square. Decorative (`aria-hidden`). */
-export function PictureCard({ id, size = 64 }: { id: PictureId; size?: number }) {
+/**
+ * A picture's stars turned `turn` degrees (clockwise) about their middle, as
+ * Expert's real sky has it, kept on the card: centred, and shrunk only if
+ * they'd run off it.
+ */
+function turned<T extends { x: number; y: number }>(stars: readonly T[], turn: number): readonly T[] {
+  if (!turn) return stars;
+  const [mx, my] = [stars.reduce((t, s) => t + s.x, 0) / stars.length, stars.reduce((t, s) => t + s.y, 0) / stars.length];
+  const [c, sn] = [Math.cos((turn * Math.PI) / 180), Math.sin((turn * Math.PI) / 180)];
+  const r = stars.map((s) => ({ ...s, x: mx + (s.x - mx) * c - (s.y - my) * sn, y: my + (s.x - mx) * sn + (s.y - my) * c }));
+  const xs = r.map((s) => s.x);
+  const ys = r.map((s) => s.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const fit = Math.min(1, 76 / Math.max(x1 - x0, y1 - y0));
+  return r.map((s) => ({ ...s, x: 50 + (s.x - (x0 + x1) / 2) * fit, y: 50 + (s.y - (y0 + y1) / 2) * fit }));
+}
+
+/**
+ * A star picture, upright — or on Expert turned as the sky has it (`turn`,
+ * UX review round 2: the card was up to 141° off the sky's, and nothing said
+ * so): its stars and lines in gold on a night square. Decorative (`aria-hidden`).
+ */
+export function PictureCard({ id, size = 64, turn = 0 }: { id: PictureId; size?: number; turn?: number }) {
   const p = PICTURE_BY_ID[id];
-  const at = Object.fromEntries(p.stars.map((s) => [s.id, s]));
+  const stars = turned(p.stars, turn);
+  const at = Object.fromEntries(stars.map((s) => [s.id, s]));
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" className="block flex-none rounded">
       <rect width="100" height="100" fill={NIGHT} />
       {p.lines.map(([a, b]) => (
         <line key={`${a}-${b}`} x1={at[a].x} y1={at[a].y} x2={at[b].x} y2={at[b].y} stroke={GOLD} strokeWidth="2.5" strokeLinecap="round" />
       ))}
-      {p.stars.map((s) => (
-        <circle key={s.id} cx={s.x} cy={s.y} r={s.mag === 1 ? 6 : s.mag === 2 ? 5 : 4} fill="#fff7d6" stroke={INK} strokeWidth="1.5" />
+      {stars.map((s) => (
+        <circle key={s.id} data-card-star={s.id} cx={s.x} cy={s.y} r={s.mag === 1 ? 6 : s.mag === 2 ? 5 : 4} fill="#fff7d6" stroke={INK} strokeWidth="1.5" />
       ))}
     </svg>
   );
@@ -62,6 +84,20 @@ export function StepFind() {
       ].map(([x, y]) => (
         <circle key={x} cx={x} cy={y} r="13" fill="#fff7d6" stroke={INK} strokeWidth="6" />
       ))}
+    </svg>
+  );
+}
+
+/** Expert's step 1: a star on an altitude–azimuth grid, over the horizon, its two coordinates marked. */
+export function StepCoords() {
+  return (
+    <svg width="56" height="56" viewBox="0 0 200 200" aria-hidden="true">
+      <rect x="20" y="20" width="160" height="160" rx="14" fill={NIGHT} stroke={INK} strokeWidth="9" />
+      <path d="M60 24 V176 M100 24 V176 M140 24 V176 M24 60 H176 M24 100 H176" stroke="#818cf8" strokeWidth="4" opacity="0.7" />
+      <rect x="24" y="140" width="152" height="36" fill="#1a1433" />
+      <path d="M24 140 H176" stroke="#a78bfa" strokeWidth="6" />
+      <path d="M100 140 V82 M42 60 H82" stroke={GOLD} strokeWidth="7" strokeDasharray="10 7" strokeLinecap="round" />
+      <circle cx="100" cy="60" r="16" fill="#fff7d6" stroke={INK} strokeWidth="6" />
     </svg>
   );
 }

@@ -6,7 +6,7 @@ import { BakeryLogo, StepClose, StepCut, StepFill } from './bakery/art';
 import { GearsLogo, StepCrank, StepJoin, StepPeg, StepRatio } from './gears/art';
 import { MuralLogo, StepImage, StepMirror, StepMix, StepMove, StepPaint } from './mural/art';
 import { EchoLogo, StepInterval, StepListen, StepPlay, StepShape } from './echo/art';
-import { StarsLogo, StepConnect, StepFact, StepFind } from './stars/art';
+import { StarsLogo, StepConnect, StepCoords, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepMatch, StepRead } from './rings/art';
 import { StepCheck, StepPlace, StepWash, TimelineLogo } from './timeline/art';
 import { AirMailLogo, StepDeliver, StepParcel, StepSteer } from './airmail/art';
@@ -61,6 +61,7 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./stars/StarCharts')),
     Logo: StarsLogo,
     steps: [StepFind, StepConnect, StepFact],
+    expertSteps: [StepCoords, StepConnect, StepFact],
   },
   'ringwoods-rings': {
     Play: retryableLazy(() => import('./rings/RingwoodsRings')),
