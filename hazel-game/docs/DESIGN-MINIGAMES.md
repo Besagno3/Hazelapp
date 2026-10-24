@@ -685,11 +685,12 @@ Old Ringwood is the tree who loses count of his rings.
   moves under the finger; the reward recaps the round's three words.
 - **Expert (PR 20, §8.5):** etymology. Every family has three Expert
   words built from Latin and Greek roots, each tied to its page where a
-  root can be — solar, solstice and parasol on the sun's; aquarium,
-  aquatic and aquanaut on the rain's; teleport, telegraph, telepathy;
+  root can be — solar, solstice and parasol on the sun's; aqueduct,
+  aquamarine and aquanaut on the rain's; teleport, telegraph, telepathy;
   micrometer, microcosm, chronometer; geography, calligraphy, geology — and
   §8.5's every root is in one (port, dict, spect, aqua, chrono, geo, -logy,
-  -meter). A round draws from all nine families. The tiles are the roots
+  -meter), each split the word's own. A round draws three families, the
+  27 words in turn — every family in rounds 0–2, every word in 0–8. The tiles are the roots
   alone (no meanings), the tray the word's two and four others from every
   Expert word's roots. Dot says the meaning in everyday words that never
   give away the root she'll ask about. Forged, she asks what one of its
@@ -700,10 +701,24 @@ Old Ringwood is the tree who loses count of his rings.
   with solar?") — marked tried, and picked again. The card says how it's
   built and more words with the root ("More with “sol”: parasol and
   solstice."). Every pair of roots a tray can make is a real word Dot
-  explains (16 more: chronology, paragraph, insist…) or a not-word, the 21
-  rarest in a big dictionary looked at (arnaut, symar…). Dot speaks
-  plainly; forged at the first hammer and the root right first pick is the
-  Expert seal; the reward keeps the first missed word's lesson.
+  explains (18 more: chronology, paragraph, multimeter…) or a not-word, the
+  20 rarest in a big dictionary looked at (arnaut, symar…). Dot speaks
+  plainly, and names the root once it's right ("“sol” means “sun”."); forged
+  at the first hammer and the root right first pick is the Expert seal; the
+  reward keeps the first missed word's lesson. On Expert the wall's pages
+  are its own — "Graph words", no meaning in the name — each a note tying
+  its three words ("Sol is Latin for the sun: solar, solstice…"), opening
+  once the word's forged and its root named.
+  Review round 1: two splits weren't the words' own (aqua + tic, aqua +
+  rium) — now aqueduct and aquamarine; the wall taught the young bands'
+  pages and gave the answer in sight ("Graph, “write”") — now Expert's own
+  pages, shut while a word's on the anvil; the words came back three rounds
+  on — now all 27 in turn; a hint after a miss gave the asked root's
+  meaning — now that part by its first letter, and a part meaning the same
+  as the right one said so ("“multi” means “many” too — but polygon takes
+  the other one."); a root with no other word has a clue ("At a solstice
+  the sun seems to stop, then turn back."); para's two meanings said; as
+  is "towards"; multimeter and induct real words; the right root named.
 
 ## 6. The PRs
 

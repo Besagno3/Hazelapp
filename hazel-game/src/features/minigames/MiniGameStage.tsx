@@ -664,7 +664,8 @@ function RewardScreen({
               {reward.pages.length > 0 && (
                 <p className="text-[15px] font-semibold text-amber-200">
                   <span aria-hidden="true">📖 </span>
-                  New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(', ')}.
+                  {/* A name with a comma in it ("Tele, “far”") kept apart from the next (Word Forge's UX review round 1). */}
+                  New {def.collection} page{reward.pages.length > 1 ? 's' : ''}: {reward.pages.join(reward.pages.some((n) => n.includes(',')) ? '; ' : ', ')}.
                 </p>
               )}
               {/* On Expert, how many were spot on (§8.3) — here, where there's room, not under what's new (PR 11 UX review round 1:

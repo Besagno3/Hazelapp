@@ -119,9 +119,10 @@ export const FAMILY_BY_ID = Object.fromEntries(FAMILIES.map((f) => [f.id, f])) a
 
 /**
  * Expert's word (§8.5): built from Latin and Greek roots, its tiles plain —
- * and, once it's forged, the root asked about (`ask`: "What does sol mean in
- * solstice?"). Its meaning never says the asked root's (so the question isn't
- * read off the ask).
+ * and, once it's forged, the root asked about (`ask`: "What does “sol” mean in
+ * solar?"). Its meaning never says the asked root's (so the question isn't
+ * read off the ask). Each split is the word's own (code review round 1:
+ * aqua + tic and aqua + rium weren't — aquaticus is aqu + -atic).
  */
 export interface ExpertWord extends Word {
   ask: string;
@@ -131,7 +132,7 @@ const x = (word: string, a: string, b: string, meaning: string, ask: string): Ex
 
 /**
  * Expert's words, three a family — each page's on Expert too (§8.4) — each
- * tied to its page where a root can be: the sun's sol, the rain's aqua, many
+ * tied to its page where a root can be: the sun's sol, the rain's water, many
  * for more than one, a helper's and a kind word's roots, a viewer's look,
  * tele, micro's measures, graph's writing. Every root in §8.5's list is here:
  * port, dict, spect, aqua, chrono, geo, -logy, -meter (tested).
@@ -143,13 +144,13 @@ export const EXPERT_WORDS: Record<FamilyId, readonly [ExpertWord, ExpertWord, Ex
     x('parasol', 'para', 'sol', 'a light umbrella for a sunny day', 'para'),
   ],
   rain: [
-    x('aquarium', 'aqua', 'rium', 'a glass tank for keeping fish', 'aqua'),
-    x('aquatic', 'aqua', 'tic', 'living or growing in water, like a water lily', 'tic'),
+    x('aqueduct', 'aque', 'duct', 'a bridge that carries water across a valley', 'duct'),
+    x('aquamarine', 'aqua', 'marine', 'a pale blue-green gem, the colour of a tropical sea', 'aqua'),
     x('aquanaut', 'aqua', 'naut', 'a diver who lives under the sea for days at a time', 'naut'),
   ],
   more: [
-    x('polygon', 'poly', 'gon', 'a flat shape with lots of straight sides', 'gon'),
-    x('multiply', 'multi', 'ply', 'to make a number several times bigger', 'multi'),
+    x('polygon', 'poly', 'gon', 'a flat shape with three or more straight sides', 'gon'),
+    x('multiply', 'multi', 'ply', 'to take a number a given number of times, as in 3 × 4', 'multi'),
     x('polyglot', 'poly', 'glot', 'someone who speaks several languages', 'glot'),
   ],
   help: [
@@ -187,9 +188,9 @@ export const EXPERT_WORDS: Record<FamilyId, readonly [ExpertWord, ExpertWord, Ex
 /** What Expert's roots mean — said only once a word's forged, in its question and lesson, and in a hint after a miss. */
 export const ROOT_MEANS: Record<string, string> = {
   sol: 'sun', ar: 'to do with', stice: 'standing still', para: 'shield against',
-  aqua: 'water', rium: 'a place for', tic: 'to do with', naut: 'sailor',
+  aqua: 'water', aque: 'water', duct: 'lead', marine: 'of the sea', naut: 'sailor',
   poly: 'many', gon: 'angle', multi: 'many', ply: 'fold', glot: 'tongue',
-  sup: 'under', port: 'carry', as: 'beside', sist: 'stand', bene: 'well', factor: 'one who makes',
+  sup: 'under', port: 'carry', as: 'towards', sist: 'stand', bene: 'well', factor: 'one who makes',
   volent: 'wishing', sym: 'with', pathy: 'feeling', phil: 'love', anthropy: 'people',
   in: 'into', spect: 'look', ator: 'one who', pre: 'before', dict: 'say',
   tele: 'far', graph: 'write', micro: 'small', meter: 'measure', cosm: 'world', chrono: 'time',
@@ -201,12 +202,14 @@ export const ROOT_KIN: Record<string, readonly string[]> = {
   sol: ['solar', 'parasol', 'solstice'],
   para: ['parachute'],
   aqua: ['aquarium', 'aquatic', 'aquamarine'],
-  tic: ['athletic', 'magnetic'],
+  aque: ['aqueous'],
+  duct: ['conduct', 'viaduct'],
+  marine: ['submarine', 'ultramarine'],
   naut: ['astronaut', 'nautical'],
   poly: ['polygon', 'polyglot', 'polyhedron'],
   gon: ['hexagon', 'octagon'],
   multi: ['multiply', 'multicoloured', 'multitude'],
-  sup: ['support', 'suppose', 'supply'],
+  sup: ['support', 'suppress', 'supply'],
   port: ['transport', 'export', 'portable'],
   sist: ['insist', 'resist'],
   bene: ['benefit', 'benevolent', 'benefactor'],
@@ -227,6 +230,40 @@ export const ROOT_KIN: Record<string, readonly string[]> = {
   geo: ['geography', 'geology', 'geometry'],
   graphy: ['biography', 'photography'],
   logy: ['biology', 'zoology'],
+};
+
+/**
+ * A root with no other word to think of, a clue to its meaning after a wrong
+ * pick (code and UX review round 1: "Read what solstice means again." said
+ * nothing of standing still).
+ */
+export const ROOT_CLUE: Record<string, string> = {
+  stice: 'At a solstice the sun seems to stop, then turn back.',
+  glot: 'It’s the part of your mouth that talks.',
+  calli: 'Think what fancy handwriting is meant to be.',
+};
+
+/** A root a tile shares with another of another meaning, said in its lesson (code review round 1: para in paragraph). */
+export const ROOT_NOTE: Record<string, string> = {
+  para: 'Greek para, “beside”, is another: paragraph.',
+};
+
+/**
+ * The word wall's pages on Expert: each family's name without a meaning (code
+ * review round 1: "Graph, “write”" was in sight as "graph" was asked) and its
+ * Expert words tied (UX review round 1: the page taught -s, and solar as a
+ * compound word).
+ */
+export const EXPERT_PAGES: Record<FamilyId, { name: string; note: string }> = {
+  sun: { name: 'Sun words', note: 'Sol is Latin for the sun: solar, solstice (when the sun seems to stand still), and parasol (a shield against it).' },
+  rain: { name: 'Water words', note: 'Aqua is Latin for water: an aqueduct leads it, aquamarine is its colour, and an aquanaut sails under it.' },
+  more: { name: 'Many words', note: 'Poly (Greek) and multi (Latin) both mean many: a polygon has many angles, a polyglot many tongues, and to multiply is to fold many times.' },
+  help: { name: 'Help words', note: 'Helping, from Latin: support carries from under, assist stands by, and a benefactor does good.' },
+  kind: { name: 'Kind words', note: 'Kindness, from Latin and Greek: benevolent wishes well, sympathy feels with, and philanthropy loves people.' },
+  view: { name: 'View words', note: 'Spect is Latin for look: to inspect looks into, a spectator looks on — and to predict says before.' },
+  tele: { name: 'Tele words', note: 'Tele is Greek for far: teleport carries far, telegraph writes far, telepathy feels far.' },
+  micro: { name: 'Micro words', note: 'Meter is Greek for measure: a micrometer measures small things, a chronometer time — and a microcosm is a small world.' },
+  graph: { name: 'Graph words', note: 'Geo is Greek for earth: geography writes it, geology studies it — and calligraphy is beautiful writing.' },
 };
 
 /** The families each band forges (pages come from every band, §3.3); Expert from all of them (§8.4). */
@@ -335,6 +372,9 @@ export const ALSO: Record<string, string> = {
   polygraph: 'a lie-detector machine',
   supply: 'to give people what they need',
   telemeter: 'a device that measures from far away',
+  // Too new for the big dictionary, or missed (code review round 1: "Multimeter isn’t a word").
+  multimeter: 'a meter for volts, amps and resistance',
+  induct: 'to bring someone into a club or a job, with a welcome',
 };
 
 export const JOBS_PER_ROUND = 3;
@@ -383,9 +423,12 @@ const EXPERT_PARTS = (): string[] => [...new Set(FAMILY_IDS.flatMap((id) => EXPE
  */
 export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly FamilyId[]): Job {
   const q = queue ?? roundQueue(band, () => false, round);
-  const family = FAMILY_BY_ID[q[i % q.length]];
+  // Expert walks its 27 words in turn, the families first (UX review round 1: by the wall's queue and the round, words came
+  // back three rounds on and five not till round 10): rounds 0–2 a word of every family, 0–8 each word once.
+  const k = round * JOBS_PER_ROUND + i;
+  const family = band === 'expert' ? FAMILY_BY_ID[FAMILY_IDS[k % FAMILY_IDS.length]] : FAMILY_BY_ID[q[i % q.length]];
   // Expert: the family's own word of Latin and Greek roots, the others from every Expert word's parts.
-  const word = band === 'expert' ? EXPERT_WORDS[family.id][round % 3] : family.words[round % family.words.length];
+  const word = band === 'expert' ? EXPERT_WORDS[family.id][Math.floor(k / FAMILY_IDS.length) % 3] : family.words[round % family.words.length];
   const r = rand(round * JOBS_PER_ROUND + i + 1);
   const pool = (band === 'expert' ? EXPERT_PARTS() : [...new Set(BAND_FAMILIES[band].flatMap((id) => FAMILY_BY_ID[id].words.flatMap((x) => x.parts)))]).filter((p) => !word.parts.includes(p));
   const ending = family.id === 'more' ? pool.indexOf(word.parts[1] === 's' ? 'es' : 's') : -1;
@@ -418,14 +461,14 @@ const quoted = (p: string) => `“${p}”`;
  * “sun”" told a kid to do what they'd done).
  */
 export function hintFor(job: Job, tried?: readonly [string, string]): string {
-  const said = hintWords(job, tried);
-  return job.band === 'expert' ? said.replace(/!/g, '.') : said;
+  return hintWords(job, tried);
 }
 
 function hintWords(job: Job, tried?: readonly [string, string]): string {
   const roots = job.band === 'tricky' || job.band === 'expert';
   const [a, b] = job.word.parts;
   const show = (p: string) => quoted(partText(p, job.band));
+  if (job.band === 'expert') return expertHint(job, tried);
   if (tried?.[0] === a) {
     if (roots) return `${show(a)} first is right — now a part meaning ${quoted(meansIn(job, b))}.`;
     if (job.band === 'medium') return FRONT.includes(a) ? `${show(a)} first is right — now the root word.` : `${show(a)} first is right — now an end part meaning ${quoted(meansIn(job, b))}.`;
@@ -448,6 +491,26 @@ function hintWords(job: Job, tried?: readonly [string, string]): string {
   }
   if (job.family === 'more') return `Start with ${quoted(a)}, then make it more than one.`;
   return `It starts with ${quoted(a)}.`;
+}
+
+/**
+ * Expert's hint, plainly: a part by its meaning — but never the root the
+ * question will ask about (code review round 1: 44% of misses gave its
+ * meaning away), that one by its first letter; a part that means the same as
+ * the right one said so (UX review round 1: "multi" for polygon was told to
+ * try "many" again).
+ */
+function expertHint(job: Job, tried?: readonly [string, string]): string {
+  const w = job.word as ExpertWord;
+  const [a, b] = w.parts;
+  const what = (p: string) => (p === w.ask ? `starts with ${quoted(p[0])}` : `means ${quoted(ROOT_MEANS[p])}`);
+  const twin = tried?.find((p, k) => p !== w.parts[k] && !!ROOT_MEANS[p] && ROOT_MEANS[p] === ROOT_MEANS[w.parts[k]]);
+  // Its meaning not said where it's the asked root's too (multi for multiply's poly).
+  if (twin) return `${quoted(twin)} means ${ROOT_MEANS[twin] === ROOT_MEANS[w.ask] ? 'the same' : `${quoted(ROOT_MEANS[twin])} too`} — but ${w.word} takes the other one.`;
+  if (tried?.[0] === a) return `${quoted(a)} first is right — the second part ${what(b)}.`;
+  if (tried?.[1] === b) return `${quoted(b)} second is right — the first part ${what(a)}.`;
+  if (tried && (tried[0] === b || tried[1] === a)) return `${quoted(tried[0] === b ? b : a)} is in it — but ${tried[0] === b ? 'second' : 'first'}.`;
+  return w.ask === a ? `The second part ${what(b)}.` : `The first part ${what(a)}.`;
 }
 
 /**
@@ -490,7 +553,8 @@ function forged(job: Job, parts: readonly [string, string]): { right: boolean; s
     return { right: false, said: plural === job.word.word ? rule : `${rule} Not this one, though!` };
   }
   if (addOns && !keep) return { right: false, said: `${job.band === 'gentle' ? 'Both are endings!' : 'Both are add-ons — it needs a root word!'} ${hintFor(job, parts)}` };
-  const astray = keep ? null : BACK.includes(x) && x !== b ? x : FRONT.includes(y) && y !== a ? y : null;
+  // An add-on where it doesn't go: Medium's rule, not Expert's (code review round 1: "“pre” goes at the front" for solar).
+  const astray = keep || job.band === 'expert' ? null : BACK.includes(x) && x !== b ? x : FRONT.includes(y) && y !== a ? y : null;
   if (astray) return { right: false, said: `${show(astray)} goes at the ${BACK.includes(astray) ? 'end' : 'front'}. ${hintFor(job, parts)}` };
   return { right: false, said: `${cap(made)} isn’t a word. ${hintFor(job, parts)}` };
 }
@@ -519,7 +583,9 @@ export function learnedLine(job: Job): string {
 
 /** Expert's word, its root to ask about (`ask`) and the other part. */
 function rootsOf(job: Job): { word: string; ask: string; other: string } {
-  const w = job.word as ExpertWord;
+  const w = job.word;
+  // Expert's words only (code review round 1: a cast, and a younger word reaching here threw).
+  if (!('ask' in w)) throw new Error(`${w.word} isn't an Expert word`);
   const [a, b] = w.parts;
   return { word: w.word, ask: w.ask, other: w.ask === a ? b : a };
 }
@@ -531,7 +597,8 @@ function kinLine(job: Job): string {
   const r = kin(ask).length ? ask : kin(other).length ? other : null;
   if (!r) return '';
   const k = kin(r);
-  return `More with ${quoted(r)}: ${k.join(' and ')}.`;
+  const note = ROOT_NOTE[ask] ?? ROOT_NOTE[other];
+  return `More with ${quoted(r)}: ${k.join(' and ')}.${note ? ` ${note}` : ''}`;
 }
 
 /** Expert's question, once the word's forged: "What does “sol” mean in solar?" */
@@ -572,7 +639,7 @@ export function rootWords(job: Job, picked: string): { right: boolean; said: str
   if (picked === right) return { right: true, said: `Yes: ${quoted(ask)} means ${quoted(right)}. ${learnedLine(job)}` };
   if (picked === ROOT_MEANS[other]) return { right: false, said: `Not ${quoted(picked)}: that’s ${quoted(other)}, the other part of ${word}.` };
   const kin = (ROOT_KIN[ask] ?? []).find((k) => k !== word);
-  return { right: false, said: kin ? `Not ${quoted(picked)}. Think of ${kin}: what does it share with ${word}?` : `Not ${quoted(picked)}. Read what ${word} means again.` };
+  return { right: false, said: kin ? `Not ${quoted(picked)}. Think of ${kin}: what does it share with ${word}?` : `Not ${quoted(picked)}. ${ROOT_CLUE[ask] ?? `Read what ${word} means again.`}` };
 }
 
 export { cap as capitalise };

@@ -717,18 +717,25 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   for a double Enter on what focus moved to, `keyed`). On Expert (§8.5)
   each family has three words of Latin and Greek roots (`EXPERT_WORDS`, an
   `ExpertWord` naming the root to ask about, `ask`; its meaning never says
-  that root's), every family a round (`BAND_FAMILIES.expert`), the tray the
-  word's two and four others from every Expert word's roots, plain
-  (`partText`). `ROOT_MEANS` says what each root means — in a hint after a
+  that root's; each split the word's own), the 27 in turn by `jobFor` (k =
+  3 × round + i: family k mod 9, its word ⌊k/9⌋ mod 3 — the wall's queue
+  left out), the tray the word's two and four others from every Expert
+  word's roots, plain (`partText`). `ROOT_MEANS` says what each root means — in a hint after a
   miss, the card and the question only — and `ROOT_KIN` other words it's in.
   Forged, step `root` (`EXPERT_CHIPS`): `rootAsk`, four meanings from
   `rootChoices` (the root's, the other part's, two others none alike, in an
   order by the word), `rootWords` (right, with `learnedLine`; the other
-  part's said so; another with a word the root's in to think of), a wrong
-  one marked tried and picked again. `forge.test` holds every pair of
-  Expert's 39 roots to its 27 words, 16 more in `ALSO` or a pinned count of
-  not-words, the 21 rarest named. Dot plain (`EXPERT_RIGHT_LINES`; `!` made
-  `.` in `forgeWords` and `hintFor`); the seal's `spotOn` counts words
+  part's said so; another with a word the root's in to think of, or with
+  none a clue, `ROOT_CLUE`), a wrong one marked tried and picked again; the
+  lesson adds a root's other meaning (`ROOT_NOTE`: para). A hint after a
+  miss is `expertHint`: a part by its meaning, the asked root by its first
+  letter, a part meaning the same as the right one said so; no add-on rule.
+  The wall on Expert: `EXPERT_PAGES` (each family's name without a meaning,
+  a note tying its words), a page shut while a word's on the anvil
+  (`locked`). `forge.test` holds every pair of Expert's 40 roots to its 27
+  words, 18 more in `ALSO` or a pinned count of not-words, the 20 rarest
+  named. Dot plain (`!` made `.` in `forgeWords`), the root named once
+  right (`cheerLine`); the seal's `spotOn` counts words
   forged at the first hammer with the root right first pick, the reward
   keeping the first missed word's lesson; the meanings and Next wait for a
   tap's second, not a key's (`ready(e)`). Every game has Expert now. The
