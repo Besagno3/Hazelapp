@@ -324,7 +324,7 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
       hello: 'Seven cards a drawer now, and some give only a century: the 19th century is the years 1801 to 1900. Put them in order, then tell me how many years lie between two of them.',
       steps: [
         { title: 'In order', text: 'Oldest first. A card gives its century, or its year: the 15th century is 1401 to 1500, the 4th century BCE 400 to 301 BCE.' },
-        { title: 'Count the years', text: 'From a BCE year to a CE year, add the two, then take 1: there’s no year 0, as 1 BCE is followed by 1 CE.' },
+        { title: 'Count the years', text: 'In order, the years come out: how many from a BCE card to a CE card? Mind, there’s no year 0 — 1 BCE is followed by 1 CE.' },
         { title: 'What led to what', text: 'Each drawer filed says what made what possible. Every drawer in order and counted right first time wins the Expert seal. No clock.' },
       ],
     },

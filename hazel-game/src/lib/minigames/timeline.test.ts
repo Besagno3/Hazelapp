@@ -282,18 +282,32 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
       expect(-from.year).toBeLessThan(CENTURY_UP_TO);
       expect(to.year).toBeGreaterThan(0);
       expect(spanRight(job)).toBe(to.year - from.year - 1);
-      // The answer, the year 0 counted, a hundred out and the years taken away: four, none the same, all years.
+      // Three pairs a year apart: the answer and the year 0 counted, a hundred out and that with the year 0, the years
+      // taken away and one more — six, none the same, all years.
       const right = spanRight(job);
       const slip = job.expert!.seed % 2 ? right + 100 : right - 100;
-      expect([...spanChoices(job)].sort((a, b) => a - b)).toEqual([right, right + 1, slip, Math.abs(to.year + from.year)].sort((a, b) => a - b));
-      expect(new Set(spanChoices(job)).size).toBe(4);
-      expect(Math.min(...spanChoices(job))).toBeGreaterThan(0);
+      const away = Math.abs(to.year + from.year);
+      const c = spanChoices(job);
+      expect([...c].sort((a, b) => a - b)).toEqual([right, right + 1, slip, slip + 1, away, away + 1].sort((a, b) => a - b));
+      expect(new Set(c).size).toBe(6);
+      expect(Math.min(...c)).toBeGreaterThan(0);
+      // Nothing but the sum finds it (code and UX review round 2: it was the smaller of the only two a year apart): three
+      // are the smaller of a pair, and four share their last two digits with another.
+      expect(c.filter((x) => c.includes(x + 1))).toHaveLength(3);
+      expect(c.filter((x) => c.includes(x + 1))).toContain(right);
+      expect(c.filter((x) => c.some((y) => y !== x && y % 100 === x % 100))).toContain(right);
     }
     // Where the answer is moves (UX review round 1: sorted, it was always the middle of three) — every place over 16 rounds,
-    // none more than half the time — and the drawer's seed is its slot's.
-    const places = jobs('expert', 16).map((job) => spanChoices(job).indexOf(spanRight(job)));
-    expect(new Set(places)).toEqual(new Set([0, 1, 2, 3]));
-    for (const k of [0, 1, 2, 3]) expect(places.filter((x) => x === k).length).toBeLessThanOrEqual(places.length / 2);
+    // none more than a third of the time; and in each drawer of a round (code review round 2: last in every odd round's first).
+    const all = jobs('expert', 16);
+    const places = all.map((job) => spanChoices(job).indexOf(spanRight(job)));
+    expect(new Set(places)).toEqual(new Set([0, 1, 2, 3, 4, 5]));
+    for (const k of [0, 1, 2, 3, 4, 5]) expect(places.filter((x) => x === k).length, `${k}`).toBeLessThanOrEqual(places.length / 3);
+    for (const slot of [0, 1, 2]) {
+      const mine = places.filter((_, n) => n % JOBS_PER_ROUND === slot);
+      expect(new Set(mine).size, `drawer ${slot + 1}`).toBeGreaterThanOrEqual(4);
+      expect(new Set(mine.filter((_, r) => r % 2)).size, `drawer ${slot + 1}, odd rounds`).toBeGreaterThan(1);
+    }
     expect(jobFor('expert', 2, 1).expert!.seed).toBe(2 * JOBS_PER_ROUND + 1 + 1);
     // Buildings has two BCE cards in centuries, and both come up; every set's CE end turns.
     for (const s of SETS) {
@@ -301,6 +315,9 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
       expect(pairs.size, s.id).toBeGreaterThanOrEqual(4);
     }
     expect(new Set(Array.from({ length: 8 }, (_, r) => spanFor(SET_BY_ID.buildings, r, 0).from.id))).toEqual(new Set(['pyramid', 'aqueduct']));
+    // The drawer's place in the round turns the pair too (code review round 2: untested).
+    expect(spanFor(SET_BY_ID.buildings, 0, 1).from.id).not.toBe(spanFor(SET_BY_ID.buildings, 0, 0).from.id);
+    expect(spanFor(SET_BY_ID.food, 2, 1)).toEqual(spanFor(SET_BY_ID.food, 3, 0));
     expect(jobFor('tricky', 0, 0).expert).toBeUndefined();
     expect(spanChoices(jobFor('tricky', 0, 0))).toEqual([]);
   });
@@ -310,11 +327,20 @@ describe('Expert (docs/DESIGN-MINIGAMES.md §8.5): centuries, years across BCE a
     // Candles are about 500 BCE: the year taken as it is (UX review round 1: "about", and the answer to the year).
     expect(spanAsk(job)).toBe('Say candles came in 500 BCE and gas street lamps in 1807: how many years from one to the other?');
     expect(job.expert!.seed).toBe(1);
-    expect([...spanChoices(job)].sort()).toEqual([1307, 2306, 2307, 2406]);
+    expect([...spanChoices(job)].sort((a, b) => a - b)).toEqual([1307, 1308, 2306, 2307, 2406, 2407]);
     expect(spanWords(job, 2306)).toBe('500 + 1807 = 2,307, less 1 — there’s no year 0, as 1 BCE is followed by 1 CE: 2,306 years.');
     expect(spanWords(job, 2307)).toBe('Not 2,307: there’s no year 0 — 1 BCE is followed by 1 CE, so take 1.');
     expect(spanWords(job, 2406)).toBe('Not 2,406: add 500 BCE and 1807 again, carefully — then take 1.');
-    expect(spanWords(job, 1307)).toBe('Not 1,307: BCE years count back to year 1, so from 500 BCE to 1807 the two years add up — then take 1, as there’s no year 0.');
+    expect(spanWords(job, 2407)).toBe('Not 2,407: add 500 BCE and 1807 again — and there’s no year 0, so take 1.');
+    // Short: the two years are in the ask (UX review round 2: three lines at 667 × 375, and the answers moved).
+    expect(spanWords(job, 1307)).toBe('Not 1,307: BCE years count back, so the two years add up — then take 1.');
+    expect(spanWords(job, 1308)).toBe(spanWords(job, 1307).replace('1,307', '1,308'));
+    // An "about" CE year, and a first card in CE: each said as it is (code review round 2: no set has them today).
+    const [b, c] = [SET_BY_ID.light.events[1], SET_BY_ID.light.events[4]];
+    const made = { ...job, expert: { span: { from: { ...b, about: false }, to: { ...c, about: true } }, seed: 1 } };
+    expect(spanAsk(made)).toMatch(/^Say /);
+    const ce = { ...job, events: job.events.filter((ev) => ev.year > 0) };
+    expect(clueFor(ce, ce.events.map((_, k) => k > 0))).toMatch(/is the earliest of these dates\.$/);
     // Two years as they are: asked as they are.
     expect(spanAsk(jobFor('expert', 1, 0, ['buildings']))).toBe('From Roman aqueducts (312 BCE) to the Eiffel Tower (1889): how many years?');
     // A CE year under 1000 says so; the card's "about" left out of the sum; an even seed's slip a hundred under.

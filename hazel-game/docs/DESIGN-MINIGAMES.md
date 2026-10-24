@@ -558,10 +558,11 @@ Old Ringwood is the tree who loses count of his rings.
   the 18th?). A clue gives a century's years ("the 18th century is the
   years 1701 to 1800"). In order, the cards' years come out and Index asks
   how many years lie from a BCE card to a CE card ("From candles (500 BCE)
-  to gas street lamps (1807): how many years?"), from three: the answer
-  (500 + 1807 − 1, as there's no year 0), the year 0 counted, and the years
-  taken away. A wrong one says what's wrong with it, and the kid picks
-  again. Each page then says what led to what among its cards ("Lens makers
+  to gas street lamps (1807): how many years?"), from six — three pairs a
+  year apart: the answer (500 + 1807 − 1, as there's no year 0) and the
+  year 0 counted, a hundred out and that with the year 0, the years taken
+  away and one more — so only the sum finds it. A wrong one says what's
+  wrong with it, and the kid picks again. Each page then says what led to what among its cards ("Lens makers
   made eyeglasses (about 1290); about 300 years later, two lenses in a tube
   made the first microscope"). Index speaks plainly; in order at the first
   check and counted at the first pick is the Expert seal. A card's date
@@ -576,6 +577,16 @@ Old Ringwood is the tree who loses count of his rings.
   every date starts in sight; a new teen's first drawer is Writing, its CE
   centuries the trap; two of the "what led to what" lines said only what's
   true of these cards (the Burj Khalifa stands on concrete walls).
+  Review round 2: the answer was still the smaller of the only two a year
+  apart — now six in three pairs, their order by the drawer's scrambled
+  seed, and the title card asks the years without giving the method; as a
+  drawer starts the line stays in sight (the scroll measured the words
+  under the cards, and on a laptop pushed the line off the top) — up to
+  600 px high the cards drop their pictures and say "c."; on a short
+  screen the years and the filed drawer keep the line's dates clear of the
+  bar (the heading a reader's, the six answers in a row, the lesson three
+  lines in the bar and whole in Index's bubble); held upright, the two
+  cards asked about are by the question.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 
