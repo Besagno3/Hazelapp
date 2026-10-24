@@ -8,7 +8,7 @@ import { MuralLogo, StepImage, StepMirror, StepMix, StepMove, StepPaint } from '
 import { EchoLogo, StepInterval, StepListen, StepPlay, StepShape } from './echo/art';
 import { StarsLogo, StepConnect, StepCoords, StepFact, StepFind } from './stars/art';
 import { RingsLogo, StepCount, StepDate, StepMatch, StepRain, StepRead } from './rings/art';
-import { StepCheck, StepPlace, StepWash, TimelineLogo } from './timeline/art';
+import { StepCentury, StepCheck, StepLed, StepPlace, StepSpan, StepWash, TimelineLogo } from './timeline/art';
 import { AirMailLogo, StepDeliver, StepParcel, StepSteer } from './airmail/art';
 import { ForgeLogo, StepHammer, StepMeaning, StepPick } from './forge/art';
 import type { PlayProps } from './types';
@@ -73,6 +73,7 @@ export const GAME_SCREENS: Record<MiniGameId, GameScreens> = {
     Play: retryableLazy(() => import('./timeline/IndexTimeline')),
     Logo: TimelineLogo,
     steps: [StepWash, StepPlace, StepCheck],
+    expertSteps: [StepCentury, StepSpan, StepLed],
   },
   'ember-air-mail': {
     Play: retryableLazy(() => import('./airmail/EmberAirMail')),

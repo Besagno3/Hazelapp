@@ -312,6 +312,15 @@ export const MINIGAMES: Record<MiniGameId, MiniGameDef> = {
     collection: 'Timeline book',
     pages: 8,
     bandNote: 'Medium: five cards across the centuries. Tricky: six or seven, with their years — BCE and CE.',
+    expert: {
+      note: 'Expert: seven cards dated by their century or their year, the years counted across BCE and CE, and what led to what.',
+      hello: 'Seven cards a drawer now, and some give only a century: the 19th century is the years 1801 to 1900. Put them in order, then tell me how many years lie between two of them.',
+      steps: [
+        { title: 'In order', text: 'Oldest first. A card gives its century, or its year: the 15th century is 1401 to 1500, the 4th century BCE 400 to 301 BCE.' },
+        { title: 'Count the years', text: 'From a BCE year to a CE year, add the two, then take 1: there’s no year 0, as 1 BCE is followed by 1 CE.' },
+        { title: 'What led to what', text: 'Each drawer filed says what made what possible. In order and counted right first time wins the Expert seal. No clock.' },
+      ],
+    },
     music: 'spireArchive',
     backdrop: '/backgrounds/sunken-archive.png',
     firstItem: 'knot',

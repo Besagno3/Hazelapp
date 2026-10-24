@@ -534,7 +534,29 @@ and each game — so far 🧪 Potion Lab, 🥧 Dot's Bakery, ⚙️ Clocktower G
   foot, sticky (a media list with a comma is dropped by Tailwind as an
   arbitrary variant: "under 560 px or upright" is two variants); long
   words in a card's name are blocks with a soft hyphen (`Breakable`), so they
-  break only where they must. **🐉 Ember Air Mail**
+  break only where they must. Expert (`jobFor('expert', …)`) deals a set's
+  seven, `years` on, with `expert.span` (`spanFor`: a BCE card under
+  `CENTURY_UP_TO` years ago to a CE card, turning with the round). A card
+  gives its century (`cardDate`, `centuryWords`, `centuryOf`) where
+  `byCentury` — no other card in the drawer in the same century, not 5000
+  BCE or older, not a whole hundred CE — else its year; `dateOf` is the
+  year once it's in order. `clueFor` gives a century's years
+  (`centuryYears`) where a century card's in it; `checkWords` drops the
+  "!"; `centuryTip` is said as a drawer starts and on the ticket
+  (`jobWords`). In order, the `span` step asks `spanAsk` from
+  `spanChoices` (the answer `spanRight` — `yearsApart`, no year 0 — the year
+  0 counted, and the years taken away); `spanWords` says the method, or
+  what's wrong with a wrong pick, which stays to pick again. Each set has a
+  `led` line (what led to what among its cards, tested for no wars,
+  disasters or religion); Expert's `learnedLine` is that and the years
+  counted. Index plain (`EXPERT_RIGHT_LINES`, "Finish the round"); in order
+  at the first check and counted at the first pick is a drawer spot on, and
+  the reward keeps the first missed drawer's lesson. Taps on the years and
+  Next wait for a tap's second, not a key's (`ready(e)`); a wrong count's
+  words scroll into view. A card's date breaks at its spaces, inside it
+  (no longer a no-break space before BCE), and on a phone a drawer with
+  dates leaves the pictures off the line (`CardFace`'s `pic`).
+  **🐉 Ember Air Mail**
   (`port-postmaster`, Pidge, Port Lantern — no quest of her own, so 🐉 is
   her gold offer; `lib/minigames/airmail.ts`, `features/minigames/
   airmail/`): maps and directions. Three maps: the bay (`BAY`, 5 × 5,

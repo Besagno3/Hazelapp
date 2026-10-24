@@ -1,4 +1,4 @@
-import type { Band } from '../../content/minigames';
+import type { PlayBand } from '../../content/minigames';
 
 /**
  * 📜 Index's Timeline (docs/DESIGN-MINIGAMES.md §5.8): putting things in the
@@ -8,10 +8,13 @@ import type { Band } from '../../content/minigames';
  * place, and the rest float back with a hint of why ("After gas street lamps
  * came the electric light bulb — …"). Gentle has 3–4 cards far
  * apart, no years; Medium five across the centuries, no years; Tricky 6–7
- * with their years, BCE and CE. Three sets a round, each a page of Index's
- * timeline book (light, travel, writing, flight, food, music, buildings,
- * medicine). Inventions, discoveries and things people made — no wars,
- * disasters or religion. Pure: the sets, the jobs, the checks and the words.
+ * with their years, BCE and CE; Expert all seven, each dated by its century
+ * where that's enough to place it, then how many years lie between two of
+ * them across BCE and CE, and what led to what (§8.5). Three sets a round,
+ * each a page of Index's timeline book (light, travel, writing, flight, food,
+ * music, buildings, medicine). Inventions, discoveries and things people
+ * made — no wars, disasters or religion. Pure: the sets, the jobs, the checks
+ * and the words.
  */
 
 export interface TimelineEvent {
@@ -39,6 +42,8 @@ export interface TimelineSet {
   note: string;
   /** Oldest first. */
   events: readonly TimelineEvent[];
+  /** What led to what, among its cards (Expert's lesson): checked, and no wars, disasters or religion. */
+  led: string;
 }
 
 const e = (id: string, name: string, said: string, emoji: string, year: number, why: string, about = false): TimelineEvent => ({ id, name, said, emoji, year, why, about });
@@ -49,6 +54,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Light',
     emoji: '💡',
     note: 'For most of history, light at night meant a flame. Electric light is only about 150 years old.',
+    led: 'Every light before the electric bulb (1879) burned something: wood, oil, wax or gas. After it, light came from electricity: neon signs, then LEDs.',
     events: [
       e('fire', 'Firelight in caves', 'firelight in caves', '🔥', -400000, 'people have lit the dark with fire for hundreds of thousands of years.', true),
       e('oil-lamp', 'Stone oil lamps', 'stone oil lamps', '🪔', -15000, 'an oil lamp is a little fire in a stone dish, from the Stone Age.', true),
@@ -64,6 +70,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Travel',
     emoji: '🚲',
     note: 'For thousands of years, nothing on land went faster than a horse. Then engines changed everything in about 100 years.',
+    led: 'The Wright brothers ran a bicycle shop before they built their aeroplane (1903), and it flew on a light petrol engine, the kind that drove the first cars (1886).',
     events: [
       e('canoe', 'Dugout canoes', 'dugout canoes', '🛶', -8000, 'a canoe is a hollowed-out log — one of the oldest ways to travel.', true),
       e('wheel', 'The wheel', 'the wheel', '🛞', -3500, 'wheels were first put on carts, thousands of years ago.', true),
@@ -79,6 +86,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Writing',
     emoji: '✍️',
     note: 'People told stories for thousands of years before anyone wrote one down. Writing was invented to keep track of grain and goods.',
+    led: 'The printing press (about 1440) printed on paper, first made in China about 1,300 years before.',
     events: [
       e('cave-paintings', 'Cave paintings', 'cave paintings', '🦬', -30000, 'pictures on cave walls came long before letters.', true),
       e('clay', 'Writing on clay', 'writing on clay', '🏺', -3200, 'the first writing was marks pressed into clay, to count grain.', true),
@@ -94,6 +102,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Flight',
     emoji: '🪁',
     note: 'People flew kites for over two thousand years before anyone flew themselves.',
+    led: 'Gliders came first: the Wright brothers flew their own gliders from 1900 to 1902, then added an engine, and that was the first aeroplane (1903).',
     events: [
       e('kite', 'Kites', 'kites', '🪁', -500, 'kites were the first things people flew.', true),
       e('balloon', 'Hot-air balloon', 'the hot-air balloon', '🎈', 1783, 'a hot-air balloon was the first way people flew themselves.'),
@@ -109,6 +118,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Food',
     emoji: '🍞',
     note: 'Farming changed everything: once people grew food, they could stay in one place and build villages.',
+    led: 'Farming (about 10,000 BCE) grew grain in plenty, enough for ovens full of bread; thousands of years later, a machine sliced the loaves (1928).',
     events: [
       e('farming', 'Farming begins', 'farming', '🌾', -10000, 'before farms, people gathered and hunted all their food.', true),
       e('bread', 'Bread baked in ovens', 'bread baked in ovens', '🍞', -4000, 'ovens full of bread needed lots of grain, which farms grew.', true),
@@ -124,6 +134,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Music',
     emoji: '🎵',
     note: 'The oldest instruments found are flutes made from bird bones and mammoth ivory, about 40,000 years old.',
+    led: 'Once sound could be played back (1877), music could be kept: on records, then on tapes like the cassette (1963), then as files like the MP3 (1993).',
     events: [
       e('bone-flute', 'Bone flute', 'the bone flute', '🦴', -38000, 'bone flutes are the oldest instruments ever found.', true),
       e('lyre', 'Lyres and harps', 'lyres and harps', '🪕', -2500, 'lyres and harps were played in the first cities.', true),
@@ -139,6 +150,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Buildings',
     emoji: '🏛️',
     note: 'The Great Pyramid was the tallest building in the world for almost 4,000 years.',
+    led: 'The first skyscraper (1885) was held up by a metal frame, not thick walls, and lifts took people up it: every tall tower since, up to the Burj Khalifa (2010), is built on both ideas.',
     events: [
       e('mud-brick', 'Mud-brick houses', 'mud-brick houses', '🛖', -9000, 'mud-brick houses came when people first stayed in one place.', true),
       e('pyramid', 'Great Pyramid of Giza', 'the Great Pyramid of Giza', '🔺', -2560, 'the Great Pyramid was built of over two million stone blocks.', true),
@@ -154,6 +166,7 @@ export const SETS: readonly TimelineSet[] = [
     name: 'Medicine',
     emoji: '🩺',
     note: 'Many medicines started as plants: willow bark eased aches long before scientists made aspirin from it.',
+    led: 'Lens makers made eyeglasses (about 1290); about 300 years later, two lenses in a tube made the first microscope (about 1590).',
     events: [
       e('willow', 'Willow bark for aches', 'willow bark for aches', '🌿', -1500, 'people used plants as medicine long, long ago.', true),
       e('glasses', 'Eyeglasses', 'eyeglasses', '👓', 1290, 'glasses need lenses of glass, well made.', true),
@@ -211,10 +224,12 @@ export interface Job {
   set: SetId;
   /** Its cards, oldest first (the right order). */
   events: readonly TimelineEvent[];
-  /** Years on the cards (Tricky). */
+  /** When's on the cards (Tricky, Expert). */
   years: boolean;
   /** The order they wash in. */
   dealt: readonly string[];
+  /** Expert: each card dated by its century where that's enough to place it, and how many years lie from one card to another. */
+  expert?: { span: { from: TimelineEvent; to: TimelineEvent } };
 }
 
 /**
@@ -270,11 +285,28 @@ export function deal(ids: readonly string[], seed: number, tries = 50): string[]
   return out;
 }
 
+/** BCE years from here on are dated by their year on Expert's cards, not their century (the 50th century BCE and on). */
+export const CENTURY_UP_TO = 5000;
+
+/**
+ * Expert's question of years: from a BCE card (one dated in centuries, not
+ * the Stone Age's tens of thousands) to a CE card, a different pair each time
+ * a set comes round.
+ */
+export function spanFor(set: TimelineSet, round: number, i: number): { from: TimelineEvent; to: TimelineEvent } {
+  const bce = set.events.filter((ev) => ev.year < 0 && -ev.year < CENTURY_UP_TO);
+  const ce = set.events.filter((ev) => ev.year > 0);
+  return { from: bce[(round + i) % bce.length], to: ce[(round + i) % ce.length] };
+}
+
 /** The `i`th job of a round. */
-export function jobFor(band: Band, round: number, i: number, queue?: readonly SetId[]): Job {
+export function jobFor(band: PlayBand, round: number, i: number, queue?: readonly SetId[]): Job {
   const q = queue ?? roundQueue(() => false, round);
   const set = SET_BY_ID[q[i % q.length]];
   const at = i % JOBS_PER_ROUND;
+  const seed = round * JOBS_PER_ROUND + i + 1;
+  // Expert: every card in the drawer.
+  if (band === 'expert') return { set: set.id, events: set.events, years: true, dealt: deal(set.events.map((ev) => ev.id), seed), expert: { span: spanFor(set, round, i) } };
   let picks: readonly number[];
   if (band === 'medium') {
     const can = mediumPicks(set);
@@ -282,7 +314,7 @@ export function jobFor(band: Band, round: number, i: number, queue?: readonly Se
     picks = can[Math.floor((at * can.length) / JOBS_PER_ROUND)] ?? [0, 1, 3, 5, 6];
   } else picks = PICKS[band][at];
   const events = picks.map((k) => set.events[k]);
-  return { set: set.id, events, years: band === 'tricky', dealt: deal(events.map((ev) => ev.id), round * JOBS_PER_ROUND + i + 1) };
+  return { set: set.id, events, years: band === 'tricky', dealt: deal(events.map((ev) => ev.id), seed) };
 }
 
 /** A year, said: "1879", "about 3500 BCE", "about 400,000 BCE" (BCE years count down to year 1). */
@@ -307,8 +339,40 @@ export function whenWords(ev: TimelineEvent): string {
   return `about ${ago.toLocaleString('en-GB')} years ago`;
 }
 
-/** A card's when, as its band says it. */
+/** A card's when, as its band says it once the drawer's in order. */
 export const dateOf = (job: Job, ev: TimelineEvent) => (job.years ? yearWords(ev) : whenWords(ev));
+
+/** Which century a year's in: 1–100 the 1st, 1801–1900 the 19th; 400–301 BCE the 4th century BCE. */
+export const centuryOf = (year: number) => Math.ceil(Math.abs(year) / 100);
+
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+
+/** A century, said: "the 19th century", "the 4th century BCE" (without "the": `bare`). */
+export function centuryWords(year: number, bare = false): string {
+  return `${bare ? '' : 'the '}${ordinal(centuryOf(year))} century${year < 0 ? ' BCE' : ''}`;
+}
+
+/** A century's years: "1801 to 1900", "400 to 301 BCE". */
+export function centuryYears(year: number): string {
+  const n = centuryOf(year);
+  return year < 0 ? `${n * 100} to ${(n - 1) * 100 + 1} BCE` : `${(n - 1) * 100 + 1} to ${n * 100}`;
+}
+
+/**
+ * Whether Expert's card gives its century, not its year: where that's enough
+ * to place it — no other card in the drawer in the same century — and not
+ * long ago (the Stone Age's tens of thousands of years), nor a whole hundred
+ * CE (is 1700 in the 17th century or the 18th? Strictly the 17th, but the
+ * 1700s are the 18th: the card gives the year).
+ */
+export function byCentury(job: Job, ev: TimelineEvent): boolean {
+  if (!job.expert || Math.abs(ev.year) >= CENTURY_UP_TO || (ev.year > 0 && ev.year % 100 === 0)) return false;
+  const same = (other: TimelineEvent) => Math.sign(other.year) === Math.sign(ev.year) && centuryOf(other.year) === centuryOf(ev.year);
+  return job.events.filter(same).length === 1;
+}
+
+/** What a card says while it's placed: its year, or its band's when; Expert's, its century where that's enough (`byCentury`). */
+export const cardDate = (job: Job, ev: TimelineEvent) => (byCentury(job, ev) ? centuryWords(ev.year, true) : dateOf(job, ev));
 
 /**
  * Placed cards (ids, by place; null for an empty place) checked: which places'
@@ -349,10 +413,14 @@ export function clueFor(job: Job, stay: readonly boolean[]): string {
   const k = stay.indexOf(false);
   if (k < 0) return '';
   const r = job.events[k];
-  if (k === 0) return `Oldest of these: ${r.said} — ${job.years && r.year < 0 ? 'in BCE, a bigger year is longer ago.' : r.why}`;
+  // Expert: a century card's years, where one's in the clue (the card goes there, or the one before it).
+  const century = [r, job.events[k - 1]].find((ev) => ev && byCentury(job, ev));
+  const years = century && `${centuryWords(century.year)} is the years ${centuryYears(century.year)}.`;
+  if (k === 0) return `Oldest of these: ${r.said} — ${years || (job.years && r.year < 0 ? 'in BCE, a bigger year is longer ago.' : r.why)}`;
   const prev = job.events[k - 1];
   let why = r.why;
-  if (job.years && prev.year < 0 && r.year < 0) why = 'in BCE, a bigger year is longer ago.';
+  if (years) why = years;
+  else if (job.years && prev.year < 0 && r.year < 0) why = 'in BCE, a bigger year is longer ago.';
   else if (job.years && prev.year < 0) why = 'BCE years come before year 1, CE years after it.';
   return `After ${prev.said} came ${r.said} — ${why}`;
 }
@@ -364,24 +432,78 @@ export function checkWords(job: Job, stay: readonly boolean[]): string {
   const n = stay.filter(Boolean).length;
   const first = job.events[0];
   const last = job.events[job.events.length - 1];
-  if (n === job.events.length) return `All in order! ${cap(first.said)} first, ${last.said} last.`;
-  return `${n > 1 ? `${cap(NUM[n])} in order!` : n ? 'One in the right place!' : 'Not yet!'} ${clueFor(job, stay)}`;
+  // Expert, plainly (§8.3).
+  const mark = job.expert ? '.' : '!';
+  if (n === job.events.length) return `All in order${mark} ${cap(first.said)} first, ${last.said} last.`;
+  return `${n > 1 ? `${cap(NUM[n])} in order` : n ? 'One in the right place' : 'Not yet'}${mark} ${clueFor(job, stay)}`;
 }
 
 /** Tricky's years, said where a kid sees them (UX review round 1: only on the ticket, hidden on a short screen). */
 export const BCE_WORDS = 'BCE means before year 1: the bigger the BCE number, the longer ago. CE years count up from year 1.';
 
+/** Expert's first card dated by its century, its years said: "The 15th century is the years 1401 to 1500." */
+export function centuryTip(job: Job): string {
+  const ev = job.events.find((x) => byCentury(job, x));
+  return ev ? `${cap(centuryWords(ev.year))} is the years ${centuryYears(ev.year)}.` : '';
+}
+
 /** The job, as its ticket says it. */
 export function jobWords(job: Job): string {
   const set = SET_BY_ID[job.set];
   const n = NUM[job.events.length];
+  if (job.expert) return `${set.name}: put the ${n} cards in order, oldest first. A card gives its century where that’s enough to place it, else its year. ${centuryTip(job)} Then: how many years from one to another?`;
   if (job.years) return `${set.name}: put the ${n} cards in order, oldest first. Their years are on them. ${BCE_WORDS}`;
   return `${set.name}: put the ${n} cards in order, oldest first.`;
+}
+
+/** A year in a sum: "312 BCE", "1885", "105 CE" — no "about" (the card's year as it is). */
+const sumYear = (ev: TimelineEvent) => yearWords({ ...ev, about: false });
+
+/** Expert's question: how many years from one card to another, across BCE and CE. */
+export function spanAsk(job: Job): string {
+  if (!job.expert) return '';
+  const { from, to } = job.expert.span;
+  return `From ${from.said} (${sumYear(from)}) to ${to.said} (${sumYear(to)}): how many years?`;
+}
+
+/** Expert's years from one card to the other: no year 0, so 1 BCE to 1 CE is a year. */
+export const spanRight = (job: Job) => (job.expert ? yearsApart(job.expert.span.from, job.expert.span.to) : 0);
+
+/** The right answer, the year 0 counted, and the years taken away. */
+export function spanChoices(job: Job): number[] {
+  if (!job.expert) return [];
+  const { from, to } = job.expert.span;
+  const right = yearsApart(from, to);
+  return [right, right + 1, Math.abs(to.year + from.year)].sort((a, b) => a - b);
+}
+
+const many = (n: number) => n.toLocaleString('en-GB');
+
+/** How it's worked out: add the BCE year and the CE year, then take 1 — there's no year 0. */
+export function spanMethod(job: Job): string {
+  if (!job.expert) return '';
+  const { from, to } = job.expert.span;
+  const a = -from.year;
+  return `${a} + ${to.year} = ${many(a + to.year)}, less 1 — there’s no year 0, as 1 BCE is followed by 1 CE: ${many(yearsApart(from, to))} years.`;
+}
+
+/** After a pick: right, the way it's worked out; wrong, what's wrong with it — the method's for the next pick. */
+export function spanWords(job: Job, picked: number): string {
+  if (!job.expert) return '';
+  const { from, to } = job.expert.span;
+  const right = yearsApart(from, to);
+  if (picked === right) return spanMethod(job);
+  if (picked === right + 1) return `Not ${many(picked)}: there’s no year 0 — 1 BCE is followed by 1 CE, so take 1.`;
+  return `Not ${many(picked)}: BCE years count back to year 1, so from ${sumYear(from)} to ${sumYear(to)} the two years add up — then take 1, as there’s no year 0.`;
 }
 
 /** What a set teaches, for the reward. */
 export function learnedLine(job: Job): string {
   const set = SET_BY_ID[job.set];
+  if (job.expert) {
+    const { from, to } = job.expert.span;
+    return `${set.led} From ${sumYear(from)} to ${sumYear(to)} is ${many(yearsApart(from, to))} years: there’s no year 0.`;
+  }
   const first = job.events[0];
   const last = job.events[job.events.length - 1];
   return `${set.name}: ${first.said} (${dateOf(job, first)}) came long before ${last.said} (${dateOf(job, last)}). ${set.note}`;

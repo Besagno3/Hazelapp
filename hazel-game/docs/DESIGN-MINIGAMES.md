@@ -511,6 +511,25 @@ Old Ringwood is the tree who loses count of his rings.
   with "Not yet!"; Medium always keeps the set's oldest card, so a drawer
   spans two thousand years or more; the keyboard starts at the washed-up
   cards.
+- **Expert (PR 18, §8.5):** every drawer deals all seven cards, and a card
+  gives its century where that's enough to place it — no other card in the
+  drawer in the same century ("5th century BCE", "18th century") — else its
+  year: two cards in the 1800s give 1807 and 1879, so the kid reads "19th
+  century" against "1903". The Stone Age's tens of thousands of years stay
+  years, and so does a whole hundred CE (is about 1700 the 17th century or
+  the 18th?). A clue gives a century's years ("the 18th century is the
+  years 1701 to 1800"). In order, the cards' years come out and Index asks
+  how many years lie from a BCE card to a CE card ("From candles (500 BCE)
+  to gas street lamps (1807): how many years?"), from three: the answer
+  (500 + 1807 − 1, as there's no year 0), the year 0 counted, and the years
+  taken away. A wrong one says what's wrong with it, and the kid picks
+  again. Each page then says what led to what among its cards ("Lens makers
+  made eyeglasses (about 1290); about 300 years later, two lenses in a tube
+  made the first microscope"). Index speaks plainly; in order at the first
+  check and counted at the first pick is the Expert seal. A card's date
+  breaks at its spaces inside the card (seven in a row on a short screen
+  are 55 px wide), and on a phone a drawer with dates leaves the pictures
+  off the line, so a place's name and date fit — Tricky's years too.
 
 ### 5.9 🐉 Ember Air Mail — Maps & Places · Postmaster Pidge, Port Lantern
 
@@ -666,7 +685,7 @@ world, with the same host.
 | 🎵 Echo's Call | Intervals, in the tunes: name the interval between two notes Lyra marks (a 2nd to a 5th on the five chimes), major, minor or perfect, read on the staff or heard. (An octave, keys and sharps and flats would need more chimes: not built.) | "From note 1 to note 3: what interval?" — "E down to C: a major 3rd." |
 | ✨ Vela's Star Charts | Sky coordinates: altitude and azimuth on a grid; the pole star's altitude as your latitude; declination in the lessons. (Right ascension on a chart would need the pictures redrawn from a catalogue: not built.) | "Polaris is 20° up: how far north are you?" |
 | 🌳 Ringwood's Rings | Cross-dating with climate data: match a beam's measured rings to a rainfall record, its thin rings under the dry years, and date it to the year. (Missing outer rings and sapwood estimates: not built.) | "Thin rings — and the record's dry years?"; "Its last ring grew in…" |
-| 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. No wars, battles, disasters or religion (§3.2). | "Paper → printing → …"; "300 BCE to 1450 CE is…" |
+| 📜 Index's Timeline | Cause and effect across eras: what led to what; years across BCE and CE; centuries named. Seven cards a drawer, each dated by its century where that's enough to place it; then the years between a BCE card and a CE card, no year 0; each page says what led to what. No wars, battles, disasters or religion (§3.2). | "Paper (2nd century) … printing press (15th century)"; "From 500 BCE to 1807: how many years?" — 2,306 |
 | 🐉 Ember Air Mail | Latitude and longitude on a 15° grid, and time zones: deliver to coordinates, then say when it arrives. | "35° N, 135° E"; "9:00 in London — in Tokyo?" |
 | 🔨 Word Forge | Etymology: tiles without their meanings, Latin roots as well as Greek (port, dict, spect, aqua, chrono, geo, -logy, -meter), and what a root means once the word's forged. | "chrono + meter"; "What does port mean in transport?" |
 
