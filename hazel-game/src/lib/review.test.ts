@@ -126,7 +126,7 @@ describe('fixing a question and browsing the bank (migration 0028)', () => {
     expect(refused).toBeInstanceOf(FixRefused);
     expect(reviewTrouble(refused, 'fallback')).toBe('Two answers are the same.');
     rpcMock.mockResolvedValue({ data: null, error: { code: 'P0002', message: 'no such question' } });
-    await expect(fixQuestion('q-3', fix)).rejects.toThrow(/retired or removed/);
+    await expect(fixQuestion('q-3', fix)).rejects.toThrow('That question was retired or removed meanwhile, so it can’t be fixed.');
     rpcMock.mockResolvedValue({ data: null, error: { code: '42501', message: 'not an admin' } });
     await expect(fixQuestion('q-3', fix)).rejects.toThrow(NOT_AN_ADMIN);
     rpcMock.mockResolvedValue({ data: null, error: { code: 'HQ001', message: 'grown_ups_locked: open' } });
@@ -146,9 +146,10 @@ describe('fixing a question and browsing the bank (migration 0028)', () => {
       ],
       error: null,
     });
-    const page = await browseQuestions({ topic: 'math', search: '  planet ' }, 50);
+    const page = await browseQuestions({ topic: 'math', search: '  planet ' });
     expect(rpcMock).toHaveBeenCalledWith('admin_browse_questions', {
-      p_topic: 'math', p_level: null, p_status: null, p_search: 'planet', p_limit: BANK_PAGE, p_offset: 50,
+      p_topic: 'math', p_level: null, p_status: null, p_search: 'planet', p_limit: BANK_PAGE,
+      p_after_created: null, p_after_id: null,
     });
     expect(page).toEqual([
       {
@@ -156,6 +157,11 @@ describe('fixing a question and browsing the bank (migration 0028)', () => {
         correctIndex: 2, explanation: null, timesAsked: 7, reports: 1, createdAt: '2026-10-20T09:00:00Z',
       },
     ]);
+    await browseQuestions({ status: 'review', level: 4 }, page[0]);
+    expect(rpcMock).toHaveBeenLastCalledWith('admin_browse_questions', {
+      p_topic: null, p_level: 4, p_status: 'review', p_search: null, p_limit: BANK_PAGE,
+      p_after_created: '2026-10-20T09:00:00Z', p_after_id: 'q-1',
+    });
     rpcMock.mockResolvedValue({ data: null, error: { code: '42501', message: 'not an admin' } });
     await expect(browseQuestions({})).rejects.toThrow(NOT_AN_ADMIN);
   });

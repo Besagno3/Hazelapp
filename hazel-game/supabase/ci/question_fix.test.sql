@@ -13,10 +13,10 @@ insert into public.profiles (id, parent_id, display_name, birth_year, birth_mont
 insert into public.admins (user_id) values ('00000000-0000-0000-0000-0000000000aa');
 
 insert into public.questions (id, topic, level, age, text, options, correct_index, explanation, status, review_note, checked_version, checked_at, created_at) values
-  ('00000000-0000-0000-0000-0000000f0001', 'fixit', 3, 8, 'What is 7 + 5?', '["11","12","13","10"]', 0, 'Count on.', 'review', 'report check: wrong answer', 3, now(), now() - interval '3 minutes'),
-  ('00000000-0000-0000-0000-0000000f0002', 'fixit', 4, 8, '100% sure?',     '["a","b","c","d"]',    1, null,        'active', null, 3, now(), now() - interval '2 minutes'),
-  ('00000000-0000-0000-0000-0000000f0003', 'fixit', 3, 8, 'Gone?',          '["a","b","c","d"]',    2, null,        'retired', null, 3, now(), now() - interval '1 minute'),
-  ('00000000-0000-0000-0000-0000000f0004', 'other', 3, 8, 'Elsewhere?',     '["a","b","c","d"]',    3, null,        'approved', null, 3, now(), now());
+  ('00000000-0000-0000-0000-0000000f0001', 'fixit', 3, 8, 'What is 7 + 5?', '["11","12","13","10"]', 0, 'Count on.', 'review', 'report check: wrong answer', 3, now(), '2026-10-01 10:00:00+00'),
+  ('00000000-0000-0000-0000-0000000f0002', 'fixit', 4, 8, '100% sure?',     '["a","b","c","d"]',    1, null,        'active', null, 3, now(), '2026-10-01 10:02:00+00'),
+  ('00000000-0000-0000-0000-0000000f0003', 'fixit', 3, 8, 'Gone?',          '["a","b","c","d"]',    2, null,        'retired', null, 3, now(), '2026-10-01 10:03:00+00'),
+  ('00000000-0000-0000-0000-0000000f0004', 'other', 3, 8, 'Elsewhere?',     '["a","b","c","d"]',    3, null,        'approved', null, 3, now(), '2026-10-01 10:04:00+00');
 insert into public.question_flags (question_id, profile_id, reason)
   values ('00000000-0000-0000-0000-0000000f0001', '00000000-0000-0000-0000-000000005ba1', 'wrong_answer');
 
@@ -104,6 +104,15 @@ begin
   exception when invalid_parameter_value then refused := sqlerrm; end;
   assert refused = 'every answer needs words', format('an empty option: %s', refused);
   refused := null;
+  -- Trimmed as JavaScript trims: a newline or a no-break space is empty too.
+  begin perform public.admin_fix_question(q, 'What is 7 + 5?', jsonb_build_array('11', E'\n\u00a0', '13', '10'), 1, null);
+  exception when invalid_parameter_value then refused := sqlerrm; end;
+  assert refused = 'every answer needs words', format('a newline-and-nbsp option: %s', refused);
+  refused := null;
+  begin perform public.admin_fix_question(q, E'\u3000\t', '["11","12","13","10"]', 1, null);
+  exception when invalid_parameter_value then refused := sqlerrm; end;
+  assert refused = 'the question needs words', format('wide-space text: %s', refused);
+  refused := null;
   begin perform public.admin_fix_question(q, 'What is 7 + 5?', jsonb_build_array('11', repeat('y', 81), '13', '10'), 1, null);
   exception when invalid_parameter_value then refused := sqlerrm; end;
   assert refused like 'an answer is too long%', format('option too long: %s', refused);
@@ -146,8 +155,17 @@ begin
   assert (select array_agg(r.id) from public.admin_browse_questions(p_search => '100%') r)
            = array['00000000-0000-0000-0000-0000000f0002']::uuid[], 'words in the question, % as itself';
   assert not exists (select 1 from public.admin_browse_questions(p_search => '_00%')), 'and _ as itself';
-  assert (select array_agg(r.id) from public.admin_browse_questions(p_topic => 'fixit', p_limit => 1, p_offset => 1) r)
-           = array['00000000-0000-0000-0000-0000000f0001']::uuid[], 'a page at a time';
+  assert (select array_agg(r.id) from public.admin_browse_questions(
+              p_topic => 'fixit', p_limit => 1,
+              p_after_created => '2026-10-01 10:02:00+00',
+              p_after_id => '00000000-0000-0000-0000-0000000f0002') r)
+           = array['00000000-0000-0000-0000-0000000f0001']::uuid[], 'a page at a time, after the last one shown';
+  -- Keyset: a question fixed out of a status filter doesn't shift the next page.
+  assert (select array_agg(r.id) from public.admin_browse_questions(
+              p_status => 'approved', p_limit => 1,
+              p_after_created => '2026-10-01 10:04:00+00',
+              p_after_id => '00000000-0000-0000-0000-0000000f0004') r)
+           = array['00000000-0000-0000-0000-0000000f0001']::uuid[], 'the page after, by position not count';
   assert (select count(*) from public.admin_browse_questions(p_limit => 0)) = 1, 'at least one a page';
 end $$;
 reset role;
@@ -163,8 +181,21 @@ begin
     'fixed: trimmed, approved, by whom, and due a recheck';
   assert not has_function_privilege('anon', 'public.admin_fix_question(uuid,text,jsonb,integer,text)', 'execute'),
     'anon can''t fix';
-  assert not has_function_privilege('anon', 'public.admin_browse_questions(text,integer,text,text,integer,integer)', 'execute'),
+  assert not has_function_privilege('anon', 'public.admin_browse_questions(text,integer,text,text,integer,timestamptz,uuid)', 'execute'),
     'anon can''t browse';
+  assert not has_function_privilege('authenticated', 'public.question_trim(text)', 'execute'), 'the trim is internal';
+end $$;
+
+-- A new report after the fix brings it back to the queue (the old one doesn't).
+insert into public.profiles (id, parent_id, display_name, birth_year, birth_month) values
+  ('00000000-0000-0000-0000-000000005ba2', '00000000-0000-0000-0000-0000000000ba', 'Fay', 2016, 2);
+insert into public.question_flags (question_id, profile_id, reason, created_at)
+  values ('00000000-0000-0000-0000-0000000f0001', '00000000-0000-0000-0000-000000005ba2', 'confusing', now() + interval '1 second');
+do $$
+begin
+  assert (select r.reasons @> array['confusing'] and r.status = 'approved'
+            from public.question_review_queue r where r.id = '00000000-0000-0000-0000-0000000f0001'),
+    'a new report after the fix lists it again, still approved, with the fix noted';
 end $$;
 
 rollback;

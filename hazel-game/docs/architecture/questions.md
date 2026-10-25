@@ -113,11 +113,22 @@ Covers: access and budgets for `generate-questions`, the four screening layers a
   #194) corrects a question there — its words, four answers, which is right,
   the explanation (`QuestionFixForm`) — through `admin_fix_question`, which
   approves it, records who, notes "fixed by the owner" and clears
-  `checked_version` (a `--include-approved` recheck covers it); the app runs
-  `screenQuestion` first (`fixProblem`) and the database checks the same
-  limits. **📚 Browse all** (`QuestionBankBrowser`, `admin_browse_questions`)
-  lists the whole bank with the right answer ticked, by topic, level, status
-  and words, 50 a page. Both refuse the same way as 0019's. A fix reaches kids
+  `checked_version` (a `--include-approved --include-reviewed` recheck covers
+  it); the app runs `screenQuestion` first (`fixProblem`) and the database
+  checks the same limits, trimming as JavaScript trims (`question_trim`). A
+  report check already running on the old wording doesn't undo a fix: its
+  write-back (the function's `check-report`, the script's `--reported`) is
+  saved only if the owner hasn't reviewed the question since the check
+  began, and the bank sweep only onto the copy it read (`reviewed_at`
+  unchanged). **📚 Browse all** (`QuestionBankBrowser`,
+  `admin_browse_questions`) lists the whole bank with the right answer
+  ticked, by topic, level and status (applied as picked) and words (on
+  Search), 50 a page by keyset (after the last one shown, so a question fixed
+  out of the filter never makes a page skip one); a Load more that lands
+  after a new list started is dropped. Several fixes can be open at once; the
+  tabs both stay drawn, so a fix being typed survives a switch; a new list,
+  Refresh and Back wait for (or ask about) a fix not saved. Both refuse the
+  same way as 0019's. A fix reaches kids
   from their next request (the app holds bank questions only in a round's
   carry-over, 45 min); starter questions aren't in the bank and are fixed in
   code. The alert's link (`?review`,

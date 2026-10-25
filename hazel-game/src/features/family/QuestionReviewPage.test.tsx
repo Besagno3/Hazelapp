@@ -43,7 +43,8 @@ beforeEach(() => {
   review.browseQuestions.mockResolvedValue([banked]);
 });
 
-const card = (text: string) => screen.getByText(text).closest('li') as HTMLElement;
+// By the question's own line (an open fix form has the same words in its textarea).
+const card = (text: string) => screen.getByText(text, { selector: 'p' }).closest('li') as HTMLElement;
 
 describe('QuestionReviewPage (#147)', () => {
   it('lists what’s waiting: held back first, with the answer, the reports in words and the checks’ notes', async () => {
@@ -159,15 +160,17 @@ describe('QuestionReviewPage (#147)', () => {
     await waitFor(() => expect(review.reviewQuestion).toHaveBeenCalledTimes(2));
   });
 
-  it('✏️ Fix (0028): change the right answer and save — it’s approved and leaves the list', async () => {
+  it('✏️ Fix (0028): opens on the question’s words, tick the right answer, save — approved, gone, the title takes the focus', async () => {
     render(<QuestionReviewPage onBack={onBack} />);
     await screen.findByText('2 questions waiting');
     fireEvent.click(within(card('What is 7 + 5?')).getByRole('button', { name: '✏️ Fix' }));
     const form = screen.getByRole('form', { name: 'Fix this question' });
-    expect(within(form).getByRole('radio', { name: 'Answer 2 is the right one' })).toBeChecked();
-    fireEvent.click(within(form).getByRole('radio', { name: 'Answer 1 is the right one' }));
+    expect(within(form).getByRole('textbox', { name: 'Question' })).toHaveFocus();
+    expect(within(form).getByRole('radio', { name: 'Right answer: 12' })).toBeChecked();
+    fireEvent.click(within(form).getByRole('radio', { name: 'Right answer: 11' }));
     fireEvent.change(within(form).getByRole('textbox', { name: 'Answer 1' }), { target: { value: '12 ' } });
     fireEvent.change(within(form).getByRole('textbox', { name: 'Answer 2' }), { target: { value: '14' } });
+    expect(within(form).getByRole('radio', { name: 'Right answer: 12' })).toBeChecked();
     fireEvent.change(within(form).getByLabelText(/Explanation/), { target: { value: 'Count on 5 from 7.' } });
     fireEvent.click(within(form).getByRole('button', { name: '💾 Save fix' }));
     await waitFor(() =>
@@ -177,9 +180,10 @@ describe('QuestionReviewPage (#147)', () => {
     );
     expect(await screen.findByText('1 question waiting')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Fixed and approved: "What is 7 + 5?"');
+    expect(screen.getByRole('heading', { level: 1, name: '🛡️ Question review' })).toHaveFocus();
   });
 
-  it('a refused fix says why on the form and keeps what was typed; Cancel goes back to the buttons', async () => {
+  it('a refused fix says why on the form and keeps what was typed; Cancel waits while saving, then gives the focus back to ✏️ Fix', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     review.fixQuestion.mockRejectedValueOnce(new FixRefused('Two answers are the same.'));
     render(<QuestionReviewPage onBack={onBack} />);
@@ -188,52 +192,148 @@ describe('QuestionReviewPage (#147)', () => {
     const form = screen.getByRole('form', { name: 'Fix this question' });
     fireEvent.change(within(form).getByRole('textbox', { name: 'Answer 1' }), { target: { value: '12' } });
     fireEvent.click(within(form).getByRole('button', { name: '💾 Save fix' }));
-    expect(await within(form).findByRole('alert')).toHaveTextContent('Two answers are the same.');
+    expect(within(form).getByRole('button', { name: 'Cancel' })).toHaveAttribute('aria-disabled', 'true');
+    expect(await within(form).findByText('Two answers are the same.')).toBeInTheDocument();
+    expect(within(form).getByRole('alert')).toHaveTextContent('Two answers are the same.');
     expect(within(form).getByRole('textbox', { name: 'Answer 1' })).toHaveValue('12');
     expect(screen.getByText('2 questions waiting')).toBeInTheDocument();
     fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('form', { name: 'Fix this question' })).toBeNull();
-    expect(within(card('What is 7 + 5?')).getByRole('button', { name: '✏️ Fix' })).toBeInTheDocument();
+    const fixButton = within(card('What is 7 + 5?')).getByRole('button', { name: '✏️ Fix' });
+    await waitFor(() => expect(fixButton).toHaveFocus());
     vi.mocked(console.warn).mockRestore();
   });
 
-  it('📚 Browse all lists the bank with the answer ticked, searches with the filters, and fixes in place', async () => {
+  it('two fixes can be open at once; Refresh and Back wait for a fix being typed', async () => {
+    render(<QuestionReviewPage onBack={onBack} />);
+    await screen.findByText('2 questions waiting');
+    fireEvent.click(within(card('What is 7 + 5?')).getByRole('button', { name: '✏️ Fix' }));
+    fireEvent.click(within(card('Which planet is red?')).getByRole('button', { name: '✏️ Fix' }));
+    expect(screen.getAllByRole('form', { name: 'Fix this question' })).toHaveLength(2);
+    fireEvent.change(within(card('What is 7 + 5?')).getByRole('textbox', { name: 'Answer 1' }), { target: { value: '9' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toHaveAttribute('aria-disabled', 'true'));
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+    expect(review.fetchReviewQueue).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
+    expect(onBack).not.toHaveBeenCalled();
+    expect(screen.getByText("A fix isn't saved yet. Leave without saving it?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(within(card('What is 7 + 5?')).getByRole('textbox', { name: 'Answer 1' })).toHaveValue('9');
+    fireEvent.click(screen.getByRole('button', { name: '← Back to Grown-ups' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave without saving' }));
+    expect(onBack).toHaveBeenCalled();
+  });
+
+  it('switching tabs keeps a fix being typed, and the notice is about the tab it was said on', async () => {
+    render(<QuestionReviewPage onBack={onBack} />);
+    await screen.findByText('2 questions waiting');
+    fireEvent.click(within(card('Which planet is red?')).getByRole('button', { name: '✅ Release' }));
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Released'));
+    fireEvent.click(within(card('What is 7 + 5?')).getByRole('button', { name: '✏️ Fix' }));
+    fireEvent.change(within(card('What is 7 + 5?')).getByRole('textbox', { name: 'Answer 1' }), { target: { value: '9' } });
+    fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
+    expect(screen.getByRole('status')).toHaveTextContent('');
+    await screen.findByText('What is 9 − 4?');
+    fireEvent.click(screen.getByRole('button', { name: '⏳ Waiting' }));
+    expect(within(card('What is 7 + 5?')).getByRole('textbox', { name: 'Answer 1' })).toHaveValue('9');
+  });
+
+  it('📚 Browse all ticks the answer; the lists apply as picked, the words on Search; a fix there updates in place and leaves Waiting', async () => {
     render(<QuestionReviewPage onBack={onBack} />);
     await screen.findByText('2 questions waiting');
     fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
     expect(screen.getByRole('button', { name: '📚 Browse all' })).toHaveAttribute('aria-pressed', 'true');
-    const q = await screen.findByText('What is 9 − 4?');
-    const c = q.closest('li') as HTMLElement;
+    const c = (await screen.findByText('What is 9 − 4?')).closest('li') as HTMLElement;
     expect(within(c).getByText('Live')).toBeInTheDocument();
     expect(within(c).getByText(/asked 12×/)).toBeInTheDocument();
     expect(within(c).getByText(/\(the saved answer\)/).parentElement).toHaveTextContent('4');
     expect(review.browseQuestions).toHaveBeenLastCalledWith({});
 
     fireEvent.change(screen.getByLabelText('Topic'), { target: { value: 'math' } });
+    await waitFor(() => expect(review.browseQuestions).toHaveBeenLastCalledWith({ topic: 'math' }));
     fireEvent.change(screen.getByLabelText('Level'), { target: { value: '3' } });
+    await waitFor(() => expect(review.browseQuestions).toHaveBeenLastCalledWith({ topic: 'math', level: 3 }));
     fireEvent.change(screen.getByLabelText('Words in the question'), { target: { value: '9' } });
+    expect(review.browseQuestions).toHaveBeenCalledTimes(3);
     fireEvent.click(screen.getByRole('button', { name: '🔍 Search' }));
     await waitFor(() => expect(review.browseQuestions).toHaveBeenLastCalledWith({ topic: 'math', level: 3, search: '9' }));
     const again = (await screen.findByText('What is 9 − 4?')).closest('li') as HTMLElement;
 
     fireEvent.click(within(again).getByRole('button', { name: '✏️ Fix' }));
     const form = within(again).getByRole('form', { name: 'Fix this question' });
-    fireEvent.click(within(form).getByRole('radio', { name: 'Answer 2 is the right one' }));
+    fireEvent.click(within(form).getByRole('radio', { name: 'Right answer: 5' }));
+    // A fix being typed holds the filters: a new list would drop it.
+    expect(screen.getByText(/Save or cancel your fix first/)).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Topic'), { target: { value: '' } });
+    expect(review.browseQuestions).toHaveBeenCalledTimes(4);
     fireEvent.click(within(form).getByRole('button', { name: '💾 Save fix' }));
     await waitFor(() => expect(review.fixQuestion).toHaveBeenCalledWith('q-bank', expect.objectContaining({ correctIndex: 1 })));
     expect(await within(again).findByText('Approved')).toBeInTheDocument();
     expect(within(again).getByText(/\(the saved answer\)/).parentElement).toHaveTextContent('5');
     expect(screen.getByRole('status')).toHaveTextContent('Fixed and approved: "What is 9 − 4?"');
+    await waitFor(() => expect(within(again).getByRole('button', { name: '✏️ Fix' })).toHaveFocus());
   });
 
-  it('📚 Browse offers Load more on a full page and adds the next one', async () => {
+  it('a question fixed in 📚 Browse leaves the Waiting list (its copy there is out of date)', async () => {
+    review.browseQuestions.mockResolvedValue([{ ...banked, id: 'q-live', text: 'What is 7 + 5?', status: 'active' }]);
+    render(<QuestionReviewPage onBack={onBack} />);
+    await screen.findByText('2 questions waiting');
+    fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
+    const list = await screen.findByRole('list', { name: 'Saved questions' });
+    fireEvent.click(within(list).getByRole('button', { name: '✏️ Fix' }));
+    fireEvent.click(within(list).getByRole('button', { name: '💾 Save fix' }));
+    await waitFor(() => expect(review.fixQuestion).toHaveBeenCalledWith('q-live', expect.anything()));
+    fireEvent.click(screen.getByRole('button', { name: '⏳ Waiting' }));
+    expect(await screen.findByText('1 question waiting')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Questions waiting for review' })).queryByText('What is 7 + 5?')).toBeNull();
+  });
+
+  it('📚 Load more asks for the page after the last one shown, focuses the first new one, and is gone after the last page', async () => {
     const page = Array.from({ length: 50 }, (_, i) => ({ ...banked, id: `q-${i}`, text: `Question ${i}?` }));
     review.browseQuestions.mockResolvedValueOnce(page).mockResolvedValueOnce([{ ...banked, id: 'q-last', text: 'The last one?' }]);
     render(<QuestionReviewPage onBack={onBack} />);
     fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
-    expect(await screen.findByText('The last one?')).toBeInTheDocument();
-    expect(review.browseQuestions).toHaveBeenLastCalledWith({}, 50);
+    const last = await screen.findByText('The last one?');
+    expect(review.browseQuestions).toHaveBeenLastCalledWith({}, page[49]);
+    await waitFor(() => expect(last.closest('li')).toHaveFocus());
     expect(screen.queryByRole('button', { name: 'Load more' })).toBeNull();
+  });
+
+  it('📚 a Load more that lands after a new list started is dropped', async () => {
+    const page = Array.from({ length: 50 }, (_, i) => ({ ...banked, id: `q-${i}`, text: `Question ${i}?` }));
+    let finish: (rows: BankQuestion[]) => void = () => {};
+    review.browseQuestions
+      .mockResolvedValueOnce(page)
+      .mockReturnValueOnce(new Promise<BankQuestion[]>((r) => (finish = r)))
+      .mockResolvedValueOnce([{ ...banked, id: 'q-sci', text: 'A science one?' }]);
+    render(<QuestionReviewPage onBack={onBack} />);
+    fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+    fireEvent.change(screen.getByLabelText('Topic'), { target: { value: 'science' } });
+    expect(await screen.findByText('A science one?')).toBeInTheDocument();
+    finish([{ ...banked, id: 'q-stale', text: 'An old page?' }]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('An old page?')).toBeNull();
+  });
+
+  it('📚 a list that can’t load says so; Try again waits in place, then the title takes the focus; no match offers Clear filters', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    review.browseQuestions.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    render(<QuestionReviewPage onBack={onBack} />);
+    fireEvent.click(screen.getByRole('button', { name: '📚 Browse all' }));
+    const button = await screen.findByRole('button', { name: 'Try again' });
+    fireEvent.click(button);
+    expect(button).toHaveTextContent('Trying…');
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(await screen.findByText('No questions match.', { selector: '.text-gray-500' })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: '🛡️ Question review' })).toHaveFocus());
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Status'), { target: { value: 'retired' } });
+    await waitFor(() => expect(review.browseQuestions).toHaveBeenLastCalledWith({ status: 'retired' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Clear filters' }));
+    await waitFor(() => expect(review.browseQuestions).toHaveBeenLastCalledWith({}));
+    expect(await screen.findByText('What is 9 − 4?')).toBeInTheDocument();
+    vi.mocked(console.warn).mockRestore();
   });
 });

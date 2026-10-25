@@ -160,7 +160,7 @@ export async function fixQuestion(id: string, fix: QuestionFix): Promise<void> {
     if (grownUpsLocked(error)) throw Object.assign(new Error(error.message), { code: error.code });
     // The database's own checks (0028) say what's wrong in words.
     if (error.code === '22023') throw new FixRefused(`${error.message.charAt(0).toUpperCase()}${error.message.slice(1)}.`);
-    if (error.code === 'P0002') throw new FixRefused('That question is gone — it was retired or removed. Refresh the list.');
+    if (error.code === 'P0002') throw new FixRefused('That question was retired or removed meanwhile, so it can’t be fixed.');
     throw new Error(`Couldn't save the fix — ${errorMessage(error)}`);
   }
 }
@@ -207,15 +207,20 @@ interface BankRow {
   created_at: string;
 }
 
-/** A page of the bank, newest first (retired ones only when asked for). */
-export async function browseQuestions(filter: BankFilter, offset = 0): Promise<BankQuestion[]> {
+/**
+ * A page of the bank, newest first (retired ones only when asked for): the
+ * first, or the one after `after` — the last question shown. Keyset, so a
+ * question fixed out of the filter meanwhile never makes the next page skip one.
+ */
+export async function browseQuestions(filter: BankFilter, after?: BankQuestion): Promise<BankQuestion[]> {
   const { data, error } = await supabase.rpc('admin_browse_questions', {
     p_topic: filter.topic || null,
     p_level: filter.level ?? null,
     p_status: filter.status || null,
     p_search: filter.search?.trim() || null,
     p_limit: BANK_PAGE,
-    p_offset: offset,
+    p_after_created: after?.createdAt ?? null,
+    p_after_id: after?.id ?? null,
   });
   if (error) {
     if (error.code === '42501') throw new Error(NOT_AN_ADMIN);

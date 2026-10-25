@@ -61,8 +61,10 @@ interface Row {
   options: string[];
   correct_index: number;
   explanation: string | null;
+  /** When the owner last decided or fixed it (null = never). */
+  reviewed_at: string | null;
 }
-const COLUMNS = 'id, topic, level, age, status, text, options, correct_index, explanation';
+const COLUMNS = 'id, topic, level, age, status, text, options, correct_index, explanation, reviewed_at';
 
 /** Rows read from the bank per round. */
 const PAGE = 120;
@@ -221,8 +223,10 @@ async function checkBank(): Promise<string> {
         passed += 1;
       }
       if (!apply) continue;
-      // Only if nobody changed it meanwhile (the owner may be reviewing too).
-      const { error: saveErr } = await db
+      // Only if nobody changed it meanwhile (the owner may be reviewing or
+      // fixing it too, migration 0028: a fix keeps 'approved' as it was, so
+      // the status alone can't tell).
+      let save = db
         .from('questions')
         .update({
           checked_version: RULES_VERSION,
@@ -231,6 +235,8 @@ async function checkBank(): Promise<string> {
         })
         .eq('id', row.id)
         .eq('status', row.status);
+      save = row.reviewed_at === null ? save.is('reviewed_at', null) : save.eq('reviewed_at', row.reviewed_at);
+      const { error: saveErr } = await save;
       if (saveErr) console.error(`couldn't save ${row.id}:`, saveErr.message);
     }
     console.log(`… ${seen} read, ${passed} passed, ${held} ${apply ? 'held back' : 'would be held back'}`);
@@ -249,6 +255,8 @@ async function checkReported(): Promise<string> {
   let held = 0;
   for (const id of ids) {
     let row: Row | null;
+    // An owner's decision or fix after this moment wins (migration 0028).
+    const claimedAt = new Date().toISOString();
     if (apply) {
       // Claimed like the app's check, so the two never check the same report twice.
       const { data: claimed, error: claimErr } = await db.rpc('claim_report_check', {
@@ -257,9 +265,9 @@ async function checkReported(): Promise<string> {
         p_daily_cap: 0,
       });
       if (claimErr) fail(`Claiming ${id} failed: ${claimErr.message}`);
-      const first = (Array.isArray(claimed) ? claimed[0] : claimed) as Omit<Row, 'topic' | 'level' | 'status'> | null;
+      const first = (Array.isArray(claimed) ? claimed[0] : claimed) as Omit<Row, 'topic' | 'level' | 'status' | 'reviewed_at'> | null;
       if (!first) continue; // checked meanwhile
-      row = { ...first, topic: '?', level: 0, status: '?' };
+      row = { ...first, topic: '?', level: 0, status: '?', reviewed_at: null };
     } else {
       const { data: found } = await db.from('questions').select(COLUMNS).eq('id', id).maybeSingle();
       row = found as Row | null;
@@ -274,7 +282,8 @@ async function checkReported(): Promise<string> {
       .from('questions')
       .update(verdict.hold ? { status: 'review', review_note: note } : { review_note: note })
       .eq('id', row.id)
-      .neq('status', 'retired');
+      .neq('status', 'retired')
+      .or(`reviewed_at.is.null,reviewed_at.lt."${claimedAt}"`);
     if (saveErr) console.error(`couldn't save ${row.id}:`, saveErr.message);
   }
   return `${ids.length} reported question(s) waiting: ${held} ${apply ? 'held back' : 'would be held back'}`;

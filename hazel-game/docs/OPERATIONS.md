@@ -139,7 +139,9 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   deploy. Before it, the new app's ✏️ Fix and 📚 Browse say they couldn't save / load (the functions are
 #   missing); release, approve and retire work as before. A fix approves the question and clears
 #   checked_version: the default recheck skips approved questions, so check fixed wording with Claude by
-#   adding --include-approved. A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
+#   adding --include-approved --include-reviewed (a fix is a review). Deploy generate-questions with it: the
+#   report check's write-back then leaves alone a question fixed while the check ran. A stale PostgREST schema
+#   cache after it: `notify pgrst, 'reload schema'`.
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
