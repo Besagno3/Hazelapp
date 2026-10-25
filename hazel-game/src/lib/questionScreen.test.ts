@@ -101,6 +101,22 @@ describe('screening questions for kids (B10, #147)', () => {
     expect(checksMigration).toMatch(/add column if not exists checked_version smallint/);
   });
 
+  it('a check that was running when the owner fixed or decided the question doesn’t undo it (migration 0028)', () => {
+    // Timed before the claim; saved only if the owner hasn't reviewed it since.
+    expect(edgeFnSource).toMatch(/const claimedAt = new Date\(\)\.toISOString\(\);\s*const \{ data, error \} = await db\.rpc\('claim_report_check'/);
+    expect(edgeFnSource).toMatch(/\.neq\('status', 'retired'\)\s*\.or\(`reviewed_at\.is\.null,reviewed_at\.lt\."\$\{claimedAt\}"`\)\s*\.select\('id'\);/);
+    // A result not saved isn't reported as held.
+    expect(edgeFnSource).toMatch(/const held = verdict\.hold && !saveErr && \(saved \?\? \[\]\)\.length > 0;/);
+    expect(edgeFnSource).toMatch(/return json\(\{ checked: true, held \}\);/);
+    // The recheck script runs on the owner's machine, whose clock may be off: it compares the
+    // database's own reviewed_at, read before the claim (--reported), or as the sweep read it.
+    expect(recheckSource).not.toMatch(/claimedAt/);
+    expect(recheckSource).toMatch(/select\('reviewed_at'\)\.eq\('id', id\)\.maybeSingle\(\);[\s\S]*?db\.rpc\('claim_report_check'/);
+    expect(recheckSource).toMatch(/row\.reviewed_at === null \? save\.is\('reviewed_at', null\) : save\.eq\('reviewed_at', row\.reviewed_at\)\);/);
+    expect(recheckSource).toMatch(/save = row\.reviewed_at === null \? save\.is\('reviewed_at', null\) : save\.eq\('reviewed_at', row\.reviewed_at\);/);
+    expect(recheckSource).toMatch(/const COLUMNS = '[^']*reviewed_at'/);
+  });
+
   it('a report starts a check of that question: claimed once per report, under a daily cap (#147)', () => {
     expect(edgeFnSource).toMatch(/if \(body\.action === 'check-report'\) return await checkReport\(req, body, apiKey\);/);
     // The same sign-in and kid checks as a question request.
@@ -140,7 +156,7 @@ describe('screening questions for kids (B10, #147)', () => {
     expect(recheckSource).toMatch(/\.or\(`checked_version\.is\.null,checked_version\.lt\.\$\{RULES_VERSION\}`\)/);
     expect(recheckSource).toMatch(/checked_version: RULES_VERSION,\s*checked_at: checkedAt,/);
     expect(recheckSource).toMatch(/const apply = has\('apply'\);/);
-    expect(recheckSource).toMatch(/if \(!apply\) continue;\s*\/\/[^\n]*\n\s*const \{ error: saveErr \} = await db/);
+    expect(recheckSource).toMatch(/if \(!apply\) continue;\s*(\/\/[^\n]*\n\s*)+let save = db/);
     expect(recheckSource).toMatch(/\.eq\('status', row\.status\)/);
     // --reported claims each question the way the app's check does, so a report is checked once.
     expect(recheckSource).toMatch(/db\.rpc\('claim_report_check', \{\s*p_question: id,\s*p_parent: null,/);

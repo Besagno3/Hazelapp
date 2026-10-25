@@ -2,7 +2,7 @@
 
 > Moved verbatim out of `CLAUDE.md` on 2026-10-22 (it had grown to 9,000 lines). This is the full reference for the area — keep it accurate: when you change how this works, change it here in the same commit. `CLAUDE.md` holds only the rules that apply everywhere and a map to these files.
 
-Covers: access and budgets for `generate-questions`, the four screening layers and the model settings, rechecks and reports, the owner's review page and alerts, answer shuffling, how the quiz and battle load questions without waiting, and the question cache / seen window.
+Covers: access and budgets for `generate-questions`, the four screening layers and the model settings, rechecks and reports, the owner's review page (fixing and browsing questions too) and alerts, answer shuffling, how the quiz and battle load questions without waiting, and the question cache / seen window.
 
 ## Access, budgets and screening
 
@@ -109,7 +109,33 @@ Covers: access and budgets for `generate-questions`, the four screening layers a
   first, with the answer, the reports in words and the checks' notes (🔎), and
   ✅ Release / ⭐ Approve / 🗑️ Retire (asks first) through `admin_review_queue` /
   `admin_review_question`, which refuse anyone else ("not an admin", 42501) and
-  record who decided (`questions.reviewed_by`). The alert's link (`?review`,
+  record who decided (`questions.reviewed_by`). **✏️ Fix** (migration 0028,
+  #194) corrects a question there — its words, four answers, which is right,
+  the explanation (`QuestionFixForm`) — through `admin_fix_question`, which
+  approves it, records who, notes "fixed by the owner" and clears
+  `checked_version` (a `--include-approved --include-reviewed` recheck covers
+  it); the app runs `screenQuestion` first (`fixProblem`) and the database
+  checks the same limits, trimming as JavaScript trims (`question_trim`). A
+  report check already running on the old wording doesn't undo a fix: its
+  write-back is saved only if the owner hasn't reviewed the question since
+  the check began (the function's `check-report`: `reviewed_at` older than
+  the claim, and `held` only when saved; the script's `--reported`: the
+  `reviewed_at` it read before claiming, the database's clock, not the
+  owner's), and the bank sweep only onto the copy it read. **📚 Browse all** (`QuestionBankBrowser`,
+  `admin_browse_questions`) lists the whole bank with the right answer
+  ticked, by topic, level and status (applied as picked) and words (on
+  Search), 50 a page by keyset (after the last one shown, so a question fixed
+  out of the filter never makes a page skip one); a Load more that lands
+  after a new list started is dropped, and one that lands after a fix keeps
+  it. Several fixes can be open at once; the tabs both stay drawn, so a fix
+  being typed survives a switch, and a fix or decision on either tab updates
+  the other's copy (`changedElsewhere`); a new list, Refresh and Back wait
+  for (or ask about) a fix not saved, saying why; focus never goes to the
+  hidden tab, and after a decision lands on the next card. Both refuse the
+  same way as 0019's. A fix reaches kids
+  from their next request (the app holds bank questions only in a round's
+  carry-over, 45 min); starter questions aren't in the bank and are fixed in
+  code. The alert's link (`?review`,
   `familyStore.reviewRequested`) opens 👪 Grown-ups and, once it's unlocked,
   the review page. **Reports** (`FlagButton`,
   on every question screen through `QuestionCard`, "Not OK for kids" first)

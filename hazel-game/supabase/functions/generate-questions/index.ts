@@ -1273,6 +1273,9 @@ async function checkReport(req: Request, body: { profileId?: unknown; questionId
   const who = await identifyKid(req, body.profileId);
   if (who instanceof Response) return who;
   const { db, callerId, kid } = who;
+  // A fix or decision the owner makes while the check runs wins (migration
+  // 0028): the result is saved only if they haven't reviewed it since.
+  const claimedAt = new Date().toISOString();
   const { data, error } = await db.rpc('claim_report_check', {
     p_question: body.questionId,
     p_parent: callerId,
@@ -1295,17 +1298,23 @@ async function checkReport(req: Request, body: { profileId?: unknown; questionId
     explanation: row.explanation,
   });
   const note = `${new Date().toISOString().slice(0, 10)} ${verdict.note}`.slice(0, 500);
-  const { error: saveErr } = await db
+  const { data: saved, error: saveErr } = await db
     .from('questions')
     .update(verdict.hold ? { status: 'review', review_note: note } : { review_note: note })
     .eq('id', row.id)
-    .neq('status', 'retired');
+    .neq('status', 'retired')
+    .or(`reviewed_at.is.null,reviewed_at.lt."${claimedAt}"`)
+    .select('id');
   if (saveErr) console.error('report check result not saved:', saveErr.message);
-  console.log(`report check ${row.id}: ${verdict.hold ? 'held back' : 'kept as it was'} — ${verdict.note}`);
+  // Not saved when the owner fixed or decided it while the check ran: theirs stands.
+  const held = verdict.hold && !saveErr && (saved ?? []).length > 0;
+  console.log(
+    `report check ${row.id}: ${held ? 'held back' : verdict.hold ? 'not held (the owner reviewed it meanwhile)' : 'kept as it was'} — ${verdict.note}`,
+  );
   // Held back — by the check, or by the report itself ("Not OK for kids") —
   // so the owner hears now, not in tomorrow's digest.
   await alertIfHeld(db, row.id);
-  return json({ checked: true, held: verdict.hold });
+  return json({ checked: true, held });
 }
 
 Deno.serve(async (req) => {
