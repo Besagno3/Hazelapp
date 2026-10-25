@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../lib/errors';
-import { plainErrorOr } from '../../lib/familyErrors';
-import { fetchReviewQueue, NOT_AN_ADMIN, reasonLabel, reviewQuestion, type ReviewDecision, type ReviewItem } from '../../lib/review';
+import {
+  fetchReviewQueue,
+  fixQuestion,
+  reasonLabel,
+  reviewQuestion,
+  reviewTrouble,
+  type ReviewDecision,
+  type ReviewItem,
+} from '../../lib/review';
 import { cn } from '../../lib/utils';
 import { asGrownUp } from '../../store/grownUpsStore';
 import FamilyCard from './FamilyCard';
+import QuestionBankBrowser from './QuestionBankBrowser';
+import QuestionFixForm from './QuestionFixForm';
 
 const DONE: Record<ReviewDecision, string> = {
   active: 'Released',
@@ -14,17 +23,13 @@ const DONE: Record<ReviewDecision, string> = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** Plain words for the page (#130 S6): "only the owner" as it is, else the trouble or `fallback`; the raw error is logged. */
-function reviewTrouble(err: unknown, fallback: string): string {
-  if (err instanceof Error && err.message === NOT_AN_ADMIN) return NOT_AN_ADMIN;
-  return plainErrorOr(err, fallback);
-}
-
 /**
  * 🛡️ Question review (#147): the owner's admin page, inside 👪 Grown-ups.
  * Lists what's waiting — questions held back from everyone, then ones still
  * shown with new reports — with what families reported and what the checks
- * found, and decides each: release, approve or retire. The database refuses
+ * found, and decides each: release, approve, retire or ✏️ fix (migration
+ * 0028: correct the answer, which approves it). 📚 Browse lists the whole bank
+ * to check answers without waiting for a report. The database refuses
  * anyone who isn't an admin (`admin_review_queue`, migration 0019).
  */
 export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
@@ -32,6 +37,8 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmRetire, setConfirmRetire] = useState<string | null>(null);
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [view, setView] = useState<'waiting' | 'browse'>('waiting');
   const [itemError, setItemError] = useState<{ id: string; message: string } | null>(null);
   const [notice, setNotice] = useState('');
   /** Bumped by Refresh / Try again to load the queue again. */
@@ -99,7 +106,7 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   }
 
   const subtitle =
-    items === null ? undefined : items.length === 0 ? 'Nothing waiting — all clear! 🎉' : `${plural(items.length, 'question', 'questions')} waiting`;
+    view === 'browse' ? 'Every saved question, the right answer ticked' : items === null ? undefined : items.length === 0 ? 'Nothing waiting — all clear! 🎉' : `${plural(items.length, 'question', 'questions')} waiting`;
 
   return (
     <FamilyCard wide title="🛡️ Question review" subtitle={subtitle} refocus={refocus}>
@@ -116,6 +123,10 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
           <li>
             <b>🗑️ Retire</b> removes it for good.
           </li>
+          <li>
+            <b>✏️ Fix</b> corrects the question, its answers or which one is right, and approves it. Kids get the fixed
+            one from their next question.
+          </li>
         </ul>
         <p className="mt-2 text-xs text-gray-500">
           The family who reported a question never sees it again, whatever you decide. A new report brings it back
@@ -123,12 +134,35 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
         </p>
       </details>
 
+      <div role="group" aria-label="Show" className="mb-4 flex gap-2">
+        {(
+          [
+            ['waiting', '⏳ Waiting'],
+            ['browse', '📚 Browse all'],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            aria-pressed={view === key}
+            className={cn(
+              'min-h-11 flex-1 rounded-lg border px-3 text-sm font-semibold',
+              view === key ? 'border-purple-600 bg-purple-600 text-white' : 'border-purple-300 text-purple-700 hover:bg-purple-50',
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       <p role="status" className="sr-only">
         {notice}
       </p>
       {notice && <p className="mb-3 rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">{notice}</p>}
 
-      {loadError && (
+      {view === 'browse' && <QuestionBankBrowser onFixed={(text) => setNotice(`Fixed and approved: "${text}"`)} />}
+
+      {view === 'waiting' && loadError && (
         <div className="text-center">
           <p className="text-red-600 text-sm">{loadError}</p>
           <button
@@ -140,9 +174,9 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       )}
-      {!loadError && items === null && <p className="text-center text-gray-500 text-sm">Loading…</p>}
+      {view === 'waiting' && !loadError && items === null && <p className="text-center text-gray-500 text-sm">Loading…</p>}
 
-      {items && items.length > 0 && (
+      {view === 'waiting' && items && items.length > 0 && (
         <ul className="space-y-3" aria-label="Questions waiting for review">
           {items.map((item) => {
             const held = item.status === 'review';
@@ -189,7 +223,18 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                   </ul>
                 )}
                 {itemError?.id === item.id && <p className="mt-2 text-sm text-red-600">{itemError.message}</p>}
-                {confirmRetire === item.id ? (
+                {fixing === item.id ? (
+                  <QuestionFixForm
+                    initial={item}
+                    onCancel={() => setFixing(null)}
+                    onSave={async (fix) => {
+                      await fixQuestion(item.id, fix);
+                      setFixing(null);
+                      setItems((list) => (list ?? []).filter((i) => i.id !== item.id));
+                      setNotice(`Fixed and approved: "${fix.text.trim()}"`);
+                    }}
+                  />
+                ) : confirmRetire === item.id ? (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <span className="text-sm text-gray-700">Retire it for good?</span>
                     <button
@@ -229,6 +274,21 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                     >
                       🗑️ Retire
                     </button>
+                    <button
+                      onClick={
+                        busy
+                          ? undefined
+                          : () => {
+                              setConfirmRetire(null);
+                              setItemError(null);
+                              setFixing(item.id);
+                            }
+                      }
+                      aria-disabled={busy || undefined}
+                      className="min-h-11 rounded-lg border border-purple-300 px-3 text-sm font-semibold text-purple-700 hover:bg-purple-50 aria-disabled:opacity-50"
+                    >
+                      ✏️ Fix
+                    </button>
                   </div>
                 )}
               </li>
@@ -244,9 +304,11 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
         >
           ← Back to Grown-ups
         </button>
-        <button onClick={reload} className="min-h-11 px-3 text-sm text-purple-600 hover:underline">
-          Refresh
-        </button>
+        {view === 'waiting' && (
+          <button onClick={reload} className="min-h-11 px-3 text-sm text-purple-600 hover:underline">
+            Refresh
+          </button>
+        )}
       </div>
     </FamilyCard>
   );

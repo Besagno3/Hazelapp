@@ -3,7 +3,19 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }));
 vi.mock('./supabase', () => ({ supabase: { rpc: rpcMock } }));
 
-import { NOT_AN_ADMIN, fetchReviewQueue, isAdmin, reasonLabel, reviewQuestion } from './review';
+import {
+  BANK_PAGE,
+  FixRefused,
+  NOT_AN_ADMIN,
+  browseQuestions,
+  fetchReviewQueue,
+  fixProblem,
+  fixQuestion,
+  isAdmin,
+  reasonLabel,
+  reviewQuestion,
+  reviewTrouble,
+} from './review';
 
 beforeEach(() => {
   rpcMock.mockReset();
@@ -76,5 +88,75 @@ describe('the owner’s question review (#147)', () => {
       '🔎 2026-10-16 report check (Haiku): check: scary',
     );
     expect(reasonLabel('something new')).toBe('something new');
+  });
+});
+
+describe('fixing a question and browsing the bank (migration 0028)', () => {
+  const fix = { text: ' What is 7 + 5? ', options: [' 11', '12', '13', '10 '], correctIndex: 1, explanation: '  ' };
+
+  it('fixProblem runs the game’s own screening, in words', () => {
+    expect(fixProblem(fix)).toBeNull();
+    expect(fixProblem({ ...fix, options: ['11', '12', '12 ', '10'] })).toBe('Two answers are the same.');
+    expect(fixProblem({ ...fix, options: ['11', '', '13', '10'] })).toBe('Every answer needs words.');
+    expect(fixProblem({ ...fix, text: ' ' })).toBe('The question needs words.');
+    expect(fixProblem({ ...fix, options: ['11', '12', '13', 'All of the above'] })).toMatch(/shuffled/);
+    expect(fixProblem({ ...fix, explanation: 'See www.example.com' })).toMatch(/link/);
+  });
+
+  it('fixQuestion sends the fix trimmed, an empty explanation as none', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: null });
+    await fixQuestion('q-3', fix);
+    expect(rpcMock).toHaveBeenCalledWith('admin_fix_question', {
+      p_question: 'q-3',
+      p_text: 'What is 7 + 5?',
+      p_options: ['11', '12', '13', '10'],
+      p_correct_index: 1,
+      p_explanation: null,
+    });
+  });
+
+  it('a fix the game would refuse is never sent', async () => {
+    await expect(fixQuestion('q-3', { ...fix, options: ['a', 'a', 'b', 'c'] })).rejects.toBeInstanceOf(FixRefused);
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('the database’s refusals come through in words; others as trouble', async () => {
+    rpcMock.mockResolvedValue({ data: null, error: { code: '22023', message: 'two answers are the same' } });
+    const refused = await fixQuestion('q-3', fix).catch((e: unknown) => e);
+    expect(refused).toBeInstanceOf(FixRefused);
+    expect(reviewTrouble(refused, 'fallback')).toBe('Two answers are the same.');
+    rpcMock.mockResolvedValue({ data: null, error: { code: 'P0002', message: 'no such question' } });
+    await expect(fixQuestion('q-3', fix)).rejects.toThrow(/retired or removed/);
+    rpcMock.mockResolvedValue({ data: null, error: { code: '42501', message: 'not an admin' } });
+    await expect(fixQuestion('q-3', fix)).rejects.toThrow(NOT_AN_ADMIN);
+    rpcMock.mockResolvedValue({ data: null, error: { code: 'HQ001', message: 'grown_ups_locked: open' } });
+    await expect(fixQuestion('q-3', fix)).rejects.toMatchObject({ code: 'HQ001' });
+    rpcMock.mockResolvedValue({ data: null, error: { code: '57014', message: 'timeout' } });
+    const other = await fixQuestion('q-3', fix).catch((e: unknown) => e);
+    expect(reviewTrouble(other, 'Couldn’t save.')).toBe('Couldn’t save.');
+  });
+
+  it('browseQuestions asks for a page with the filters, counts as numbers', async () => {
+    rpcMock.mockResolvedValue({
+      data: [
+        {
+          id: 'q-1', topic: 'math', level: 3, age: 8, status: 'approved', text: 'Q?', options: ['a', 'b', 'c', 'd'],
+          correct_index: 2, explanation: null, times_asked: 7, reports: '1', created_at: '2026-10-20T09:00:00Z',
+        },
+      ],
+      error: null,
+    });
+    const page = await browseQuestions({ topic: 'math', search: '  planet ' }, 50);
+    expect(rpcMock).toHaveBeenCalledWith('admin_browse_questions', {
+      p_topic: 'math', p_level: null, p_status: null, p_search: 'planet', p_limit: BANK_PAGE, p_offset: 50,
+    });
+    expect(page).toEqual([
+      {
+        id: 'q-1', topic: 'math', level: 3, age: 8, status: 'approved', text: 'Q?', options: ['a', 'b', 'c', 'd'],
+        correctIndex: 2, explanation: null, timesAsked: 7, reports: 1, createdAt: '2026-10-20T09:00:00Z',
+      },
+    ]);
+    rpcMock.mockResolvedValue({ data: null, error: { code: '42501', message: 'not an admin' } });
+    await expect(browseQuestions({})).rejects.toThrow(NOT_AN_ADMIN);
   });
 });

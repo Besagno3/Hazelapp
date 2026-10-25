@@ -2,7 +2,7 @@
 
 > Moved verbatim out of `CLAUDE.md` on 2026-10-22 (it had grown to 9,000 lines). This is the full reference for the area — keep it accurate: when you change how this works, change it here in the same commit. `CLAUDE.md` holds only the rules that apply everywhere and a map to these files.
 
-The everyday `npm` commands are in `CLAUDE.md`. This file keeps the rest: the world renderer bench, Tiled maps and asset generation, the question-bank recheck, the deploy order and Supabase auth settings for 👪 Grown-ups and closing an account, migration 0025, and the question-review alerts. Production database repair: `docs/PRODUCTION-DB-SETUP.md`.
+The everyday `npm` commands are in `CLAUDE.md`. This file keeps the rest: the world renderer bench, Tiled maps and asset generation, the question-bank recheck, the deploy order and Supabase auth settings for 👪 Grown-ups and closing an account, migration 0025, the question-review alerts and fixing questions (0028). Production database repair: `docs/PRODUCTION-DB-SETUP.md`.
 
 ## Commands
 
@@ -133,6 +133,13 @@ supabase functions deploy delete-account   # no secrets beyond the injected SUPA
 #   tidied at 35 days by the same notes.
 #   The draft privacy notice now says each device's share of a day is kept under a random code the browser
 #   makes up (#124, for the lawyer). A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
+
+# ✏️ Fix and 📚 Browse in Question review (#194) — migration 0028, before the app (or either order: harmless)
+#   Re-run apply_all_migrations.sql in the SQL editor (or `supabase db push`; 0028 is new). No edge-function
+#   deploy. Before it, the new app's ✏️ Fix and 📚 Browse say they couldn't save / load (the functions are
+#   missing); release, approve and retire work as before. A fix approves the question and clears
+#   checked_version: the default recheck skips approved questions, so check fixed wording with Claude by
+#   adding --include-approved. A stale PostgREST schema cache after it: `notify pgrst, 'reload schema'`.
 
 # Question review alerts and the admin page (#147) — once, by the owner
 #   1. SQL editor: make yourself an admin (🛡️ Question review appears in 👪 Grown-ups):
