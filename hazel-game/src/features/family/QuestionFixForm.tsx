@@ -102,7 +102,7 @@ export default function QuestionFixForm({
         />
       </div>
       <fieldset aria-describedby={describedBy}>
-        <legend className="text-xs font-semibold text-gray-700">Answers — tick the right one</legend>
+        <legend className="text-xs font-semibold text-gray-700">Answers — pick the right one</legend>
         <div className="mt-1 space-y-1">
           {options.map((o, i) => (
             <div key={i} className="flex items-center gap-1">
@@ -119,6 +119,12 @@ export default function QuestionFixForm({
               <input
                 value={o}
                 onChange={(e) => setOptions((list) => list.map((x, j) => (j === i ? e.target.value : x)))}
+                // Enter in an answer moves on, never saves (saving approves it).
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  e.currentTarget.form?.querySelectorAll<HTMLInputElement>('input[type="text"], input:not([type])')[i + 1]?.focus();
+                }}
                 maxLength={80}
                 aria-label={`Answer ${i + 1}`}
                 className={
@@ -147,7 +153,7 @@ export default function QuestionFixForm({
       <div id={troubleId} role="alert" className="text-sm text-red-600">
         {trouble && <p key={trouble.key}>{trouble.text}</p>}
       </div>
-      <p className="text-xs text-gray-500">Saving approves it: it goes back in the game, served first.</p>
+      <p className="text-xs text-gray-500">Saving also approves it: kids get it first from now on.</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="submit"

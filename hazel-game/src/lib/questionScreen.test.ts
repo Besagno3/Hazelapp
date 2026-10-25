@@ -104,10 +104,15 @@ describe('screening questions for kids (B10, #147)', () => {
   it('a check that was running when the owner fixed or decided the question doesn’t undo it (migration 0028)', () => {
     // Timed before the claim; saved only if the owner hasn't reviewed it since.
     expect(edgeFnSource).toMatch(/const claimedAt = new Date\(\)\.toISOString\(\);\s*const \{ data, error \} = await db\.rpc\('claim_report_check'/);
-    expect(edgeFnSource).toMatch(/\.neq\('status', 'retired'\)\s*\.or\(`reviewed_at\.is\.null,reviewed_at\.lt\."\$\{claimedAt\}"`\);/);
-    // The recheck script: the same for --reported, and the bank sweep only on the copy it read.
-    expect(recheckSource).toMatch(/const claimedAt = new Date\(\)\.toISOString\(\);\s*if \(apply\) \{/);
-    expect(recheckSource).toMatch(/\.or\(`reviewed_at\.is\.null,reviewed_at\.lt\."\$\{claimedAt\}"`\);/);
+    expect(edgeFnSource).toMatch(/\.neq\('status', 'retired'\)\s*\.or\(`reviewed_at\.is\.null,reviewed_at\.lt\."\$\{claimedAt\}"`\)\s*\.select\('id'\);/);
+    // A result not saved isn't reported as held.
+    expect(edgeFnSource).toMatch(/const held = verdict\.hold && !saveErr && \(saved \?\? \[\]\)\.length > 0;/);
+    expect(edgeFnSource).toMatch(/return json\(\{ checked: true, held \}\);/);
+    // The recheck script runs on the owner's machine, whose clock may be off: it compares the
+    // database's own reviewed_at, read before the claim (--reported), or as the sweep read it.
+    expect(recheckSource).not.toMatch(/claimedAt/);
+    expect(recheckSource).toMatch(/select\('reviewed_at'\)\.eq\('id', id\)\.maybeSingle\(\);[\s\S]*?db\.rpc\('claim_report_check'/);
+    expect(recheckSource).toMatch(/row\.reviewed_at === null \? save\.is\('reviewed_at', null\) : save\.eq\('reviewed_at', row\.reviewed_at\)\);/);
     expect(recheckSource).toMatch(/save = row\.reviewed_at === null \? save\.is\('reviewed_at', null\) : save\.eq\('reviewed_at', row\.reviewed_at\);/);
     expect(recheckSource).toMatch(/const COLUMNS = '[^']*reviewed_at'/);
   });

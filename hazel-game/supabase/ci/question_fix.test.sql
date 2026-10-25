@@ -16,7 +16,10 @@ insert into public.questions (id, topic, level, age, text, options, correct_inde
   ('00000000-0000-0000-0000-0000000f0001', 'fixit', 3, 8, 'What is 7 + 5?', '["11","12","13","10"]', 0, 'Count on.', 'review', 'report check: wrong answer', 3, now(), '2026-10-01 10:00:00+00'),
   ('00000000-0000-0000-0000-0000000f0002', 'fixit', 4, 8, '100% sure?',     '["a","b","c","d"]',    1, null,        'active', null, 3, now(), '2026-10-01 10:02:00+00'),
   ('00000000-0000-0000-0000-0000000f0003', 'fixit', 3, 8, 'Gone?',          '["a","b","c","d"]',    2, null,        'retired', null, 3, now(), '2026-10-01 10:03:00+00'),
-  ('00000000-0000-0000-0000-0000000f0004', 'other', 3, 8, 'Elsewhere?',     '["a","b","c","d"]',    3, null,        'approved', null, 3, now(), '2026-10-01 10:04:00+00');
+  ('00000000-0000-0000-0000-0000000f0004', 'other', 3, 8, 'Elsewhere?',     '["a","b","c","d"]',    3, null,        'approved', null, 3, now(), '2026-10-01 10:04:00+00'),
+  -- Two saved in the same instant (one batch): paging still shows each once.
+  ('00000000-0000-0000-0000-0000000f0005', 'twins', 3, 8, 'Twin one?',      '["a","b","c","d"]',    0, null,        'active', null, 3, now(), '2026-10-01 09:00:00+00'),
+  ('00000000-0000-0000-0000-0000000f0006', 'twins', 3, 8, 'Twin two?',      '["a","b","c","d"]',    0, null,        'active', null, 3, now(), '2026-10-01 09:00:00+00');
 insert into public.question_flags (question_id, profile_id, reason)
   values ('00000000-0000-0000-0000-0000000f0001', '00000000-0000-0000-0000-000000005ba1', 'wrong_answer');
 
@@ -167,6 +170,16 @@ begin
               p_after_id => '00000000-0000-0000-0000-0000000f0004') r)
            = array['00000000-0000-0000-0000-0000000f0001']::uuid[], 'the page after, by position not count';
   assert (select count(*) from public.admin_browse_questions(p_limit => 0)) = 1, 'at least one a page';
+  assert (select array_agg(r.id) from public.admin_browse_questions(p_topic => 'twins', p_limit => 1) r)
+           = array['00000000-0000-0000-0000-0000000f0006']::uuid[], 'the same instant: the higher id first';
+  assert (select array_agg(r.id) from public.admin_browse_questions(
+              p_topic => 'twins', p_limit => 1,
+              p_after_created => '2026-10-01 09:00:00+00', p_after_id => '00000000-0000-0000-0000-0000000f0006') r)
+           = array['00000000-0000-0000-0000-0000000f0005']::uuid[], 'then its twin, on the next page';
+  assert not exists (select 1 from public.admin_browse_questions(
+              p_topic => 'twins',
+              p_after_created => '2026-10-01 09:00:00+00', p_after_id => '00000000-0000-0000-0000-0000000f0005')),
+    'and nothing twice';
 end $$;
 reset role;
 

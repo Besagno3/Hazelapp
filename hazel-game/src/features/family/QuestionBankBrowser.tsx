@@ -1,18 +1,22 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type FormEvent } from 'react';
 import { ALL_TOPIC_INFO } from '../../content/topics';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import { errorMessage } from '../../lib/errors';
-import { BANK_PAGE, browseQuestions, fixQuestion, reviewTrouble, type BankFilter, type BankQuestion } from '../../lib/review';
+import {
+  BANK_PAGE,
+  STATUS_WORDS,
+  browseQuestions,
+  fixQuestion,
+  reviewTrouble,
+  topicLabel,
+  type BankFilter,
+  type BankQuestion,
+  type QuestionFix,
+} from '../../lib/review';
 import { cn } from '../../lib/utils';
 import { asGrownUp } from '../../store/grownUpsStore';
 import QuestionFixForm from './QuestionFixForm';
 
-const STATUS_WORDS: Record<string, string> = {
-  active: 'Live',
-  approved: 'Approved',
-  review: 'Held back',
-  retired: 'Retired',
-};
 const STATUS_STYLE: Record<string, string> = {
   active: 'bg-blue-100 text-blue-700',
   approved: 'bg-green-100 text-green-700',
@@ -21,16 +25,27 @@ const STATUS_STYLE: Record<string, string> = {
 };
 const LEVELS = Array.from({ length: 10 }, (_, i) => i + 1);
 
-const topicLabel = (id: string) => {
-  const t = ALL_TOPIC_INFO.find((x) => x.id === id);
-  return t ? `${t.emoji} ${t.label}` : id;
-};
-
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** Focus a control by its selector once React has drawn it. */
-function focusSoon(selector: string) {
-  requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
+/** What the waiting list did to a question Browse may have loaded (the page tells it). */
+export type OutsideChange = { fix: QuestionFix } | { status: string };
+
+export interface BankBrowserHandle {
+  /** A question fixed or decided on the ⏳ Waiting tab: its card here is brought up to date. */
+  changedElsewhere: (id: string, change: OutsideChange) => void;
+}
+
+const HINT = 'Save or cancel your fix first — a new list would lose it.';
+
+interface BrowserProps {
+  /** Whether it's the tab on show: a hidden one never moves the focus. */
+  active: boolean;
+  /** A question was fixed (the waiting list drops it too). */
+  onFixed: (id: string, text: string) => void;
+  /** Nothing left to land on (a retry loaded): the page's title takes the focus. */
+  onFocusTitle: () => void;
+  /** Whether any fix here holds changes not saved yet, or is saving. */
+  onPendingChange: (pending: boolean) => void;
 }
 
 /**
@@ -41,18 +56,10 @@ function focusSoon(selector: string) {
  * While a fix is open with changes, the filters wait, so nothing typed is
  * dropped by a new list.
  */
-export default function QuestionBankBrowser({
-  onFixed,
-  onFocusTitle,
-  onPendingChange,
-}: {
-  /** A question was fixed (the waiting list drops it too). */
-  onFixed: (id: string, text: string) => void;
-  /** Nothing left to land on (a retry loaded, the last page was empty): the page's title takes the focus. */
-  onFocusTitle: () => void;
-  /** Whether any fix here holds changes not saved yet, or is saving. */
-  onPendingChange: (pending: boolean) => void;
-}) {
+const QuestionBankBrowser = forwardRef<BankBrowserHandle, BrowserProps>(function QuestionBankBrowser(
+  { active, onFixed, onFocusTitle, onPendingChange },
+  ref,
+) {
   const [draft, setDraft] = useState<BankFilter>({});
   const [filter, setFilter] = useState<BankFilter>({});
   const [items, setItems] = useState<BankQuestion[] | null>(null);
@@ -64,6 +71,9 @@ export default function QuestionBankBrowser({
   const [fixing, setFixing] = useState<string[]>([]);
   const [pendingIds, setPendingIds] = useState<string[]>([]);
   const [said, say] = useLiveMessage();
+  const [nudged, setNudged] = useState(false);
+  const hintId = useId();
+  const box = useRef<HTMLDivElement>(null);
   /** Bumped by every new list (Search, a filter, Try again). */
   const [attempt, setAttempt] = useState(0);
   // Which list a Load more belongs to: one that lands after a new list started is dropped.
@@ -71,10 +81,48 @@ export default function QuestionBankBrowser({
   const retried = useRef(false);
   const blocked = pendingIds.length > 0;
   // The page's latest callbacks, so its inline arrows never re-run a load.
-  const page = useRef({ onFixed, onFocusTitle, onPendingChange });
+  const page = useRef({ active, onFixed, onFocusTitle, onPendingChange });
   useEffect(() => {
-    page.current = { onFixed, onFocusTitle, onPendingChange };
+    page.current = { active, onFixed, onFocusTitle, onPendingChange };
   });
+
+  /** Focus something of this tab's own (never a twin on the hidden tab), once it's drawn — only while on show. */
+  const focusSoon = useCallback((selector: string) => {
+    requestAnimationFrame(() => {
+      if (page.current.active) box.current?.querySelector<HTMLElement>(selector)?.focus();
+    });
+  }, []);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      changedElsewhere(id, change) {
+        setItems((list) =>
+          list === null
+            ? list
+            : list.map((q) =>
+                q.id !== id
+                  ? q
+                  : 'fix' in change
+                    ? {
+                        ...q,
+                        text: change.fix.text.trim(),
+                        options: change.fix.options.map((o) => o.trim()),
+                        correctIndex: change.fix.correctIndex,
+                        explanation: change.fix.explanation?.trim() || null,
+                        status: 'approved',
+                      }
+                    : { ...q, status: change.status },
+              ),
+        );
+        // A fix open on the old copy would save over the new one: it starts again from it.
+        setFixing((list) => list.filter((x) => x !== id));
+      },
+    }),
+    [],
+  );
+
+
 
   useEffect(() => {
     page.current.onPendingChange(blocked);
@@ -92,7 +140,7 @@ export default function QuestionBankBrowser({
         say(first.length === 0 ? 'No questions match.' : `${plural(first.length, 'question', 'questions')}${first.length === BANK_PAGE ? ' so far' : ''}`);
         if (retried.current) {
           retried.current = false;
-          page.current.onFocusTitle();
+          if (page.current.active) page.current.onFocusTitle();
         }
       },
       (err) => {
@@ -110,9 +158,16 @@ export default function QuestionBankBrowser({
     };
   }, [filter, attempt, say]);
 
+  /** Said when a filter is tried while a fix holds changes: shown in amber and read out. */
+  function nudge() {
+    setNudged(true);
+    say(HINT);
+  }
+
   /** A new list from the top. */
   function reload(next: BankFilter) {
-    if (blocked) return;
+    if (blocked) return nudge();
+    setNudged(false);
     generation.current += 1;
     setItems(null);
     setTrouble(null);
@@ -125,7 +180,7 @@ export default function QuestionBankBrowser({
 
   /** The lists apply as they're picked. */
   function pick(change: BankFilter) {
-    if (blocked) return;
+    if (blocked) return nudge();
     const next = { ...draft, ...change };
     setDraft(next);
     reload(next);
@@ -152,14 +207,18 @@ export default function QuestionBankBrowser({
     try {
       const next = await asGrownUp(() => browseQuestions(filter, items[items.length - 1]));
       if (generation.current !== mine) return;
+      // From the list as it is now: a fix saved while this was on its way stays.
       const seen = new Set(items.map((q) => q.id));
       const added = next.filter((q) => !seen.has(q.id));
-      setItems([...items, ...added]);
+      setItems((list) => {
+        const have = new Set((list ?? []).map((q) => q.id));
+        return [...(list ?? []), ...added.filter((q) => !have.has(q.id))];
+      });
       setMore(next.length === BANK_PAGE);
       say(added.length === 0 ? 'No more questions.' : `${plural(added.length, 'more question', 'more questions')}`);
-      // The keyboard lands on the first new question, not on a button that moved or went.
-      if (added.length > 0) focusSoon(`[data-bank-card="${added[0].id}"]`);
-      else page.current.onFocusTitle();
+      // The keyboard lands on the first new question (or stays at the end), not on a button that moved or went.
+      const target = added[0] ?? items[items.length - 1];
+      focusSoon(`[data-bank-card="${target.id}"]`);
     } catch (err) {
       console.warn('Loading more questions failed:', errorMessage(err));
       if (generation.current !== mine) return;
@@ -180,19 +239,22 @@ export default function QuestionBankBrowser({
     focusSoon(`[data-fix-button="${id}"]`);
   }
 
-  const field = 'min-h-11 rounded-lg border border-gray-300 px-2 focus:outline-none focus:ring-2 focus:ring-purple-400';
+  // 16px, not the label's 12px semibold (iOS zooms on a smaller field).
+  const field =
+    'min-h-11 rounded-lg border border-gray-300 px-2 text-base font-normal text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 aria-disabled:cursor-default aria-disabled:opacity-60';
+  const held = { 'aria-disabled': blocked || undefined, 'aria-describedby': hintId };
   const label =
     'flex flex-col text-xs font-semibold text-gray-700 [@media(max-width:359px)]:w-full';
 
   return (
-    <div>
+    <div ref={box}>
       <form onSubmit={search} className="mb-2 flex flex-wrap items-end gap-2" aria-label="Find questions">
         <label className={label}>
           Topic
           <select
             value={draft.topic ?? ''}
             onChange={(e) => pick({ topic: e.target.value || undefined })}
-            aria-disabled={blocked || undefined}
+            {...held}
             className={field}
           >
             <option value="">All topics</option>
@@ -208,7 +270,7 @@ export default function QuestionBankBrowser({
           <select
             value={draft.level ?? ''}
             onChange={(e) => pick({ level: e.target.value ? Number(e.target.value) : undefined })}
-            aria-disabled={blocked || undefined}
+            {...held}
             className={field}
           >
             <option value="">Any</option>
@@ -224,7 +286,7 @@ export default function QuestionBankBrowser({
           <select
             value={draft.status ?? ''}
             onChange={(e) => pick({ status: e.target.value || undefined })}
-            aria-disabled={blocked || undefined}
+            {...held}
             className={field}
           >
             <option value="">All but retired</option>
@@ -239,20 +301,21 @@ export default function QuestionBankBrowser({
           <input
             type="search"
             value={draft.search ?? ''}
-            onChange={(e) => setDraft((d) => ({ ...d, search: e.target.value }))}
+            onChange={(e) => (blocked ? nudge() : setDraft((d) => ({ ...d, search: e.target.value })))}
+            {...held}
             className={field}
           />
         </label>
         <button
           type="submit"
-          aria-disabled={blocked || undefined}
+          {...held}
           className="min-h-11 rounded-lg bg-purple-600 px-3 text-sm font-semibold text-white hover:bg-purple-700 aria-disabled:cursor-default aria-disabled:opacity-60 [@media(max-width:359px)]:w-full"
         >
           🔍 Search
         </button>
       </form>
-      <p className="mb-4 text-xs text-gray-500">
-        {blocked ? 'Save or cancel your fix first — a new list would lose it.' : 'Topic, level and status apply as you pick them; press Search for words.'}
+      <p id={hintId} className={cn('mb-4 text-xs', blocked && nudged ? 'font-semibold text-amber-700' : 'text-gray-500')}>
+        {blocked ? HINT : 'Topic, level and status apply as you pick them; press Search for words.'}
       </p>
 
       <div aria-live="polite" className="sr-only">
@@ -301,7 +364,7 @@ export default function QuestionBankBrowser({
                   </span>
                   <span className="text-gray-500">
                     {topicLabel(q.topic)} · level {q.level}
-                    {q.age !== null && ` · age ${q.age}`} · asked {q.timesAsked}×
+                    {q.age !== null && ` · written for age ${q.age}`} · asked {q.timesAsked}×
                     {q.reports > 0 && ` · ${plural(q.reports, 'report', 'reports')}`}
                   </span>
                 </div>
@@ -311,11 +374,12 @@ export default function QuestionBankBrowser({
                     <li key={i} className={i === q.correctIndex ? 'font-semibold text-green-700' : 'text-gray-600'}>
                       <span aria-hidden>{i === q.correctIndex ? '✓ ' : '• '}</span>
                       {o}
-                      {i === q.correctIndex && <span className="sr-only"> (the saved answer)</span>}
+                      {i === q.correctIndex && <span className="sr-only"> (the right answer)</span>}
                     </li>
                   ))}
                 </ul>
                 {q.explanation && <p className="mt-1 text-xs text-gray-500">Explanation: {q.explanation}</p>}
+                {q.status === 'retired' && <p className="mt-2 text-xs text-gray-500">Retired questions can't be fixed.</p>}
                 {open ? (
                   <QuestionFixForm
                     initial={q}
@@ -373,4 +437,6 @@ export default function QuestionBankBrowser({
       )}
     </div>
   );
-}
+});
+
+export default QuestionBankBrowser;

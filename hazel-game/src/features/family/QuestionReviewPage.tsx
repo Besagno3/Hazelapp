@@ -2,18 +2,20 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveMessage } from '../auth/useLiveMessage';
 import { errorMessage } from '../../lib/errors';
 import {
+  STATUS_WORDS,
   fetchReviewQueue,
   fixQuestion,
   reasonLabel,
   reviewQuestion,
   reviewTrouble,
+  topicLabel,
   type ReviewDecision,
   type ReviewItem,
 } from '../../lib/review';
 import { cn } from '../../lib/utils';
 import { asGrownUp } from '../../store/grownUpsStore';
 import FamilyCard from './FamilyCard';
-import QuestionBankBrowser from './QuestionBankBrowser';
+import QuestionBankBrowser, { type BankBrowserHandle } from './QuestionBankBrowser';
 import QuestionFixForm from './QuestionFixForm';
 
 const DONE: Record<ReviewDecision, string> = {
@@ -24,11 +26,6 @@ const DONE: Record<ReviewDecision, string> = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** Focus a control by its selector once React has drawn it. */
-function focusSoon(selector: string) {
-  requestAnimationFrame(() => document.querySelector<HTMLElement>(selector)?.focus());
-}
-
 type View = 'waiting' | 'browse';
 
 /**
@@ -38,9 +35,11 @@ type View = 'waiting' | 'browse';
  * found, and decides each: release, approve, retire or ✏️ fix (migration
  * 0028: correct the answer, which approves it). 📚 Browse lists the whole bank
  * to check answers without waiting for a report. Both tabs stay drawn (one
- * hidden), so switching keeps a fix being typed and Browse's list. Leaving
- * with a fix not saved asks first. The database refuses anyone who isn't an
- * admin (`admin_review_queue`, migration 0019).
+ * hidden), so switching keeps a fix being typed and Browse's list, and a
+ * fix or decision on one tab updates the other. Leaving with a fix not saved
+ * asks first. After a decision the keyboard lands on the next question (the
+ * title once none are left). The database refuses anyone who isn't an admin
+ * (`admin_review_queue`, migration 0019).
  */
 export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   const [items, setItems] = useState<ReviewItem[] | null>(null);
@@ -66,8 +65,36 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
   const [retrying, setRetrying] = useState(false);
   const [refocus, setRefocus] = useState(0);
   const retried = useRef(false);
+  const [refreshNudged, setRefreshNudged] = useState(false);
+  const waitingBox = useRef<HTMLDivElement>(null);
+  const browser = useRef<BankBrowserHandle>(null);
+  const viewNow = useRef<View>('waiting');
   const waitingPending = pendingIds.length > 0;
   const anyPending = waitingPending || browsePending;
+  // Asked only while something is still unsaved: saved or cancelled, it goes.
+  const asking = confirmLeave && anyPending;
+
+  useEffect(() => {
+    viewNow.current = view;
+  }, [view]);
+
+  /** Focus something of the waiting tab's own (never a twin on the hidden Browse tab), once it's drawn. */
+  const focusSoon = useCallback((selector: string, root: 'waiting' | 'page' = 'waiting') => {
+    requestAnimationFrame(() => {
+      if (root === 'waiting' && viewNow.current !== 'waiting') return;
+      const scope = root === 'waiting' ? waitingBox.current : document;
+      scope?.querySelector<HTMLElement>(selector)?.focus();
+    });
+  }, []);
+
+  /** A card is about to go: the keyboard lands on the next one, else the one before, else the title. */
+  function focusAfterRemoving(id: string) {
+    const list = items ?? [];
+    const at = list.findIndex((i) => i.id === id);
+    const next = list[at + 1] ?? list[at - 1];
+    if (next) focusSoon(`[data-waiting-card="${next.id}"]`);
+    else setRefocus((n) => n + 1);
+  }
 
   useEffect(() => {
     let live = true;
@@ -80,7 +107,8 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
         setItems(list);
         if (retried.current) {
           retried.current = false;
-          setRefocus((n) => n + 1);
+          // Not from the other tab: the owner may be typing there.
+          if (viewNow.current === 'waiting') setRefocus((n) => n + 1);
         }
       },
       (err) => {
@@ -98,7 +126,11 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
 
   function reload() {
     // A new list would drop a fix being typed.
-    if (waitingPending) return;
+    if (waitingPending) {
+      setRefreshNudged(true);
+      return;
+    }
+    setRefreshNudged(false);
     setLoadError(null);
     setItems(null);
     setFixing([]);
@@ -126,10 +158,10 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
     setConfirmRetire(null);
     try {
       await asGrownUp(() => reviewQuestion(item.id, decision));
+      focusAfterRemoving(item.id);
       setItems((list) => (list ?? []).filter((i) => i.id !== item.id));
+      browser.current?.changedElsewhere(item.id, { status: decision });
       setNotice(`${DONE[decision]}: "${item.text}"`);
-      // Its card is gone: the title takes the focus (nothing else to land on).
-      setRefocus((n) => n + 1);
     } catch (err) {
       console.warn('Saving a review decision failed:', errorMessage(err));
       setItemError({ id: item.id, message: reviewTrouble(err, "Couldn't save that just now. Please try again.") });
@@ -144,23 +176,37 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
 
   const focusTitle = useCallback(() => setRefocus((n) => n + 1), []);
 
-  // A fix saved in 📚 Browse: the waiting copy is out of date (and now approved), so it goes.
+  // A fix saved in 📚 Browse: the waiting copy is out of date (and now approved), so it goes —
+  // unless a fix of it is being typed here, which stays, warned that saving it replaces Browse's.
   const fixedInBrowse = useCallback(
     (id: string, text: string) => {
-      setItems((list) => (list === null ? list : list.filter((i) => i.id !== id)));
-      setFixing((list) => list.filter((x) => x !== id));
+      if (pendingIds.includes(id)) {
+        setItemError({ id, message: 'Fixed in 📚 Browse just now — saving this would replace that fix.' });
+      } else {
+        setItems((list) => (list === null ? list : list.filter((i) => i.id !== id)));
+        setFixing((list) => list.filter((x) => x !== id));
+      }
       setNotice(`Fixed and approved: "${text}"`);
     },
-    [setNotice],
+    [pendingIds, setNotice],
   );
 
   function leave() {
-    if (anyPending && !confirmLeave) {
+    if (asking) {
+      // Already asking: a second press (a double click, Enter held) doesn't leave.
+      focusSoon('[data-leave="stay"]', 'page');
+      return;
+    }
+    if (anyPending) {
       setConfirmLeave(true);
+      focusSoon('[data-leave="stay"]', 'page');
       return;
     }
     onBack();
   }
+
+  const unsavedWhere =
+    waitingPending && browsePending ? 'on both tabs' : waitingPending ? 'on ⏳ Waiting' : 'in 📚 Browse all';
 
   const subtitle =
     view === 'browse'
@@ -187,6 +233,10 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
             <b>🗑️ Retire</b> removes it for good.
           </li>
           <li>
+            A question is <b>Live</b> (shown to kids), <b>Approved</b> (looked at, shown first), <b>Held back</b>{' '}
+            (shown to no one until you decide) or <b>Retired</b> (never again).
+          </li>
+          <li>
             <b>✏️ Fix</b> corrects the question, its answers or which one is right, and approves it. Kids get the fixed
             one on their next request; a device that already had it may show the old one for up to 45 minutes, or
             until it reloads.
@@ -201,10 +251,10 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
       <div role="group" aria-label="Show" className="mb-4 flex gap-2">
         {(
           [
-            ['waiting', '⏳ Waiting'],
-            ['browse', '📚 Browse all'],
+            ['waiting', '⏳ Waiting', waitingPending],
+            ['browse', '📚 Browse all', browsePending],
           ] as const
-        ).map(([key, label]) => (
+        ).map(([key, label, unsaved]) => (
           <button
             key={key}
             onClick={() => show(key)}
@@ -215,6 +265,7 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
             )}
           >
             {label}
+            {unsaved && <span className="ml-1 font-normal">· fix not saved</span>}
           </button>
         ))}
       </div>
@@ -226,11 +277,17 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
 
       {browsed && (
         <div hidden={view !== 'browse'}>
-          <QuestionBankBrowser onFixed={fixedInBrowse} onFocusTitle={focusTitle} onPendingChange={setBrowsePending} />
+          <QuestionBankBrowser
+            ref={browser}
+            active={view === 'browse'}
+            onFixed={fixedInBrowse}
+            onFocusTitle={focusTitle}
+            onPendingChange={setBrowsePending}
+          />
         </div>
       )}
 
-      <div hidden={view !== 'waiting'}>
+      <div ref={waitingBox} hidden={view !== 'waiting'}>
         {loadError && (
           <div className="text-center">
             <p className="text-red-600 text-sm">{loadError}</p>
@@ -256,7 +313,12 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                 focusSoon(`[data-fix-button="${item.id}"]`);
               };
               return (
-                <li key={item.id} className="rounded-xl border border-gray-200 p-3">
+                <li
+                  key={item.id}
+                  data-waiting-card={item.id}
+                  tabIndex={-1}
+                  className="rounded-xl border border-gray-200 p-3 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                >
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span
                       className={cn(
@@ -264,10 +326,10 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                         held ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800',
                       )}
                     >
-                      {held ? 'Held back' : 'Still shown'}
+                      {held ? 'Held back' : `${STATUS_WORDS[item.status] ?? item.status} · new reports`}
                     </span>
                     <span className="text-gray-500">
-                      {item.topic} · level {item.level}
+                      {topicLabel(item.topic)} · level {item.level}
                       {item.age !== null && ` · written for age ${item.age}`}
                     </span>
                   </div>
@@ -277,7 +339,7 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                       <li key={i} className={i === item.correctIndex ? 'font-semibold text-green-700' : 'text-gray-600'}>
                         <span aria-hidden>{i === item.correctIndex ? '✓ ' : '• '}</span>
                         {o}
-                        {i === item.correctIndex && <span className="sr-only"> (the saved answer)</span>}
+                        {i === item.correctIndex && <span className="sr-only"> (the right answer)</span>}
                       </li>
                     ))}
                   </ul>
@@ -296,7 +358,9 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                       ))}
                     </ul>
                   )}
-                  {itemError?.id === item.id && <p className="mt-2 text-sm text-red-600">{itemError.message}</p>}
+                  <div role="alert" className="text-sm text-red-600">
+                    {itemError?.id === item.id && <p className="mt-2">{itemError.message}</p>}
+                  </div>
                   {open ? (
                     <QuestionFixForm
                       initial={item}
@@ -304,25 +368,35 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                       onPendingChange={(p) => setPending(item.id, p)}
                       onSave={async (fix) => {
                         await fixQuestion(item.id, fix);
+                        focusAfterRemoving(item.id);
                         setFixing((list) => list.filter((x) => x !== item.id));
                         setItems((list) => (list ?? []).filter((i) => i.id !== item.id));
+                        setItemError((e) => (e?.id === item.id ? null : e));
+                        browser.current?.changedElsewhere(item.id, { fix });
                         setNotice(`Fixed and approved: "${fix.text.trim()}"`);
-                        // Its card is gone: the title takes the focus.
-                        setRefocus((n) => n + 1);
                       }}
                     />
                   ) : confirmRetire === item.id ? (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-sm text-gray-700">Retire it for good?</span>
                       <button
+                        data-retire-yes={item.id}
                         onClick={busy ? undefined : () => void decide(item, 'retired')}
                         aria-disabled={busy || undefined}
-                        className="min-h-11 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white hover:bg-red-700 aria-disabled:opacity-50"
+                        className="min-h-11 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white hover:bg-red-700 aria-disabled:cursor-default aria-disabled:opacity-60"
                       >
-                        Yes, retire
+                        {busy ? 'Saving…' : 'Yes, retire'}
                       </button>
                       <button
-                        onClick={() => setConfirmRetire(null)}
+                        onClick={
+                          busy
+                            ? undefined
+                            : () => {
+                                setConfirmRetire(null);
+                                focusSoon(`[data-retire="${item.id}"]`);
+                              }
+                        }
+                        aria-disabled={busy || undefined}
                         className="min-h-11 px-3 text-sm text-gray-500 hover:underline"
                       >
                         Cancel
@@ -333,21 +407,29 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                       <button
                         onClick={busy ? undefined : () => void decide(item, 'active')}
                         aria-disabled={busy || undefined}
-                        className="min-h-11 rounded-lg bg-purple-600 px-3 text-sm font-semibold text-white hover:bg-purple-700 aria-disabled:opacity-50"
+                        className="min-h-11 rounded-lg bg-purple-600 px-3 text-sm font-semibold text-white hover:bg-purple-700 aria-disabled:cursor-default aria-disabled:opacity-60"
                       >
                         ✅ Release
                       </button>
                       <button
                         onClick={busy ? undefined : () => void decide(item, 'approved')}
                         aria-disabled={busy || undefined}
-                        className="min-h-11 rounded-lg bg-green-600 px-3 text-sm font-semibold text-white hover:bg-green-700 aria-disabled:opacity-50"
+                        className="min-h-11 rounded-lg bg-green-600 px-3 text-sm font-semibold text-white hover:bg-green-700 aria-disabled:cursor-default aria-disabled:opacity-60"
                       >
                         ⭐ Approve
                       </button>
                       <button
-                        onClick={busy ? undefined : () => setConfirmRetire(item.id)}
+                        data-retire={item.id}
+                        onClick={
+                          busy
+                            ? undefined
+                            : () => {
+                                setConfirmRetire(item.id);
+                                focusSoon(`[data-retire-yes="${item.id}"]`);
+                              }
+                        }
                         aria-disabled={busy || undefined}
-                        className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 aria-disabled:opacity-50"
+                        className="min-h-11 rounded-lg border border-red-300 px-3 text-sm font-semibold text-red-700 hover:bg-red-50 aria-disabled:cursor-default aria-disabled:opacity-60"
                       >
                         🗑️ Retire
                       </button>
@@ -363,10 +445,11 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
                               }
                         }
                         aria-disabled={busy || undefined}
-                        className="min-h-11 rounded-lg border border-purple-300 px-3 text-sm font-semibold text-purple-700 hover:bg-purple-50 aria-disabled:opacity-50"
+                        className="min-h-11 rounded-lg border border-purple-300 px-3 text-sm font-semibold text-purple-700 hover:bg-purple-50 aria-disabled:cursor-default aria-disabled:opacity-60"
                       >
                         ✏️ Fix
                       </button>
+                      {busy && <span className="self-center text-sm text-gray-500">Saving…</span>}
                     </div>
                   )}
                 </li>
@@ -376,22 +459,9 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      {confirmLeave && (
-        <div role="alert" className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-          <p>A fix isn't saved yet. Leave without saving it?</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button onClick={onBack} className="min-h-11 rounded-lg bg-amber-600 px-3 font-semibold text-white hover:bg-amber-700">
-              Leave without saving
-            </button>
-            <button onClick={() => setConfirmLeave(false)} className="min-h-11 px-3 text-gray-600 hover:underline">
-              Stay
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="mt-5 flex flex-wrap gap-2">
         <button
+          data-leave="back"
           onClick={leave}
           className="min-h-11 flex-1 rounded-lg bg-purple-600 py-2 font-semibold text-white transition hover:bg-purple-700"
         >
@@ -401,13 +471,43 @@ export default function QuestionReviewPage({ onBack }: { onBack: () => void }) {
           <button
             onClick={reload}
             aria-disabled={waitingPending || undefined}
-            title={waitingPending ? 'Save or cancel your fix first' : undefined}
+            aria-describedby={waitingPending ? 'review-refresh-hint' : undefined}
             className="min-h-11 px-3 text-sm text-purple-600 hover:underline aria-disabled:cursor-default aria-disabled:opacity-60"
           >
             Refresh
           </button>
         )}
       </div>
+      {view === 'waiting' && waitingPending && (
+        <p
+          id="review-refresh-hint"
+          role={refreshNudged ? 'alert' : undefined}
+          className={cn('mt-1 text-right text-xs', refreshNudged ? 'font-semibold text-amber-700' : 'text-gray-500')}
+        >
+          Save or cancel your fix first — Refresh would lose it.
+        </p>
+      )}
+
+      {asking && (
+        <div role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p>A fix {unsavedWhere} isn't saved yet. Leave without saving it?</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              data-leave="stay"
+              onClick={() => {
+                setConfirmLeave(false);
+                focusSoon('[data-leave="back"]', 'page');
+              }}
+              className="min-h-11 rounded-lg bg-purple-600 px-3 font-semibold text-white hover:bg-purple-700"
+            >
+              Stay
+            </button>
+            <button onClick={onBack} className="min-h-11 rounded-lg border border-amber-600 px-3 font-semibold text-amber-800 hover:bg-amber-100">
+              Leave without saving
+            </button>
+          </div>
+        </div>
+      )}
     </FamilyCard>
   );
 }

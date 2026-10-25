@@ -3,6 +3,7 @@ import { errorMessage } from './errors';
 import { plainErrorOr } from './familyErrors';
 import { grownUpsLocked } from './grownUpsGate';
 import { screenQuestion } from '../../supabase/functions/_shared/questionScreen';
+import { ALL_TOPIC_INFO } from '../content/topics';
 
 /**
  * The owner's question review (#147): the review queue and decisions, through
@@ -32,6 +33,20 @@ export interface ReviewItem {
   /** Report reasons, and what the checks found ("recheck: …"). */
   reasons: string[];
   lastReport: string | null;
+}
+
+/** A question's status in the owner's words — the same on both tabs of the review page. */
+export const STATUS_WORDS: Record<string, string> = {
+  active: 'Live',
+  approved: 'Approved',
+  review: 'Held back',
+  retired: 'Retired',
+};
+
+/** A topic as the game shows it ("🔢 Math"), or its id when the app doesn't know it. */
+export function topicLabel(id: string): string {
+  const t = ALL_TOPIC_INFO.find((x) => x.id === id);
+  return t ? `${t.emoji} ${t.label}` : id;
 }
 
 /** Shown when the signed-in grown-up isn't an admin. */
@@ -141,7 +156,7 @@ export function fixProblem(fix: QuestionFix): string | null {
     correctIndex: fix.correctIndex,
     explanation: fix.explanation?.trim() || null,
   });
-  return why === null ? null : (SCREEN_WORDS[why] ?? `The game would refuse it: ${why}.`);
+  return why === null ? null : (SCREEN_WORDS[why] ?? 'The game wouldn’t show it as it is — check the question and its answers.');
 }
 
 /** Save a corrected question (it's approved, migration 0028); throws with a message to show. */
